@@ -41,6 +41,7 @@ function Invoke-Godot([string[]]$Arguments) {
 	if ($LASTEXITCODE -ne 0) { throw "Godot failed with exit code ${LASTEXITCODE}: $($Arguments -join ' ')" }
 }
 
+Reset-GeneratedDirectory $stagingRoot $buildRoot
 if (-not $SkipAcceptance) {
 	& (Join-Path $PSScriptRoot "run_phase_one_acceptance.ps1") -GodotBinary $GodotBinary
 	if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -48,7 +49,6 @@ if (-not $SkipAcceptance) {
 & (Join-Path $PSScriptRoot "build_content_pack.ps1") -GodotBinary $GodotBinary
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-Reset-GeneratedDirectory $stagingRoot $buildRoot
 Reset-GeneratedDirectory $distRoot (Join-Path $projectRoot "dist")
 
 $releaseEntries = @(
