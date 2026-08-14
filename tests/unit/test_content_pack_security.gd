@@ -73,4 +73,4 @@ func test_validator_rejects_scene_without_gameplay_body_contract() -> void:
 
 	var report := "\n".join(ContentValidator.new().validate_pack(pack))
 
-	assert_bool(report.contains("enemy/invalid_scene scene root must be a gameplay body")).is_true()
+	assert_bool(report.contains("enemy/invalid_scene scene root must be CharacterBody2D")).is_true()

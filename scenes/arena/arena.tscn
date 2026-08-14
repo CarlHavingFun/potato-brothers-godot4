@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3 uid="uid://bjhraywhhpn3h"]
+[gd_scene load_steps=21 format=3 uid="uid://bjhraywhhpn3h"]
 
 [ext_resource type="Texture2D" uid="uid://cy4xfx762bxgb" path="res://assets/sprites/BG.png" id="1_5tue2"]
 [ext_resource type="Script" uid="uid://fylssyuoxjey" path="res://scenes/arena/arena.gd" id="1_asdgj"]
@@ -23,6 +23,12 @@ font_size = 64
 [sub_resource type="LabelSettings" id="LabelSettings_2ml6w"]
 font_size = 64
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_horizontal"]
+size = Vector2(2200, 100)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_vertical"]
+size = Vector2(100, 1200)
+
 [node name="Arena" type="Node2D"]
 script = ExtResource("1_asdgj")
 normal_color = Color(1, 1, 1, 1)
@@ -37,6 +43,26 @@ texture = ExtResource("1_5tue2")
 [node name="GrassBG" type="Sprite2D" parent="."]
 scale = Vector2(2, 2)
 texture = ExtResource("2_aj7ud")
+
+[node name="WorldBoundaries" type="StaticBody2D" parent="."]
+collision_layer = 128
+collision_mask = 3
+
+[node name="Top" type="CollisionShape2D" parent="WorldBoundaries"]
+position = Vector2(0, -550)
+shape = SubResource("RectangleShape2D_horizontal")
+
+[node name="Bottom" type="CollisionShape2D" parent="WorldBoundaries"]
+position = Vector2(0, 550)
+shape = SubResource("RectangleShape2D_horizontal")
+
+[node name="Left" type="CollisionShape2D" parent="WorldBoundaries"]
+position = Vector2(-1050, 0)
+shape = SubResource("RectangleShape2D_vertical")
+
+[node name="Right" type="CollisionShape2D" parent="WorldBoundaries"]
+position = Vector2(1050, 0)
+shape = SubResource("RectangleShape2D_vertical")
 
 [node name="Camera2D" type="Camera2D" parent="."]
 script = ExtResource("4_aj7ud")

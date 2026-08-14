@@ -33,5 +33,7 @@ func set_collection_target(screen_pos: Vector2) -> void:
 	target_screen_pos = screen_pos
 
 
-func _on_area_entered(area: Area2D) -> void:
+func _on_body_entered(body: Node2D) -> void:
+	if not body is Player:
+		return
 	collected = true

@@ -72,12 +72,14 @@ dash={
 
 [layer_names]
 
-2d_physics/layer_1="Player"
-2d_physics/layer_2="Enemy"
-2d_physics/layer_3="HitboxEnemy"
-2d_physics/layer_4="HurtboxEnemy"
-2d_physics/layer_5="HitboxPlayer"
-2d_physics/layer_6="HurtboxPlayer"
+2d_physics/layer_1="player"
+2d_physics/layer_2="enemy"
+2d_physics/layer_3="hostile_attack"
+2d_physics/layer_4="enemy_hurtbox"
+2d_physics/layer_5="friendly_attack"
+2d_physics/layer_6="player_hurtbox"
+2d_physics/layer_7="pickup"
+2d_physics/layer_8="world"
 
 [rendering]
 

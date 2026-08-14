@@ -35,7 +35,8 @@ func _process(delta: float) -> void:
 	if is_dashing:
 		current_velocity *= dash_speed_multi
 	
-	position += current_velocity * delta
+	velocity = current_velocity
+	move_and_slide()
 	position.x = clamp(position.x, -1000, 1000)
 	position.y = clamp(position.y, -500, 500)
 	

@@ -3,6 +3,13 @@ class_name Enemy
 
 @export var flock_push := 20.0
 
+const FLOCK_CELL_SIZE := 160.0
+const MAX_FLOCK_NEIGHBORS := 8
+
+static var _flock_members: Dictionary = {}
+static var _flock_cells: Dictionary = {}
+static var _flock_cache_frame := -1
+
 @onready var vision_area: Area2D = $VisionArea
 @onready var knockback_timer: Timer = $KnockbackTimer
 
@@ -11,8 +18,24 @@ var can_move := true
 var knockback_dir: Vector2
 var knockback_power: float
 
+
+func _ready() -> void:
+	super._ready()
+	_flock_members[get_instance_id()] = weakref(self)
+	# Neighbor lookup is handled by the shared spatial grid below. Keeping this
+	# Area2D active makes crowded waves perform the same broad-phase query 250
+	# times per frame and causes quadratic frame-time spikes.
+	vision_area.monitoring = false
+	vision_area.monitorable = false
+
+
+func _exit_tree() -> void:
+	_flock_members.erase(get_instance_id())
+
 func _process(delta: float) -> void:
-	if not Global.is_combat_active(): return
+	if not Global.is_combat_active():
+		velocity = Vector2.ZERO
+		return
 	
 	if not can_move:
 		return
@@ -20,7 +43,8 @@ func _process(delta: float) -> void:
 	if not can_move_towards_player():
 		return
 	
-	position += (get_move_direction() + knockback_dir * knockback_power) * stats.speed * delta
+	velocity = (get_move_direction() + knockback_dir * knockback_power) * stats.speed
+	move_and_slide()
 	update_rotation()
 
 
@@ -29,12 +53,51 @@ func get_move_direction() -> Vector2:
 		return Vector2.ZERO
 	
 	var direction := global_position.direction_to(Global.player.global_position)
-	for area: Node2D in vision_area.get_overlapping_areas():
-		if area != self and area.is_inside_tree():
-			var vector := global_position - area.global_position
-			direction += flock_push * vector.normalized() / vector.length()
+	_rebuild_flock_grid()
+	var own_cell := _flock_cell(global_position)
+	var neighbor_count := 0
+	for cell_y: int in range(own_cell.y - 1, own_cell.y + 2):
+		for cell_x: int in range(own_cell.x - 1, own_cell.x + 2):
+			var members: Array = _flock_cells.get(Vector2i(cell_x, cell_y), [])
+			for body: Enemy in members:
+				if body == self or not is_instance_valid(body) or not body.is_inside_tree():
+					continue
+				var separation := global_position - body.global_position
+				var distance_squared := separation.length_squared()
+				if distance_squared <= 0.0001 or distance_squared > FLOCK_CELL_SIZE * FLOCK_CELL_SIZE:
+					continue
+				direction += flock_push * separation.normalized() / sqrt(distance_squared)
+				neighbor_count += 1
+				if neighbor_count >= MAX_FLOCK_NEIGHBORS:
+					return direction
 	
 	return direction
+
+
+static func _flock_cell(world_position: Vector2) -> Vector2i:
+	return Vector2i(
+		floori(world_position.x / FLOCK_CELL_SIZE),
+		floori(world_position.y / FLOCK_CELL_SIZE)
+	)
+
+
+static func _rebuild_flock_grid() -> void:
+	var physics_frame := Engine.get_physics_frames()
+	if _flock_cache_frame == physics_frame:
+		return
+	_flock_cache_frame = physics_frame
+	_flock_cells.clear()
+	for instance_id: int in _flock_members.keys():
+		var member_ref := _flock_members[instance_id] as WeakRef
+		var member := member_ref.get_ref() as Enemy if member_ref != null else null
+		if not is_instance_valid(member) or not member.is_inside_tree():
+			_flock_members.erase(instance_id)
+			continue
+		var cell := _flock_cell(member.global_position)
+		if not _flock_cells.has(cell):
+			_flock_cells[cell] = []
+		var members: Array = _flock_cells[cell]
+		members.append(member)
 
 
 func update_rotation() -> void:

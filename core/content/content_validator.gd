@@ -177,8 +177,8 @@ func _validate_scene_contract(scene: PackedScene, content_id: String, errors: Pa
 	if instance == null:
 		errors.append("%s scene cannot be instantiated" % content_id)
 		return
-	if not instance is CharacterBody2D and not instance is Area2D:
-		errors.append("%s scene root must be a gameplay body" % content_id)
+	if not instance is CharacterBody2D:
+		errors.append("%s scene root must be CharacterBody2D" % content_id)
 	_validate_scene_scripts(instance, content_id, errors)
 	instance.free()
 
