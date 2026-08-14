@@ -3,11 +3,23 @@ extends RefCounted
 
 
 const FORBIDDEN_EXTENSIONS := {
+	"cs": true,
+	"exe": true,
 	"gd": true,
 	"gdc": true,
 	"dll": true,
 	"gdextension": true,
+	"dylib": true,
+	"so": true,
 }
+
+const PROTECTED_ROOTS := [
+	"res://addons/",
+	"res://autoloads/",
+	"res://core/",
+	"res://tests/",
+	"res://tools/",
+]
 
 
 func validate_pack(pack: ContentPackDef, source_root := "") -> PackedStringArray:
@@ -19,8 +31,34 @@ func validate_pack(pack: ContentPackDef, source_root := "") -> PackedStringArray
 	_validate_metadata(pack, errors)
 	_validate_definitions(pack, errors)
 	_validate_references(pack, errors)
+	_validate_declared_paths(pack, errors)
 	if not source_root.is_empty():
-		_validate_source_directory(source_root.trim_suffix("/"), errors)
+		var normalized_root := source_root.replace("\\", "/").trim_suffix("/")
+		var files := PackedStringArray()
+		_collect_source_files(normalized_root, files, errors)
+		errors.append_array(validate_virtual_paths(files, normalized_root))
+	return errors
+
+
+func validate_virtual_paths(paths: PackedStringArray, allowed_root: String) -> PackedStringArray:
+	var errors := PackedStringArray()
+	var normalized_root := allowed_root.replace("\\", "/").trim_suffix("/")
+	for raw_path: String in paths:
+		var path := raw_path.replace("\\", "/")
+		if _is_os_absolute_path(path):
+			errors.append("absolute path is forbidden: %s" % raw_path)
+			continue
+		if _contains_traversal(path):
+			errors.append("path traversal is forbidden: %s" % raw_path)
+			continue
+		if _is_protected_path(path):
+			errors.append("core path override is forbidden: %s" % raw_path)
+			continue
+		if not normalized_root.is_empty() and not path.begins_with(normalized_root + "/"):
+			errors.append("content path is outside allowed root %s: %s" % [normalized_root, raw_path])
+			continue
+		if FORBIDDEN_EXTENSIONS.has(path.get_extension().to_lower()):
+			errors.append("forbidden content file: %s" % raw_path)
 	return errors
 
 
@@ -67,6 +105,34 @@ func _validate_definitions(pack: ContentPackDef, errors: PackedStringArray) -> v
 
 
 func _validate_references(pack: ContentPackDef, errors: PackedStringArray) -> void:
+	for character: CharacterDef in pack.characters:
+		if character == null:
+			continue
+		var character_id := String(character.content_id)
+		if character.scene == null:
+			errors.append("%s requires a scene" % character_id)
+		else:
+			_validate_scene_contract(character.scene, character_id, errors)
+		if character.stats == null:
+			errors.append("%s requires stats" % character_id)
+
+	for weapon: WeaponDef in pack.weapons:
+		if weapon == null:
+			continue
+		if weapon.tiers.size() != 4:
+			errors.append("%s requires four tiers" % weapon.content_id)
+		for tier: ItemWeapon in weapon.tiers:
+			if tier == null:
+				errors.append("%s contains a null tier" % weapon.content_id)
+
+	for passive: PassiveItemDef in pack.passives:
+		if passive != null and passive.item == null:
+			errors.append("%s requires an item" % passive.content_id)
+
+	for upgrade: UpgradeDef in pack.upgrades:
+		if upgrade != null and upgrade.item == null:
+			errors.append("%s requires an item" % upgrade.content_id)
+
 	var enemy_ids: Dictionary = {}
 	for enemy: EnemyDef in pack.enemies:
 		if enemy == null:
@@ -74,6 +140,8 @@ func _validate_references(pack: ContentPackDef, errors: PackedStringArray) -> vo
 		var local_id := String(enemy.content_id)
 		if enemy.scene == null:
 			errors.append("%s requires a scene" % local_id)
+		else:
+			_validate_scene_contract(enemy.scene, local_id, errors)
 		enemy_ids[enemy.content_id] = true
 		enemy_ids[enemy.get_stable_id(pack.pack_id)] = true
 
@@ -90,7 +158,42 @@ func _validate_references(pack: ContentPackDef, errors: PackedStringArray) -> vo
 				)
 
 
-func _validate_source_directory(path: String, errors: PackedStringArray) -> void:
+func _validate_declared_paths(pack: ContentPackDef, errors: PackedStringArray) -> void:
+	for path: String in pack.translation_paths:
+		if _is_os_absolute_path(path):
+			errors.append("absolute path is forbidden: %s" % path)
+		elif _contains_traversal(path):
+			errors.append("path traversal is forbidden: %s" % path)
+		elif _is_protected_path(path):
+			errors.append("core path override is forbidden: %s" % path)
+		elif not path.begins_with("res://content_packs/"):
+			errors.append("translation path must be inside res://content_packs/: %s" % path)
+		elif not ResourceLoader.exists(path):
+			errors.append("translation path does not exist: %s" % path)
+
+
+func _validate_scene_contract(scene: PackedScene, content_id: String, errors: PackedStringArray) -> void:
+	var instance := scene.instantiate()
+	if instance == null:
+		errors.append("%s scene cannot be instantiated" % content_id)
+		return
+	if not instance is CharacterBody2D and not instance is Area2D:
+		errors.append("%s scene root must be a gameplay body" % content_id)
+	_validate_scene_scripts(instance, content_id, errors)
+	instance.free()
+
+
+func _validate_scene_scripts(node: Node, content_id: String, errors: PackedStringArray) -> void:
+	var script := node.get_script() as Script
+	if script != null:
+		var script_path := script.resource_path.replace("\\", "/")
+		if script_path.begins_with("res://content_packs/"):
+			errors.append("%s scene contains content script %s" % [content_id, script_path])
+	for child: Node in node.get_children():
+		_validate_scene_scripts(child, content_id, errors)
+
+
+func _collect_source_files(path: String, files: PackedStringArray, errors: PackedStringArray) -> void:
 	var directory := DirAccess.open(path)
 	if directory == null:
 		errors.append("content source directory does not exist: %s" % path)
@@ -101,8 +204,25 @@ func _validate_source_directory(path: String, errors: PackedStringArray) -> void
 		if entry != "." and entry != "..":
 			var entry_path := path.path_join(entry)
 			if directory.current_is_dir():
-				_validate_source_directory(entry_path, errors)
-			elif FORBIDDEN_EXTENSIONS.has(entry.get_extension().to_lower()):
-				errors.append("forbidden content file: %s" % entry_path)
+				_collect_source_files(entry_path, files, errors)
+			else:
+				files.append(entry_path)
 		entry = directory.get_next()
 	directory.list_dir_end()
+
+
+func _is_os_absolute_path(path: String) -> bool:
+	if path.begins_with("/") or path.begins_with("//"):
+		return true
+	return path.length() >= 3 and path[1] == ":" and path[2] == "/"
+
+
+func _contains_traversal(path: String) -> bool:
+	return Array(path.split("/", false)).has("..")
+
+
+func _is_protected_path(path: String) -> bool:
+	for root: String in PROTECTED_ROOTS:
+		if path.begins_with(root):
+			return true
+	return false

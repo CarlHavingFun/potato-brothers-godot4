@@ -1,6 +1,7 @@
 .godot/
 /builds/
 /dist/
+/content_pack_staging/
 /reports/*
 !/reports/.gdignore
 /test_reports/

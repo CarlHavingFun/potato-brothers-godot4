@@ -136,6 +136,9 @@ func test_bootstrap_loads_a_valid_manifest_before_game_content_is_used() -> void
 	pack.pack_id = &"potato_default"
 	var character := CharacterDef.new()
 	character.content_id = &"character/well_rounded"
+	var default_character := Content.catalog.get_character(&"character/well_rounded")
+	character.scene = default_character.scene
+	character.stats = default_character.stats
 	pack.characters = [character]
 	DirAccess.make_dir_recursive_absolute(
 		ProjectSettings.globalize_path(TEST_PACK_PATH.get_base_dir())
