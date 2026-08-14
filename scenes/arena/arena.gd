@@ -94,7 +94,7 @@ func _on_create_block_text(unit: Node2D) -> void:
 func _on_create_damage_text(unit: Node2D, hitbox: HitboxComponent) -> void:
 	var text := create_floating_text(unit)
 	var color := critical_color if hitbox.critical else normal_color
-	text.setup(str(hitbox.damage), color)
+	text.setup(str(snappedf(hitbox.display_damage, 0.1)), color)
 
 
 func _on_create_heal_text(unit: Node2D, heal: float) -> void:

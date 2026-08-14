@@ -4,6 +4,7 @@ class_name HitboxComponent
 signal on_hit_hurtbox(hurtbox: HurtboxComponent)
 
 var damage := 1.0
+var display_damage := 1.0
 var critical := false
 var knockback_power := 0.0
 var source: Node2D
@@ -18,6 +19,7 @@ func disable() -> void:
 
 func setup(damage: float, critical: bool, knockback: float, source: Node2D) -> void:
 	self.damage = damage
+	display_damage = damage
 	self.critical = critical
 	knockback_power = knockback
 	self.source = source

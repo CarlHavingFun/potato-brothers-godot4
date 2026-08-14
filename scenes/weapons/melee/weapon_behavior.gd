@@ -9,8 +9,14 @@ func execute_attack() -> void:
 	pass
 
 func get_damage() -> float:
-	var damage := weapon.data.stats.damage + Global.get_stat_value("damage")
-	var crit_chance := weapon.data.stats.crit_chance
+	critical = false
+	var scaling_stat_id := get_scaling_stat_id()
+	var damage := Global.combat_resolver.weapon_damage(
+		weapon.data.stats.damage, Global.current_run.player_stats, scaling_stat_id
+	)
+	var crit_chance := Global.combat_resolver.critical_chance(
+		weapon.data.stats.crit_chance, Global.current_run.player_stats
+	)
 	if Global.get_chance_sucess(crit_chance):
 		critical = true
 		damage = ceil(damage * weapon.data.stats.crit_damage)
@@ -18,8 +24,19 @@ func get_damage() -> float:
 
 
 func apply_life_steal() -> void:
-	var steal_chance := (Global.get_stat_value("life_steal") / 100.0) + weapon.data.stats.life_steal
+	var steal_chance := Global.combat_resolver.life_steal_chance(
+		weapon.data.stats.life_steal, Global.current_run.player_stats
+	)
 	var can_steal := Global.get_chance_sucess(steal_chance)
 	if can_steal and is_instance_valid(Global.player):
 		Global.player.health_component.heal(1.0)
 		Global.on_create_heal_text.emit(Global.player, 1.0)
+
+
+func get_scaling_stat_id() -> int:
+	var stable_id := String(weapon.data.get_stable_id())
+	if stable_id.contains("wand"):
+		return StatId.ELEMENTAL_DAMAGE
+	if weapon.data.type == ItemWeapon.WeaponType.RANGE:
+		return StatId.RANGED_DAMAGE
+	return StatId.MELEE_DAMAGE

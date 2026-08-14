@@ -28,7 +28,10 @@ func _process(delta: float) -> void:
 	
 	move_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	
-	var current_velocity := move_dir * stats.speed
+	var movement_speed := stats.speed
+	if Global.current_run != null and Global.combat_resolver != null:
+		movement_speed = Global.combat_resolver.movement_speed(Global.current_run.player_stats)
+	var current_velocity := move_dir * movement_speed
 	if is_dashing:
 		current_velocity *= dash_speed_multi
 	
@@ -107,5 +110,7 @@ func _on_hp_regen_timer_timeout() -> void:
 	
 	if health_component.current_health < stats.health:
 		var heal := stats.hp_regen
+		if Global.current_run != null and Global.combat_resolver != null:
+			heal = Global.combat_resolver.recovery_amount(Global.current_run.player_stats)
 		health_component.heal(heal)
 		Global.on_create_heal_text.emit(self, heal)

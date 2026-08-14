@@ -12,6 +12,7 @@ var atk_start_pos: Vector2
 var targets: Array[Enemy]
 var closest_target: Enemy
 var weapon_spread: float
+var aim_resolver := AimResolver.new()
 
 func _ready() -> void:
 	atk_start_pos = sprite.position
@@ -35,14 +36,19 @@ func _process(delta: float) -> void:
 
 func setup_weapon(data: ItemWeapon) -> void:
 	self.data = data
-	collision.shape.radius = data.stats.max_range
+	collision.shape = collision.shape.duplicate()
+	collision.shape.radius = Global.combat_resolver.attack_range(
+		data.stats.max_range, Global.current_run.player_stats
+	) if Global.current_run != null and Global.combat_resolver != null else data.stats.max_range
 	apply_tier_outline()
 
 
 func use_weapon() -> void:
 	calculate_spread()
 	weapon_behavior.execute_attack()
-	cooldown_timer.wait_time = data.stats.cooldown
+	cooldown_timer.wait_time = Global.combat_resolver.attack_cooldown(
+		data.stats.cooldown, Global.current_run.player_stats
+	) if Global.current_run != null and Global.combat_resolver != null else data.stats.cooldown
 	cooldown_timer.start()
 
 
@@ -54,6 +60,10 @@ func rotate_to_target() -> void:
 
 
 func get_custom_rotation_to_target() -> float:
+	if Global.aim_mode == AimMode.MANUAL_MOUSE:
+		return aim_resolver.rotation_to_aim(
+			global_position, Global.aim_mode, Vector2.ZERO, get_global_mouse_position(), false
+		) + weapon_spread
 	if not closest_target or not is_instance_valid(closest_target):
 		return rotation
 	
@@ -62,6 +72,10 @@ func get_custom_rotation_to_target() -> float:
 
 
 func get_rotation_to_target() -> float:
+	if Global.aim_mode == AimMode.MANUAL_MOUSE:
+		return aim_resolver.rotation_to_aim(
+			global_position, Global.aim_mode, Vector2.ZERO, get_global_mouse_position(), false
+		)
 	if targets.size() == 0:
 		return get_idle_rotation()
 	
@@ -84,7 +98,7 @@ func update_visuals() -> void:
 
 
 func calculate_spread() -> void:
-	weapon_spread += randf_range(-1 + data.stats.accuracy, 1 - data.stats.accuracy)
+	weapon_spread = randf_range(-1 + data.stats.accuracy, 1 - data.stats.accuracy)
 	rotation += weapon_spread
 
 
@@ -111,7 +125,9 @@ func get_closest_target() -> Node2D:
 
 
 func can_use_weapon() -> bool:
-	return cooldown_timer.is_stopped() and closest_target
+	return cooldown_timer.is_stopped() and aim_resolver.can_fire(
+		Global.aim_mode, closest_target != null and is_instance_valid(closest_target)
+	)
 
 
 func apply_tier_outline() -> void:

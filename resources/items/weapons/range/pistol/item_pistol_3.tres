@@ -8,7 +8,7 @@
 
 [resource]
 script = ExtResource("3_y05ts")
-type = 0
+type = 1
 scene = ExtResource("2_wkn4t")
 stats = ExtResource("4_wkn4t")
 upgrade_to = ExtResource("5_y05ts")

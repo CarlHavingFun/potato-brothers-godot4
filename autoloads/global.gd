@@ -55,6 +55,8 @@ var current_run: RunState
 var run_director: RunDirector
 var shop_service: ShopService
 var reward_service: RewardService
+var combat_resolver: CombatResolver
+var aim_mode: int = AimMode.AUTO_TARGET
 var coins: int:
 	get:
 		return current_run.materials if current_run != null else 0
@@ -91,6 +93,7 @@ func begin_run(seed_value: int = 0, source_stats: UnitStats = null, starting_mat
 	run_director = RunDirector.new(current_run)
 	shop_service = ShopService.new(seed_value)
 	reward_service = RewardService.new(seed_value)
+	combat_resolver = CombatResolver.new(seed_value)
 	current_run.materials = maxi(0, starting_materials)
 	player = null
 	equipped_weapons.clear()
@@ -126,6 +129,7 @@ func end_run() -> void:
 	run_director = null
 	shop_service = null
 	reward_service = null
+	combat_resolver = null
 	player = null
 	equipped_weapons.clear()
 	main_player_selected = null
@@ -255,12 +259,26 @@ func get_stat_value(unit_property: String) -> float:
 	return current_run.player_stats.get_stat(stat_id)
 
 
+func get_stat_value_by_id(stat_id: int) -> float:
+	if current_run == null or not StatId.is_valid(stat_id):
+		return 0.0
+	return current_run.player_stats.get_stat(stat_id)
+
+
+func set_aim_mode(value: int) -> bool:
+	if not AimMode.is_valid(value):
+		return false
+	aim_mode = value
+	return true
+
+
 func _ensure_run() -> void:
 	if current_run == null:
 		begin_run(0, null, 0)
 
 func get_harvesting_coins() -> void:
-	add_materials(roundi(get_stat_value("harvesting")))
+	_ensure_combat_resolver()
+	add_materials(combat_resolver.harvesting_materials(current_run.player_stats))
 
 
 func get_selected_player() -> Player:
@@ -299,9 +317,14 @@ func select_starting_weapon(definition: WeaponDef) -> bool:
 
 func get_chance_sucess(chance: float) -> bool:
 	_ensure_run()
-	if shop_service == null:
-		shop_service = ShopService.new(current_run.random_seed)
-	return shop_service.roll_chance(chance)
+	_ensure_combat_resolver()
+	return combat_resolver.roll_chance(chance)
+
+
+func _ensure_combat_resolver() -> void:
+	_ensure_run()
+	if combat_resolver == null:
+		combat_resolver = CombatResolver.new(current_run.random_seed)
 
 func get_tier_style(tier: UpgradeTier) -> StyleBoxFlat:
 	match tier:

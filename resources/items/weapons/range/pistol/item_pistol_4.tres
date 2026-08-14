@@ -7,7 +7,7 @@
 
 [resource]
 script = ExtResource("3_x7fhi")
-type = 0
+type = 1
 scene = ExtResource("2_0l2s8")
 stats = ExtResource("4_mhi7e")
 item_name = "Pistol IV"
