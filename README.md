@@ -31,6 +31,18 @@ Run the headless GdUnit4 suite from PowerShell:
 .\tools\run_tests.ps1 -GodotBinary D:\path\to\Godot_v4.7.1-stable_win64_console.exe
 ```
 
+Build the restricted content pack, run all acceptance gates, export Windows,
+Linux, and macOS, and assemble the internal playtest archives with:
+
+```powershell
+.\tools\build_release.ps1 -GodotBinary D:\path\to\Godot_v4.7.1-stable_win64_console.exe
+```
+
+Release output is written to `dist/potato-brothers-phase1/`. The build uses a
+sanitized staging copy, so MCP, GdUnit4, tests, and the source content directory
+cannot enter the core PCK. The separately validated `default_content.pck` is
+then placed beside the Windows/Linux executable and inside the macOS app bundle.
+
 The Godot MCP addon exposes its loopback-only HTTP endpoint at
 `http://127.0.0.1:9100/mcp` while the editor is open. Generated reports and
 screenshots stay under `reports/`, which Godot and Git both ignore.

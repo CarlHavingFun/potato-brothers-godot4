@@ -1,0 +1,53 @@
+name: Phase One
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  gdunit-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: godot-gdunit-labs/gdUnit4-action@v1
+        with:
+          godot-version: "4.7.1"
+          version: "installed"
+          paths: "res://tests"
+          timeout: 15
+          publish-report: true
+          upload-report: true
+          report-name: "potato-brothers-gdunit.xml"
+
+  native-import-test-export:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: Windows
+          - os: ubuntu-latest
+            platform: Linux
+          - os: macos-latest
+            platform: macOS
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lihop/setup-godot@v3
+        with:
+          version: 4.7.1-stable
+          export-templates: true
+      - name: Import project
+        shell: pwsh
+        run: godot --headless --editor --path . --import --quit
+      - name: Run GdUnit4
+        shell: pwsh
+        run: ./tools/run_tests.ps1 -GodotBinary (Get-Command godot).Source
+      - name: Export native playtest
+        shell: pwsh
+        run: ./tools/build_release.ps1 -GodotBinary (Get-Command godot).Source -Platforms ${{ matrix.platform }} -SkipAcceptance
+      - uses: actions/upload-artifact@v4
+        with:
+          name: potato-brothers-${{ matrix.platform }}
+          path: dist/potato-brothers-phase1/

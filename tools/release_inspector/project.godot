@@ -1,0 +1,10 @@
+config_version=5
+
+[application]
+
+config/name="Potato Brothers Core PCK Inspector"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
