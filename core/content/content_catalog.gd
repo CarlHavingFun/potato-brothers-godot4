@@ -14,6 +14,7 @@ var _difficulties: Dictionary = {}
 var _item_ids: Dictionary = {}
 var _item_paths: Dictionary = {}
 var _shop_items: Array[ItemBase] = []
+var _upgrade_items: Array[ItemUpgrade] = []
 var _pack: ContentPackDef
 
 
@@ -34,6 +35,7 @@ func register_pack(pack: ContentPackDef) -> int:
 	var candidate_item_ids: Dictionary = {}
 	var candidate_item_paths: Dictionary = {}
 	var candidate_shop_items: Array[ItemBase] = []
+	var candidate_upgrade_items: Array[ItemUpgrade] = []
 	var collections := [
 		[pack.characters, candidate_characters],
 		[pack.weapons, candidate_weapons],
@@ -63,6 +65,14 @@ func register_pack(pack: ContentPackDef) -> int:
 		if not passive.item.resource_path.is_empty():
 			candidate_item_paths[passive.item.resource_path] = stable_id
 		candidate_shop_items.append(passive.item)
+	for upgrade: UpgradeDef in pack.upgrades:
+		if upgrade.item == null:
+			return ERR_INVALID_DATA
+		var stable_id := upgrade.get_stable_id(pack.pack_id)
+		candidate_item_ids[upgrade.item.get_instance_id()] = stable_id
+		if not upgrade.item.resource_path.is_empty():
+			candidate_item_paths[upgrade.item.resource_path] = stable_id
+		candidate_upgrade_items.append(upgrade.item)
 	for difficulty: DifficultyDef in pack.difficulties:
 		if difficulty == null or candidate_difficulties.has(difficulty.level):
 			return ERR_INVALID_DATA
@@ -81,6 +91,7 @@ func register_pack(pack: ContentPackDef) -> int:
 	_item_ids = candidate_item_ids
 	_item_paths = candidate_item_paths
 	_shop_items = candidate_shop_items
+	_upgrade_items = candidate_upgrade_items
 	return OK
 
 
@@ -118,6 +129,10 @@ func get_difficulty(level: int) -> DifficultyDef:
 
 func get_shop_items() -> Array[ItemBase]:
 	return _shop_items.duplicate()
+
+
+func get_upgrade_items() -> Array[ItemUpgrade]:
+	return _upgrade_items.duplicate()
 
 
 func get_item_stable_id(item: ItemBase) -> StringName:

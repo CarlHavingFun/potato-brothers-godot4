@@ -216,3 +216,28 @@ func test_arena_and_spawner_do_not_embed_default_wave_or_enemy_resources() -> vo
 	assert_bool(arena_source.contains("waves_data =")).is_false()
 	assert_bool(spawner_source.contains("Content.catalog.get_waves()")).is_true()
 	assert_bool(spawner_source.contains("DifficultyDef.for_level")).is_false()
+
+
+func test_catalog_builds_upgrade_pool_with_namespaced_ids() -> void:
+	var upgrade_items: Array[ItemUpgrade] = Content.catalog.get_upgrade_items()
+	assert_int(upgrade_items.size()).is_equal(46)
+
+	var health_upgrade := Content.catalog.get_upgrade(
+		&"upgrade/legacy/health/upgrade_health_1"
+	)
+	assert_str(Content.catalog.get_item_stable_id(health_upgrade.item)).is_equal(
+		"potato_default:upgrade/legacy/health/upgrade_health_1"
+	)
+
+
+func test_upgrade_scene_does_not_embed_default_upgrade_resources() -> void:
+	var scene_source := FileAccess.get_file_as_string(
+		"res://scenes/ui/upgrade_panel/upgrade_panel.tscn"
+	)
+	var script_source := FileAccess.get_file_as_string(
+		"res://scenes/ui/upgrade_panel/upgrade_panel.gd"
+	)
+
+	assert_bool(scene_source.contains("upgrade_health_1.tres")).is_false()
+	assert_bool(scene_source.contains("upgrade_list =")).is_false()
+	assert_bool(script_source.contains("Content.catalog.get_upgrade_items()")).is_true()
