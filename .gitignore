@@ -1,0 +1,10 @@
+.godot/
+/builds/
+/dist/
+/reports/
+*.tmp
+*.bak
+
+# Local development tools are installed separately.
+/bin/godot-mcp.exe
+
