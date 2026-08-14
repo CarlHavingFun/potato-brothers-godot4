@@ -166,3 +166,34 @@ func test_selection_and_player_creation_do_not_embed_specific_content_paths() ->
 	assert_bool(selection_scene_source.contains("stats_player_")).is_false()
 	assert_bool(selection_scene_source.contains("item_axe_1.tres")).is_false()
 	assert_bool(global_source.contains("available_players")).is_false()
+
+
+func test_catalog_builds_the_shop_pool_and_resolves_namespaced_item_ids() -> void:
+	var shop_items: Array[ItemBase] = Content.catalog.get_shop_items()
+
+	assert_int(shop_items.size()).is_equal(48)
+	var pistol := Content.catalog.get_weapon(&"weapon/pistol")
+	assert_str(Content.catalog.get_item_stable_id(pistol.tiers[0])).is_equal(
+		"potato_default:weapon/pistol"
+	)
+	assert_object(
+		Content.catalog.get_weapon_tier(&"potato_default:weapon/pistol", 1)
+	).is_same(pistol.tiers[0])
+	var cape := Content.catalog.get_passive(&"passive/cape")
+	assert_str(Content.catalog.get_item_stable_id(cape.item)).is_equal(
+		"potato_default:passive/cape"
+	)
+
+
+func test_shop_scene_does_not_embed_default_content_resources() -> void:
+	var shop_scene_source := FileAccess.get_file_as_string(
+		"res://scenes/ui/shop_panel/shop_panel.tscn"
+	)
+	var shop_script_source := FileAccess.get_file_as_string(
+		"res://scenes/ui/shop_panel/shop_panel.gd"
+	)
+
+	assert_bool(shop_scene_source.contains("item_axe_1.tres")).is_false()
+	assert_bool(shop_scene_source.contains("passive_cape.tres")).is_false()
+	assert_bool(shop_scene_source.contains("shop_items =")).is_false()
+	assert_bool(shop_script_source.contains("Content.catalog.get_shop_items()")).is_true()

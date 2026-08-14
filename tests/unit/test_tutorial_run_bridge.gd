@@ -116,6 +116,21 @@ func test_catalog_selection_uses_the_same_namespaced_weapon_id_in_run_and_invent
 	)
 
 
+func test_catalog_shop_purchase_and_combine_keep_the_weapon_family_id() -> void:
+	Global.begin_run(101, null, 500)
+	var pistol := Content.catalog.get_weapon(&"weapon/pistol")
+
+	assert_int(Global.try_purchase_item(pistol.tiers[0])).is_equal(InventoryService.OK)
+	assert_int(Global.try_purchase_item(pistol.tiers[0])).is_equal(InventoryService.OK)
+	assert_int(Global.try_combine_weapon(pistol.tiers[0])).is_equal(InventoryService.OK)
+
+	assert_int(Global.current_run.inventory.weapon_count()).is_equal(1)
+	assert_str(Global.current_run.inventory.weapon_at(0).get("weapon_id", "")).is_equal(
+		"potato_default:weapon/pistol"
+	)
+	assert_int(Global.current_run.inventory.weapon_at(0).get("tier", 0)).is_equal(2)
+
+
 func test_player_instances_do_not_share_the_scene_stat_resource() -> void:
 	var packed_scene := load("res://scenes/unit/players/player_brawler.tscn") as PackedScene
 	var first := auto_free(packed_scene.instantiate()) as Player

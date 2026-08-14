@@ -5,8 +5,6 @@ signal on_shop_next_wave
 
 const SHOP_CARD_SCENE = preload("uid://csmrkxii0a74i")
 
-@export var shop_items: Array[ItemBase]
-
 @onready var items_container: HBoxContainer = %ItemsContainer
 @onready var passives_container: GridContainer = %PassivesContainer
 @onready var weapons_container: GridContainer = %WeaponsContainer
@@ -23,6 +21,7 @@ func load_shop(current_wave: int) -> void:
 	for child in items_container.get_children(): child.queue_free()
 	
 	var config := Global.SHOP_PROBABILITY_CONFIG
+	var shop_items: Array[ItemBase] = Content.catalog.get_shop_items()
 	var selected_items := Global.select_items_for_offer(shop_items, current_wave, config)
 	for shop_item : ItemBase in selected_items:
 		var card_instance := SHOP_CARD_SCENE.instantiate() as ShopCard
@@ -54,7 +53,8 @@ func _on_item_purchased(item: ItemBase) -> void:
 	if item.item_type == ItemBase.ItemType.WEAPON:
 		weapons_container.add_child(item_card)
 		var weapon := item as ItemWeapon
-		Global.player.add_weapon(weapon)
+		if is_instance_valid(Global.player):
+			Global.player.add_weapon(weapon)
 		Global.equipped_weapons.append(weapon)
 	
 	elif item.item_type == ItemBase.ItemType.PASSIVE:
@@ -73,7 +73,7 @@ func _on_item_card_selected(card: ItemCard) -> void:
 		var clicked_weapon := card.item as ItemWeapon
 		var count := 0
 		for weapon: ItemWeapon in Global.equipped_weapons:
-			if weapon.get_stable_id() == clicked_weapon.get_stable_id() and weapon.item_tier == clicked_weapon.item_tier:
+			if _same_weapon_family_and_tier(weapon, clicked_weapon):
 				count += 1
 		
 		if count >= 2:
@@ -92,11 +92,17 @@ func _on_combine_button_pressed() -> void:
 	if not clicked_weapon.upgrade_to:
 		return
 	
-	var weapons_to_remove: Array[Weapon] = Global.player.current_weapons.filter(func(w: Weapon): 
-		return w.data.get_stable_id() == clicked_weapon.get_stable_id() and w.data.item_tier == clicked_weapon.item_tier).slice(0, 2)
+	var weapons_to_remove: Array[Weapon] = Global.player.current_weapons.filter(
+		func(weapon: Weapon): return _same_weapon_family_and_tier(weapon.data, clicked_weapon)
+	).slice(0, 2)
 	
-	var card_to_remove = weapons_container.get_children().filter(func(c: ItemCard): 
-		return c.item is ItemWeapon and c.item.get_stable_id() == clicked_weapon.get_stable_id() and c.item.item_tier == clicked_weapon.item_tier).slice(0, 2)
+	var card_to_remove = weapons_container.get_children().filter(
+		func(card: ItemCard):
+			return card.item is ItemWeapon and _same_weapon_family_and_tier(
+				card.item,
+				clicked_weapon
+			)
+	).slice(0, 2)
 	
 	if weapons_to_remove.size() < 2 or card_to_remove.size() < 2:
 		return
@@ -133,8 +139,12 @@ func _on_sell_button_pressed() -> void:
 		return
 	
 	var clicked_weapon := context_card.item as ItemWeapon
-	var matching_weapons: Array[Weapon] = Global.player.current_weapons.filter(func(w: Weapon):
-		return w.data.get_stable_id() == clicked_weapon.get_stable_id() and w.data.item_tier == clicked_weapon.item_tier)
+	var matching_weapons: Array[Weapon] = Global.player.current_weapons.filter(
+		func(weapon: Weapon): return _same_weapon_family_and_tier(
+			weapon.data,
+			clicked_weapon
+		)
+	)
 	var weapon_to_remove: Weapon = matching_weapons.front() if not matching_weapons.is_empty() else null
 	if weapon_to_remove == null:
 		return
@@ -148,3 +158,12 @@ func _on_sell_button_pressed() -> void:
 	
 	context_card.queue_free()
 	context_card = null
+
+
+func _same_weapon_family_and_tier(first: ItemWeapon, second: ItemWeapon) -> bool:
+	return (
+		first != null
+		and second != null
+		and Content.catalog.get_item_stable_id(first) == Content.catalog.get_item_stable_id(second)
+		and first.item_tier == second.item_tier
+	)

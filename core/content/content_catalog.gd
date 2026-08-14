@@ -10,6 +10,9 @@ var _passives: Dictionary = {}
 var _upgrades: Dictionary = {}
 var _enemies: Dictionary = {}
 var _waves: Dictionary = {}
+var _item_ids: Dictionary = {}
+var _item_paths: Dictionary = {}
+var _shop_items: Array[ItemBase] = []
 var _pack: ContentPackDef
 
 
@@ -26,6 +29,9 @@ func register_pack(pack: ContentPackDef) -> int:
 	var candidate_upgrades: Dictionary = {}
 	var candidate_enemies: Dictionary = {}
 	var candidate_waves: Dictionary = {}
+	var candidate_item_ids: Dictionary = {}
+	var candidate_item_paths: Dictionary = {}
+	var candidate_shop_items: Array[ItemBase] = []
 	var collections := [
 		[pack.characters, candidate_characters],
 		[pack.weapons, candidate_weapons],
@@ -38,6 +44,23 @@ func register_pack(pack: ContentPackDef) -> int:
 		var result := _index_definitions(collection[0], collection[1], candidate_all, pack.pack_id)
 		if result != OK:
 			return result
+	for weapon: WeaponDef in pack.weapons:
+		var stable_id := weapon.get_stable_id(pack.pack_id)
+		for item: ItemWeapon in weapon.tiers:
+			if item == null:
+				return ERR_INVALID_DATA
+			candidate_item_ids[item.get_instance_id()] = stable_id
+			if not item.resource_path.is_empty():
+				candidate_item_paths[item.resource_path] = stable_id
+			candidate_shop_items.append(item)
+	for passive: PassiveItemDef in pack.passives:
+		if passive.item == null:
+			return ERR_INVALID_DATA
+		var stable_id := passive.get_stable_id(pack.pack_id)
+		candidate_item_ids[passive.item.get_instance_id()] = stable_id
+		if not passive.item.resource_path.is_empty():
+			candidate_item_paths[passive.item.resource_path] = stable_id
+		candidate_shop_items.append(passive.item)
 
 	pack_id = pack.pack_id
 	_pack = pack
@@ -48,6 +71,9 @@ func register_pack(pack: ContentPackDef) -> int:
 	_upgrades = candidate_upgrades
 	_enemies = candidate_enemies
 	_waves = candidate_waves
+	_item_ids = candidate_item_ids
+	_item_paths = candidate_item_paths
+	_shop_items = candidate_shop_items
 	return OK
 
 
@@ -73,6 +99,26 @@ func get_enemies() -> Array[EnemyDef]:
 
 func get_waves() -> Array[WaveDef]:
 	return _pack.waves.duplicate() if _pack != null else []
+
+
+func get_shop_items() -> Array[ItemBase]:
+	return _shop_items.duplicate()
+
+
+func get_item_stable_id(item: ItemBase) -> StringName:
+	if item == null:
+		return &""
+	var stable_id: StringName = _item_ids.get(item.get_instance_id(), &"")
+	if stable_id.is_empty() and not item.resource_path.is_empty():
+		stable_id = _item_paths.get(item.resource_path, &"")
+	return stable_id if not stable_id.is_empty() else item.get_stable_id()
+
+
+func get_weapon_tier(content_id: StringName, tier: int) -> ItemWeapon:
+	var definition := get_weapon(content_id)
+	if definition == null or tier < 1 or tier > definition.tiers.size():
+		return null
+	return definition.tiers[tier - 1]
 
 
 func get_character(content_id: StringName) -> CharacterDef:

@@ -168,7 +168,7 @@ func try_purchase_item(item: ItemBase) -> int:
 		var weapon := item as ItemWeapon
 		result = InventoryService.try_purchase_weapon(
 			current_run,
-			weapon.get_stable_id(),
+			Content.catalog.get_item_stable_id(weapon),
 			int(weapon.item_tier) + 1,
 			weapon.item_cost
 		)
@@ -176,7 +176,7 @@ func try_purchase_item(item: ItemBase) -> int:
 		var passive := item as ItemPassive
 		result = InventoryService.try_purchase_passive(
 			current_run,
-			passive.get_stable_id(),
+			Content.catalog.get_item_stable_id(passive),
 			passive.item_cost,
 			passive.max_stack
 		)
@@ -189,7 +189,7 @@ func try_combine_weapon(weapon: ItemWeapon) -> int:
 	if current_run == null or weapon == null:
 		return InventoryService.INVALID_REQUEST
 	var slots := current_run.inventory.find_weapon_slots(
-		weapon.get_stable_id(),
+		Content.catalog.get_item_stable_id(weapon),
 		int(weapon.item_tier) + 1
 	)
 	if slots.size() < 2:
@@ -201,7 +201,7 @@ func try_sell_weapon(weapon: ItemWeapon) -> int:
 	if current_run == null or weapon == null:
 		return InventoryService.INVALID_REQUEST
 	var slots := current_run.inventory.find_weapon_slots(
-		weapon.get_stable_id(),
+		Content.catalog.get_item_stable_id(weapon),
 		int(weapon.item_tier) + 1
 	)
 	if slots.is_empty():
