@@ -52,6 +52,9 @@ enum UpgradeTier{
 const STARTING_MATERIALS := 500
 
 var current_run: RunState
+var run_director: RunDirector
+var shop_service: ShopService
+var reward_service: RewardService
 var coins: int:
 	get:
 		return current_run.materials if current_run != null else 0
@@ -85,6 +88,9 @@ func _init() -> void:
 func begin_run(seed_value: int = 0, source_stats: UnitStats = null, starting_materials: int = STARTING_MATERIALS) -> RunState:
 	var player_stats: PlayerStats = TUTORIAL_STATS_ADAPTER.to_player_stats(source_stats)
 	current_run = RunState.new(seed_value, player_stats)
+	run_director = RunDirector.new(current_run)
+	shop_service = ShopService.new(seed_value)
+	reward_service = RewardService.new(seed_value)
 	current_run.materials = maxi(0, starting_materials)
 	player = null
 	equipped_weapons.clear()
@@ -117,6 +123,9 @@ func begin_selected_run(seed_value: int = 0) -> bool:
 
 func end_run() -> void:
 	current_run = null
+	run_director = null
+	shop_service = null
+	reward_service = null
 	player = null
 	equipped_weapons.clear()
 	main_player_selected = null
@@ -128,9 +137,9 @@ func end_run() -> void:
 func enter_phase(next_phase: int) -> bool:
 	if current_run == null or not RunPhase.is_valid(next_phase):
 		return false
-	if current_run.phase == next_phase:
-		return true
-	if not current_run.try_transition(next_phase):
+	if run_director == null or run_director.run_state != current_run:
+		run_director = RunDirector.new(current_run)
+	if not run_director.transition_to(next_phase):
 		return false
 	run_phase_changed.emit(current_run.phase)
 	return true
@@ -163,24 +172,9 @@ func try_purchase_item(item: ItemBase) -> int:
 	if item == null:
 		return InventoryService.INVALID_REQUEST
 	_ensure_run()
-	var result := InventoryService.INVALID_REQUEST
-	if item is ItemWeapon:
-		var weapon := item as ItemWeapon
-		result = InventoryService.try_purchase_weapon(
-			current_run,
-			Content.catalog.get_item_stable_id(weapon),
-			int(weapon.item_tier) + 1,
-			weapon.item_cost
-		)
-	elif item is ItemPassive:
-		var passive := item as ItemPassive
-		var definition := Content.catalog.get_passive_definition_for_item(passive)
-		result = InventoryService.try_purchase_passive(
-			current_run,
-			Content.catalog.get_item_stable_id(passive),
-			passive.item_cost,
-			definition.max_stack if definition != null else passive.max_stack
-		)
+	if shop_service == null:
+		shop_service = ShopService.new(current_run.random_seed)
+	var result := shop_service.try_purchase(current_run, item, Content.catalog)
 	if result == InventoryService.OK:
 		materials_changed.emit(current_run.materials)
 	return result
@@ -189,25 +183,17 @@ func try_purchase_item(item: ItemBase) -> int:
 func try_combine_weapon(weapon: ItemWeapon) -> int:
 	if current_run == null or weapon == null:
 		return InventoryService.INVALID_REQUEST
-	var slots := current_run.inventory.find_weapon_slots(
-		Content.catalog.get_item_stable_id(weapon),
-		int(weapon.item_tier) + 1
-	)
-	if slots.size() < 2:
-		return InventoryService.WEAPONS_NOT_COMBINABLE
-	return InventoryService.try_combine_weapons(current_run, slots[0], slots[1])
+	if shop_service == null:
+		shop_service = ShopService.new(current_run.random_seed)
+	return shop_service.try_combine_item(current_run, weapon, Content.catalog)
 
 
 func try_sell_weapon(weapon: ItemWeapon) -> int:
 	if current_run == null or weapon == null:
 		return InventoryService.INVALID_REQUEST
-	var slots := current_run.inventory.find_weapon_slots(
-		Content.catalog.get_item_stable_id(weapon),
-		int(weapon.item_tier) + 1
-	)
-	if slots.is_empty():
-		return InventoryService.INVALID_WEAPON_SLOT
-	var result := InventoryService.try_sell_weapon(current_run, slots[0])
+	if shop_service == null:
+		shop_service = ShopService.new(current_run.random_seed)
+	var result := shop_service.try_sell_item(current_run, weapon, Content.catalog)
 	if result == InventoryService.OK:
 		materials_changed.emit(current_run.materials)
 	return result
@@ -312,10 +298,10 @@ func select_starting_weapon(definition: WeaponDef) -> bool:
 
 
 func get_chance_sucess(chance: float) -> bool:
-	var random := randf_range(0, 1.0)
-	if random < chance:
-		return true
-	return false
+	_ensure_run()
+	if shop_service == null:
+		shop_service = ShopService.new(current_run.random_seed)
+	return shop_service.roll_chance(chance)
 
 func get_tier_style(tier: UpgradeTier) -> StyleBoxFlat:
 	match tier:
@@ -329,90 +315,18 @@ func get_tier_style(tier: UpgradeTier) -> StyleBoxFlat:
 			return LEGENDARY_STYLE
 
 func calculate_tier_probability(current_wave: int, config: Dictionary) -> Array[float]:
-	var common_chance := 0.0
-	var rare_chance := 0.0
-	var epic_chance := 0.0
-	var legendary_chance := 0.0
-	
-	# RARE: Starts increasing from wave 2 (0% at wave 1)
-	if current_wave >= config.rare.start_wave:
-		rare_chance = min(1.0, (current_wave - 1) * config.rare.base_multi)
-	
-	# EPIC: Starts increasing from wave 4 (0% at wave 3)
-	if current_wave >= config.epic.start_wave:
-		epic_chance = min(1.0, (current_wave - 3) * config.epic.base_multi)
-	
-	# LEGENDARY: Starts increasing from wave 7 (0% at wave 6)
-	if current_wave >= config.legendary.start_wave:
-		legendary_chance = min(1.0, (current_wave - 6) * config.legendary.base_multi)
-	
-	# Player luck increases the chance of finding higher tiers.
-	# Example: 10 luck = 10% chance = 1.1 multi
-	var luck := get_stat_value("luck")
-	var luck_factor := 1.0 + (luck / 100.0)
-	rare_chance *= luck_factor
-	epic_chance *= luck_factor
-	legendary_chance *= luck_factor
-	
-	# Normalize probabilities
-	var total_non_common_chances := rare_chance + epic_chance + legendary_chance
-	if total_non_common_chances > 1.0:
-		var scale_down := 1.0 / total_non_common_chances
-		rare_chance *= scale_down
-		epic_chance *= scale_down
-		legendary_chance *= scale_down
-		total_non_common_chances = 1.0
-	
-	# Common takes the remaining probability
-	common_chance = 1.0 - total_non_common_chances
-	
-	# Debug print
-	print("Wave: %d, Luck: %.1f => Chances: C:%.2f R:%.2f E:%.2f L:%.2f" % 
-	[current_wave, luck, common_chance, rare_chance, epic_chance, legendary_chance])
-	
-	return [
-		max(0.0, common_chance),
-		max(0.0, rare_chance),
-		max(0.0, epic_chance),
-		max(0.0, legendary_chance),
-	]
+	_ensure_run()
+	if shop_service == null:
+		shop_service = ShopService.new(current_run.random_seed)
+	return shop_service.calculate_tier_probabilities(
+		current_wave, get_stat_value("luck"), config
+	)
 
 
 func select_items_for_offer(item_pool: Array, current_wave: int, config: Dictionary) -> Array:
-	
-	# [ 0.7 , 0.2 , 0.08 , 0.02 ]  
-	var tier_chances := calculate_tier_probability(current_wave, config)
-	
-	var legendary_limit = tier_chances[3]
-	var epic_limit = legendary_limit + tier_chances[2]
-	var rare_limit = epic_limit + tier_chances[1]
-	
-	var offered_items: Array = []
-	while offered_items.size() < 4:
-		var roll := randf()
-		var chosen_tier_index := 0
-		if roll < legendary_limit:
-			chosen_tier_index = 3 # Legendary
-		elif roll < epic_limit:
-			chosen_tier_index = 2 # Epic
-		elif roll < rare_limit:
-			chosen_tier_index = 1 # Rare
-		
-		var potential_items: Array = []
-		var current_search_tier_index := chosen_tier_index
-		
-		while potential_items.is_empty() and current_search_tier_index >= 0:
-			potential_items = item_pool.filter(func(item: ItemBase): return item.item_tier == current_search_tier_index)
-			
-			if potential_items.is_empty():
-				current_search_tier_index -= 1
-			else:
-				break
-		
-		if not potential_items.is_empty():
-			var selected_item = potential_items.pick_random()
-			
-			if not offered_items.has(selected_item):
-				offered_items.append(selected_item)
-	
-	return offered_items
+	_ensure_run()
+	if shop_service == null:
+		shop_service = ShopService.new(current_run.random_seed)
+	return shop_service.select_offers(
+		item_pool, current_wave, get_stat_value("luck"), config, 4
+	)

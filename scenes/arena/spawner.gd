@@ -13,6 +13,7 @@ var current_wave_definition: WaveDef
 var current_wave_data: WaveData
 var spawned_enemies: Array[Enemy] = []
 var rng := RandomNumberGenerator.new()
+var wave_director: WaveDirector
 var boss_spawned := false
 
 
@@ -40,10 +41,12 @@ func start_wave() -> void:
 		wave_timer.stop()
 		return
 	boss_spawned = false
-	rng.seed = (
+	var wave_seed := (
 		(Global.current_run.random_seed if Global.current_run != null else 0)
 		+ wave_index * 1_000_003
 	)
+	rng.seed = wave_seed
+	wave_director = WaveDirector.new(Content.catalog, wave_seed)
 	wave_timer.wait_time = current_wave_definition.duration
 	wave_timer.start()
 	
@@ -116,21 +119,16 @@ func spawn_enemy() -> void:
 func _get_random_enemy_definition() -> EnemyDef:
 	if current_wave_definition == null or current_wave_definition.spawns.is_empty():
 		return null
-	var candidates: Array[WaveSpawnDef] = []
-	var weights: PackedFloat32Array = []
-	for spawn: WaveSpawnDef in current_wave_definition.spawns:
-		if spawn == null or (spawn.is_boss and boss_spawned):
-			continue
-		if Content.catalog.get_enemy(spawn.enemy_id) == null:
-			continue
-		candidates.append(spawn)
-		weights.append(spawn.weight)
-	if candidates.is_empty():
+	if wave_director == null:
+		wave_director = WaveDirector.new(Content.catalog, rng.seed)
+	var enemy_id := wave_director.select_enemy_id(current_wave_definition, boss_spawned)
+	if enemy_id.is_empty():
 		return null
-	var selected := candidates[rng.rand_weighted(weights)]
-	if selected.is_boss:
-		boss_spawned = true
-	return Content.catalog.get_enemy(selected.enemy_id)
+	for spawn: WaveSpawnDef in current_wave_definition.spawns:
+		if spawn != null and spawn.enemy_id == enemy_id and spawn.is_boss:
+			boss_spawned = true
+			break
+	return Content.catalog.get_enemy(enemy_id)
 
 
 static func build_enemy_stats_for_wave(definition: UnitStats, wave: int, difficulty_level: int) -> UnitStats:
