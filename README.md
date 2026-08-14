@@ -23,3 +23,14 @@ read-only references. The game must not depend on their paths at runtime.
 - GDScript
 - Compatibility renderer
 
+## Development checks
+
+Run the headless GdUnit4 suite from PowerShell:
+
+```powershell
+.\tools\run_tests.ps1 -GodotBinary D:\path\to\Godot_v4.7.1-stable_win64_console.exe
+```
+
+The Godot MCP addon exposes its loopback-only HTTP endpoint at
+`http://127.0.0.1:9100/mcp` while the editor is open. Generated reports and
+screenshots stay under `reports/`, which Godot and Git both ignore.
