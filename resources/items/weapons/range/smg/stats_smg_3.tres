@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="WeaponStats" load_steps=3 format=3 uid="uid://b46uhmxt4bxnq"]
 
-[ext_resource type="PackedScene" uid="uid://c02hls606t1j4" path="res://scenes/projectiles/projectile_smg.tscn" id="1_q421v"]
-[ext_resource type="Script" uid="uid://c7dropxg1o1hb" path="res://resources/items/weapons/weapon_stats.gd" id="2_jc28j"]
+[ext_resource type="PackedScene" uid="uid://df423u0lajaft" path="res://scenes/projectiles/projectile_smg.tscn" id="1_q421v"]
+[ext_resource type="Script" uid="uid://7nww4cvtvv64" path="res://resources/items/weapons/weapon_stats.gd" id="2_jc28j"]
 
 [resource]
 script = ExtResource("2_jc28j")
@@ -19,4 +19,4 @@ attack_duration = 0.15
 back_duration = 0.1
 projectile_scene = ExtResource("1_q421v")
 projectile_speed = 1850.0
-metadata/_custom_type_script = "uid://c7dropxg1o1hb"
+metadata/_custom_type_script = "uid://7nww4cvtvv64"

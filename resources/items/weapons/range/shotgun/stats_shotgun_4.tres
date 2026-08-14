@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="WeaponStats" load_steps=3 format=3 uid="uid://swahi7grhaas"]
 
-[ext_resource type="PackedScene" uid="uid://dff8x8cjw0rex" path="res://scenes/projectiles/projectile_shotgun.tscn" id="1_6q0d1"]
-[ext_resource type="Script" uid="uid://c7dropxg1o1hb" path="res://resources/items/weapons/weapon_stats.gd" id="2_4mjbh"]
+[ext_resource type="PackedScene" uid="uid://rq1rrpnl8apc" path="res://scenes/projectiles/projectile_shotgun.tscn" id="1_6q0d1"]
+[ext_resource type="Script" uid="uid://7nww4cvtvv64" path="res://resources/items/weapons/weapon_stats.gd" id="2_4mjbh"]
 
 [resource]
 script = ExtResource("2_4mjbh")
@@ -19,4 +19,4 @@ attack_duration = 0.2
 back_duration = 0.15
 projectile_scene = ExtResource("1_6q0d1")
 projectile_speed = 1800.0
-metadata/_custom_type_script = "uid://c7dropxg1o1hb"
+metadata/_custom_type_script = "uid://7nww4cvtvv64"

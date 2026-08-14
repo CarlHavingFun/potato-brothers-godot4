@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="WeaponStats" load_steps=3 format=3 uid="uid://bkxbtior1kgaj"]
 
-[ext_resource type="PackedScene" uid="uid://bmrkxtm64mben" path="res://scenes/projectiles/projectile_revolver.tscn" id="1_scsyx"]
-[ext_resource type="Script" uid="uid://c7dropxg1o1hb" path="res://resources/items/weapons/weapon_stats.gd" id="1_wn3yy"]
+[ext_resource type="PackedScene" uid="uid://c1evififfwcx7" path="res://scenes/projectiles/projectile_revolver.tscn" id="1_scsyx"]
+[ext_resource type="Script" uid="uid://7nww4cvtvv64" path="res://resources/items/weapons/weapon_stats.gd" id="1_wn3yy"]
 
 [resource]
 script = ExtResource("1_wn3yy")
@@ -19,4 +19,4 @@ attack_duration = 0.2
 back_duration = 0.18
 projectile_scene = ExtResource("1_scsyx")
 projectile_speed = 1800.0
-metadata/_custom_type_script = "uid://c7dropxg1o1hb"
+metadata/_custom_type_script = "uid://7nww4cvtvv64"

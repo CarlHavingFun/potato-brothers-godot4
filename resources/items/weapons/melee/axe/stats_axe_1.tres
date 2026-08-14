@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="WeaponStats" load_steps=2 format=3 uid="uid://bc28c1e48war"]
 
-[ext_resource type="Script" uid="uid://c7dropxg1o1hb" path="res://resources/items/weapons/weapon_stats.gd" id="1_6ht4q"]
+[ext_resource type="Script" uid="uid://7nww4cvtvv64" path="res://resources/items/weapons/weapon_stats.gd" id="1_6ht4q"]
 
 [resource]
 script = ExtResource("1_6ht4q")
@@ -17,4 +17,4 @@ recoil_duration = 0.1
 attack_duration = 0.15
 back_duration = 0.1
 projectile_speed = 1500.0
-metadata/_custom_type_script = "uid://c7dropxg1o1hb"
+metadata/_custom_type_script = "uid://7nww4cvtvv64"
