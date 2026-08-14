@@ -19,3 +19,16 @@ func test_wave_enemy_selection_is_reproducible_for_the_same_run_seed() -> void:
 		second_ids.append(second.call("select_enemy_id", wave, false))
 
 	assert_array(first_ids).is_equal(second_ids)
+
+
+func test_final_wave_prioritizes_the_boss_then_excludes_it() -> void:
+	var director := WaveDirector.new(Content.catalog, 405)
+	var wave := Content.catalog.get_wave(&"wave/10")
+
+	var first_id := director.select_enemy_id(wave, false)
+	var second_id := director.select_enemy_id(wave, true)
+
+	assert_str(first_id).is_equal("enemy/mouse_dog")
+	assert_str(second_id).is_not_equal("enemy/mouse_dog")
+	assert_bool(director.is_final_wave(wave.wave_number)).is_true()
+	assert_bool(director.is_final_wave(9)).is_false()

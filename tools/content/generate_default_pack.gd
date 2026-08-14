@@ -300,7 +300,7 @@ func _build_adapted_enemy(
 	definition.stats.damage = damage
 	definition.stats.speed = speed
 	definition.stats.gold_drop = gold
-	definition.scene = load("res://scenes/unit/enemy/enemy_%s.tscn" % base_id)
+	definition.scene = _enemy_scene_for_id(enemy_id)
 	definition.tags = tags
 	return definition
 
@@ -312,7 +312,7 @@ func _enemy_scene_for_id(enemy_id: String) -> PackedScene:
 		"dapan":
 			return load("res://scenes/unit/enemy/enemy_shooter.tscn")
 		"mouse_dog":
-			return load("res://scenes/unit/enemy/enemy_charger.tscn")
+			return load("res://scenes/unit/enemy/boss/mouse_dog.tscn")
 		_:
 			return load("res://scenes/unit/enemy/enemy_%s.tscn" % enemy_id)
 

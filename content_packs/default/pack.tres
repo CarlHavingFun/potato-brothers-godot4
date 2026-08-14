@@ -31,6 +31,7 @@
 [ext_resource type="Resource" path="res://resources/items/passives/data/passive_mighty_sword.tres" id="26_e6euc"]
 [ext_resource type="Resource" path="res://resources/items/passives/data/passive_power_ball.tres" id="27_3x0kq"]
 [ext_resource type="Texture2D" path="res://assets/sprites/Enemies/Enemy_4.png" id="27_q8u7b"]
+[ext_resource type="PackedScene" path="res://scenes/unit/enemy/boss/mouse_dog.tscn" id="28_1goop"]
 [ext_resource type="Resource" path="res://resources/items/passives/data/passive_rage.tres" id="28_3m063"]
 [ext_resource type="Texture2D" path="res://assets/sprites/Enemies/Enemy_5.png" id="28_shywf"]
 [ext_resource type="Script" path="res://core/content/content_pack_def.gd" id="29_xa6el"]
@@ -100,7 +101,7 @@
 [ext_resource type="Resource" path="res://resources/items/weapons/range/smg/item_smg_3.tres" id="123_5l63j"]
 [ext_resource type="Resource" path="res://resources/items/weapons/range/smg/item_smg_4.tres" id="124_3xbwk"]
 
-[sub_resource type="Resource" id="Resource_5cslo"]
+[sub_resource type="Resource" id="Resource_1goop"]
 script = ExtResource("1_u7nwy")
 scene = ExtResource("2_5nmvh")
 stats = ExtResource("3_vm1fs")
@@ -108,7 +109,7 @@ content_id = &"character/brawler"
 display_name_key = &"character.brawler.name"
 description_key = &"character.brawler.description"
 
-[sub_resource type="Resource" id="Resource_1goop"]
+[sub_resource type="Resource" id="Resource_dqpfa"]
 script = ExtResource("1_u7nwy")
 scene = ExtResource("4_6vwox")
 stats = ExtResource("5_i7h65")
@@ -116,7 +117,7 @@ content_id = &"character/bunny"
 display_name_key = &"character.bunny.name"
 description_key = &"character.bunny.description"
 
-[sub_resource type="Resource" id="Resource_dqpfa"]
+[sub_resource type="Resource" id="Resource_q8u7b"]
 script = ExtResource("1_u7nwy")
 scene = ExtResource("6_4lw5p")
 stats = ExtResource("7_3aiis")
@@ -124,7 +125,7 @@ content_id = &"character/crazy"
 display_name_key = &"character.crazy.name"
 description_key = &"character.crazy.description"
 
-[sub_resource type="Resource" id="Resource_q8u7b"]
+[sub_resource type="Resource" id="Resource_shywf"]
 script = ExtResource("1_u7nwy")
 scene = ExtResource("8_dndku")
 stats = ExtResource("9_n02ax")
@@ -132,7 +133,7 @@ content_id = &"character/knight"
 display_name_key = &"character.knight.name"
 description_key = &"character.knight.description"
 
-[sub_resource type="Resource" id="Resource_shywf"]
+[sub_resource type="Resource" id="Resource_xgqj7"]
 script = ExtResource("1_u7nwy")
 scene = ExtResource("10_6bkrh")
 stats = ExtResource("11_ekhsh")
@@ -140,7 +141,7 @@ content_id = &"character/well_rounded"
 display_name_key = &"character.well_rounded.name"
 description_key = &"character.well_rounded.description"
 
-[sub_resource type="Resource" id="Resource_xgqj7"]
+[sub_resource type="Resource" id="Resource_fxa6q"]
 script = ExtResource("13_1goop")
 name = "Almighty"
 icon = ExtResource("12_5cslo")
@@ -155,25 +156,25 @@ hp_regen = 2.0
 harvesting = 5.0
 metadata/_custom_type_script = "uid://dslkq61ggb3ft"
 
-[sub_resource type="Resource" id="Resource_fxa6q"]
+[sub_resource type="Resource" id="Resource_i8wiu"]
 script = ExtResource("1_u7nwy")
 scene = ExtResource("10_6bkrh")
-stats = SubResource("Resource_xgqj7")
+stats = SubResource("Resource_fxa6q")
 content_id = &"character/almighty"
 display_name_key = &"character.almighty.name"
 description_key = &"character.almighty.description"
 
-[sub_resource type="Resource" id="Resource_i8wiu"]
+[sub_resource type="Resource" id="Resource_u0j8w"]
 script = ExtResource("12_7dayf")
 
-[sub_resource type="Resource" id="Resource_u0j8w"]
+[sub_resource type="Resource" id="Resource_xvosd"]
 script = ExtResource("12_7dayf")
 level = 2
 health_multiplier = 1.1
 damage_multiplier = 1.05
 spawn_density_multiplier = 1.1
 
-[sub_resource type="Resource" id="Resource_xvosd"]
+[sub_resource type="Resource" id="Resource_7vhco"]
 script = ExtResource("12_7dayf")
 level = 3
 health_multiplier = 1.25
@@ -181,7 +182,7 @@ damage_multiplier = 1.15
 speed_multiplier = 1.03
 spawn_density_multiplier = 1.2
 
-[sub_resource type="Resource" id="Resource_7vhco"]
+[sub_resource type="Resource" id="Resource_i5605"]
 script = ExtResource("12_7dayf")
 level = 4
 health_multiplier = 1.45
@@ -189,7 +190,7 @@ damage_multiplier = 1.25
 speed_multiplier = 1.06
 spawn_density_multiplier = 1.3
 
-[sub_resource type="Resource" id="Resource_i5605"]
+[sub_resource type="Resource" id="Resource_duiw8"]
 script = ExtResource("12_7dayf")
 level = 5
 health_multiplier = 1.7
@@ -197,7 +198,7 @@ damage_multiplier = 1.4
 speed_multiplier = 1.1
 spawn_density_multiplier = 1.4
 
-[sub_resource type="Resource" id="Resource_duiw8"]
+[sub_resource type="Resource" id="Resource_xx57p"]
 script = ExtResource("13_2tpwy")
 scene = ExtResource("14_jtnvt")
 stats = ExtResource("15_30mdi")
@@ -205,7 +206,7 @@ content_id = &"enemy/charger"
 display_name_key = &"enemy.charger.name"
 description_key = &"enemy.charger.description"
 
-[sub_resource type="Resource" id="Resource_xx57p"]
+[sub_resource type="Resource" id="Resource_crsmg"]
 script = ExtResource("13_2tpwy")
 scene = ExtResource("16_6dwwn")
 stats = ExtResource("17_5qiun")
@@ -213,7 +214,7 @@ content_id = &"enemy/chaser_fast"
 display_name_key = &"enemy.chaser_fast.name"
 description_key = &"enemy.chaser_fast.description"
 
-[sub_resource type="Resource" id="Resource_crsmg"]
+[sub_resource type="Resource" id="Resource_iqwa1"]
 script = ExtResource("13_2tpwy")
 scene = ExtResource("18_dt2ip")
 stats = ExtResource("19_xia1g")
@@ -221,7 +222,7 @@ content_id = &"enemy/chaser_mid"
 display_name_key = &"enemy.chaser_mid.name"
 description_key = &"enemy.chaser_mid.description"
 
-[sub_resource type="Resource" id="Resource_iqwa1"]
+[sub_resource type="Resource" id="Resource_6sfud"]
 script = ExtResource("13_2tpwy")
 scene = ExtResource("20_gyk3q")
 stats = ExtResource("21_kfhbo")
@@ -229,7 +230,7 @@ content_id = &"enemy/chaser_slow"
 display_name_key = &"enemy.chaser_slow.name"
 description_key = &"enemy.chaser_slow.description"
 
-[sub_resource type="Resource" id="Resource_6sfud"]
+[sub_resource type="Resource" id="Resource_kuwhg"]
 script = ExtResource("13_2tpwy")
 scene = ExtResource("22_y1tu5")
 stats = ExtResource("23_43m6r")
@@ -237,7 +238,7 @@ content_id = &"enemy/shooter"
 display_name_key = &"enemy.shooter.name"
 description_key = &"enemy.shooter.description"
 
-[sub_resource type="Resource" id="Resource_kuwhg"]
+[sub_resource type="Resource" id="Resource_tuubr"]
 script = ExtResource("13_1goop")
 name = "Xiami"
 type = 1
@@ -250,15 +251,15 @@ block_chance = 3.0
 gold_drop = 2
 metadata/_custom_type_script = "uid://dslkq61ggb3ft"
 
-[sub_resource type="Resource" id="Resource_tuubr"]
+[sub_resource type="Resource" id="Resource_hug7q"]
 script = ExtResource("13_2tpwy")
 scene = ExtResource("18_dt2ip")
-stats = SubResource("Resource_kuwhg")
+stats = SubResource("Resource_tuubr")
 content_id = &"enemy/xiami"
 display_name_key = &"enemy.xiami.name"
 description_key = &"enemy.xiami.description"
 
-[sub_resource type="Resource" id="Resource_hug7q"]
+[sub_resource type="Resource" id="Resource_yen46"]
 script = ExtResource("13_1goop")
 name = "Dapan"
 type = 1
@@ -273,16 +274,16 @@ block_chance = 3.0
 gold_drop = 3
 metadata/_custom_type_script = "uid://dslkq61ggb3ft"
 
-[sub_resource type="Resource" id="Resource_yen46"]
+[sub_resource type="Resource" id="Resource_kd0cg"]
 script = ExtResource("13_2tpwy")
 scene = ExtResource("22_y1tu5")
-stats = SubResource("Resource_hug7q")
+stats = SubResource("Resource_yen46")
 tags = Array[StringName]([&"ranged"])
 content_id = &"enemy/dapan"
 display_name_key = &"enemy.dapan.name"
 description_key = &"enemy.dapan.description"
 
-[sub_resource type="Resource" id="Resource_kd0cg"]
+[sub_resource type="Resource" id="Resource_gxkai"]
 script = ExtResource("13_1goop")
 name = "Mouse Dog"
 type = 1
@@ -297,16 +298,16 @@ block_chance = 5.0
 gold_drop = 50
 metadata/_custom_type_script = "uid://dslkq61ggb3ft"
 
-[sub_resource type="Resource" id="Resource_gxkai"]
+[sub_resource type="Resource" id="Resource_snn1j"]
 script = ExtResource("13_2tpwy")
-scene = ExtResource("14_jtnvt")
-stats = SubResource("Resource_kd0cg")
+scene = ExtResource("28_1goop")
+stats = SubResource("Resource_gxkai")
 tags = Array[StringName]([&"boss"])
 content_id = &"enemy/mouse_dog"
 display_name_key = &"enemy.mouse_dog.name"
 description_key = &"enemy.mouse_dog.description"
 
-[sub_resource type="Resource" id="Resource_snn1j"]
+[sub_resource type="Resource" id="Resource_jnf61"]
 script = ExtResource("24_58u2q")
 item = ExtResource("25_cak7n")
 stat_modifiers = {
@@ -317,7 +318,7 @@ content_id = &"passive/cape"
 display_name_key = &"passive.cape.name"
 description_key = &"passive.cape.description"
 
-[sub_resource type="Resource" id="Resource_jnf61"]
+[sub_resource type="Resource" id="Resource_u7nwy"]
 script = ExtResource("24_58u2q")
 item = ExtResource("26_e6euc")
 stat_modifiers = {
@@ -327,7 +328,7 @@ content_id = &"passive/mighty_sword"
 display_name_key = &"passive.mighty_sword.name"
 description_key = &"passive.mighty_sword.description"
 
-[sub_resource type="Resource" id="Resource_u7nwy"]
+[sub_resource type="Resource" id="Resource_5nmvh"]
 script = ExtResource("24_58u2q")
 item = ExtResource("27_3x0kq")
 stat_modifiers = {
@@ -337,7 +338,7 @@ content_id = &"passive/power_ball"
 display_name_key = &"passive.power_ball.name"
 description_key = &"passive.power_ball.description"
 
-[sub_resource type="Resource" id="Resource_5nmvh"]
+[sub_resource type="Resource" id="Resource_vm1fs"]
 script = ExtResource("24_58u2q")
 item = ExtResource("28_3m063")
 stat_modifiers = {
@@ -348,16 +349,16 @@ content_id = &"passive/rage"
 display_name_key = &"passive.rage.name"
 description_key = &"passive.rage.description"
 
-[sub_resource type="Resource" id="Resource_vm1fs"]
+[sub_resource type="Resource" id="Resource_6vwox"]
 script = ExtResource("35_fxa6q")
 item_name = "Coffee"
 item_icon = ExtResource("34_xgqj7")
 item_type = 2
 item_cost = 20
 
-[sub_resource type="Resource" id="Resource_6vwox"]
+[sub_resource type="Resource" id="Resource_i7h65"]
 script = ExtResource("24_58u2q")
-item = SubResource("Resource_vm1fs")
+item = SubResource("Resource_6vwox")
 stat_modifiers = {
 "attack_speed": 10.0,
 "damage": -2.0
@@ -366,16 +367,16 @@ content_id = &"passive/coffee"
 display_name_key = &"passive.coffee.name"
 description_key = &"passive.coffee.description"
 
-[sub_resource type="Resource" id="Resource_i7h65"]
+[sub_resource type="Resource" id="Resource_4lw5p"]
 script = ExtResource("35_fxa6q")
 item_name = "Crack"
 item_icon = ExtResource("36_i8wiu")
 item_type = 2
 item_cost = 20
 
-[sub_resource type="Resource" id="Resource_4lw5p"]
+[sub_resource type="Resource" id="Resource_3aiis"]
 script = ExtResource("24_58u2q")
-item = SubResource("Resource_i7h65")
+item = SubResource("Resource_4lw5p")
 stat_modifiers = {
 "max_health": 5.0,
 "recovery": -1.0
@@ -384,16 +385,16 @@ content_id = &"passive/crack"
 display_name_key = &"passive.crack.name"
 description_key = &"passive.crack.description"
 
-[sub_resource type="Resource" id="Resource_3aiis"]
+[sub_resource type="Resource" id="Resource_dndku"]
 script = ExtResource("35_fxa6q")
 item_name = "Helmet"
 item_icon = ExtResource("37_u0j8w")
 item_type = 2
 item_cost = 20
 
-[sub_resource type="Resource" id="Resource_dndku"]
+[sub_resource type="Resource" id="Resource_n02ax"]
 script = ExtResource("24_58u2q")
-item = SubResource("Resource_3aiis")
+item = SubResource("Resource_dndku")
 stat_modifiers = {
 "armor": 2.0,
 "damage": -3.0
@@ -402,16 +403,16 @@ content_id = &"passive/helmet"
 display_name_key = &"passive.helmet.name"
 description_key = &"passive.helmet.description"
 
-[sub_resource type="Resource" id="Resource_n02ax"]
+[sub_resource type="Resource" id="Resource_6bkrh"]
 script = ExtResource("35_fxa6q")
 item_name = "Toxic Sludge"
 item_icon = ExtResource("38_xvosd")
 item_type = 2
 item_cost = 20
 
-[sub_resource type="Resource" id="Resource_6bkrh"]
+[sub_resource type="Resource" id="Resource_ekhsh"]
 script = ExtResource("24_58u2q")
-item = SubResource("Resource_n02ax")
+item = SubResource("Resource_6bkrh")
 stat_modifiers = {
 "dodge": 2.0
 }
@@ -419,16 +420,16 @@ content_id = &"passive/toxic_sludge"
 display_name_key = &"passive.toxic_sludge.name"
 description_key = &"passive.toxic_sludge.description"
 
-[sub_resource type="Resource" id="Resource_ekhsh"]
+[sub_resource type="Resource" id="Resource_7dayf"]
 script = ExtResource("35_fxa6q")
 item_name = "Butterfly"
 item_icon = ExtResource("34_xgqj7")
 item_type = 2
 item_cost = 20
 
-[sub_resource type="Resource" id="Resource_7dayf"]
+[sub_resource type="Resource" id="Resource_2tpwy"]
 script = ExtResource("24_58u2q")
-item = SubResource("Resource_ekhsh")
+item = SubResource("Resource_7dayf")
 stat_modifiers = {
 "life_steal": 2.0,
 "luck": -1.0
@@ -437,7 +438,7 @@ content_id = &"passive/butterfly"
 display_name_key = &"passive.butterfly.name"
 description_key = &"passive.butterfly.description"
 
-[sub_resource type="Resource" id="Resource_2tpwy"]
+[sub_resource type="Resource" id="Resource_jtnvt"]
 script = ExtResource("35_fxa6q")
 item_name = "Flag"
 item_icon = ExtResource("36_i8wiu")
@@ -445,9 +446,9 @@ item_tier = 1
 item_type = 2
 item_cost = 25
 
-[sub_resource type="Resource" id="Resource_jtnvt"]
+[sub_resource type="Resource" id="Resource_30mdi"]
 script = ExtResource("24_58u2q")
-item = SubResource("Resource_2tpwy")
+item = SubResource("Resource_jtnvt")
 stat_modifiers = {
 "attack_speed": 10.0,
 "range": 20.0
@@ -456,7 +457,7 @@ content_id = &"passive/flag"
 display_name_key = &"passive.flag.name"
 description_key = &"passive.flag.description"
 
-[sub_resource type="Resource" id="Resource_30mdi"]
+[sub_resource type="Resource" id="Resource_6dwwn"]
 script = ExtResource("35_fxa6q")
 item_name = "Knight Helmet"
 item_icon = ExtResource("37_u0j8w")
@@ -464,9 +465,9 @@ item_tier = 3
 item_type = 2
 item_cost = 35
 
-[sub_resource type="Resource" id="Resource_6dwwn"]
+[sub_resource type="Resource" id="Resource_5qiun"]
 script = ExtResource("24_58u2q")
-item = SubResource("Resource_30mdi")
+item = SubResource("Resource_6dwwn")
 stat_modifiers = {
 "armor": 1.0,
 "max_health": 5.0,
@@ -476,7 +477,7 @@ content_id = &"passive/knight_helmet"
 display_name_key = &"passive.knight_helmet.name"
 description_key = &"passive.knight_helmet.description"
 
-[sub_resource type="Resource" id="Resource_5qiun"]
+[sub_resource type="Resource" id="Resource_dt2ip"]
 script = ExtResource("35_fxa6q")
 item_name = "Leech"
 item_icon = ExtResource("38_xvosd")
@@ -484,9 +485,9 @@ item_tier = 2
 item_type = 2
 item_cost = 30
 
-[sub_resource type="Resource" id="Resource_dt2ip"]
+[sub_resource type="Resource" id="Resource_xia1g"]
 script = ExtResource("24_58u2q")
-item = SubResource("Resource_5qiun")
+item = SubResource("Resource_dt2ip")
 stat_modifiers = {
 "harvesting": -2.0,
 "life_steal": 1.0,
@@ -496,7 +497,7 @@ content_id = &"passive/leech"
 display_name_key = &"passive.leech.name"
 description_key = &"passive.leech.description"
 
-[sub_resource type="Resource" id="Resource_xia1g"]
+[sub_resource type="Resource" id="Resource_gyk3q"]
 script = ExtResource("35_fxa6q")
 item_name = "Missile"
 item_icon = ExtResource("34_xgqj7")
@@ -504,9 +505,9 @@ item_tier = 3
 item_type = 2
 item_cost = 35
 
-[sub_resource type="Resource" id="Resource_gyk3q"]
+[sub_resource type="Resource" id="Resource_kfhbo"]
 script = ExtResource("24_58u2q")
-item = SubResource("Resource_xia1g")
+item = SubResource("Resource_gyk3q")
 stat_modifiers = {
 "attack_speed": -4.0,
 "damage": 10.0
@@ -515,7 +516,7 @@ content_id = &"passive/missile"
 display_name_key = &"passive.missile.name"
 description_key = &"passive.missile.description"
 
-[sub_resource type="Resource" id="Resource_kfhbo"]
+[sub_resource type="Resource" id="Resource_y1tu5"]
 script = ExtResource("35_fxa6q")
 item_name = "Muscle"
 item_icon = ExtResource("36_i8wiu")
@@ -523,9 +524,9 @@ item_tier = 3
 item_type = 2
 item_cost = 35
 
-[sub_resource type="Resource" id="Resource_y1tu5"]
+[sub_resource type="Resource" id="Resource_43m6r"]
 script = ExtResource("24_58u2q")
-item = SubResource("Resource_kfhbo")
+item = SubResource("Resource_y1tu5")
 stat_modifiers = {
 "max_health": 5.0,
 "melee_damage": 3.0,
@@ -535,7 +536,7 @@ content_id = &"passive/muscle"
 display_name_key = &"passive.muscle.name"
 description_key = &"passive.muscle.description"
 
-[sub_resource type="Resource" id="Resource_43m6r"]
+[sub_resource type="Resource" id="Resource_58u2q"]
 script = ExtResource("35_fxa6q")
 item_name = "Plant"
 item_icon = ExtResource("37_u0j8w")
@@ -543,9 +544,9 @@ item_tier = 1
 item_type = 2
 item_cost = 25
 
-[sub_resource type="Resource" id="Resource_58u2q"]
+[sub_resource type="Resource" id="Resource_cak7n"]
 script = ExtResource("24_58u2q")
-item = SubResource("Resource_43m6r")
+item = SubResource("Resource_58u2q")
 stat_modifiers = {
 "life_steal": -1.0,
 "recovery": 3.0
@@ -554,7 +555,7 @@ content_id = &"passive/plant"
 display_name_key = &"passive.plant.name"
 description_key = &"passive.plant.description"
 
-[sub_resource type="Resource" id="Resource_cak7n"]
+[sub_resource type="Resource" id="Resource_e6euc"]
 script = ExtResource("35_fxa6q")
 item_name = "Round Hat"
 item_icon = ExtResource("38_xvosd")
@@ -562,9 +563,9 @@ item_tier = 3
 item_type = 2
 item_cost = 35
 
-[sub_resource type="Resource" id="Resource_e6euc"]
+[sub_resource type="Resource" id="Resource_3x0kq"]
 script = ExtResource("24_58u2q")
-item = SubResource("Resource_cak7n")
+item = SubResource("Resource_e6euc")
 stat_modifiers = {
 "harvesting": 18.0,
 "luck": 15.0
@@ -573,7 +574,7 @@ content_id = &"passive/round_hat"
 display_name_key = &"passive.round_hat.name"
 description_key = &"passive.round_hat.description"
 
-[sub_resource type="Resource" id="Resource_3x0kq"]
+[sub_resource type="Resource" id="Resource_3m063"]
 script = ExtResource("35_fxa6q")
 item_name = "Telescope"
 item_icon = ExtResource("34_xgqj7")
@@ -581,9 +582,9 @@ item_tier = 1
 item_type = 2
 item_cost = 25
 
-[sub_resource type="Resource" id="Resource_3m063"]
+[sub_resource type="Resource" id="Resource_xa6el"]
 script = ExtResource("24_58u2q")
-item = SubResource("Resource_3x0kq")
+item = SubResource("Resource_3m063")
 stat_modifiers = {
 "range": 20.0,
 "ranged_damage": 2.0
@@ -592,7 +593,7 @@ content_id = &"passive/telescope"
 display_name_key = &"passive.telescope.name"
 description_key = &"passive.telescope.description"
 
-[sub_resource type="Resource" id="Resource_xa6el"]
+[sub_resource type="Resource" id="Resource_45o4m"]
 script = ExtResource("35_fxa6q")
 item_name = "Vest"
 item_icon = ExtResource("36_i8wiu")
@@ -600,9 +601,9 @@ item_tier = 2
 item_type = 2
 item_cost = 30
 
-[sub_resource type="Resource" id="Resource_45o4m"]
+[sub_resource type="Resource" id="Resource_b6imo"]
 script = ExtResource("24_58u2q")
-item = SubResource("Resource_xa6el")
+item = SubResource("Resource_45o4m")
 stat_modifiers = {
 "armor": 1.0,
 "dodge": 2.0
@@ -611,7 +612,7 @@ content_id = &"passive/vest"
 display_name_key = &"passive.vest.name"
 description_key = &"passive.vest.description"
 
-[sub_resource type="Resource" id="Resource_b6imo"]
+[sub_resource type="Resource" id="Resource_aob88"]
 script = ExtResource("35_fxa6q")
 item_name = "Map"
 item_icon = ExtResource("37_u0j8w")
@@ -619,9 +620,9 @@ item_tier = 3
 item_type = 2
 item_cost = 35
 
-[sub_resource type="Resource" id="Resource_aob88"]
+[sub_resource type="Resource" id="Resource_f8xti"]
 script = ExtResource("24_58u2q")
-item = SubResource("Resource_b6imo")
+item = SubResource("Resource_aob88")
 stat_modifiers = {
 "move_speed": 5.0,
 "range": 20.0
@@ -630,7 +631,7 @@ content_id = &"passive/map"
 display_name_key = &"passive.map.name"
 description_key = &"passive.map.description"
 
-[sub_resource type="Resource" id="Resource_f8xti"]
+[sub_resource type="Resource" id="Resource_s2hc6"]
 script = ExtResource("35_fxa6q")
 item_name = "Magazine"
 item_icon = ExtResource("38_xvosd")
@@ -638,9 +639,9 @@ item_tier = 3
 item_type = 2
 item_cost = 35
 
-[sub_resource type="Resource" id="Resource_s2hc6"]
+[sub_resource type="Resource" id="Resource_ye0er"]
 script = ExtResource("24_58u2q")
-item = SubResource("Resource_f8xti")
+item = SubResource("Resource_s2hc6")
 stat_modifiers = {
 "attack_speed": 10.0,
 "ranged_damage": 3.0
@@ -649,7 +650,7 @@ content_id = &"passive/magazine"
 display_name_key = &"passive.magazine.name"
 description_key = &"passive.magazine.description"
 
-[sub_resource type="Resource" id="Resource_ye0er"]
+[sub_resource type="Resource" id="Resource_h2cdp"]
 script = ExtResource("42_i5605")
 value = 3.0
 description = "+3.0"
@@ -658,16 +659,16 @@ item_name = "Max Health"
 item_icon = ExtResource("41_7vhco")
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_h2cdp"]
+[sub_resource type="Resource" id="Resource_x8iba"]
 script = ExtResource("30_45o4m")
 stat_id = 0
 value = 3.0
-item = SubResource("Resource_ye0er")
+item = SubResource("Resource_h2cdp")
 content_id = &"upgrade/max_health/common"
 display_name_key = &"upgrade.max_health.name"
 description_key = &"upgrade.max_health.common.description"
 
-[sub_resource type="Resource" id="Resource_x8iba"]
+[sub_resource type="Resource" id="Resource_1blr2"]
 script = ExtResource("42_i5605")
 value = 6.0
 description = "+6.0"
@@ -677,17 +678,17 @@ item_icon = ExtResource("41_7vhco")
 item_tier = 1
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_1blr2"]
+[sub_resource type="Resource" id="Resource_5ajui"]
 script = ExtResource("30_45o4m")
 quality = 1
 stat_id = 0
 value = 6.0
-item = SubResource("Resource_x8iba")
+item = SubResource("Resource_1blr2")
 content_id = &"upgrade/max_health/rare"
 display_name_key = &"upgrade.max_health.name"
 description_key = &"upgrade.max_health.rare.description"
 
-[sub_resource type="Resource" id="Resource_5ajui"]
+[sub_resource type="Resource" id="Resource_ekiji"]
 script = ExtResource("42_i5605")
 value = 9.0
 description = "+9.0"
@@ -697,17 +698,17 @@ item_icon = ExtResource("41_7vhco")
 item_tier = 2
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_ekiji"]
+[sub_resource type="Resource" id="Resource_jec54"]
 script = ExtResource("30_45o4m")
 quality = 2
 stat_id = 0
 value = 9.0
-item = SubResource("Resource_5ajui")
+item = SubResource("Resource_ekiji")
 content_id = &"upgrade/max_health/epic"
 display_name_key = &"upgrade.max_health.name"
 description_key = &"upgrade.max_health.epic.description"
 
-[sub_resource type="Resource" id="Resource_jec54"]
+[sub_resource type="Resource" id="Resource_kkoct"]
 script = ExtResource("42_i5605")
 value = 12.0
 description = "+12.0"
@@ -717,17 +718,17 @@ item_icon = ExtResource("41_7vhco")
 item_tier = 3
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_kkoct"]
+[sub_resource type="Resource" id="Resource_2ea5m"]
 script = ExtResource("30_45o4m")
 quality = 3
 stat_id = 0
 value = 12.0
-item = SubResource("Resource_jec54")
+item = SubResource("Resource_kkoct")
 content_id = &"upgrade/max_health/legendary"
 display_name_key = &"upgrade.max_health.name"
 description_key = &"upgrade.max_health.legendary.description"
 
-[sub_resource type="Resource" id="Resource_2ea5m"]
+[sub_resource type="Resource" id="Resource_358vo"]
 script = ExtResource("42_i5605")
 value = 1.0
 description = "+1.0"
@@ -736,16 +737,16 @@ item_name = "Recovery"
 item_icon = ExtResource("41_7vhco")
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_358vo"]
+[sub_resource type="Resource" id="Resource_titae"]
 script = ExtResource("30_45o4m")
 stat_id = 1
 value = 1.0
-item = SubResource("Resource_2ea5m")
+item = SubResource("Resource_358vo")
 content_id = &"upgrade/recovery/common"
 display_name_key = &"upgrade.recovery.name"
 description_key = &"upgrade.recovery.common.description"
 
-[sub_resource type="Resource" id="Resource_titae"]
+[sub_resource type="Resource" id="Resource_5upij"]
 script = ExtResource("42_i5605")
 value = 2.0
 description = "+2.0"
@@ -755,17 +756,17 @@ item_icon = ExtResource("41_7vhco")
 item_tier = 1
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_5upij"]
+[sub_resource type="Resource" id="Resource_ssood"]
 script = ExtResource("30_45o4m")
 quality = 1
 stat_id = 1
 value = 2.0
-item = SubResource("Resource_titae")
+item = SubResource("Resource_5upij")
 content_id = &"upgrade/recovery/rare"
 display_name_key = &"upgrade.recovery.name"
 description_key = &"upgrade.recovery.rare.description"
 
-[sub_resource type="Resource" id="Resource_ssood"]
+[sub_resource type="Resource" id="Resource_yhb4o"]
 script = ExtResource("42_i5605")
 value = 3.0
 description = "+3.0"
@@ -775,17 +776,17 @@ item_icon = ExtResource("43_duiw8")
 item_tier = 2
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_yhb4o"]
+[sub_resource type="Resource" id="Resource_tm2qo"]
 script = ExtResource("30_45o4m")
 quality = 2
 stat_id = 1
 value = 3.0
-item = SubResource("Resource_ssood")
+item = SubResource("Resource_yhb4o")
 content_id = &"upgrade/recovery/epic"
 display_name_key = &"upgrade.recovery.name"
 description_key = &"upgrade.recovery.epic.description"
 
-[sub_resource type="Resource" id="Resource_tm2qo"]
+[sub_resource type="Resource" id="Resource_l4y2m"]
 script = ExtResource("42_i5605")
 value = 4.0
 description = "+4.0"
@@ -795,17 +796,17 @@ item_icon = ExtResource("43_duiw8")
 item_tier = 3
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_l4y2m"]
+[sub_resource type="Resource" id="Resource_q2xn7"]
 script = ExtResource("30_45o4m")
 quality = 3
 stat_id = 1
 value = 4.0
-item = SubResource("Resource_tm2qo")
+item = SubResource("Resource_l4y2m")
 content_id = &"upgrade/recovery/legendary"
 display_name_key = &"upgrade.recovery.name"
 description_key = &"upgrade.recovery.legendary.description"
 
-[sub_resource type="Resource" id="Resource_q2xn7"]
+[sub_resource type="Resource" id="Resource_wr17u"]
 script = ExtResource("42_i5605")
 value = 2.0
 description = "+2.0"
@@ -814,16 +815,16 @@ item_name = "Life Steal"
 item_icon = ExtResource("43_duiw8")
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_wr17u"]
+[sub_resource type="Resource" id="Resource_4uvxw"]
 script = ExtResource("30_45o4m")
 stat_id = 2
 value = 2.0
-item = SubResource("Resource_q2xn7")
+item = SubResource("Resource_wr17u")
 content_id = &"upgrade/life_steal/common"
 display_name_key = &"upgrade.life_steal.name"
 description_key = &"upgrade.life_steal.common.description"
 
-[sub_resource type="Resource" id="Resource_4uvxw"]
+[sub_resource type="Resource" id="Resource_3rf28"]
 script = ExtResource("42_i5605")
 value = 4.0
 description = "+4.0"
@@ -833,17 +834,17 @@ item_icon = ExtResource("43_duiw8")
 item_tier = 1
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_3rf28"]
+[sub_resource type="Resource" id="Resource_2gqwd"]
 script = ExtResource("30_45o4m")
 quality = 1
 stat_id = 2
 value = 4.0
-item = SubResource("Resource_4uvxw")
+item = SubResource("Resource_3rf28")
 content_id = &"upgrade/life_steal/rare"
 display_name_key = &"upgrade.life_steal.name"
 description_key = &"upgrade.life_steal.rare.description"
 
-[sub_resource type="Resource" id="Resource_2gqwd"]
+[sub_resource type="Resource" id="Resource_yrvp7"]
 script = ExtResource("42_i5605")
 value = 6.0
 description = "+6.0"
@@ -853,17 +854,17 @@ item_icon = ExtResource("43_duiw8")
 item_tier = 2
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_yrvp7"]
+[sub_resource type="Resource" id="Resource_did5x"]
 script = ExtResource("30_45o4m")
 quality = 2
 stat_id = 2
 value = 6.0
-item = SubResource("Resource_2gqwd")
+item = SubResource("Resource_yrvp7")
 content_id = &"upgrade/life_steal/epic"
 display_name_key = &"upgrade.life_steal.name"
 description_key = &"upgrade.life_steal.epic.description"
 
-[sub_resource type="Resource" id="Resource_did5x"]
+[sub_resource type="Resource" id="Resource_o585s"]
 script = ExtResource("42_i5605")
 value = 8.0
 description = "+8.0"
@@ -873,17 +874,17 @@ item_icon = ExtResource("43_duiw8")
 item_tier = 3
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_o585s"]
+[sub_resource type="Resource" id="Resource_s145b"]
 script = ExtResource("30_45o4m")
 quality = 3
 stat_id = 2
 value = 8.0
-item = SubResource("Resource_did5x")
+item = SubResource("Resource_o585s")
 content_id = &"upgrade/life_steal/legendary"
 display_name_key = &"upgrade.life_steal.name"
 description_key = &"upgrade.life_steal.legendary.description"
 
-[sub_resource type="Resource" id="Resource_s145b"]
+[sub_resource type="Resource" id="Resource_jy3fc"]
 script = ExtResource("42_i5605")
 value = 3.0
 description = "+3.0"
@@ -892,16 +893,16 @@ item_name = "Damage"
 item_icon = ExtResource("44_xx57p")
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_jy3fc"]
+[sub_resource type="Resource" id="Resource_s27uq"]
 script = ExtResource("30_45o4m")
 stat_id = 3
 value = 3.0
-item = SubResource("Resource_s145b")
+item = SubResource("Resource_jy3fc")
 content_id = &"upgrade/damage/common"
 display_name_key = &"upgrade.damage.name"
 description_key = &"upgrade.damage.common.description"
 
-[sub_resource type="Resource" id="Resource_s27uq"]
+[sub_resource type="Resource" id="Resource_rmtcn"]
 script = ExtResource("42_i5605")
 value = 6.0
 description = "+6.0"
@@ -911,17 +912,17 @@ item_icon = ExtResource("44_xx57p")
 item_tier = 1
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_rmtcn"]
+[sub_resource type="Resource" id="Resource_da66g"]
 script = ExtResource("30_45o4m")
 quality = 1
 stat_id = 3
 value = 6.0
-item = SubResource("Resource_s27uq")
+item = SubResource("Resource_rmtcn")
 content_id = &"upgrade/damage/rare"
 display_name_key = &"upgrade.damage.name"
 description_key = &"upgrade.damage.rare.description"
 
-[sub_resource type="Resource" id="Resource_da66g"]
+[sub_resource type="Resource" id="Resource_g7xet"]
 script = ExtResource("42_i5605")
 value = 9.0
 description = "+9.0"
@@ -931,17 +932,17 @@ item_icon = ExtResource("44_xx57p")
 item_tier = 2
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_g7xet"]
+[sub_resource type="Resource" id="Resource_x3xd1"]
 script = ExtResource("30_45o4m")
 quality = 2
 stat_id = 3
 value = 9.0
-item = SubResource("Resource_da66g")
+item = SubResource("Resource_g7xet")
 content_id = &"upgrade/damage/epic"
 display_name_key = &"upgrade.damage.name"
 description_key = &"upgrade.damage.epic.description"
 
-[sub_resource type="Resource" id="Resource_x3xd1"]
+[sub_resource type="Resource" id="Resource_qolb6"]
 script = ExtResource("42_i5605")
 value = 12.0
 description = "+12.0"
@@ -951,17 +952,17 @@ item_icon = ExtResource("44_xx57p")
 item_tier = 3
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_qolb6"]
+[sub_resource type="Resource" id="Resource_4d5kc"]
 script = ExtResource("30_45o4m")
 quality = 3
 stat_id = 3
 value = 12.0
-item = SubResource("Resource_x3xd1")
+item = SubResource("Resource_qolb6")
 content_id = &"upgrade/damage/legendary"
 display_name_key = &"upgrade.damage.name"
 description_key = &"upgrade.damage.legendary.description"
 
-[sub_resource type="Resource" id="Resource_4d5kc"]
+[sub_resource type="Resource" id="Resource_cuhey"]
 script = ExtResource("42_i5605")
 value = 2.0
 description = "+2.0"
@@ -970,16 +971,16 @@ item_name = "Melee Damage"
 item_icon = ExtResource("44_xx57p")
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_cuhey"]
+[sub_resource type="Resource" id="Resource_b05bk"]
 script = ExtResource("30_45o4m")
 stat_id = 4
 value = 2.0
-item = SubResource("Resource_4d5kc")
+item = SubResource("Resource_cuhey")
 content_id = &"upgrade/melee_damage/common"
 display_name_key = &"upgrade.melee_damage.name"
 description_key = &"upgrade.melee_damage.common.description"
 
-[sub_resource type="Resource" id="Resource_b05bk"]
+[sub_resource type="Resource" id="Resource_4txac"]
 script = ExtResource("42_i5605")
 value = 4.0
 description = "+4.0"
@@ -989,17 +990,17 @@ item_icon = ExtResource("44_xx57p")
 item_tier = 1
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_4txac"]
+[sub_resource type="Resource" id="Resource_16d73"]
 script = ExtResource("30_45o4m")
 quality = 1
 stat_id = 4
 value = 4.0
-item = SubResource("Resource_b05bk")
+item = SubResource("Resource_4txac")
 content_id = &"upgrade/melee_damage/rare"
 display_name_key = &"upgrade.melee_damage.name"
 description_key = &"upgrade.melee_damage.rare.description"
 
-[sub_resource type="Resource" id="Resource_16d73"]
+[sub_resource type="Resource" id="Resource_lf2ur"]
 script = ExtResource("42_i5605")
 value = 6.0
 description = "+6.0"
@@ -1009,17 +1010,17 @@ item_icon = ExtResource("45_crsmg")
 item_tier = 2
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_lf2ur"]
+[sub_resource type="Resource" id="Resource_ebq22"]
 script = ExtResource("30_45o4m")
 quality = 2
 stat_id = 4
 value = 6.0
-item = SubResource("Resource_16d73")
+item = SubResource("Resource_lf2ur")
 content_id = &"upgrade/melee_damage/epic"
 display_name_key = &"upgrade.melee_damage.name"
 description_key = &"upgrade.melee_damage.epic.description"
 
-[sub_resource type="Resource" id="Resource_ebq22"]
+[sub_resource type="Resource" id="Resource_jyr5u"]
 script = ExtResource("42_i5605")
 value = 8.0
 description = "+8.0"
@@ -1029,17 +1030,17 @@ item_icon = ExtResource("45_crsmg")
 item_tier = 3
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_jyr5u"]
+[sub_resource type="Resource" id="Resource_77w8q"]
 script = ExtResource("30_45o4m")
 quality = 3
 stat_id = 4
 value = 8.0
-item = SubResource("Resource_ebq22")
+item = SubResource("Resource_jyr5u")
 content_id = &"upgrade/melee_damage/legendary"
 display_name_key = &"upgrade.melee_damage.name"
 description_key = &"upgrade.melee_damage.legendary.description"
 
-[sub_resource type="Resource" id="Resource_77w8q"]
+[sub_resource type="Resource" id="Resource_kv5vl"]
 script = ExtResource("42_i5605")
 value = 2.0
 description = "+2.0"
@@ -1048,16 +1049,16 @@ item_name = "Ranged Damage"
 item_icon = ExtResource("45_crsmg")
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_kv5vl"]
+[sub_resource type="Resource" id="Resource_js03e"]
 script = ExtResource("30_45o4m")
 stat_id = 5
 value = 2.0
-item = SubResource("Resource_77w8q")
+item = SubResource("Resource_kv5vl")
 content_id = &"upgrade/ranged_damage/common"
 display_name_key = &"upgrade.ranged_damage.name"
 description_key = &"upgrade.ranged_damage.common.description"
 
-[sub_resource type="Resource" id="Resource_js03e"]
+[sub_resource type="Resource" id="Resource_c87xp"]
 script = ExtResource("42_i5605")
 value = 4.0
 description = "+4.0"
@@ -1067,17 +1068,17 @@ item_icon = ExtResource("45_crsmg")
 item_tier = 1
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_c87xp"]
+[sub_resource type="Resource" id="Resource_31san"]
 script = ExtResource("30_45o4m")
 quality = 1
 stat_id = 5
 value = 4.0
-item = SubResource("Resource_js03e")
+item = SubResource("Resource_c87xp")
 content_id = &"upgrade/ranged_damage/rare"
 display_name_key = &"upgrade.ranged_damage.name"
 description_key = &"upgrade.ranged_damage.rare.description"
 
-[sub_resource type="Resource" id="Resource_31san"]
+[sub_resource type="Resource" id="Resource_pqqbw"]
 script = ExtResource("42_i5605")
 value = 6.0
 description = "+6.0"
@@ -1087,17 +1088,17 @@ item_icon = ExtResource("45_crsmg")
 item_tier = 2
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_pqqbw"]
+[sub_resource type="Resource" id="Resource_oau7k"]
 script = ExtResource("30_45o4m")
 quality = 2
 stat_id = 5
 value = 6.0
-item = SubResource("Resource_31san")
+item = SubResource("Resource_pqqbw")
 content_id = &"upgrade/ranged_damage/epic"
 display_name_key = &"upgrade.ranged_damage.name"
 description_key = &"upgrade.ranged_damage.epic.description"
 
-[sub_resource type="Resource" id="Resource_oau7k"]
+[sub_resource type="Resource" id="Resource_2y1rb"]
 script = ExtResource("42_i5605")
 value = 8.0
 description = "+8.0"
@@ -1107,17 +1108,17 @@ item_icon = ExtResource("45_crsmg")
 item_tier = 3
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_2y1rb"]
+[sub_resource type="Resource" id="Resource_fluvf"]
 script = ExtResource("30_45o4m")
 quality = 3
 stat_id = 5
 value = 8.0
-item = SubResource("Resource_oau7k")
+item = SubResource("Resource_2y1rb")
 content_id = &"upgrade/ranged_damage/legendary"
 display_name_key = &"upgrade.ranged_damage.name"
 description_key = &"upgrade.ranged_damage.legendary.description"
 
-[sub_resource type="Resource" id="Resource_fluvf"]
+[sub_resource type="Resource" id="Resource_ug7mv"]
 script = ExtResource("42_i5605")
 value = 2.0
 description = "+2.0"
@@ -1126,16 +1127,16 @@ item_name = "Elemental Damage"
 item_icon = ExtResource("46_iqwa1")
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_ug7mv"]
+[sub_resource type="Resource" id="Resource_6t0tj"]
 script = ExtResource("30_45o4m")
 stat_id = 6
 value = 2.0
-item = SubResource("Resource_fluvf")
+item = SubResource("Resource_ug7mv")
 content_id = &"upgrade/elemental_damage/common"
 display_name_key = &"upgrade.elemental_damage.name"
 description_key = &"upgrade.elemental_damage.common.description"
 
-[sub_resource type="Resource" id="Resource_6t0tj"]
+[sub_resource type="Resource" id="Resource_u4rlw"]
 script = ExtResource("42_i5605")
 value = 4.0
 description = "+4.0"
@@ -1145,17 +1146,17 @@ item_icon = ExtResource("46_iqwa1")
 item_tier = 1
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_u4rlw"]
+[sub_resource type="Resource" id="Resource_00jja"]
 script = ExtResource("30_45o4m")
 quality = 1
 stat_id = 6
 value = 4.0
-item = SubResource("Resource_6t0tj")
+item = SubResource("Resource_u4rlw")
 content_id = &"upgrade/elemental_damage/rare"
 display_name_key = &"upgrade.elemental_damage.name"
 description_key = &"upgrade.elemental_damage.rare.description"
 
-[sub_resource type="Resource" id="Resource_00jja"]
+[sub_resource type="Resource" id="Resource_wewdw"]
 script = ExtResource("42_i5605")
 value = 6.0
 description = "+6.0"
@@ -1165,17 +1166,17 @@ item_icon = ExtResource("46_iqwa1")
 item_tier = 2
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_wewdw"]
+[sub_resource type="Resource" id="Resource_nejog"]
 script = ExtResource("30_45o4m")
 quality = 2
 stat_id = 6
 value = 6.0
-item = SubResource("Resource_00jja")
+item = SubResource("Resource_wewdw")
 content_id = &"upgrade/elemental_damage/epic"
 display_name_key = &"upgrade.elemental_damage.name"
 description_key = &"upgrade.elemental_damage.epic.description"
 
-[sub_resource type="Resource" id="Resource_nejog"]
+[sub_resource type="Resource" id="Resource_6p1kx"]
 script = ExtResource("42_i5605")
 value = 8.0
 description = "+8.0"
@@ -1185,17 +1186,17 @@ item_icon = ExtResource("46_iqwa1")
 item_tier = 3
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_6p1kx"]
+[sub_resource type="Resource" id="Resource_3lw6r"]
 script = ExtResource("30_45o4m")
 quality = 3
 stat_id = 6
 value = 8.0
-item = SubResource("Resource_nejog")
+item = SubResource("Resource_6p1kx")
 content_id = &"upgrade/elemental_damage/legendary"
 display_name_key = &"upgrade.elemental_damage.name"
 description_key = &"upgrade.elemental_damage.legendary.description"
 
-[sub_resource type="Resource" id="Resource_3lw6r"]
+[sub_resource type="Resource" id="Resource_0ecfm"]
 script = ExtResource("42_i5605")
 value = 5.0
 description = "+5.0"
@@ -1204,16 +1205,16 @@ item_name = "Attack Speed"
 item_icon = ExtResource("47_6sfud")
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_0ecfm"]
+[sub_resource type="Resource" id="Resource_a313j"]
 script = ExtResource("30_45o4m")
 stat_id = 7
 value = 5.0
-item = SubResource("Resource_3lw6r")
+item = SubResource("Resource_0ecfm")
 content_id = &"upgrade/attack_speed/common"
 display_name_key = &"upgrade.attack_speed.name"
 description_key = &"upgrade.attack_speed.common.description"
 
-[sub_resource type="Resource" id="Resource_a313j"]
+[sub_resource type="Resource" id="Resource_lhvd3"]
 script = ExtResource("42_i5605")
 value = 10.0
 description = "+10.0"
@@ -1223,17 +1224,17 @@ item_icon = ExtResource("47_6sfud")
 item_tier = 1
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_lhvd3"]
+[sub_resource type="Resource" id="Resource_p2qa5"]
 script = ExtResource("30_45o4m")
 quality = 1
 stat_id = 7
 value = 10.0
-item = SubResource("Resource_a313j")
+item = SubResource("Resource_lhvd3")
 content_id = &"upgrade/attack_speed/rare"
 display_name_key = &"upgrade.attack_speed.name"
 description_key = &"upgrade.attack_speed.rare.description"
 
-[sub_resource type="Resource" id="Resource_p2qa5"]
+[sub_resource type="Resource" id="Resource_aykne"]
 script = ExtResource("42_i5605")
 value = 15.0
 description = "+15.0"
@@ -1243,17 +1244,17 @@ item_icon = ExtResource("47_6sfud")
 item_tier = 2
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_aykne"]
+[sub_resource type="Resource" id="Resource_cuctv"]
 script = ExtResource("30_45o4m")
 quality = 2
 stat_id = 7
 value = 15.0
-item = SubResource("Resource_p2qa5")
+item = SubResource("Resource_aykne")
 content_id = &"upgrade/attack_speed/epic"
 display_name_key = &"upgrade.attack_speed.name"
 description_key = &"upgrade.attack_speed.epic.description"
 
-[sub_resource type="Resource" id="Resource_cuctv"]
+[sub_resource type="Resource" id="Resource_sjqof"]
 script = ExtResource("42_i5605")
 value = 20.0
 description = "+20.0"
@@ -1263,17 +1264,17 @@ item_icon = ExtResource("47_6sfud")
 item_tier = 3
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_sjqof"]
+[sub_resource type="Resource" id="Resource_nyfj0"]
 script = ExtResource("30_45o4m")
 quality = 3
 stat_id = 7
 value = 20.0
-item = SubResource("Resource_cuctv")
+item = SubResource("Resource_sjqof")
 content_id = &"upgrade/attack_speed/legendary"
 display_name_key = &"upgrade.attack_speed.name"
 description_key = &"upgrade.attack_speed.legendary.description"
 
-[sub_resource type="Resource" id="Resource_nyfj0"]
+[sub_resource type="Resource" id="Resource_g8ngi"]
 script = ExtResource("42_i5605")
 value = 3.0
 description = "+3.0"
@@ -1282,16 +1283,16 @@ item_name = "Critical Chance"
 item_icon = ExtResource("47_6sfud")
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_g8ngi"]
+[sub_resource type="Resource" id="Resource_cajt7"]
 script = ExtResource("30_45o4m")
 stat_id = 8
 value = 3.0
-item = SubResource("Resource_nyfj0")
+item = SubResource("Resource_g8ngi")
 content_id = &"upgrade/critical_chance/common"
 display_name_key = &"upgrade.critical_chance.name"
 description_key = &"upgrade.critical_chance.common.description"
 
-[sub_resource type="Resource" id="Resource_cajt7"]
+[sub_resource type="Resource" id="Resource_bi8yi"]
 script = ExtResource("42_i5605")
 value = 6.0
 description = "+6.0"
@@ -1301,17 +1302,17 @@ item_icon = ExtResource("47_6sfud")
 item_tier = 1
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_bi8yi"]
+[sub_resource type="Resource" id="Resource_h3o7p"]
 script = ExtResource("30_45o4m")
 quality = 1
 stat_id = 8
 value = 6.0
-item = SubResource("Resource_cajt7")
+item = SubResource("Resource_bi8yi")
 content_id = &"upgrade/critical_chance/rare"
 display_name_key = &"upgrade.critical_chance.name"
 description_key = &"upgrade.critical_chance.rare.description"
 
-[sub_resource type="Resource" id="Resource_h3o7p"]
+[sub_resource type="Resource" id="Resource_qqjbq"]
 script = ExtResource("42_i5605")
 value = 9.0
 description = "+9.0"
@@ -1321,17 +1322,17 @@ item_icon = ExtResource("48_kuwhg")
 item_tier = 2
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_qqjbq"]
+[sub_resource type="Resource" id="Resource_iywlu"]
 script = ExtResource("30_45o4m")
 quality = 2
 stat_id = 8
 value = 9.0
-item = SubResource("Resource_h3o7p")
+item = SubResource("Resource_qqjbq")
 content_id = &"upgrade/critical_chance/epic"
 display_name_key = &"upgrade.critical_chance.name"
 description_key = &"upgrade.critical_chance.epic.description"
 
-[sub_resource type="Resource" id="Resource_iywlu"]
+[sub_resource type="Resource" id="Resource_j4tvy"]
 script = ExtResource("42_i5605")
 value = 12.0
 description = "+12.0"
@@ -1341,17 +1342,17 @@ item_icon = ExtResource("48_kuwhg")
 item_tier = 3
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_j4tvy"]
+[sub_resource type="Resource" id="Resource_54xwl"]
 script = ExtResource("30_45o4m")
 quality = 3
 stat_id = 8
 value = 12.0
-item = SubResource("Resource_iywlu")
+item = SubResource("Resource_j4tvy")
 content_id = &"upgrade/critical_chance/legendary"
 display_name_key = &"upgrade.critical_chance.name"
 description_key = &"upgrade.critical_chance.legendary.description"
 
-[sub_resource type="Resource" id="Resource_54xwl"]
+[sub_resource type="Resource" id="Resource_alf83"]
 script = ExtResource("42_i5605")
 value = 2.0
 description = "+2.0"
@@ -1360,16 +1361,16 @@ item_name = "Engineering"
 item_icon = ExtResource("48_kuwhg")
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_alf83"]
+[sub_resource type="Resource" id="Resource_kc2ed"]
 script = ExtResource("30_45o4m")
 stat_id = 9
 value = 2.0
-item = SubResource("Resource_54xwl")
+item = SubResource("Resource_alf83")
 content_id = &"upgrade/engineering/common"
 display_name_key = &"upgrade.engineering.name"
 description_key = &"upgrade.engineering.common.description"
 
-[sub_resource type="Resource" id="Resource_kc2ed"]
+[sub_resource type="Resource" id="Resource_q08a2"]
 script = ExtResource("42_i5605")
 value = 4.0
 description = "+4.0"
@@ -1379,17 +1380,17 @@ item_icon = ExtResource("48_kuwhg")
 item_tier = 1
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_q08a2"]
+[sub_resource type="Resource" id="Resource_bpqdk"]
 script = ExtResource("30_45o4m")
 quality = 1
 stat_id = 9
 value = 4.0
-item = SubResource("Resource_kc2ed")
+item = SubResource("Resource_q08a2")
 content_id = &"upgrade/engineering/rare"
 display_name_key = &"upgrade.engineering.name"
 description_key = &"upgrade.engineering.rare.description"
 
-[sub_resource type="Resource" id="Resource_bpqdk"]
+[sub_resource type="Resource" id="Resource_ofwkf"]
 script = ExtResource("42_i5605")
 value = 6.0
 description = "+6.0"
@@ -1399,17 +1400,17 @@ item_icon = ExtResource("48_kuwhg")
 item_tier = 2
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_ofwkf"]
+[sub_resource type="Resource" id="Resource_3s23t"]
 script = ExtResource("30_45o4m")
 quality = 2
 stat_id = 9
 value = 6.0
-item = SubResource("Resource_bpqdk")
+item = SubResource("Resource_ofwkf")
 content_id = &"upgrade/engineering/epic"
 display_name_key = &"upgrade.engineering.name"
 description_key = &"upgrade.engineering.epic.description"
 
-[sub_resource type="Resource" id="Resource_3s23t"]
+[sub_resource type="Resource" id="Resource_3yt7b"]
 script = ExtResource("42_i5605")
 value = 8.0
 description = "+8.0"
@@ -1419,17 +1420,17 @@ item_icon = ExtResource("48_kuwhg")
 item_tier = 3
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_3yt7b"]
+[sub_resource type="Resource" id="Resource_s8hp7"]
 script = ExtResource("30_45o4m")
 quality = 3
 stat_id = 9
 value = 8.0
-item = SubResource("Resource_3s23t")
+item = SubResource("Resource_3yt7b")
 content_id = &"upgrade/engineering/legendary"
 display_name_key = &"upgrade.engineering.name"
 description_key = &"upgrade.engineering.legendary.description"
 
-[sub_resource type="Resource" id="Resource_s8hp7"]
+[sub_resource type="Resource" id="Resource_jef1c"]
 script = ExtResource("42_i5605")
 value = 10.0
 description = "+10.0"
@@ -1438,16 +1439,16 @@ item_name = "Range"
 item_icon = ExtResource("49_tuubr")
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_jef1c"]
+[sub_resource type="Resource" id="Resource_ioeqf"]
 script = ExtResource("30_45o4m")
 stat_id = 10
 value = 10.0
-item = SubResource("Resource_s8hp7")
+item = SubResource("Resource_jef1c")
 content_id = &"upgrade/range/common"
 display_name_key = &"upgrade.range.name"
 description_key = &"upgrade.range.common.description"
 
-[sub_resource type="Resource" id="Resource_ioeqf"]
+[sub_resource type="Resource" id="Resource_vicbr"]
 script = ExtResource("42_i5605")
 value = 20.0
 description = "+20.0"
@@ -1457,17 +1458,17 @@ item_icon = ExtResource("49_tuubr")
 item_tier = 1
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_vicbr"]
+[sub_resource type="Resource" id="Resource_ygn58"]
 script = ExtResource("30_45o4m")
 quality = 1
 stat_id = 10
 value = 20.0
-item = SubResource("Resource_ioeqf")
+item = SubResource("Resource_vicbr")
 content_id = &"upgrade/range/rare"
 display_name_key = &"upgrade.range.name"
 description_key = &"upgrade.range.rare.description"
 
-[sub_resource type="Resource" id="Resource_ygn58"]
+[sub_resource type="Resource" id="Resource_nelgl"]
 script = ExtResource("42_i5605")
 value = 30.0
 description = "+30.0"
@@ -1477,17 +1478,17 @@ item_icon = ExtResource("49_tuubr")
 item_tier = 2
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_nelgl"]
+[sub_resource type="Resource" id="Resource_hcprq"]
 script = ExtResource("30_45o4m")
 quality = 2
 stat_id = 10
 value = 30.0
-item = SubResource("Resource_ygn58")
+item = SubResource("Resource_nelgl")
 content_id = &"upgrade/range/epic"
 display_name_key = &"upgrade.range.name"
 description_key = &"upgrade.range.epic.description"
 
-[sub_resource type="Resource" id="Resource_hcprq"]
+[sub_resource type="Resource" id="Resource_gup4j"]
 script = ExtResource("42_i5605")
 value = 40.0
 description = "+40.0"
@@ -1497,17 +1498,17 @@ item_icon = ExtResource("49_tuubr")
 item_tier = 3
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_gup4j"]
+[sub_resource type="Resource" id="Resource_5l63j"]
 script = ExtResource("30_45o4m")
 quality = 3
 stat_id = 10
 value = 40.0
-item = SubResource("Resource_hcprq")
+item = SubResource("Resource_gup4j")
 content_id = &"upgrade/range/legendary"
 display_name_key = &"upgrade.range.name"
 description_key = &"upgrade.range.legendary.description"
 
-[sub_resource type="Resource" id="Resource_5l63j"]
+[sub_resource type="Resource" id="Resource_3xbwk"]
 script = ExtResource("42_i5605")
 value = 1.0
 description = "+1.0"
@@ -1516,16 +1517,16 @@ item_name = "Armor"
 item_icon = ExtResource("49_tuubr")
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_3xbwk"]
+[sub_resource type="Resource" id="Resource_ecsjb"]
 script = ExtResource("30_45o4m")
 stat_id = 11
 value = 1.0
-item = SubResource("Resource_5l63j")
+item = SubResource("Resource_3xbwk")
 content_id = &"upgrade/armor/common"
 display_name_key = &"upgrade.armor.name"
 description_key = &"upgrade.armor.common.description"
 
-[sub_resource type="Resource" id="Resource_ecsjb"]
+[sub_resource type="Resource" id="Resource_ixntf"]
 script = ExtResource("42_i5605")
 value = 2.0
 description = "+2.0"
@@ -1535,17 +1536,17 @@ item_icon = ExtResource("49_tuubr")
 item_tier = 1
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_ixntf"]
+[sub_resource type="Resource" id="Resource_tcxqr"]
 script = ExtResource("30_45o4m")
 quality = 1
 stat_id = 11
 value = 2.0
-item = SubResource("Resource_ecsjb")
+item = SubResource("Resource_ixntf")
 content_id = &"upgrade/armor/rare"
 display_name_key = &"upgrade.armor.name"
 description_key = &"upgrade.armor.rare.description"
 
-[sub_resource type="Resource" id="Resource_tcxqr"]
+[sub_resource type="Resource" id="Resource_ojuex"]
 script = ExtResource("42_i5605")
 value = 3.0
 description = "+3.0"
@@ -1555,17 +1556,17 @@ item_icon = ExtResource("41_7vhco")
 item_tier = 2
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_ojuex"]
+[sub_resource type="Resource" id="Resource_vvpwe"]
 script = ExtResource("30_45o4m")
 quality = 2
 stat_id = 11
 value = 3.0
-item = SubResource("Resource_tcxqr")
+item = SubResource("Resource_ojuex")
 content_id = &"upgrade/armor/epic"
 display_name_key = &"upgrade.armor.name"
 description_key = &"upgrade.armor.epic.description"
 
-[sub_resource type="Resource" id="Resource_vvpwe"]
+[sub_resource type="Resource" id="Resource_ovreh"]
 script = ExtResource("42_i5605")
 value = 4.0
 description = "+4.0"
@@ -1575,17 +1576,17 @@ item_icon = ExtResource("41_7vhco")
 item_tier = 3
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_ovreh"]
+[sub_resource type="Resource" id="Resource_wd31s"]
 script = ExtResource("30_45o4m")
 quality = 3
 stat_id = 11
 value = 4.0
-item = SubResource("Resource_vvpwe")
+item = SubResource("Resource_ovreh")
 content_id = &"upgrade/armor/legendary"
 display_name_key = &"upgrade.armor.name"
 description_key = &"upgrade.armor.legendary.description"
 
-[sub_resource type="Resource" id="Resource_wd31s"]
+[sub_resource type="Resource" id="Resource_ncp08"]
 script = ExtResource("42_i5605")
 value = 3.0
 description = "+3.0"
@@ -1594,16 +1595,16 @@ item_name = "Dodge"
 item_icon = ExtResource("41_7vhco")
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_ncp08"]
+[sub_resource type="Resource" id="Resource_grxrx"]
 script = ExtResource("30_45o4m")
 stat_id = 12
 value = 3.0
-item = SubResource("Resource_wd31s")
+item = SubResource("Resource_ncp08")
 content_id = &"upgrade/dodge/common"
 display_name_key = &"upgrade.dodge.name"
 description_key = &"upgrade.dodge.common.description"
 
-[sub_resource type="Resource" id="Resource_grxrx"]
+[sub_resource type="Resource" id="Resource_iuxon"]
 script = ExtResource("42_i5605")
 value = 6.0
 description = "+6.0"
@@ -1613,17 +1614,17 @@ item_icon = ExtResource("41_7vhco")
 item_tier = 1
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_iuxon"]
+[sub_resource type="Resource" id="Resource_2y4h3"]
 script = ExtResource("30_45o4m")
 quality = 1
 stat_id = 12
 value = 6.0
-item = SubResource("Resource_grxrx")
+item = SubResource("Resource_iuxon")
 content_id = &"upgrade/dodge/rare"
 display_name_key = &"upgrade.dodge.name"
 description_key = &"upgrade.dodge.rare.description"
 
-[sub_resource type="Resource" id="Resource_2y4h3"]
+[sub_resource type="Resource" id="Resource_g800d"]
 script = ExtResource("42_i5605")
 value = 9.0
 description = "+9.0"
@@ -1633,17 +1634,17 @@ item_icon = ExtResource("41_7vhco")
 item_tier = 2
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_g800d"]
+[sub_resource type="Resource" id="Resource_sx2gm"]
 script = ExtResource("30_45o4m")
 quality = 2
 stat_id = 12
 value = 9.0
-item = SubResource("Resource_2y4h3")
+item = SubResource("Resource_g800d")
 content_id = &"upgrade/dodge/epic"
 display_name_key = &"upgrade.dodge.name"
 description_key = &"upgrade.dodge.epic.description"
 
-[sub_resource type="Resource" id="Resource_sx2gm"]
+[sub_resource type="Resource" id="Resource_gtcgn"]
 script = ExtResource("42_i5605")
 value = 12.0
 description = "+12.0"
@@ -1653,17 +1654,17 @@ item_icon = ExtResource("41_7vhco")
 item_tier = 3
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_gtcgn"]
+[sub_resource type="Resource" id="Resource_1kbp4"]
 script = ExtResource("30_45o4m")
 quality = 3
 stat_id = 12
 value = 12.0
-item = SubResource("Resource_sx2gm")
+item = SubResource("Resource_gtcgn")
 content_id = &"upgrade/dodge/legendary"
 display_name_key = &"upgrade.dodge.name"
 description_key = &"upgrade.dodge.legendary.description"
 
-[sub_resource type="Resource" id="Resource_1kbp4"]
+[sub_resource type="Resource" id="Resource_hmbeq"]
 script = ExtResource("42_i5605")
 value = 3.0
 description = "+3.0"
@@ -1672,16 +1673,16 @@ item_name = "Move Speed"
 item_icon = ExtResource("43_duiw8")
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_hmbeq"]
+[sub_resource type="Resource" id="Resource_5kcfq"]
 script = ExtResource("30_45o4m")
 stat_id = 13
 value = 3.0
-item = SubResource("Resource_1kbp4")
+item = SubResource("Resource_hmbeq")
 content_id = &"upgrade/move_speed/common"
 display_name_key = &"upgrade.move_speed.name"
 description_key = &"upgrade.move_speed.common.description"
 
-[sub_resource type="Resource" id="Resource_5kcfq"]
+[sub_resource type="Resource" id="Resource_j0op4"]
 script = ExtResource("42_i5605")
 value = 6.0
 description = "+6.0"
@@ -1691,17 +1692,17 @@ item_icon = ExtResource("43_duiw8")
 item_tier = 1
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_j0op4"]
+[sub_resource type="Resource" id="Resource_8yb75"]
 script = ExtResource("30_45o4m")
 quality = 1
 stat_id = 13
 value = 6.0
-item = SubResource("Resource_5kcfq")
+item = SubResource("Resource_j0op4")
 content_id = &"upgrade/move_speed/rare"
 display_name_key = &"upgrade.move_speed.name"
 description_key = &"upgrade.move_speed.rare.description"
 
-[sub_resource type="Resource" id="Resource_8yb75"]
+[sub_resource type="Resource" id="Resource_gh2a6"]
 script = ExtResource("42_i5605")
 value = 9.0
 description = "+9.0"
@@ -1711,17 +1712,17 @@ item_icon = ExtResource("43_duiw8")
 item_tier = 2
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_gh2a6"]
+[sub_resource type="Resource" id="Resource_7xj8m"]
 script = ExtResource("30_45o4m")
 quality = 2
 stat_id = 13
 value = 9.0
-item = SubResource("Resource_8yb75")
+item = SubResource("Resource_gh2a6")
 content_id = &"upgrade/move_speed/epic"
 display_name_key = &"upgrade.move_speed.name"
 description_key = &"upgrade.move_speed.epic.description"
 
-[sub_resource type="Resource" id="Resource_7xj8m"]
+[sub_resource type="Resource" id="Resource_4c86k"]
 script = ExtResource("42_i5605")
 value = 12.0
 description = "+12.0"
@@ -1731,17 +1732,17 @@ item_icon = ExtResource("43_duiw8")
 item_tier = 3
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_4c86k"]
+[sub_resource type="Resource" id="Resource_hjf17"]
 script = ExtResource("30_45o4m")
 quality = 3
 stat_id = 13
 value = 12.0
-item = SubResource("Resource_7xj8m")
+item = SubResource("Resource_4c86k")
 content_id = &"upgrade/move_speed/legendary"
 display_name_key = &"upgrade.move_speed.name"
 description_key = &"upgrade.move_speed.legendary.description"
 
-[sub_resource type="Resource" id="Resource_hjf17"]
+[sub_resource type="Resource" id="Resource_qirbk"]
 script = ExtResource("42_i5605")
 value = 5.0
 description = "+5.0"
@@ -1750,16 +1751,16 @@ item_name = "Luck"
 item_icon = ExtResource("43_duiw8")
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_qirbk"]
+[sub_resource type="Resource" id="Resource_kl2ho"]
 script = ExtResource("30_45o4m")
 stat_id = 14
 value = 5.0
-item = SubResource("Resource_hjf17")
+item = SubResource("Resource_qirbk")
 content_id = &"upgrade/luck/common"
 display_name_key = &"upgrade.luck.name"
 description_key = &"upgrade.luck.common.description"
 
-[sub_resource type="Resource" id="Resource_kl2ho"]
+[sub_resource type="Resource" id="Resource_dtfsi"]
 script = ExtResource("42_i5605")
 value = 10.0
 description = "+10.0"
@@ -1769,17 +1770,17 @@ item_icon = ExtResource("43_duiw8")
 item_tier = 1
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_dtfsi"]
+[sub_resource type="Resource" id="Resource_ppnrp"]
 script = ExtResource("30_45o4m")
 quality = 1
 stat_id = 14
 value = 10.0
-item = SubResource("Resource_kl2ho")
+item = SubResource("Resource_dtfsi")
 content_id = &"upgrade/luck/rare"
 display_name_key = &"upgrade.luck.name"
 description_key = &"upgrade.luck.rare.description"
 
-[sub_resource type="Resource" id="Resource_ppnrp"]
+[sub_resource type="Resource" id="Resource_b7j2p"]
 script = ExtResource("42_i5605")
 value = 15.0
 description = "+15.0"
@@ -1789,17 +1790,17 @@ item_icon = ExtResource("44_xx57p")
 item_tier = 2
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_b7j2p"]
+[sub_resource type="Resource" id="Resource_1ep7m"]
 script = ExtResource("30_45o4m")
 quality = 2
 stat_id = 14
 value = 15.0
-item = SubResource("Resource_ppnrp")
+item = SubResource("Resource_b7j2p")
 content_id = &"upgrade/luck/epic"
 display_name_key = &"upgrade.luck.name"
 description_key = &"upgrade.luck.epic.description"
 
-[sub_resource type="Resource" id="Resource_1ep7m"]
+[sub_resource type="Resource" id="Resource_p004f"]
 script = ExtResource("42_i5605")
 value = 20.0
 description = "+20.0"
@@ -1809,17 +1810,17 @@ item_icon = ExtResource("44_xx57p")
 item_tier = 3
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_p004f"]
+[sub_resource type="Resource" id="Resource_tccxw"]
 script = ExtResource("30_45o4m")
 quality = 3
 stat_id = 14
 value = 20.0
-item = SubResource("Resource_1ep7m")
+item = SubResource("Resource_p004f")
 content_id = &"upgrade/luck/legendary"
 display_name_key = &"upgrade.luck.name"
 description_key = &"upgrade.luck.legendary.description"
 
-[sub_resource type="Resource" id="Resource_tccxw"]
+[sub_resource type="Resource" id="Resource_qhpnb"]
 script = ExtResource("42_i5605")
 value = 5.0
 description = "+5.0"
@@ -1828,16 +1829,16 @@ item_name = "Harvesting"
 item_icon = ExtResource("44_xx57p")
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_qhpnb"]
+[sub_resource type="Resource" id="Resource_faihm"]
 script = ExtResource("30_45o4m")
 stat_id = 15
 value = 5.0
-item = SubResource("Resource_tccxw")
+item = SubResource("Resource_qhpnb")
 content_id = &"upgrade/harvesting/common"
 display_name_key = &"upgrade.harvesting.name"
 description_key = &"upgrade.harvesting.common.description"
 
-[sub_resource type="Resource" id="Resource_faihm"]
+[sub_resource type="Resource" id="Resource_iltbv"]
 script = ExtResource("42_i5605")
 value = 10.0
 description = "+10.0"
@@ -1847,17 +1848,17 @@ item_icon = ExtResource("44_xx57p")
 item_tier = 1
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_iltbv"]
+[sub_resource type="Resource" id="Resource_yh2h3"]
 script = ExtResource("30_45o4m")
 quality = 1
 stat_id = 15
 value = 10.0
-item = SubResource("Resource_faihm")
+item = SubResource("Resource_iltbv")
 content_id = &"upgrade/harvesting/rare"
 display_name_key = &"upgrade.harvesting.name"
 description_key = &"upgrade.harvesting.rare.description"
 
-[sub_resource type="Resource" id="Resource_yh2h3"]
+[sub_resource type="Resource" id="Resource_y50bj"]
 script = ExtResource("42_i5605")
 value = 15.0
 description = "+15.0"
@@ -1867,17 +1868,17 @@ item_icon = ExtResource("44_xx57p")
 item_tier = 2
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_y50bj"]
+[sub_resource type="Resource" id="Resource_6pkuc"]
 script = ExtResource("30_45o4m")
 quality = 2
 stat_id = 15
 value = 15.0
-item = SubResource("Resource_yh2h3")
+item = SubResource("Resource_y50bj")
 content_id = &"upgrade/harvesting/epic"
 display_name_key = &"upgrade.harvesting.name"
 description_key = &"upgrade.harvesting.epic.description"
 
-[sub_resource type="Resource" id="Resource_6pkuc"]
+[sub_resource type="Resource" id="Resource_38o73"]
 script = ExtResource("42_i5605")
 value = 20.0
 description = "+20.0"
@@ -1887,190 +1888,185 @@ item_icon = ExtResource("44_xx57p")
 item_tier = 3
 item_type = 1
 
-[sub_resource type="Resource" id="Resource_38o73"]
+[sub_resource type="Resource" id="Resource_cdiax"]
 script = ExtResource("30_45o4m")
 quality = 3
 stat_id = 15
 value = 20.0
-item = SubResource("Resource_6pkuc")
+item = SubResource("Resource_38o73")
 content_id = &"upgrade/harvesting/legendary"
 display_name_key = &"upgrade.harvesting.name"
 description_key = &"upgrade.harvesting.legendary.description"
 
-[sub_resource type="Resource" id="Resource_cdiax"]
+[sub_resource type="Resource" id="Resource_i06le"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("20_gyk3q")
 weight = 10.0
 
-[sub_resource type="Resource" id="Resource_i06le"]
+[sub_resource type="Resource" id="Resource_yu55q"]
 script = ExtResource("51_hug7q")
 from = 1
 to = 1
 wave_time = 30.0
-units = Array[ExtResource("52_yen46")]([SubResource("Resource_cdiax")])
+units = Array[ExtResource("52_yen46")]([SubResource("Resource_i06le")])
 spawn_type = 0
 fixed_spawn_time = 1.1
 
-[sub_resource type="Resource" id="Resource_yu55q"]
+[sub_resource type="Resource" id="Resource_vjp8l"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/chaser_slow"
 weight = 10.0
 
-[sub_resource type="Resource" id="Resource_vjp8l"]
+[sub_resource type="Resource" id="Resource_n5sf1"]
 script = ExtResource("77_js03e")
-spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_yu55q")])
+spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_vjp8l")])
 fixed_spawn_time = 1.1
-data = SubResource("Resource_i06le")
+data = SubResource("Resource_yu55q")
 content_id = &"wave/01"
 
-[sub_resource type="Resource" id="Resource_n5sf1"]
+[sub_resource type="Resource" id="Resource_avoqc"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("20_gyk3q")
 weight = 7.0
 
-[sub_resource type="Resource" id="Resource_avoqc"]
+[sub_resource type="Resource" id="Resource_612lk"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("18_dt2ip")
 weight = 3.0
 
-[sub_resource type="Resource" id="Resource_612lk"]
+[sub_resource type="Resource" id="Resource_8hn1r"]
 script = ExtResource("51_hug7q")
 from = 2
 to = 2
 wave_time = 35.0
-units = Array[ExtResource("52_yen46")]([SubResource("Resource_n5sf1"), SubResource("Resource_avoqc")])
+units = Array[ExtResource("52_yen46")]([SubResource("Resource_avoqc"), SubResource("Resource_612lk")])
 spawn_type = 0
 fixed_spawn_time = 1.04
 
-[sub_resource type="Resource" id="Resource_8hn1r"]
+[sub_resource type="Resource" id="Resource_rtt03"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/chaser_slow"
 weight = 7.0
 
-[sub_resource type="Resource" id="Resource_rtt03"]
+[sub_resource type="Resource" id="Resource_keej7"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/chaser_mid"
 weight = 3.0
 
-[sub_resource type="Resource" id="Resource_keej7"]
+[sub_resource type="Resource" id="Resource_bbtro"]
 script = ExtResource("77_js03e")
 wave_number = 2
 duration = 35.0
-spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_8hn1r"), SubResource("Resource_rtt03")])
+spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_rtt03"), SubResource("Resource_keej7")])
 fixed_spawn_time = 1.04
-data = SubResource("Resource_612lk")
+data = SubResource("Resource_8hn1r")
 content_id = &"wave/02"
 
-[sub_resource type="Resource" id="Resource_bbtro"]
+[sub_resource type="Resource" id="Resource_pxj5n"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("18_dt2ip")
 weight = 6.0
 
-[sub_resource type="Resource" id="Resource_pxj5n"]
+[sub_resource type="Resource" id="Resource_epm5q"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("16_6dwwn")
 weight = 2.0
 
-[sub_resource type="Resource" id="Resource_epm5q"]
+[sub_resource type="Resource" id="Resource_w64wl"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("18_dt2ip")
 weight = 2.0
 
-[sub_resource type="Resource" id="Resource_w64wl"]
+[sub_resource type="Resource" id="Resource_qaq7s"]
 script = ExtResource("51_hug7q")
 from = 3
 to = 3
 wave_time = 40.0
-units = Array[ExtResource("52_yen46")]([SubResource("Resource_bbtro"), SubResource("Resource_pxj5n"), SubResource("Resource_epm5q")])
+units = Array[ExtResource("52_yen46")]([SubResource("Resource_pxj5n"), SubResource("Resource_epm5q"), SubResource("Resource_w64wl")])
 spawn_type = 0
 fixed_spawn_time = 0.9800000000000001
 
-[sub_resource type="Resource" id="Resource_qaq7s"]
+[sub_resource type="Resource" id="Resource_sdogx"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/chaser_mid"
 weight = 6.0
 
-[sub_resource type="Resource" id="Resource_sdogx"]
+[sub_resource type="Resource" id="Resource_h17hy"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/chaser_fast"
 weight = 2.0
 
-[sub_resource type="Resource" id="Resource_h17hy"]
+[sub_resource type="Resource" id="Resource_hckna"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/xiami"
 weight = 2.0
 
-[sub_resource type="Resource" id="Resource_hckna"]
+[sub_resource type="Resource" id="Resource_esnsy"]
 script = ExtResource("77_js03e")
 wave_number = 3
 duration = 40.0
-spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_qaq7s"), SubResource("Resource_sdogx"), SubResource("Resource_h17hy")])
+spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_sdogx"), SubResource("Resource_h17hy"), SubResource("Resource_hckna")])
 fixed_spawn_time = 0.9800000000000001
-data = SubResource("Resource_w64wl")
+data = SubResource("Resource_qaq7s")
 content_id = &"wave/03"
 
-[sub_resource type="Resource" id="Resource_esnsy"]
+[sub_resource type="Resource" id="Resource_5do0l"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("18_dt2ip")
 weight = 5.0
 
-[sub_resource type="Resource" id="Resource_5do0l"]
+[sub_resource type="Resource" id="Resource_5xhd7"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("22_y1tu5")
 weight = 2.0
 
-[sub_resource type="Resource" id="Resource_5xhd7"]
+[sub_resource type="Resource" id="Resource_33yi0"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("18_dt2ip")
 weight = 3.0
 
-[sub_resource type="Resource" id="Resource_33yi0"]
+[sub_resource type="Resource" id="Resource_vy5kh"]
 script = ExtResource("51_hug7q")
 from = 4
 to = 4
 wave_time = 45.0
-units = Array[ExtResource("52_yen46")]([SubResource("Resource_esnsy"), SubResource("Resource_5do0l"), SubResource("Resource_5xhd7")])
+units = Array[ExtResource("52_yen46")]([SubResource("Resource_5do0l"), SubResource("Resource_5xhd7"), SubResource("Resource_33yi0")])
 spawn_type = 0
 fixed_spawn_time = 0.9200000000000002
 
-[sub_resource type="Resource" id="Resource_vy5kh"]
+[sub_resource type="Resource" id="Resource_fx6mq"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/chaser_mid"
 weight = 5.0
 
-[sub_resource type="Resource" id="Resource_fx6mq"]
+[sub_resource type="Resource" id="Resource_7i5cu"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/shooter"
 weight = 2.0
 
-[sub_resource type="Resource" id="Resource_7i5cu"]
+[sub_resource type="Resource" id="Resource_ed5ap"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/xiami"
 weight = 3.0
 
-[sub_resource type="Resource" id="Resource_ed5ap"]
+[sub_resource type="Resource" id="Resource_jjfdt"]
 script = ExtResource("77_js03e")
 wave_number = 4
 duration = 45.0
-spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_vy5kh"), SubResource("Resource_fx6mq"), SubResource("Resource_7i5cu")])
+spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_fx6mq"), SubResource("Resource_7i5cu"), SubResource("Resource_ed5ap")])
 fixed_spawn_time = 0.9200000000000002
-data = SubResource("Resource_33yi0")
+data = SubResource("Resource_vy5kh")
 content_id = &"wave/04"
 
-[sub_resource type="Resource" id="Resource_jjfdt"]
+[sub_resource type="Resource" id="Resource_dxm65"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("14_jtnvt")
 weight = 2.0
 
-[sub_resource type="Resource" id="Resource_dxm65"]
+[sub_resource type="Resource" id="Resource_b8flm"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("20_gyk3q")
 weight = 4.0
-
-[sub_resource type="Resource" id="Resource_b8flm"]
-script = ExtResource("52_yen46")
-unit_scene = ExtResource("22_y1tu5")
-weight = 2.0
 
 [sub_resource type="Resource" id="Resource_sg6b4"]
 script = ExtResource("52_yen46")
@@ -2078,394 +2074,399 @@ unit_scene = ExtResource("22_y1tu5")
 weight = 2.0
 
 [sub_resource type="Resource" id="Resource_vk2nx"]
+script = ExtResource("52_yen46")
+unit_scene = ExtResource("22_y1tu5")
+weight = 2.0
+
+[sub_resource type="Resource" id="Resource_ufyjc"]
 script = ExtResource("51_hug7q")
 from = 5
 to = 5
 wave_time = 50.0
-units = Array[ExtResource("52_yen46")]([SubResource("Resource_jjfdt"), SubResource("Resource_dxm65"), SubResource("Resource_b8flm"), SubResource("Resource_sg6b4")])
+units = Array[ExtResource("52_yen46")]([SubResource("Resource_dxm65"), SubResource("Resource_b8flm"), SubResource("Resource_sg6b4"), SubResource("Resource_vk2nx")])
 spawn_type = 0
 fixed_spawn_time = 0.8600000000000001
 
-[sub_resource type="Resource" id="Resource_ufyjc"]
+[sub_resource type="Resource" id="Resource_0k44k"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/charger"
 weight = 2.0
 
-[sub_resource type="Resource" id="Resource_0k44k"]
+[sub_resource type="Resource" id="Resource_pj1tf"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/chaser_slow"
 weight = 4.0
 
-[sub_resource type="Resource" id="Resource_pj1tf"]
+[sub_resource type="Resource" id="Resource_4a23v"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/shooter"
 weight = 2.0
 
-[sub_resource type="Resource" id="Resource_4a23v"]
+[sub_resource type="Resource" id="Resource_52gxa"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/dapan"
 weight = 2.0
 
-[sub_resource type="Resource" id="Resource_52gxa"]
+[sub_resource type="Resource" id="Resource_v771v"]
 script = ExtResource("77_js03e")
 wave_number = 5
 duration = 50.0
-spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_ufyjc"), SubResource("Resource_0k44k"), SubResource("Resource_pj1tf"), SubResource("Resource_4a23v")])
+spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_0k44k"), SubResource("Resource_pj1tf"), SubResource("Resource_4a23v"), SubResource("Resource_52gxa")])
 fixed_spawn_time = 0.8600000000000001
-data = SubResource("Resource_vk2nx")
+data = SubResource("Resource_ufyjc")
 content_id = &"wave/05"
 
-[sub_resource type="Resource" id="Resource_v771v"]
+[sub_resource type="Resource" id="Resource_2wi7o"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("16_6dwwn")
 weight = 4.0
 
-[sub_resource type="Resource" id="Resource_2wi7o"]
-script = ExtResource("52_yen46")
-unit_scene = ExtResource("14_jtnvt")
-weight = 2.0
-
 [sub_resource type="Resource" id="Resource_hh36j"]
 script = ExtResource("52_yen46")
-unit_scene = ExtResource("18_dt2ip")
+unit_scene = ExtResource("14_jtnvt")
 weight = 2.0
 
 [sub_resource type="Resource" id="Resource_4wa8f"]
 script = ExtResource("52_yen46")
-unit_scene = ExtResource("22_y1tu5")
+unit_scene = ExtResource("18_dt2ip")
 weight = 2.0
 
 [sub_resource type="Resource" id="Resource_g5j6q"]
+script = ExtResource("52_yen46")
+unit_scene = ExtResource("22_y1tu5")
+weight = 2.0
+
+[sub_resource type="Resource" id="Resource_3nijb"]
 script = ExtResource("51_hug7q")
 from = 6
 to = 6
 wave_time = 55.0
-units = Array[ExtResource("52_yen46")]([SubResource("Resource_v771v"), SubResource("Resource_2wi7o"), SubResource("Resource_hh36j"), SubResource("Resource_4wa8f")])
+units = Array[ExtResource("52_yen46")]([SubResource("Resource_2wi7o"), SubResource("Resource_hh36j"), SubResource("Resource_4wa8f"), SubResource("Resource_g5j6q")])
 spawn_type = 0
 fixed_spawn_time = 0.8
 
-[sub_resource type="Resource" id="Resource_3nijb"]
+[sub_resource type="Resource" id="Resource_7eq4x"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/chaser_fast"
 weight = 4.0
 
-[sub_resource type="Resource" id="Resource_7eq4x"]
-script = ExtResource("53_kd0cg")
-enemy_id = &"enemy/charger"
-weight = 2.0
-
 [sub_resource type="Resource" id="Resource_p1qjb"]
 script = ExtResource("53_kd0cg")
-enemy_id = &"enemy/xiami"
+enemy_id = &"enemy/charger"
 weight = 2.0
 
 [sub_resource type="Resource" id="Resource_hl1dw"]
 script = ExtResource("53_kd0cg")
-enemy_id = &"enemy/dapan"
+enemy_id = &"enemy/xiami"
 weight = 2.0
 
 [sub_resource type="Resource" id="Resource_lqxxs"]
+script = ExtResource("53_kd0cg")
+enemy_id = &"enemy/dapan"
+weight = 2.0
+
+[sub_resource type="Resource" id="Resource_j4vbr"]
 script = ExtResource("77_js03e")
 wave_number = 6
 duration = 55.0
-spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_3nijb"), SubResource("Resource_7eq4x"), SubResource("Resource_p1qjb"), SubResource("Resource_hl1dw")])
+spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_7eq4x"), SubResource("Resource_p1qjb"), SubResource("Resource_hl1dw"), SubResource("Resource_lqxxs")])
 fixed_spawn_time = 0.8
-data = SubResource("Resource_g5j6q")
+data = SubResource("Resource_3nijb")
 content_id = &"wave/06"
-
-[sub_resource type="Resource" id="Resource_j4vbr"]
-script = ExtResource("52_yen46")
-unit_scene = ExtResource("20_gyk3q")
-weight = 2.0
 
 [sub_resource type="Resource" id="Resource_c7vwk"]
 script = ExtResource("52_yen46")
-unit_scene = ExtResource("18_dt2ip")
+unit_scene = ExtResource("20_gyk3q")
 weight = 2.0
 
 [sub_resource type="Resource" id="Resource_od0h0"]
 script = ExtResource("52_yen46")
-unit_scene = ExtResource("16_6dwwn")
+unit_scene = ExtResource("18_dt2ip")
 weight = 2.0
 
 [sub_resource type="Resource" id="Resource_6py0n"]
 script = ExtResource("52_yen46")
-unit_scene = ExtResource("22_y1tu5")
+unit_scene = ExtResource("16_6dwwn")
 weight = 2.0
 
 [sub_resource type="Resource" id="Resource_6gmwk"]
 script = ExtResource("52_yen46")
-unit_scene = ExtResource("14_jtnvt")
+unit_scene = ExtResource("22_y1tu5")
 weight = 2.0
 
 [sub_resource type="Resource" id="Resource_hpn3q"]
+script = ExtResource("52_yen46")
+unit_scene = ExtResource("14_jtnvt")
+weight = 2.0
+
+[sub_resource type="Resource" id="Resource_yd4c4"]
 script = ExtResource("51_hug7q")
 from = 7
 to = 7
 wave_time = 60.0
-units = Array[ExtResource("52_yen46")]([SubResource("Resource_j4vbr"), SubResource("Resource_c7vwk"), SubResource("Resource_od0h0"), SubResource("Resource_6py0n"), SubResource("Resource_6gmwk")])
+units = Array[ExtResource("52_yen46")]([SubResource("Resource_c7vwk"), SubResource("Resource_od0h0"), SubResource("Resource_6py0n"), SubResource("Resource_6gmwk"), SubResource("Resource_hpn3q")])
 spawn_type = 0
 fixed_spawn_time = 0.7400000000000001
 
-[sub_resource type="Resource" id="Resource_yd4c4"]
-script = ExtResource("53_kd0cg")
-enemy_id = &"enemy/chaser_slow"
-weight = 2.0
-
 [sub_resource type="Resource" id="Resource_fvnjj"]
 script = ExtResource("53_kd0cg")
-enemy_id = &"enemy/chaser_mid"
+enemy_id = &"enemy/chaser_slow"
 weight = 2.0
 
 [sub_resource type="Resource" id="Resource_31nv5"]
 script = ExtResource("53_kd0cg")
-enemy_id = &"enemy/chaser_fast"
+enemy_id = &"enemy/chaser_mid"
 weight = 2.0
 
 [sub_resource type="Resource" id="Resource_5i3gi"]
 script = ExtResource("53_kd0cg")
-enemy_id = &"enemy/shooter"
+enemy_id = &"enemy/chaser_fast"
 weight = 2.0
 
 [sub_resource type="Resource" id="Resource_qb0ql"]
 script = ExtResource("53_kd0cg")
-enemy_id = &"enemy/charger"
+enemy_id = &"enemy/shooter"
 weight = 2.0
 
 [sub_resource type="Resource" id="Resource_avehq"]
+script = ExtResource("53_kd0cg")
+enemy_id = &"enemy/charger"
+weight = 2.0
+
+[sub_resource type="Resource" id="Resource_k3gam"]
 script = ExtResource("77_js03e")
 wave_number = 7
 duration = 60.0
-spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_yd4c4"), SubResource("Resource_fvnjj"), SubResource("Resource_31nv5"), SubResource("Resource_5i3gi"), SubResource("Resource_qb0ql")])
+spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_fvnjj"), SubResource("Resource_31nv5"), SubResource("Resource_5i3gi"), SubResource("Resource_qb0ql"), SubResource("Resource_avehq")])
 fixed_spawn_time = 0.7400000000000001
-data = SubResource("Resource_hpn3q")
+data = SubResource("Resource_yd4c4")
 content_id = &"wave/07"
 
-[sub_resource type="Resource" id="Resource_k3gam"]
+[sub_resource type="Resource" id="Resource_opd0v"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("18_dt2ip")
 weight = 4.0
 
-[sub_resource type="Resource" id="Resource_opd0v"]
+[sub_resource type="Resource" id="Resource_f224r"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("22_y1tu5")
 weight = 3.0
 
-[sub_resource type="Resource" id="Resource_f224r"]
+[sub_resource type="Resource" id="Resource_5q2ux"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("14_jtnvt")
 weight = 3.0
 
-[sub_resource type="Resource" id="Resource_5q2ux"]
+[sub_resource type="Resource" id="Resource_gqle0"]
 script = ExtResource("51_hug7q")
 from = 8
 to = 8
 wave_time = 65.0
-units = Array[ExtResource("52_yen46")]([SubResource("Resource_k3gam"), SubResource("Resource_opd0v"), SubResource("Resource_f224r")])
+units = Array[ExtResource("52_yen46")]([SubResource("Resource_opd0v"), SubResource("Resource_f224r"), SubResource("Resource_5q2ux")])
 spawn_type = 0
 fixed_spawn_time = 0.6800000000000002
 
-[sub_resource type="Resource" id="Resource_gqle0"]
+[sub_resource type="Resource" id="Resource_wemn5"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/xiami"
 weight = 4.0
 
-[sub_resource type="Resource" id="Resource_wemn5"]
+[sub_resource type="Resource" id="Resource_7i1os"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/dapan"
 weight = 3.0
 
-[sub_resource type="Resource" id="Resource_7i1os"]
+[sub_resource type="Resource" id="Resource_72r8p"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/charger"
 weight = 3.0
 
-[sub_resource type="Resource" id="Resource_72r8p"]
+[sub_resource type="Resource" id="Resource_aeaf5"]
 script = ExtResource("77_js03e")
 wave_number = 8
 duration = 65.0
-spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_gqle0"), SubResource("Resource_wemn5"), SubResource("Resource_7i1os")])
+spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_wemn5"), SubResource("Resource_7i1os"), SubResource("Resource_72r8p")])
 fixed_spawn_time = 0.6800000000000002
-data = SubResource("Resource_5q2ux")
+data = SubResource("Resource_gqle0")
 content_id = &"wave/08"
 
-[sub_resource type="Resource" id="Resource_aeaf5"]
+[sub_resource type="Resource" id="Resource_wqcfs"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("16_6dwwn")
 weight = 3.0
 
-[sub_resource type="Resource" id="Resource_wqcfs"]
+[sub_resource type="Resource" id="Resource_gjv5j"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("22_y1tu5")
 weight = 3.0
 
-[sub_resource type="Resource" id="Resource_gjv5j"]
+[sub_resource type="Resource" id="Resource_35pr1"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("18_dt2ip")
 weight = 2.0
 
-[sub_resource type="Resource" id="Resource_35pr1"]
+[sub_resource type="Resource" id="Resource_gyhgl"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("22_y1tu5")
 weight = 2.0
 
-[sub_resource type="Resource" id="Resource_gyhgl"]
+[sub_resource type="Resource" id="Resource_fihvw"]
 script = ExtResource("51_hug7q")
 from = 9
 to = 9
 wave_time = 70.0
-units = Array[ExtResource("52_yen46")]([SubResource("Resource_aeaf5"), SubResource("Resource_wqcfs"), SubResource("Resource_gjv5j"), SubResource("Resource_35pr1")])
+units = Array[ExtResource("52_yen46")]([SubResource("Resource_wqcfs"), SubResource("Resource_gjv5j"), SubResource("Resource_35pr1"), SubResource("Resource_gyhgl")])
 spawn_type = 0
 fixed_spawn_time = 0.6200000000000001
 
-[sub_resource type="Resource" id="Resource_fihvw"]
+[sub_resource type="Resource" id="Resource_wkpug"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/chaser_fast"
 weight = 3.0
 
-[sub_resource type="Resource" id="Resource_wkpug"]
+[sub_resource type="Resource" id="Resource_v3vuq"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/shooter"
 weight = 3.0
 
-[sub_resource type="Resource" id="Resource_v3vuq"]
+[sub_resource type="Resource" id="Resource_hfpqh"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/xiami"
 weight = 2.0
 
-[sub_resource type="Resource" id="Resource_hfpqh"]
+[sub_resource type="Resource" id="Resource_fl6i7"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/dapan"
 weight = 2.0
 
-[sub_resource type="Resource" id="Resource_fl6i7"]
+[sub_resource type="Resource" id="Resource_038bb"]
 script = ExtResource("77_js03e")
 wave_number = 9
 duration = 70.0
-spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_fihvw"), SubResource("Resource_wkpug"), SubResource("Resource_v3vuq"), SubResource("Resource_hfpqh")])
+spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_wkpug"), SubResource("Resource_v3vuq"), SubResource("Resource_hfpqh"), SubResource("Resource_fl6i7")])
 fixed_spawn_time = 0.6200000000000001
-data = SubResource("Resource_gyhgl")
+data = SubResource("Resource_fihvw")
 content_id = &"wave/09"
 
-[sub_resource type="Resource" id="Resource_038bb"]
+[sub_resource type="Resource" id="Resource_igfti"]
 script = ExtResource("52_yen46")
-unit_scene = ExtResource("14_jtnvt")
+unit_scene = ExtResource("28_1goop")
 weight = 1.0
 
-[sub_resource type="Resource" id="Resource_igfti"]
+[sub_resource type="Resource" id="Resource_kn2dy"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("20_gyk3q")
 weight = 3.0
 
-[sub_resource type="Resource" id="Resource_kn2dy"]
+[sub_resource type="Resource" id="Resource_3h5c4"]
 script = ExtResource("52_yen46")
 unit_scene = ExtResource("22_y1tu5")
 weight = 2.0
 
-[sub_resource type="Resource" id="Resource_3h5c4"]
+[sub_resource type="Resource" id="Resource_nlw6n"]
 script = ExtResource("51_hug7q")
 from = 10
 to = 10
 wave_time = 90.0
-units = Array[ExtResource("52_yen46")]([SubResource("Resource_038bb"), SubResource("Resource_igfti"), SubResource("Resource_kn2dy")])
+units = Array[ExtResource("52_yen46")]([SubResource("Resource_igfti"), SubResource("Resource_kn2dy"), SubResource("Resource_3h5c4")])
 spawn_type = 0
 fixed_spawn_time = 0.56
 
-[sub_resource type="Resource" id="Resource_nlw6n"]
+[sub_resource type="Resource" id="Resource_43ak1"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/mouse_dog"
 is_boss = true
 
-[sub_resource type="Resource" id="Resource_43ak1"]
+[sub_resource type="Resource" id="Resource_cf0k8"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/chaser_slow"
 weight = 3.0
 
-[sub_resource type="Resource" id="Resource_cf0k8"]
+[sub_resource type="Resource" id="Resource_di2if"]
 script = ExtResource("53_kd0cg")
 enemy_id = &"enemy/shooter"
 weight = 2.0
 
-[sub_resource type="Resource" id="Resource_di2if"]
+[sub_resource type="Resource" id="Resource_5dq0c"]
 script = ExtResource("77_js03e")
 wave_number = 10
 duration = 90.0
-spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_nlw6n"), SubResource("Resource_43ak1"), SubResource("Resource_cf0k8")])
+spawns = Array[ExtResource("53_kd0cg")]([SubResource("Resource_43ak1"), SubResource("Resource_cf0k8"), SubResource("Resource_di2if")])
 fixed_spawn_time = 0.56
-data = SubResource("Resource_3h5c4")
+data = SubResource("Resource_nlw6n")
 content_id = &"wave/10"
 
-[sub_resource type="Resource" id="Resource_5dq0c"]
+[sub_resource type="Resource" id="Resource_q5egm"]
 script = ExtResource("79_31san")
 tiers = Array[ExtResource("80_pqqbw")]([ExtResource("81_oau7k"), ExtResource("82_2y1rb"), ExtResource("83_fluvf"), ExtResource("84_ug7mv")])
 content_id = &"weapon/axe"
 display_name_key = &"weapon.axe.name"
 description_key = &"weapon.axe.description"
 
-[sub_resource type="Resource" id="Resource_q5egm"]
+[sub_resource type="Resource" id="Resource_fxyv8"]
 script = ExtResource("79_31san")
 tiers = Array[ExtResource("80_pqqbw")]([ExtResource("85_6t0tj"), ExtResource("86_u4rlw"), ExtResource("87_00jja"), ExtResource("88_wewdw")])
 content_id = &"weapon/chainsaw"
 display_name_key = &"weapon.chainsaw.name"
 description_key = &"weapon.chainsaw.description"
 
-[sub_resource type="Resource" id="Resource_fxyv8"]
+[sub_resource type="Resource" id="Resource_wh4bx"]
 script = ExtResource("79_31san")
 tiers = Array[ExtResource("80_pqqbw")]([ExtResource("89_nejog"), ExtResource("90_6p1kx"), ExtResource("91_3lw6r"), ExtResource("92_0ecfm")])
 content_id = &"weapon/mace"
 display_name_key = &"weapon.mace.name"
 description_key = &"weapon.mace.description"
 
-[sub_resource type="Resource" id="Resource_wh4bx"]
+[sub_resource type="Resource" id="Resource_le4lw"]
 script = ExtResource("79_31san")
 tiers = Array[ExtResource("80_pqqbw")]([ExtResource("93_a313j"), ExtResource("94_lhvd3"), ExtResource("95_p2qa5"), ExtResource("96_aykne")])
 content_id = &"weapon/punch"
 display_name_key = &"weapon.punch.name"
 description_key = &"weapon.punch.description"
 
-[sub_resource type="Resource" id="Resource_le4lw"]
+[sub_resource type="Resource" id="Resource_rv2ko"]
 script = ExtResource("79_31san")
 tiers = Array[ExtResource("80_pqqbw")]([ExtResource("97_cuctv"), ExtResource("98_sjqof"), ExtResource("99_nyfj0"), ExtResource("100_g8ngi")])
 content_id = &"weapon/sword"
 display_name_key = &"weapon.sword.name"
 description_key = &"weapon.sword.description"
 
-[sub_resource type="Resource" id="Resource_rv2ko"]
+[sub_resource type="Resource" id="Resource_66l0w"]
 script = ExtResource("79_31san")
 tiers = Array[ExtResource("80_pqqbw")]([ExtResource("101_cajt7"), ExtResource("102_bi8yi"), ExtResource("103_h3o7p"), ExtResource("104_qqjbq")])
 content_id = &"weapon/wand"
 display_name_key = &"weapon.wand.name"
 description_key = &"weapon.wand.description"
 
-[sub_resource type="Resource" id="Resource_66l0w"]
+[sub_resource type="Resource" id="Resource_ftty1"]
 script = ExtResource("79_31san")
 tiers = Array[ExtResource("80_pqqbw")]([ExtResource("105_iywlu"), ExtResource("106_j4tvy"), ExtResource("107_54xwl"), ExtResource("108_alf83")])
 content_id = &"weapon/laser"
 display_name_key = &"weapon.laser.name"
 description_key = &"weapon.laser.description"
 
-[sub_resource type="Resource" id="Resource_ftty1"]
+[sub_resource type="Resource" id="Resource_5c0hu"]
 script = ExtResource("79_31san")
 tiers = Array[ExtResource("80_pqqbw")]([ExtResource("109_kc2ed"), ExtResource("110_q08a2"), ExtResource("111_bpqdk"), ExtResource("112_ofwkf")])
 content_id = &"weapon/pistol"
 display_name_key = &"weapon.pistol.name"
 description_key = &"weapon.pistol.description"
 
-[sub_resource type="Resource" id="Resource_5c0hu"]
+[sub_resource type="Resource" id="Resource_sfyr6"]
 script = ExtResource("79_31san")
 tiers = Array[ExtResource("80_pqqbw")]([ExtResource("113_3s23t"), ExtResource("114_3yt7b"), ExtResource("115_s8hp7"), ExtResource("116_jef1c")])
 content_id = &"weapon/revolver"
 display_name_key = &"weapon.revolver.name"
 description_key = &"weapon.revolver.description"
 
-[sub_resource type="Resource" id="Resource_sfyr6"]
+[sub_resource type="Resource" id="Resource_navv0"]
 script = ExtResource("79_31san")
 tiers = Array[ExtResource("80_pqqbw")]([ExtResource("117_ioeqf"), ExtResource("118_vicbr"), ExtResource("119_ygn58"), ExtResource("120_nelgl")])
 content_id = &"weapon/shotgun"
 display_name_key = &"weapon.shotgun.name"
 description_key = &"weapon.shotgun.description"
 
-[sub_resource type="Resource" id="Resource_navv0"]
+[sub_resource type="Resource" id="Resource_12dpx"]
 script = ExtResource("79_31san")
 tiers = Array[ExtResource("80_pqqbw")]([ExtResource("121_hcprq"), ExtResource("122_gup4j"), ExtResource("123_5l63j"), ExtResource("124_3xbwk")])
 content_id = &"weapon/smg"
@@ -2475,10 +2476,10 @@ description_key = &"weapon.smg.description"
 [resource]
 script = ExtResource("29_xa6el")
 pack_id = &"potato_default"
-characters = Array[ExtResource("1_u7nwy")]([SubResource("Resource_5cslo"), SubResource("Resource_1goop"), SubResource("Resource_dqpfa"), SubResource("Resource_q8u7b"), SubResource("Resource_shywf"), SubResource("Resource_fxa6q")])
-weapons = Array[ExtResource("79_31san")]([SubResource("Resource_5dq0c"), SubResource("Resource_q5egm"), SubResource("Resource_fxyv8"), SubResource("Resource_wh4bx"), SubResource("Resource_le4lw"), SubResource("Resource_rv2ko"), SubResource("Resource_66l0w"), SubResource("Resource_ftty1"), SubResource("Resource_5c0hu"), SubResource("Resource_sfyr6"), SubResource("Resource_navv0")])
-passives = Array[ExtResource("24_58u2q")]([SubResource("Resource_snn1j"), SubResource("Resource_jnf61"), SubResource("Resource_u7nwy"), SubResource("Resource_5nmvh"), SubResource("Resource_6vwox"), SubResource("Resource_4lw5p"), SubResource("Resource_dndku"), SubResource("Resource_6bkrh"), SubResource("Resource_7dayf"), SubResource("Resource_jtnvt"), SubResource("Resource_6dwwn"), SubResource("Resource_dt2ip"), SubResource("Resource_gyk3q"), SubResource("Resource_y1tu5"), SubResource("Resource_58u2q"), SubResource("Resource_e6euc"), SubResource("Resource_3m063"), SubResource("Resource_45o4m"), SubResource("Resource_aob88"), SubResource("Resource_s2hc6")])
-upgrades = Array[ExtResource("30_45o4m")]([SubResource("Resource_h2cdp"), SubResource("Resource_1blr2"), SubResource("Resource_ekiji"), SubResource("Resource_kkoct"), SubResource("Resource_358vo"), SubResource("Resource_5upij"), SubResource("Resource_yhb4o"), SubResource("Resource_l4y2m"), SubResource("Resource_wr17u"), SubResource("Resource_3rf28"), SubResource("Resource_yrvp7"), SubResource("Resource_o585s"), SubResource("Resource_jy3fc"), SubResource("Resource_rmtcn"), SubResource("Resource_g7xet"), SubResource("Resource_qolb6"), SubResource("Resource_cuhey"), SubResource("Resource_4txac"), SubResource("Resource_lf2ur"), SubResource("Resource_jyr5u"), SubResource("Resource_kv5vl"), SubResource("Resource_c87xp"), SubResource("Resource_pqqbw"), SubResource("Resource_2y1rb"), SubResource("Resource_ug7mv"), SubResource("Resource_u4rlw"), SubResource("Resource_wewdw"), SubResource("Resource_6p1kx"), SubResource("Resource_0ecfm"), SubResource("Resource_lhvd3"), SubResource("Resource_aykne"), SubResource("Resource_sjqof"), SubResource("Resource_g8ngi"), SubResource("Resource_bi8yi"), SubResource("Resource_qqjbq"), SubResource("Resource_j4tvy"), SubResource("Resource_alf83"), SubResource("Resource_q08a2"), SubResource("Resource_ofwkf"), SubResource("Resource_3yt7b"), SubResource("Resource_jef1c"), SubResource("Resource_vicbr"), SubResource("Resource_nelgl"), SubResource("Resource_gup4j"), SubResource("Resource_3xbwk"), SubResource("Resource_ixntf"), SubResource("Resource_ojuex"), SubResource("Resource_ovreh"), SubResource("Resource_ncp08"), SubResource("Resource_iuxon"), SubResource("Resource_g800d"), SubResource("Resource_gtcgn"), SubResource("Resource_hmbeq"), SubResource("Resource_j0op4"), SubResource("Resource_gh2a6"), SubResource("Resource_4c86k"), SubResource("Resource_qirbk"), SubResource("Resource_dtfsi"), SubResource("Resource_b7j2p"), SubResource("Resource_p004f"), SubResource("Resource_qhpnb"), SubResource("Resource_iltbv"), SubResource("Resource_y50bj"), SubResource("Resource_38o73")])
-enemies = Array[ExtResource("13_2tpwy")]([SubResource("Resource_duiw8"), SubResource("Resource_xx57p"), SubResource("Resource_crsmg"), SubResource("Resource_iqwa1"), SubResource("Resource_6sfud"), SubResource("Resource_tuubr"), SubResource("Resource_yen46"), SubResource("Resource_gxkai")])
-waves = Array[ExtResource("77_js03e")]([SubResource("Resource_vjp8l"), SubResource("Resource_keej7"), SubResource("Resource_hckna"), SubResource("Resource_ed5ap"), SubResource("Resource_52gxa"), SubResource("Resource_lqxxs"), SubResource("Resource_avehq"), SubResource("Resource_72r8p"), SubResource("Resource_fl6i7"), SubResource("Resource_di2if")])
-difficulties = Array[ExtResource("12_7dayf")]([SubResource("Resource_i8wiu"), SubResource("Resource_u0j8w"), SubResource("Resource_xvosd"), SubResource("Resource_7vhco"), SubResource("Resource_i5605")])
+characters = Array[ExtResource("1_u7nwy")]([SubResource("Resource_1goop"), SubResource("Resource_dqpfa"), SubResource("Resource_q8u7b"), SubResource("Resource_shywf"), SubResource("Resource_xgqj7"), SubResource("Resource_i8wiu")])
+weapons = Array[ExtResource("79_31san")]([SubResource("Resource_q5egm"), SubResource("Resource_fxyv8"), SubResource("Resource_wh4bx"), SubResource("Resource_le4lw"), SubResource("Resource_rv2ko"), SubResource("Resource_66l0w"), SubResource("Resource_ftty1"), SubResource("Resource_5c0hu"), SubResource("Resource_sfyr6"), SubResource("Resource_navv0"), SubResource("Resource_12dpx")])
+passives = Array[ExtResource("24_58u2q")]([SubResource("Resource_jnf61"), SubResource("Resource_u7nwy"), SubResource("Resource_5nmvh"), SubResource("Resource_vm1fs"), SubResource("Resource_i7h65"), SubResource("Resource_3aiis"), SubResource("Resource_n02ax"), SubResource("Resource_ekhsh"), SubResource("Resource_2tpwy"), SubResource("Resource_30mdi"), SubResource("Resource_5qiun"), SubResource("Resource_xia1g"), SubResource("Resource_kfhbo"), SubResource("Resource_43m6r"), SubResource("Resource_cak7n"), SubResource("Resource_3x0kq"), SubResource("Resource_xa6el"), SubResource("Resource_b6imo"), SubResource("Resource_f8xti"), SubResource("Resource_ye0er")])
+upgrades = Array[ExtResource("30_45o4m")]([SubResource("Resource_x8iba"), SubResource("Resource_5ajui"), SubResource("Resource_jec54"), SubResource("Resource_2ea5m"), SubResource("Resource_titae"), SubResource("Resource_ssood"), SubResource("Resource_tm2qo"), SubResource("Resource_q2xn7"), SubResource("Resource_4uvxw"), SubResource("Resource_2gqwd"), SubResource("Resource_did5x"), SubResource("Resource_s145b"), SubResource("Resource_s27uq"), SubResource("Resource_da66g"), SubResource("Resource_x3xd1"), SubResource("Resource_4d5kc"), SubResource("Resource_b05bk"), SubResource("Resource_16d73"), SubResource("Resource_ebq22"), SubResource("Resource_77w8q"), SubResource("Resource_js03e"), SubResource("Resource_31san"), SubResource("Resource_oau7k"), SubResource("Resource_fluvf"), SubResource("Resource_6t0tj"), SubResource("Resource_00jja"), SubResource("Resource_nejog"), SubResource("Resource_3lw6r"), SubResource("Resource_a313j"), SubResource("Resource_p2qa5"), SubResource("Resource_cuctv"), SubResource("Resource_nyfj0"), SubResource("Resource_cajt7"), SubResource("Resource_h3o7p"), SubResource("Resource_iywlu"), SubResource("Resource_54xwl"), SubResource("Resource_kc2ed"), SubResource("Resource_bpqdk"), SubResource("Resource_3s23t"), SubResource("Resource_s8hp7"), SubResource("Resource_ioeqf"), SubResource("Resource_ygn58"), SubResource("Resource_hcprq"), SubResource("Resource_5l63j"), SubResource("Resource_ecsjb"), SubResource("Resource_tcxqr"), SubResource("Resource_vvpwe"), SubResource("Resource_wd31s"), SubResource("Resource_grxrx"), SubResource("Resource_2y4h3"), SubResource("Resource_sx2gm"), SubResource("Resource_1kbp4"), SubResource("Resource_5kcfq"), SubResource("Resource_8yb75"), SubResource("Resource_7xj8m"), SubResource("Resource_hjf17"), SubResource("Resource_kl2ho"), SubResource("Resource_ppnrp"), SubResource("Resource_1ep7m"), SubResource("Resource_tccxw"), SubResource("Resource_faihm"), SubResource("Resource_yh2h3"), SubResource("Resource_6pkuc"), SubResource("Resource_cdiax")])
+enemies = Array[ExtResource("13_2tpwy")]([SubResource("Resource_xx57p"), SubResource("Resource_crsmg"), SubResource("Resource_iqwa1"), SubResource("Resource_6sfud"), SubResource("Resource_kuwhg"), SubResource("Resource_hug7q"), SubResource("Resource_kd0cg"), SubResource("Resource_snn1j")])
+waves = Array[ExtResource("77_js03e")]([SubResource("Resource_n5sf1"), SubResource("Resource_bbtro"), SubResource("Resource_esnsy"), SubResource("Resource_jjfdt"), SubResource("Resource_v771v"), SubResource("Resource_j4vbr"), SubResource("Resource_k3gam"), SubResource("Resource_aeaf5"), SubResource("Resource_038bb"), SubResource("Resource_5dq0c")])
+difficulties = Array[ExtResource("12_7dayf")]([SubResource("Resource_u0j8w"), SubResource("Resource_xvosd"), SubResource("Resource_7vhco"), SubResource("Resource_i5605"), SubResource("Resource_duiw8")])

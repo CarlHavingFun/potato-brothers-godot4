@@ -124,6 +124,20 @@ func _on_shop_panel_on_shop_next_wave() -> void:
 
 func _on_enemy_died(enemy: Enemy) -> void:
 	spawn_coins(enemy)
+	if enemy is MouseDogBoss:
+		spawner.complete_boss_victory()
+
+
+func _on_player_died() -> void:
+	if Global.current_run == null or Global.current_run.phase != RunPhase.COMBAT:
+		return
+	Global.enter_phase(RunPhase.DEATH)
+	if is_instance_valid(spawner):
+		if is_instance_valid(spawner.spawn_timer):
+			spawner.spawn_timer.stop()
+		if is_instance_valid(spawner.wave_timer):
+			spawner.wave_timer.stop()
+		spawner.clear_enemies()
 
 
 func _on_selection_panel_on_selection_completed() -> void:
@@ -131,6 +145,7 @@ func _on_selection_panel_on_selection_completed() -> void:
 		return
 	var player := Global.get_selected_player()
 	add_child(player)
+	player.health_component.on_unit_died.connect(_on_player_died, CONNECT_ONE_SHOT)
 	player.add_weapon(Global.main_weapon_selected)
 	shop_panel.create_item_weapon(Global.main_weapon_selected)
 	Global.equipped_weapons.append(Global.main_weapon_selected)

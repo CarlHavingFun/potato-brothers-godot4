@@ -2,6 +2,7 @@ extends Node2D
 class_name Spawner
 
 signal on_wave_completed
+signal on_run_victory
 
 @export var spawn_area_size := Vector2(1000, 500)
 
@@ -164,7 +165,7 @@ func get_wave_timer_text() -> String:
 
 
 func _on_spawn_timer_timeout() -> void:
-	if not current_wave_data or wave_timer.is_stopped():
+	if (current_wave_definition == null and current_wave_data == null) or wave_timer.is_stopped():
 		spawn_timer.stop()
 		return
 	
@@ -172,8 +173,33 @@ func _on_spawn_timer_timeout() -> void:
 
 
 func _on_wave_timer_timeout() -> void:
-	Global.enter_phase(RunPhase.UPGRADE)
-	Global.get_harvesting_coins()
-	on_wave_completed.emit()
-	spawn_timer.stop()
+	complete_wave()
+
+
+func complete_wave() -> bool:
+	if Global.current_run == null or Global.current_run.phase != RunPhase.COMBAT:
+		return false
+	var director := wave_director
+	if director == null:
+		director = WaveDirector.new(Content.catalog, Global.current_run.random_seed)
+	var final_wave := director.is_final_wave(wave_index)
+	var next_phase := RunPhase.VICTORY if final_wave else RunPhase.UPGRADE
+	if not Global.enter_phase(next_phase):
+		return false
+	if is_instance_valid(spawn_timer):
+		spawn_timer.stop()
+	if is_instance_valid(wave_timer):
+		wave_timer.stop()
 	clear_enemies()
+	if final_wave:
+		on_run_victory.emit()
+	else:
+		Global.get_harvesting_coins()
+		on_wave_completed.emit()
+	return true
+
+
+func complete_boss_victory() -> bool:
+	if wave_index < 10:
+		return false
+	return complete_wave()
