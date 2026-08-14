@@ -68,6 +68,10 @@ func _ready() -> void:
 	pack.enemies = _build_enemies()
 	pack.waves = _build_waves()
 	pack.difficulties = _build_difficulties()
+	pack.translation_paths = [
+		"res://content_packs/default/i18n/game.zh_CN.po",
+		"res://content_packs/default/i18n/game.en.po",
+	]
 
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUTPUT_PATH.get_base_dir()))
 	var result := ResourceSaver.save(pack, OUTPUT_PATH)

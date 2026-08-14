@@ -69,6 +69,7 @@ func _on_new_wave_button_pressed() -> void:
 func _on_lock_button_toggled(pressed: bool) -> void:
 	if Global.current_run != null:
 		Global.shop_service.set_locked(Global.current_run, pressed)
+		Global.save_progress()
 
 
 func _on_refresh_button_pressed() -> void:
@@ -79,20 +80,22 @@ func _on_refresh_button_pressed() -> void:
 		return
 	Global.materials_changed.emit(Global.current_run.materials)
 	load_shop(current_wave, true)
+	Global.save_progress()
 
 
 func _update_refresh_text() -> void:
 	if Global.current_run == null:
 		return
-	refresh_button.text = "Refresh (%s)" % Global.shop_service.refresh_price(
+	refresh_button.text = "%s (%s)" % [tr("ui.shop.refresh"), Global.shop_service.refresh_price(
 		current_wave, Global.current_run.shop_refresh_count
-	)
+	)]
 
 
 func _on_item_purchased(item: ItemBase) -> void:
 	if Global.current_run != null:
 		Global.shop_service.consume_offer(Global.current_run, item, Content.catalog)
 	project_item(item)
+	Global.save_progress()
 
 
 func project_item(item: ItemBase) -> void:
@@ -178,6 +181,7 @@ func _on_combine_button_pressed() -> void:
 	new_card.item = upgraded_weapon
 	
 	context_card = null
+	Global.save_progress()
 
 
 func _on_sell_button_pressed() -> void:
@@ -206,6 +210,7 @@ func _on_sell_button_pressed() -> void:
 	
 	context_card.queue_free()
 	context_card = null
+	Global.save_progress()
 
 
 func _same_weapon_family_and_tier(first: ItemWeapon, second: ItemWeapon) -> bool:

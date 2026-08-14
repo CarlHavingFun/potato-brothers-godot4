@@ -42,7 +42,18 @@ func load_manifest(manifest_path: String, source_root := "") -> int:
 		last_errors.append("content catalog registration failed: %s" % error_string(result))
 		return result
 	catalog = candidate_catalog
+	_register_translations(resource)
 	return OK
+
+
+func _register_translations(pack: ContentPackDef) -> void:
+	for translation_path: String in pack.translation_paths:
+		if not ResourceLoader.exists(translation_path):
+			push_warning("Content translation not found: %s" % translation_path)
+			continue
+		var translation := load(translation_path) as Translation
+		if translation != null:
+			TranslationServer.add_translation(translation)
 
 
 func mount_and_load(pack_path: String, manifest_path := DEFAULT_MANIFEST_PATH) -> int:

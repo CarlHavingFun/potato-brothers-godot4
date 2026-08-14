@@ -104,6 +104,31 @@ func test_run_and_meta_progress_restore_through_local_provider() -> void:
 	assert_int(restored_progress.highest_clear_for(&"well_rounded")).is_equal(1)
 
 
+func test_default_save_path_is_namespaced_by_content_pack() -> void:
+	assert_str(LocalSaveProvider.DEFAULT_SAVE_PATH).is_equal(
+		"user://save/packs/potato_default/save_v1.json"
+	)
+
+
+func test_meta_progress_round_trip_preserves_product_settings() -> void:
+	var progress := MetaProgress.new()
+	progress.music_volume = 0.35
+	progress.sfx_volume = 0.65
+	progress.fullscreen = true
+	progress.resolution = "1280x720"
+	progress.aim_mode = AimMode.MANUAL_MOUSE
+	progress.locale = "en"
+
+	var restored := MetaProgress.from_dict(progress.to_dict())
+
+	assert_float(restored.music_volume).is_equal(0.35)
+	assert_float(restored.sfx_volume).is_equal(0.65)
+	assert_bool(restored.fullscreen).is_true()
+	assert_str(restored.resolution).is_equal("1280x720")
+	assert_int(restored.aim_mode).is_equal(AimMode.MANUAL_MOUSE)
+	assert_str(restored.locale).is_equal("en")
+
+
 func _cleanup_save_files() -> void:
 	for suffix: String in ["", ".tmp", ".bak"]:
 		var path: String = TEST_SAVE_PATH + suffix

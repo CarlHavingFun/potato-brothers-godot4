@@ -12,11 +12,11 @@ var result_key := ""
 
 func show_result(run_state: RunState, victory: bool) -> void:
 	result_key = "victory" if victory else "death"
-	result_label.text = "VICTORY" if victory else "RUN ENDED"
+	result_label.text = tr("ui.settlement.victory") if victory else tr("ui.settlement.death")
 	if run_state == null:
 		details_label.text = "No run data"
 		return
-	details_label.text = "Character: %s\nDifficulty: %s\nWave: %s / 10\nMaterials: %s\nTime: %s" % [
+	details_label.text = tr("ui.settlement.details") % [
 		String(run_state.character_id),
 		run_state.difficulty,
 		run_state.wave,

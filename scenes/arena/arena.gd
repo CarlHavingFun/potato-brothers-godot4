@@ -18,6 +18,7 @@ class_name Arena
 @onready var difficulty_panel: DifficultyPanel = %DifficultyPanel
 @onready var pause_panel: PausePanel = %PausePanel
 @onready var settlement_panel: SettlementPanel = %SettlementPanel
+@onready var settings_panel: SettingsPanel = %SettingsPanel
 @onready var coins_bag: CoinsBag = %CoinsBag
 @onready var music_player: AudioStreamPlayer = $MusicPlayer
 
@@ -75,6 +76,7 @@ func start_new_wave() -> void:
 	spawner.wave_index += 1
 	Global.current_run.wave = spawner.wave_index
 	Global.enter_phase(RunPhase.COMBAT)
+	Global.save_progress()
 	spawner.start_wave()
 
 
@@ -121,6 +123,7 @@ func _on_create_heal_text(unit: Node2D, heal: float) -> void:
 
 func _on_upgrade_selected() -> void:
 	var next_phase := Global.reward_service.claim_level_up_and_get_next_phase(Global.current_run)
+	Global.save_progress()
 	if next_phase == RunPhase.UPGRADE:
 		upgrade_panel.load_upgrades(spawner.wave_index)
 		return
@@ -155,6 +158,7 @@ func _show_reward() -> void:
 func _show_shop() -> void:
 	shop_panel.load_shop(spawner.wave_index)
 	shop_panel.show()
+	Global.save_progress()
 
 
 func _on_reward_panel_reward_claimed(item: ItemBase) -> void:
@@ -162,6 +166,7 @@ func _on_reward_panel_reward_claimed(item: ItemBase) -> void:
 
 
 func _on_reward_panel_reward_finished(next_phase: int) -> void:
+	Global.save_progress()
 	if next_phase == RunPhase.CHEST:
 		reward_panel.load_reward(spawner.wave_index)
 		return
@@ -187,7 +192,7 @@ func _on_player_died() -> void:
 
 func _on_selection_panel_on_selection_completed() -> void:
 	selection_panel.hide()
-	difficulty_panel.load_difficulties(1)
+	difficulty_panel.load_difficulties(Global.meta_progress.highest_unlocked_difficulty)
 	difficulty_panel.show()
 
 
@@ -228,6 +233,10 @@ func finish_run(victory: bool) -> void:
 		if is_instance_valid(spawner.wave_timer):
 			spawner.wave_timer.stop()
 		spawner.clear_enemies()
+	if victory:
+		Global.record_victory()
+	else:
+		Global.save_progress(false)
 	if is_instance_valid(settlement_panel):
 		settlement_panel.show_result(Global.current_run, victory)
 		settlement_panel.show()
@@ -254,6 +263,15 @@ func _on_pause_panel_title_requested() -> void:
 	reset_to_title()
 
 
+func _on_settings_requested() -> void:
+	settings_panel.load_settings()
+	settings_panel.show()
+
+
+func _on_settings_panel_closed() -> void:
+	settings_panel.hide()
+
+
 func _on_settlement_panel_retry_requested() -> void:
 	_reset_runtime_run()
 	title_panel.hide()
@@ -267,7 +285,7 @@ func reset_to_title() -> void:
 
 func _reset_runtime_run() -> void:
 	get_tree().paused = false
-	for panel: Control in [selection_panel, difficulty_panel, upgrade_panel, reward_panel, shop_panel, pause_panel, settlement_panel]:
+	for panel: Control in [selection_panel, difficulty_panel, upgrade_panel, reward_panel, shop_panel, pause_panel, settlement_panel, settings_panel]:
 		panel.hide()
 	if is_instance_valid(spawner):
 		if is_instance_valid(spawner.spawn_timer):

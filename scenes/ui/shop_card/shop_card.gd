@@ -14,8 +14,8 @@ signal on_item_purchased(item: ItemBase)
 func _set_shop_item(value: ItemBase) -> void:
 	shop_item = value
 	item_icon.texture = value.item_icon
-	item_name.text = value.item_name
-	item_type.text = ItemBase.ItemType.keys()[value.item_type]
+	item_name.text = Content.catalog.get_item_display_name(value)
+	item_type.text = Content.catalog.get_item_type_display_name(value.item_type)
 	item_description.text = value.get_description()
 	coins_label.text = str(value.item_cost)
 	

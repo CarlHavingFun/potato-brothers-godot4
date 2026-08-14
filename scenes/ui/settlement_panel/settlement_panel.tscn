@@ -46,13 +46,13 @@ horizontal_alignment = 1
 custom_minimum_size = Vector2(520, 72)
 layout_mode = 2
 theme_override_font_sizes/font_size = 30
-text = "NEW RUN"
+text = "ui.common.new_run"
 
 [node name="TitleButton" type="Button" parent="Center/Content"]
 custom_minimum_size = Vector2(520, 72)
 layout_mode = 2
 theme_override_font_sizes/font_size = 30
-text = "RETURN TO TITLE"
+text = "ui.common.return_title"
 
 [connection signal="pressed" from="Center/Content/RetryButton" to="." method="_on_retry_button_pressed"]
 [connection signal="pressed" from="Center/Content/TitleButton" to="." method="_on_title_button_pressed"]

@@ -61,7 +61,7 @@ func _on_player_selected(character: CharacterDef) -> void:
 	show_player_info(true)
 	
 	player_icon.texture = player.icon
-	player_name.text = player.name
+	player_name.text = Content.catalog.get_character_display_name(character)
 	player_description.text = "[code]Health: [color=green]%s[/color]\nDamage: [color=green]%s[/color]\nSpeed: [color=green]%s[/color]\nLuck: [color=green]%s[/color]\nBlock Chance: [color=green]%s%%[/color][/code]" % [player.health, player.damage, player.speed, player.luck, player.block_chance]
 
 

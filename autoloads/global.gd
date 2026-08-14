@@ -56,6 +56,9 @@ var run_director: RunDirector
 var shop_service: ShopService
 var reward_service: RewardService
 var combat_resolver: CombatResolver
+var meta_progress := MetaProgress.new()
+var save_provider: SaveProvider = LocalSaveProvider.new()
+var restored_run: RunState
 var aim_mode: int = AimMode.AUTO_TARGET
 var coins: int:
 	get:
@@ -85,6 +88,10 @@ var equipped_weapons: Array[ItemWeapon]
 
 func _init() -> void:
 	begin_run(0, null, STARTING_MATERIALS)
+
+
+func _ready() -> void:
+	load_progress()
 
 
 func begin_run(seed_value: int = 0, source_stats: UnitStats = null, starting_materials: int = STARTING_MATERIALS) -> RunState:
@@ -147,6 +154,89 @@ func enter_phase(next_phase: int) -> bool:
 		return false
 	run_phase_changed.emit(current_run.phase)
 	return true
+
+
+func load_progress() -> bool:
+	if save_provider == null or not save_provider.is_available():
+		apply_meta_settings()
+		return false
+	var payload := save_provider.load_slot()
+	var meta_data: Variant = payload.get("meta_progress", {})
+	meta_progress = MetaProgress.from_dict(meta_data if meta_data is Dictionary else {})
+	var run_data: Variant = payload.get("run_state", null)
+	restored_run = RunState.from_dict(run_data) if run_data is Dictionary else null
+	apply_meta_settings()
+	return not payload.is_empty()
+
+
+func save_progress(include_run: bool = true) -> Error:
+	if save_provider == null or not save_provider.is_available():
+		return ERR_UNAVAILABLE
+	var payload := {"meta_progress": meta_progress.to_dict()}
+	if include_run and current_run != null:
+		payload["run_state"] = current_run.to_dict()
+	return save_provider.save_slot(payload)
+
+
+func record_victory() -> bool:
+	if current_run == null:
+		return false
+	var unlocked := meta_progress.record_victory(current_run.character_id, current_run.difficulty)
+	save_progress(false)
+	return unlocked
+
+
+func update_product_settings(
+	music: float,
+	sfx: float,
+	use_fullscreen: bool,
+	resolution_value: String,
+	aim_value: int,
+	locale_value: String
+) -> bool:
+	if not AimMode.is_valid(aim_value) or locale_value not in ["zh_CN", "en"]:
+		return false
+	meta_progress.music_volume = clampf(music, 0.0, 1.0)
+	meta_progress.sfx_volume = clampf(sfx, 0.0, 1.0)
+	meta_progress.fullscreen = use_fullscreen
+	meta_progress.resolution = resolution_value
+	meta_progress.aim_mode = aim_value
+	meta_progress.locale = locale_value
+	apply_meta_settings()
+	save_progress(current_run != null)
+	return true
+
+
+func apply_meta_settings() -> void:
+	aim_mode = meta_progress.aim_mode
+	TranslationServer.set_locale(meta_progress.locale)
+	_set_bus_linear_volume(&"Music", meta_progress.music_volume)
+	_set_bus_linear_volume(&"SFX", meta_progress.sfx_volume)
+	if DisplayServer.get_name() == "headless":
+		return
+	DisplayServer.window_set_mode(
+		DisplayServer.WINDOW_MODE_FULLSCREEN if meta_progress.fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
+	)
+	var parts := meta_progress.resolution.split("x")
+	if parts.size() == 2:
+		DisplayServer.window_set_size(Vector2i(maxi(640, int(parts[0])), maxi(360, int(parts[1]))))
+
+
+func translate_text(key: StringName, english_fallback: String) -> String:
+	var translated := TranslationServer.translate(String(key))
+	if translated == String(key):
+		push_warning("Missing translation key '%s'; using English fallback." % key)
+		return english_fallback
+	return translated
+
+
+func _set_bus_linear_volume(bus_name: StringName, linear_value: float) -> void:
+	var bus_index := AudioServer.get_bus_index(bus_name)
+	if bus_index < 0:
+		return
+	var value := clampf(linear_value, 0.0, 1.0)
+	AudioServer.set_bus_mute(bus_index, value <= 0.0)
+	AudioServer.set_bus_volume_db(bus_index, linear_to_db(maxf(value, 0.0001)))
 
 
 func is_combat_active() -> bool:

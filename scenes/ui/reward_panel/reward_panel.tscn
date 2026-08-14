@@ -35,7 +35,7 @@ alignment = 1
 [node name="Title" type="Label" parent="Center/Card"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 56
-text = "Reward Chest"
+text = "ui.reward.title"
 horizontal_alignment = 1
 
 [node name="ItemIcon" type="TextureRect" parent="Center/Card"]
@@ -73,13 +73,13 @@ alignment = 1
 custom_minimum_size = Vector2(220, 64)
 layout_mode = 2
 theme_override_font_sizes/font_size = 28
-text = "Claim"
+text = "ui.reward.claim"
 
 [node name="RecycleButton" type="Button" parent="Center/Card/Buttons"]
 custom_minimum_size = Vector2(220, 64)
 layout_mode = 2
 theme_override_font_sizes/font_size = 28
-text = "Recycle 50%"
+text = "ui.reward.recycle"
 
 [connection signal="pressed" from="Center/Card/Buttons/ClaimButton" to="." method="_on_claim_button_pressed"]
 [connection signal="pressed" from="Center/Card/Buttons/RecycleButton" to="." method="_on_recycle_button_pressed"]

@@ -32,26 +32,26 @@ alignment = 1
 [node name="Title" type="Label" parent="Center/Menu"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 64
-text = "PAUSED"
+text = "ui.pause.title"
 horizontal_alignment = 1
 
 [node name="ResumeButton" type="Button" parent="Center/Menu"]
 custom_minimum_size = Vector2(440, 70)
 layout_mode = 2
 theme_override_font_sizes/font_size = 30
-text = "RESUME"
+text = "ui.pause.resume"
 
 [node name="SettingsButton" type="Button" parent="Center/Menu"]
 custom_minimum_size = Vector2(440, 70)
 layout_mode = 2
 theme_override_font_sizes/font_size = 30
-text = "SETTINGS"
+text = "ui.common.settings"
 
 [node name="TitleButton" type="Button" parent="Center/Menu"]
 custom_minimum_size = Vector2(440, 70)
 layout_mode = 2
 theme_override_font_sizes/font_size = 30
-text = "RETURN TO TITLE"
+text = "ui.common.return_title"
 
 [connection signal="pressed" from="Center/Menu/ResumeButton" to="." method="_on_resume_button_pressed"]
 [connection signal="pressed" from="Center/Menu/SettingsButton" to="." method="_on_settings_button_pressed"]

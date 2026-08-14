@@ -3,7 +3,7 @@ extends SaveProvider
 
 
 const SAVE_VERSION := 1
-const DEFAULT_SAVE_PATH := "user://save/save_v1.json"
+const DEFAULT_SAVE_PATH := "user://save/packs/potato_default/save_v1.json"
 
 var _save_path: String
 

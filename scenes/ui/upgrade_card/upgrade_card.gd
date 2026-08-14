@@ -10,8 +10,8 @@ class_name UpgradeCard
 func _set_data(value: ItemUpgrade) -> void:
 	item_data = value
 	item_icon.texture = item_data.item_icon
-	item_name.text = item_data.item_name
-	item_description.text = item_data.description
+	item_name.text = Content.catalog.get_upgrade_display_name(item_data)
+	item_description.text = Content.catalog.get_upgrade_description(item_data)
 	
 	var style := Global.get_tier_style(item_data.item_tier)
 	add_theme_stylebox_override("panel", style)

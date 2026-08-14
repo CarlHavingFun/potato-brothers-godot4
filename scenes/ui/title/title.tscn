@@ -31,33 +31,33 @@ alignment = 1
 [node name="Title" type="Label" parent="Center/Menu"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 88
-text = "POTATO BROTHERS"
+text = "ui.title.name"
 horizontal_alignment = 1
 
 [node name="Subtitle" type="Label" parent="Center/Menu"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.75, 0.8, 0.9, 1)
 theme_override_font_sizes/font_size = 24
-text = "10-wave survival · Phase One"
+text = "ui.title.subtitle"
 horizontal_alignment = 1
 
 [node name="StartButton" type="Button" parent="Center/Menu"]
 custom_minimum_size = Vector2(520, 80)
 layout_mode = 2
 theme_override_font_sizes/font_size = 38
-text = "START RUN"
+text = "ui.title.start"
 
 [node name="SettingsButton" type="Button" parent="Center/Menu"]
 custom_minimum_size = Vector2(520, 70)
 layout_mode = 2
 theme_override_font_sizes/font_size = 30
-text = "SETTINGS"
+text = "ui.title.settings"
 
 [node name="QuitButton" type="Button" parent="Center/Menu"]
 custom_minimum_size = Vector2(520, 70)
 layout_mode = 2
 theme_override_font_sizes/font_size = 30
-text = "QUIT"
+text = "ui.title.quit"
 
 [connection signal="pressed" from="Center/Menu/StartButton" to="." method="_on_start_button_pressed"]
 [connection signal="pressed" from="Center/Menu/SettingsButton" to="." method="_on_settings_button_pressed"]

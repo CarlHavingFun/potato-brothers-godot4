@@ -164,6 +164,52 @@ func get_item_stable_id(item: ItemBase) -> StringName:
 	return stable_id if not stable_id.is_empty() else item.get_stable_id()
 
 
+func get_item_display_name(item: ItemBase) -> String:
+	if item == null:
+		return ""
+	var definition := _all.get(get_item_stable_id(item)) as ContentDef
+	if definition != null and not definition.display_name_key.is_empty():
+		return Global.translate_text(definition.display_name_key, item.item_name)
+	return item.item_name
+
+
+func get_character_display_name(definition: CharacterDef) -> String:
+	if definition == null or definition.stats == null:
+		return ""
+	return Global.translate_text(definition.display_name_key, definition.stats.name)
+
+
+func get_upgrade_display_name(item: ItemUpgrade) -> String:
+	var definition := get_upgrade_definition_for_item(item)
+	if definition == null or not StatId.is_valid(definition.stat_id):
+		return item.item_name if item != null else ""
+	var quality_key := _quality_translation_key(definition.quality)
+	var quality_name := Global.translate_text(quality_key, _quality_fallback(definition.quality))
+	var stat_key := StringName("stat.%s" % StatId.key(definition.stat_id))
+	var stat_name := Global.translate_text(stat_key, StatId.key(definition.stat_id).capitalize())
+	return Global.translate_text(&"ui.upgrade.name", "%s %s") % [quality_name, stat_name]
+
+
+func get_upgrade_description(item: ItemUpgrade) -> String:
+	var definition := get_upgrade_definition_for_item(item)
+	if definition == null or not StatId.is_valid(definition.stat_id):
+		return item.description if item != null else ""
+	var stat_key := StringName("stat.%s" % StatId.key(definition.stat_id))
+	var stat_name := Global.translate_text(stat_key, StatId.key(definition.stat_id).capitalize())
+	return Global.translate_text(&"ui.upgrade.value", "%+.1f %s") % [definition.value, stat_name]
+
+
+func get_item_type_display_name(item_type: ItemBase.ItemType) -> String:
+	match item_type:
+		ItemBase.ItemType.WEAPON:
+			return Global.translate_text(&"item_type.weapon", "Weapon")
+		ItemBase.ItemType.UPGRADE:
+			return Global.translate_text(&"item_type.upgrade", "Upgrade")
+		ItemBase.ItemType.PASSIVE:
+			return Global.translate_text(&"item_type.passive", "Passive Item")
+	return ""
+
+
 func get_weapon_tier(content_id: StringName, tier: int) -> ItemWeapon:
 	var definition := get_weapon(content_id)
 	if definition == null or tier < 1 or tier > definition.tiers.size():
@@ -223,3 +269,18 @@ func _normalize_query(content_id: StringName) -> StringName:
 	if value.is_empty() or value.contains(":") or pack_id.is_empty():
 		return content_id
 	return StringName("%s:%s" % [pack_id, value])
+
+
+func _quality_translation_key(quality: int) -> StringName:
+	var keys: Array[StringName] = [
+		&"quality.common",
+		&"quality.rare",
+		&"quality.epic",
+		&"quality.legendary",
+	]
+	return keys[clampi(quality, 0, keys.size() - 1)]
+
+
+func _quality_fallback(quality: int) -> String:
+	var names: Array[String] = ["Common", "Rare", "Epic", "Legendary"]
+	return names[clampi(quality, 0, names.size() - 1)]

@@ -91,7 +91,7 @@ offset_top = 15.0
 offset_right = 90.0
 offset_bottom = 92.3333
 grow_horizontal = 2
-text = "Shop"
+text = "ui.shop.title"
 label_settings = SubResource("LabelSettings_whl1y")
 
 [node name="ItemsContainer" type="HBoxContainer" parent="MarginContainer/Control"]
@@ -292,33 +292,33 @@ alignment = 1
 layout_mode = 2
 theme_override_font_sizes/font_size = 48
 theme_override_styles/normal = SubResource("StyleBoxFlat_ws1b3")
-text = "next wave"
+text = "ui.shop.next_wave"
 
 [node name="LockButton" type="Button" parent="MarginContainer/Control/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 toggle_mode = true
 theme_override_font_sizes/font_size = 36
-text = "Lock shop"
+text = "ui.shop.lock"
 
 [node name="RefreshButton" type="Button" parent="MarginContainer/Control/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 36
-text = "Refresh"
+text = "ui.shop.refresh"
 
 [node name="CombineButton" type="Button" parent="MarginContainer/Control/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 48
 theme_override_styles/normal = SubResource("StyleBoxFlat_fjhgy")
-text = "combine"
+text = "ui.shop.combine"
 
 [node name="SellButton" type="Button" parent="MarginContainer/Control/VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 48
 theme_override_styles/normal = SubResource("StyleBoxFlat_8htdu")
-text = "sell"
+text = "ui.shop.sell"
 
 [node name="CoinsBag" parent="MarginContainer/Control" instance=ExtResource("50_kche8")]
 layout_mode = 0

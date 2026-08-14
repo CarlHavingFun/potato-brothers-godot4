@@ -19,7 +19,7 @@ func load_reward(current_wave: int) -> bool:
 	if reward_item == null:
 		return false
 	item_icon.texture = reward_item.item_icon
-	item_name.text = reward_item.item_name
+	item_name.text = Content.catalog.get_item_display_name(reward_item)
 	item_description.text = reward_item.get_description()
 	status_label.text = "Choose: claim or recycle"
 	return true

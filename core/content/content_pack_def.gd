@@ -15,3 +15,4 @@ const CURRENT_API_VERSION := 1
 @export var enemies: Array[EnemyDef]
 @export var waves: Array[WaveDef]
 @export var difficulties: Array[DifficultyDef]
+@export var translation_paths: Array[String]
