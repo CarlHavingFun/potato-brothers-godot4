@@ -28,6 +28,6 @@ func test_release_filter_excludes_content_and_development_tooling_from_core() ->
 
 func test_release_automation_and_ci_configuration_exist() -> void:
 	assert_bool(FileAccess.file_exists("res://tools/build_release.ps1")).is_true()
-	assert_bool(FileAccess.file_exists("res://tools/release_inspector/project.godot")).is_true()
+	assert_bool(FileAccess.file_exists("res://tools/release_inspector/project.godot.template")).is_true()
 	assert_bool(FileAccess.file_exists("res://tools/release_inspector/inspect_core_pck.gd")).is_true()
 	assert_bool(FileAccess.file_exists("res://.github/workflows/phase-one.yml")).is_true()

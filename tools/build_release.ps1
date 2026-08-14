@@ -78,7 +78,11 @@ $platformConfig = @{
 	Linux   = @{ Preset = "Linux"; Folder = "linux"; File = "PotatoBrothers.x86_64" }
 	macOS   = @{ Preset = "macOS"; Folder = "macos"; File = "PotatoBrothers.zip" }
 }
-$inspectorProject = Join-Path $projectRoot "tools\release_inspector"
+$inspectorSource = Join-Path $projectRoot "tools\release_inspector"
+$inspectorProject = Join-Path $stagingRoot "inspector_project"
+$null = New-Item -ItemType Directory -Force -Path $inspectorProject
+Copy-Item -LiteralPath (Join-Path $inspectorSource "project.godot.template") -Destination (Join-Path $inspectorProject "project.godot") -Force
+Copy-Item -LiteralPath (Join-Path $inspectorSource "inspect_core_pck.gd") -Destination $inspectorProject -Force
 $inspectorScript = "res://inspect_core_pck.gd"
 
 foreach ($platform in $Platforms) {
