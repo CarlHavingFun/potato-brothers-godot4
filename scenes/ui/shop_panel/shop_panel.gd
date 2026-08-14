@@ -10,24 +10,36 @@ const SHOP_CARD_SCENE = preload("uid://csmrkxii0a74i")
 @onready var weapons_container: GridContainer = %WeaponsContainer
 
 @onready var combine_button: Button = %CombineButton
+@onready var lock_button: Button = %LockButton
+@onready var refresh_button: Button = %RefreshButton
 
 var context_card: ItemCard
+var current_wave := 1
 
 func _ready() -> void:
 	for child in passives_container.get_children(): child.queue_free()
 	for child in weapons_container.get_children(): child.queue_free()
 
-func load_shop(current_wave: int) -> void:
+func load_shop(wave: int, force_refresh: bool = false) -> void:
+	current_wave = wave
 	for child in items_container.get_children(): child.queue_free()
-	
+	if Global.current_run == null:
+		return
 	var config := Global.SHOP_PROBABILITY_CONFIG
 	var shop_items: Array[ItemBase] = Content.catalog.get_shop_items()
-	var selected_items := Global.select_items_for_offer(shop_items, current_wave, config)
+	var selected_items: Array[ItemBase] = []
+	if not force_refresh and Global.current_run.shop_locked:
+		selected_items = Global.shop_service.resolve_offers(Global.current_run, Content.catalog)
+	if selected_items.is_empty():
+		selected_items.assign(Global.select_items_for_offer(shop_items, current_wave, config))
+		Global.shop_service.store_offers(Global.current_run, selected_items, Content.catalog)
 	for shop_item : ItemBase in selected_items:
 		var card_instance := SHOP_CARD_SCENE.instantiate() as ShopCard
 		card_instance.on_item_purchased.connect(_on_item_purchased)
 		items_container.add_child(card_instance)
 		card_instance.shop_item = shop_item
+	lock_button.button_pressed = Global.current_run.shop_locked
+	_update_refresh_text()
 
 
 func create_item_card() -> ItemCard:
@@ -47,7 +59,36 @@ func _on_new_wave_button_pressed() -> void:
 	on_shop_next_wave.emit()
 
 
+func _on_lock_button_toggled(pressed: bool) -> void:
+	if Global.current_run != null:
+		Global.shop_service.set_locked(Global.current_run, pressed)
+
+
+func _on_refresh_button_pressed() -> void:
+	if Global.current_run == null:
+		return
+	var result := Global.shop_service.try_refresh(Global.current_run, current_wave)
+	if result != InventoryService.OK:
+		return
+	Global.materials_changed.emit(Global.current_run.materials)
+	load_shop(current_wave, true)
+
+
+func _update_refresh_text() -> void:
+	if Global.current_run == null:
+		return
+	refresh_button.text = "Refresh (%s)" % Global.shop_service.refresh_price(
+		current_wave, Global.current_run.shop_refresh_count
+	)
+
+
 func _on_item_purchased(item: ItemBase) -> void:
+	if Global.current_run != null:
+		Global.shop_service.consume_offer(Global.current_run, item, Content.catalog)
+	project_item(item)
+
+
+func project_item(item: ItemBase) -> void:
 	var item_card := create_item_card()
 	
 	if item.item_type == ItemBase.ItemType.WEAPON:

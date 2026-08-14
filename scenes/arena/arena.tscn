@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://bjhraywhhpn3h"]
+[gd_scene load_steps=14 format=3 uid="uid://bjhraywhhpn3h"]
 
 [ext_resource type="Texture2D" uid="uid://cy4xfx762bxgb" path="res://assets/sprites/BG.png" id="1_5tue2"]
 [ext_resource type="Script" uid="uid://fylssyuoxjey" path="res://scenes/arena/arena.gd" id="1_asdgj"]
@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" uid="uid://ck8hfiuq31k2l" path="res://scenes/ui/shop_panel/shop_panel.tscn" id="16_t3vx8"]
 [ext_resource type="AudioStream" uid="uid://prc8bub0x4s1" path="res://assets/audio/Bg Music.mp3" id="18_8kk48"]
 [ext_resource type="PackedScene" uid="uid://be4y0ch5v7qa5" path="res://scenes/ui/selection_panel/selection_panel.tscn" id="18_tp84n"]
+[ext_resource type="PackedScene" path="res://scenes/ui/reward_panel/reward_panel.tscn" id="19_reward"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_6w4xk"]
 font_size = 64
@@ -83,6 +84,10 @@ visible = false
 unique_name_in_owner = true
 visible = false
 
+[node name="RewardPanel" parent="GameUI" instance=ExtResource("19_reward")]
+unique_name_in_owner = true
+visible = false
+
 [node name="SelectionPanel" parent="GameUI" instance=ExtResource("18_tp84n")]
 
 [node name="MusicPlayer" type="AudioStreamPlayer" parent="."]
@@ -95,4 +100,6 @@ bus = &"Music"
 [connection signal="timeout" from="Spawner/SpawnTimer" to="Spawner" method="_on_spawn_timer_timeout"]
 [connection signal="timeout" from="Spawner/WaveTimer" to="Spawner" method="_on_wave_timer_timeout"]
 [connection signal="on_shop_next_wave" from="GameUI/ShopPanel" to="." method="_on_shop_panel_on_shop_next_wave"]
+[connection signal="reward_claimed" from="GameUI/RewardPanel" to="." method="_on_reward_panel_reward_claimed"]
+[connection signal="reward_finished" from="GameUI/RewardPanel" to="." method="_on_reward_panel_reward_finished"]
 [connection signal="on_selection_completed" from="GameUI/SelectionPanel" to="." method="_on_selection_panel_on_selection_completed"]

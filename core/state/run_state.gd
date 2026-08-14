@@ -13,6 +13,9 @@ var experience: int = 0
 var materials: int = 0
 var queued_level_ups: int = 0
 var queued_rewards: int = 0
+var shop_refresh_count: int = 0
+var shop_locked: bool = false
+var shop_offer_ids: Array[Dictionary] = []
 var player_stats: PlayerStats
 var inventory: InventoryState
 
@@ -43,6 +46,9 @@ func to_dict() -> Dictionary:
 		"materials": materials,
 		"queued_level_ups": queued_level_ups,
 		"queued_rewards": queued_rewards,
+		"shop_refresh_count": shop_refresh_count,
+		"shop_locked": shop_locked,
+		"shop_offer_ids": shop_offer_ids.duplicate(true),
 		"player_stats": player_stats.to_dict(),
 		"inventory": inventory.to_dict(),
 	}
@@ -63,6 +69,13 @@ static func from_dict(data: Dictionary) -> RunState:
 	result.materials = maxi(0, int(data.get("materials", 0)))
 	result.queued_level_ups = maxi(0, int(data.get("queued_level_ups", 0)))
 	result.queued_rewards = maxi(0, int(data.get("queued_rewards", 0)))
+	result.shop_refresh_count = maxi(0, int(data.get("shop_refresh_count", 0)))
+	result.shop_locked = bool(data.get("shop_locked", false))
+	var stored_offers: Variant = data.get("shop_offer_ids", [])
+	if stored_offers is Array:
+		for entry: Variant in stored_offers:
+			if entry is Dictionary:
+				result.shop_offer_ids.append((entry as Dictionary).duplicate(true))
 	var inventory_data: Variant = data.get("inventory", {})
 	result.inventory = InventoryState.from_dict(inventory_data if inventory_data is Dictionary else {})
 	return result

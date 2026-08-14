@@ -161,6 +161,16 @@ func add_materials(amount: int) -> void:
 	materials_changed.emit(current_run.materials)
 
 
+func collect_materials(amount: int) -> int:
+	if amount <= 0:
+		return 0
+	_ensure_run()
+	add_materials(amount)
+	if reward_service == null:
+		reward_service = RewardService.new(current_run.random_seed)
+	return reward_service.add_experience(current_run, amount)
+
+
 func try_spend_materials(amount: int) -> bool:
 	if amount < 0:
 		return false
@@ -182,6 +192,28 @@ func try_purchase_item(item: ItemBase) -> int:
 	if result == InventoryService.OK:
 		materials_changed.emit(current_run.materials)
 	return result
+
+
+func try_claim_reward_item(item: ItemBase) -> int:
+	if current_run == null or item == null:
+		return InventoryService.INVALID_REQUEST
+	if reward_service == null:
+		reward_service = RewardService.new(current_run.random_seed)
+	var result := reward_service.try_claim_item(current_run, item, Content.catalog)
+	if result == InventoryService.OK:
+		materials_changed.emit(current_run.materials)
+	return result
+
+
+func recycle_reward_item(item: ItemBase) -> int:
+	if current_run == null or item == null:
+		return 0
+	if reward_service == null:
+		reward_service = RewardService.new(current_run.random_seed)
+	var materials := reward_service.recycle_item(current_run, item)
+	if materials > 0:
+		materials_changed.emit(current_run.materials)
+	return materials
 
 
 func try_combine_weapon(weapon: ItemWeapon) -> int:

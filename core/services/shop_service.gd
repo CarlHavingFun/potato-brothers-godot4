@@ -79,6 +79,76 @@ func try_purchase(run_state: RunState, item: ItemBase, content_catalog: ContentC
 	return InventoryService.INVALID_REQUEST
 
 
+func refresh_price(current_wave: int, refresh_count: int) -> int:
+	return maxi(1, current_wave) + 2 + maxi(0, refresh_count) * 2
+
+
+func try_refresh(run_state: RunState, current_wave: int) -> int:
+	if run_state == null:
+		return InventoryService.INVALID_REQUEST
+	var price := refresh_price(current_wave, run_state.shop_refresh_count)
+	if run_state.materials < price:
+		return InventoryService.INSUFFICIENT_MATERIALS
+	run_state.materials -= price
+	run_state.shop_refresh_count += 1
+	run_state.shop_locked = false
+	run_state.shop_offer_ids.clear()
+	return InventoryService.OK
+
+
+func set_locked(run_state: RunState, locked: bool) -> bool:
+	if run_state == null:
+		return false
+	run_state.shop_locked = locked
+	return true
+
+
+func store_offers(run_state: RunState, offers: Array, content_catalog: ContentCatalog) -> bool:
+	if run_state == null or content_catalog == null:
+		return false
+	run_state.shop_offer_ids.clear()
+	for item: Variant in offers:
+		if not item is ItemBase:
+			continue
+		var typed_item := item as ItemBase
+		run_state.shop_offer_ids.append({
+			"id": String(content_catalog.get_item_stable_id(typed_item)),
+			"tier": int(typed_item.item_tier) + 1,
+			"type": int(typed_item.item_type),
+		})
+	return true
+
+
+func resolve_offers(run_state: RunState, content_catalog: ContentCatalog) -> Array[ItemBase]:
+	var result: Array[ItemBase] = []
+	if run_state == null or content_catalog == null:
+		return result
+	for entry: Dictionary in run_state.shop_offer_ids:
+		var item: ItemBase
+		var content_id := StringName(str(entry.get("id", "")))
+		if int(entry.get("type", -1)) == ItemBase.ItemType.WEAPON:
+			item = content_catalog.get_weapon_tier(content_id, int(entry.get("tier", 1)))
+		elif int(entry.get("type", -1)) == ItemBase.ItemType.PASSIVE:
+			var passive := content_catalog.get_passive(content_id)
+			item = passive.item if passive != null else null
+		if item != null:
+			result.append(item)
+	return result
+
+
+func consume_offer(run_state: RunState, item: ItemBase, content_catalog: ContentCatalog) -> bool:
+	if run_state == null or item == null or content_catalog == null:
+		return false
+	var stable_id := String(content_catalog.get_item_stable_id(item))
+	var tier := int(item.item_tier) + 1
+	for index in run_state.shop_offer_ids.size():
+		var entry := run_state.shop_offer_ids[index]
+		if str(entry.get("id", "")) == stable_id and int(entry.get("tier", 0)) == tier:
+			run_state.shop_offer_ids.remove_at(index)
+			return true
+	return false
+
+
 func try_combine_item(
 	run_state: RunState,
 	weapon: ItemWeapon,

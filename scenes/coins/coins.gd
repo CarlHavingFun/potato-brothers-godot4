@@ -25,7 +25,7 @@ func _process(delta: float) -> void:
 
 
 func add_coins() -> void:
-	Global.add_materials(value)
+	Global.collect_materials(value)
 	queue_free()
 
 

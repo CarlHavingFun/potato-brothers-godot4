@@ -12,6 +12,7 @@ class_name Arena
 @onready var spawner: Spawner = $Spawner
 @onready var upgrade_panel: UpgradePanel = %UpgradePanel
 @onready var shop_panel: ShopPanel = %ShopPanel
+@onready var reward_panel: RewardPanel = %RewardPanel
 @onready var coins_bag: CoinsBag = %CoinsBag
 @onready var music_player: AudioStreamPlayer = $MusicPlayer
 
@@ -55,6 +56,9 @@ func show_upgrades() -> void:
 
 func start_new_wave() -> void:
 	Global.player.update_player_new_wave()
+	Global.current_run.shop_refresh_count = 0
+	if not Global.current_run.shop_locked:
+		Global.current_run.shop_offer_ids.clear()
 	spawner.wave_index += 1
 	Global.current_run.wave = spawner.wave_index
 	Global.enter_phase(RunPhase.COMBAT)
@@ -103,18 +107,54 @@ func _on_create_heal_text(unit: Node2D, heal: float) -> void:
 
 
 func _on_upgrade_selected() -> void:
+	var next_phase := Global.reward_service.claim_level_up_and_get_next_phase(Global.current_run)
+	if next_phase == RunPhase.UPGRADE:
+		upgrade_panel.load_upgrades(spawner.wave_index)
+		return
 	upgrade_panel.hide()
-	Global.enter_phase(RunPhase.SHOP)
-	shop_panel.load_shop(spawner.wave_index)
-	shop_panel.show()
+	Global.enter_phase(next_phase)
+	if next_phase == RunPhase.CHEST:
+		_show_reward()
+	else:
+		_show_shop()
 
 
 func _on_spawner_on_wave_completed() -> void:
 	if not Global.player: return
 	clean_arena()
 	await get_tree().create_timer(1.0).timeout
+	if Global.current_run.queued_level_ups <= 0:
+		Global.reward_service.queue_level_ups(Global.current_run, 1)
+	Global.reward_service.queue_rewards(Global.current_run, 1)
 	show_upgrades()
 	clean_arena()
+
+
+func _show_reward() -> void:
+	if reward_panel.load_reward(spawner.wave_index):
+		reward_panel.show()
+	else:
+		Global.current_run.queued_rewards = 0
+		Global.enter_phase(RunPhase.SHOP)
+		_show_shop()
+
+
+func _show_shop() -> void:
+	shop_panel.load_shop(spawner.wave_index)
+	shop_panel.show()
+
+
+func _on_reward_panel_reward_claimed(item: ItemBase) -> void:
+	shop_panel.project_item(item)
+
+
+func _on_reward_panel_reward_finished(next_phase: int) -> void:
+	if next_phase == RunPhase.CHEST:
+		reward_panel.load_reward(spawner.wave_index)
+		return
+	reward_panel.hide()
+	Global.enter_phase(RunPhase.SHOP)
+	_show_shop()
 
 
 func _on_shop_panel_on_shop_next_wave() -> void:

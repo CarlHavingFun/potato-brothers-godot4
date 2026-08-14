@@ -294,6 +294,19 @@ theme_override_font_sizes/font_size = 48
 theme_override_styles/normal = SubResource("StyleBoxFlat_ws1b3")
 text = "next wave"
 
+[node name="LockButton" type="Button" parent="MarginContainer/Control/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+theme_override_font_sizes/font_size = 36
+text = "Lock shop"
+
+[node name="RefreshButton" type="Button" parent="MarginContainer/Control/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 36
+text = "Refresh"
+
 [node name="CombineButton" type="Button" parent="MarginContainer/Control/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -315,5 +328,7 @@ offset_right = 159.0
 offset_bottom = 106.0
 
 [connection signal="pressed" from="MarginContainer/Control/VBoxContainer/NewWaveButton" to="." method="_on_new_wave_button_pressed"]
+[connection signal="toggled" from="MarginContainer/Control/VBoxContainer/LockButton" to="." method="_on_lock_button_toggled"]
+[connection signal="pressed" from="MarginContainer/Control/VBoxContainer/RefreshButton" to="." method="_on_refresh_button_pressed"]
 [connection signal="pressed" from="MarginContainer/Control/VBoxContainer/CombineButton" to="." method="_on_combine_button_pressed"]
 [connection signal="pressed" from="MarginContainer/Control/VBoxContainer/SellButton" to="." method="_on_sell_button_pressed"]
