@@ -1,0 +1,64 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/ui/title/title.gd" id="1"]
+
+[sub_resource type="StyleBoxFlat" id="background"]
+bg_color = Color(0.055, 0.065, 0.085, 0.98)
+
+[node name="TitlePanel" type="Panel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("background")
+script = ExtResource("1")
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Menu" type="VBoxContainer" parent="Center"]
+custom_minimum_size = Vector2(620, 540)
+layout_mode = 2
+theme_override_constants/separation = 24
+alignment = 1
+
+[node name="Title" type="Label" parent="Center/Menu"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 88
+text = "POTATO BROTHERS"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="Center/Menu"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.8, 0.9, 1)
+theme_override_font_sizes/font_size = 24
+text = "10-wave survival · Phase One"
+horizontal_alignment = 1
+
+[node name="StartButton" type="Button" parent="Center/Menu"]
+custom_minimum_size = Vector2(520, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 38
+text = "START RUN"
+
+[node name="SettingsButton" type="Button" parent="Center/Menu"]
+custom_minimum_size = Vector2(520, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "SETTINGS"
+
+[node name="QuitButton" type="Button" parent="Center/Menu"]
+custom_minimum_size = Vector2(520, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "QUIT"
+
+[connection signal="pressed" from="Center/Menu/StartButton" to="." method="_on_start_button_pressed"]
+[connection signal="pressed" from="Center/Menu/SettingsButton" to="." method="_on_settings_button_pressed"]
+[connection signal="pressed" from="Center/Menu/QuitButton" to="." method="_on_quit_button_pressed"]

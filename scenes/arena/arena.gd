@@ -13,6 +13,11 @@ class_name Arena
 @onready var upgrade_panel: UpgradePanel = %UpgradePanel
 @onready var shop_panel: ShopPanel = %ShopPanel
 @onready var reward_panel: RewardPanel = %RewardPanel
+@onready var title_panel: TitlePanel = %TitlePanel
+@onready var selection_panel: SelectionPanel = %SelectionPanel
+@onready var difficulty_panel: DifficultyPanel = %DifficultyPanel
+@onready var pause_panel: PausePanel = %PausePanel
+@onready var settlement_panel: SettlementPanel = %SettlementPanel
 @onready var coins_bag: CoinsBag = %CoinsBag
 @onready var music_player: AudioStreamPlayer = $MusicPlayer
 
@@ -24,6 +29,7 @@ func _ready() -> void:
 	Global.on_upgrade_selected.connect(_on_upgrade_selected)
 	Global.on_create_heal_text.connect(_on_create_heal_text)
 	Global.on_enemy_died.connect(_on_enemy_died)
+	reset_to_title()
 	call_deferred("_start_music")
 
 
@@ -36,8 +42,15 @@ func _start_music() -> void:
 
 func _process(delta: float) -> void:
 	if not Global.is_combat_active(): return
+	Global.current_run.elapsed_seconds += delta
 	wave_index_label.text = spawner.get_wave_text()
 	wave_time_label.text = spawner.get_wave_timer_text()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel") and Global.is_combat_active():
+		_pause_game()
+		get_viewport().set_input_as_handled()
 
 
 func create_floating_text(unit: Node2D) -> FloatingText:
@@ -169,20 +182,19 @@ func _on_enemy_died(enemy: Enemy) -> void:
 
 
 func _on_player_died() -> void:
-	if Global.current_run == null or Global.current_run.phase != RunPhase.COMBAT:
-		return
-	Global.enter_phase(RunPhase.DEATH)
-	if is_instance_valid(spawner):
-		if is_instance_valid(spawner.spawn_timer):
-			spawner.spawn_timer.stop()
-		if is_instance_valid(spawner.wave_timer):
-			spawner.wave_timer.stop()
-		spawner.clear_enemies()
+	finish_run(false)
 
 
 func _on_selection_panel_on_selection_completed() -> void:
+	selection_panel.hide()
+	difficulty_panel.load_difficulties(1)
+	difficulty_panel.show()
+
+
+func _on_difficulty_panel_difficulty_selected(level: int) -> void:
 	if not Global.begin_selected_run():
 		return
+	Global.current_run.difficulty = clampi(level, 1, 5)
 	var player := Global.get_selected_player()
 	add_child(player)
 	player.health_component.on_unit_died.connect(_on_player_died, CONNECT_ONE_SHOT)
@@ -193,3 +205,79 @@ func _on_selection_panel_on_selection_completed() -> void:
 	Global.current_run.wave = spawner.wave_index
 	Global.enter_phase(RunPhase.COMBAT)
 	spawner.start_wave()
+
+
+func _on_title_panel_start_requested() -> void:
+	Global.end_run()
+	title_panel.hide()
+	selection_panel.show()
+
+
+func finish_run(victory: bool) -> void:
+	if Global.current_run == null:
+		return
+	var target_phase := RunPhase.VICTORY if victory else RunPhase.DEATH
+	if Global.current_run.phase != target_phase:
+		if Global.current_run.phase != RunPhase.COMBAT or not Global.enter_phase(target_phase):
+			return
+	if is_instance_valid(settlement_panel) and settlement_panel.visible:
+		return
+	if is_instance_valid(spawner):
+		if is_instance_valid(spawner.spawn_timer):
+			spawner.spawn_timer.stop()
+		if is_instance_valid(spawner.wave_timer):
+			spawner.wave_timer.stop()
+		spawner.clear_enemies()
+	if is_instance_valid(settlement_panel):
+		settlement_panel.show_result(Global.current_run, victory)
+		settlement_panel.show()
+
+
+func _on_spawner_on_run_victory() -> void:
+	finish_run(true)
+
+
+func _pause_game() -> void:
+	if not Global.is_combat_active():
+		return
+	pause_panel.show()
+	get_tree().paused = true
+
+
+func _on_pause_panel_resume_requested() -> void:
+	get_tree().paused = false
+	pause_panel.hide()
+
+
+func _on_pause_panel_title_requested() -> void:
+	get_tree().paused = false
+	reset_to_title()
+
+
+func _on_settlement_panel_retry_requested() -> void:
+	_reset_runtime_run()
+	title_panel.hide()
+	selection_panel.show()
+
+
+func reset_to_title() -> void:
+	_reset_runtime_run()
+	title_panel.show()
+
+
+func _reset_runtime_run() -> void:
+	get_tree().paused = false
+	for panel: Control in [selection_panel, difficulty_panel, upgrade_panel, reward_panel, shop_panel, pause_panel, settlement_panel]:
+		panel.hide()
+	if is_instance_valid(spawner):
+		if is_instance_valid(spawner.spawn_timer):
+			spawner.spawn_timer.stop()
+		if is_instance_valid(spawner.wave_timer):
+			spawner.wave_timer.stop()
+		spawner.clear_enemies()
+	if is_instance_valid(Global.player):
+		Global.player.queue_free()
+	gold_list.clear()
+	shop_panel.reset_inventory()
+	spawner.wave_index = 1
+	Global.end_run()

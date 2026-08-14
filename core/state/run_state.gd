@@ -13,6 +13,7 @@ var experience: int = 0
 var materials: int = 0
 var queued_level_ups: int = 0
 var queued_rewards: int = 0
+var elapsed_seconds: float = 0.0
 var shop_refresh_count: int = 0
 var shop_locked: bool = false
 var shop_offer_ids: Array[Dictionary] = []
@@ -46,6 +47,7 @@ func to_dict() -> Dictionary:
 		"materials": materials,
 		"queued_level_ups": queued_level_ups,
 		"queued_rewards": queued_rewards,
+		"elapsed_seconds": elapsed_seconds,
 		"shop_refresh_count": shop_refresh_count,
 		"shop_locked": shop_locked,
 		"shop_offer_ids": shop_offer_ids.duplicate(true),
@@ -69,6 +71,7 @@ static func from_dict(data: Dictionary) -> RunState:
 	result.materials = maxi(0, int(data.get("materials", 0)))
 	result.queued_level_ups = maxi(0, int(data.get("queued_level_ups", 0)))
 	result.queued_rewards = maxi(0, int(data.get("queued_rewards", 0)))
+	result.elapsed_seconds = maxf(0.0, float(data.get("elapsed_seconds", 0.0)))
 	result.shop_refresh_count = maxi(0, int(data.get("shop_refresh_count", 0)))
 	result.shop_locked = bool(data.get("shop_locked", false))
 	var stored_offers: Variant = data.get("shop_offer_ids", [])

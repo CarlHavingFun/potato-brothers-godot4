@@ -17,8 +17,15 @@ var context_card: ItemCard
 var current_wave := 1
 
 func _ready() -> void:
+	reset_inventory()
+
+
+func reset_inventory() -> void:
 	for child in passives_container.get_children(): child.queue_free()
 	for child in weapons_container.get_children(): child.queue_free()
+	for child in items_container.get_children(): child.queue_free()
+	context_card = null
+	combine_button.disabled = true
 
 func load_shop(wave: int, force_refresh: bool = false) -> void:
 	current_wave = wave
