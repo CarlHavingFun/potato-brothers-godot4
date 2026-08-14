@@ -7,6 +7,7 @@ const CONTENT_CATALOG_SCRIPT := "res://core/content/content_catalog.gd"
 const CONTENT_VALIDATOR_SCRIPT := "res://core/content/content_validator.gd"
 const BOOTSTRAP_LOADER_SCRIPT := "res://core/content/bootstrap_content_loader.gd"
 const TEST_PACK_PATH := "user://tests/content_pack/pack.tres"
+const DEFAULT_PACK_PATH := "res://content_packs/default/pack.tres"
 
 
 func after_test() -> void:
@@ -128,3 +129,40 @@ func test_bootstrap_loads_a_valid_manifest_before_game_content_is_used() -> void
 	assert_str(loaded_character.get_stable_id(&"potato_default")).is_equal(
 		"potato_default:character/well_rounded"
 	)
+
+
+func test_default_content_pack_registers_the_current_playable_baseline() -> void:
+	assert_bool(ResourceLoader.exists(DEFAULT_PACK_PATH)).is_true()
+	if not ResourceLoader.exists(DEFAULT_PACK_PATH):
+		return
+
+	var pack: ContentPackDef = load(DEFAULT_PACK_PATH)
+	assert_str(pack.pack_id).is_equal("potato_default")
+	assert_int(pack.characters.size()).is_equal(5)
+	assert_int(pack.weapons.size()).is_equal(11)
+	assert_int(pack.passives.size()).is_equal(4)
+	assert_int(pack.upgrades.size()).is_equal(46)
+	assert_int(pack.enemies.size()).is_equal(5)
+	for weapon: WeaponDef in pack.weapons:
+		assert_int(weapon.tiers.size()).override_failure_message(String(weapon.content_id)).is_equal(4)
+
+	var errors := ContentValidator.new().validate_pack(pack, "res://content_packs/default")
+	assert_array(errors).is_empty()
+	var catalog := ContentCatalog.new()
+	assert_int(catalog.register_pack(pack)).is_equal(OK)
+	assert_object(catalog.get_character(&"character/well_rounded")).is_not_null()
+	assert_object(catalog.get_weapon(&"weapon/pistol")).is_not_null()
+
+
+func test_selection_and_player_creation_do_not_embed_specific_content_paths() -> void:
+	assert_str(ProjectSettings.get_setting("autoload/Content", "")).is_equal(
+		"*res://core/content/bootstrap_content_loader.gd"
+	)
+	var selection_scene_source := FileAccess.get_file_as_string(
+		"res://scenes/ui/selection_panel/selection_panel.tscn"
+	)
+	var global_source := FileAccess.get_file_as_string("res://autoloads/global.gd")
+
+	assert_bool(selection_scene_source.contains("stats_player_")).is_false()
+	assert_bool(selection_scene_source.contains("item_axe_1.tres")).is_false()
+	assert_bool(global_source.contains("available_players")).is_false()

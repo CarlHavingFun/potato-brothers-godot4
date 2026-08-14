@@ -1,28 +1,10 @@
-[gd_scene load_steps=26 format=3 uid="uid://be4y0ch5v7qa5"]
+[gd_scene load_steps=8 format=3 uid="uid://be4y0ch5v7qa5"]
 
 [ext_resource type="Script" uid="uid://dtnbj3i3i3tyx" path="res://scenes/ui/selection_panel/selection_panel.gd" id="1_un15a"]
-[ext_resource type="Script" uid="uid://dslkq61ggb3ft" path="res://resources/units/unit_stats.gd" id="2_hu73q"]
 [ext_resource type="StyleBox" uid="uid://dn43vff5bgab1" path="res://styles/common_style.tres" id="2_mgmnq"]
-[ext_resource type="Resource" uid="uid://bohade16ieo0f" path="res://resources/units/players/stats_player_brawler.tres" id="3_3scu4"]
 [ext_resource type="Texture2D" uid="uid://cproxhccob85g" path="res://assets/sprites/Players/Player_1.png" id="3_jgkb1"]
-[ext_resource type="Resource" uid="uid://1882rxmh4ivl" path="res://resources/units/players/stats_player_bunny.tres" id="4_10geq"]
 [ext_resource type="PackedScene" uid="uid://fbgjpc1m3ig1" path="res://scenes/ui/custom_button/custom_buttom.tscn" id="4_58qwm"]
-[ext_resource type="Resource" uid="uid://cn0unmmub6kf" path="res://resources/units/players/stats_player_crazy.tres" id="5_0pu13"]
 [ext_resource type="PackedScene" uid="uid://dnablojs1s8" path="res://scenes/ui/selection_panel/selection_card.tscn" id="5_8wgut"]
-[ext_resource type="Resource" uid="uid://rn54posoohkv" path="res://resources/units/players/stats_player_knight.tres" id="6_ie7rk"]
-[ext_resource type="Resource" uid="uid://ily2pkpehjv4" path="res://resources/units/players/stats_player_well_rounded.tres" id="7_y6xu8"]
-[ext_resource type="Script" uid="uid://dt7tu5wgsfk5f" path="res://resources/items/weapons/item_weapon.gd" id="8_q3p5q"]
-[ext_resource type="Resource" uid="uid://b1cpgsnisp755" path="res://resources/items/weapons/melee/axe/item_axe_1.tres" id="9_4wjk5"]
-[ext_resource type="Resource" uid="uid://ce3e0y3uiyw7k" path="res://resources/items/weapons/melee/chainsaw/item_chainsaw_1.tres" id="10_tx3iw"]
-[ext_resource type="Resource" uid="uid://ubr7hbifp57w" path="res://resources/items/weapons/melee/mace/item_mace_1.tres" id="11_lur41"]
-[ext_resource type="Resource" uid="uid://bxpumvy00babu" path="res://resources/items/weapons/melee/punch/item_punch_1.tres" id="12_rjdwg"]
-[ext_resource type="Resource" uid="uid://cgdk4a1vfyo2j" path="res://resources/items/weapons/melee/sword/item_sword_1.tres" id="13_n7hlw"]
-[ext_resource type="Resource" uid="uid://cgerr5oqpjun7" path="res://resources/items/weapons/melee/wand/item_wand_1.tres" id="14_5x2hj"]
-[ext_resource type="Resource" uid="uid://imimryc45lel" path="res://resources/items/weapons/range/laser/item_laser_1.tres" id="15_8bbf2"]
-[ext_resource type="Resource" uid="uid://d2iqgdh5dol7e" path="res://resources/items/weapons/range/pistol/item_pistol_1.tres" id="16_qmrcp"]
-[ext_resource type="Resource" uid="uid://cus7cp8qtvf2x" path="res://resources/items/weapons/range/revolver/item_revolver_1.tres" id="17_8831k"]
-[ext_resource type="Resource" uid="uid://4sxp5j11l8yy" path="res://resources/items/weapons/range/shotgun/item_shotgun_1.tres" id="18_t1bfq"]
-[ext_resource type="Resource" uid="uid://xa5yx3ou1hck" path="res://resources/items/weapons/range/smg/item_smg_1.tres" id="19_khnca"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rbokc"]
 content_margin_left = 0.0
@@ -47,8 +29,6 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_rbokc")
 script = ExtResource("1_un15a")
-players = Array[ExtResource("2_hu73q")]([ExtResource("3_3scu4"), ExtResource("4_10geq"), ExtResource("5_0pu13"), ExtResource("6_ie7rk"), ExtResource("7_y6xu8")])
-start_weapons = Array[ExtResource("8_q3p5q")]([ExtResource("9_4wjk5"), ExtResource("10_tx3iw"), ExtResource("11_lur41"), ExtResource("12_rjdwg"), ExtResource("13_n7hlw"), ExtResource("14_5x2hj"), ExtResource("15_8bbf2"), ExtResource("16_qmrcp"), ExtResource("17_8831k"), ExtResource("18_t1bfq"), ExtResource("19_khnca")])
 
 [node name="MarginContainer" type="MarginContainer" parent="."]
 layout_mode = 1

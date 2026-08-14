@@ -42,14 +42,6 @@ const TIER_COLORS: Dictionary[UpgradeTier, Color] = {
 	UpgradeTier.LEGENDARY: Color(0.906, 0.212, 0.212),
 }
 
-var available_players: Dictionary[String, PackedScene] = {
-	"Brawler": preload("uid://b6emn4n6ogmg8"),
-	"Bunny": preload("uid://dx5yb8804ik6x"),
-	"Crazy": preload("uid://dkjqu0ys4k662"),
-	"Knight": preload("uid://cecw4o0onlxq8"),
-	"Well Rounded": preload("uid://bwo04frw2wqoy"),
-}
-
 enum UpgradeTier{
 	COMMON,
 	RARE,
@@ -80,6 +72,8 @@ var game_paused: bool:
 
 var main_player_selected: UnitStats
 var main_weapon_selected: ItemWeapon
+var main_character_selected: CharacterDef
+var main_weapon_definition_selected: WeaponDef
 
 var equipped_weapons: Array[ItemWeapon]
 
@@ -103,10 +97,18 @@ func begin_selected_run(seed_value: int = 0) -> bool:
 	if main_player_selected == null or main_weapon_selected == null:
 		return false
 	begin_run(seed_value, main_player_selected, STARTING_MATERIALS)
-	current_run.character_id = main_player_selected.get_stable_id()
-	current_run.starting_weapon_id = main_weapon_selected.get_stable_id()
+	current_run.character_id = (
+		main_character_selected.get_stable_id(Content.catalog.pack_id)
+		if main_character_selected != null
+		else main_player_selected.get_stable_id()
+	)
+	current_run.starting_weapon_id = (
+		main_weapon_definition_selected.get_stable_id(Content.catalog.pack_id)
+		if main_weapon_definition_selected != null
+		else main_weapon_selected.get_stable_id()
+	)
 	var slot := current_run.inventory.add_weapon(
-		main_weapon_selected.get_stable_id(),
+		current_run.starting_weapon_id,
 		int(main_weapon_selected.item_tier) + 1,
 		main_weapon_selected.item_cost
 	)
@@ -119,6 +121,8 @@ func end_run() -> void:
 	equipped_weapons.clear()
 	main_player_selected = null
 	main_weapon_selected = null
+	main_character_selected = null
+	main_weapon_definition_selected = null
 
 
 func enter_phase(next_phase: int) -> bool:
@@ -236,13 +240,37 @@ func get_harvesting_coins() -> void:
 
 
 func get_selected_player() -> Player:
-	var player_scene := available_players[main_player_selected.name]
-	var player_instance := player_scene.instantiate()
+	var definition := main_character_selected
+	if definition == null:
+		for candidate: CharacterDef in Content.catalog.get_characters():
+			if candidate.stats == main_player_selected:
+				definition = candidate
+				break
+	if definition == null or definition.scene == null:
+		push_error("Selected character is not registered in the content catalog.")
+		return null
+	var player_instance := definition.scene.instantiate() as Player
 	player_instance.stats = main_player_selected.duplicate(true)
 	if current_run != null:
 		TUTORIAL_STATS_ADAPTER.apply_to_unit_stats(current_run.player_stats, player_instance.stats)
 	player = player_instance
 	return player
+
+
+func select_character(definition: CharacterDef) -> bool:
+	if definition == null or definition.stats == null or definition.scene == null:
+		return false
+	main_character_selected = definition
+	main_player_selected = definition.stats
+	return true
+
+
+func select_starting_weapon(definition: WeaponDef) -> bool:
+	if definition == null or definition.tiers.is_empty() or definition.tiers[0] == null:
+		return false
+	main_weapon_definition_selected = definition
+	main_weapon_selected = definition.tiers[0]
+	return true
 
 
 func get_chance_sucess(chance: float) -> bool:

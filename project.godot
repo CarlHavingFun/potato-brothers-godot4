@@ -17,6 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+Content="*res://core/content/bootstrap_content_loader.gd"
 Global="*res://autoloads/global.gd"
 SoundManager="*res://autoloads/sound_manager.tscn"
 MCPGameInspector="*res://addons/godot_mcp/services/game_inspector.gd"

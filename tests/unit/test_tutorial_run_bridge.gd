@@ -99,6 +99,23 @@ func test_selected_run_records_stable_ids_and_starter_weapon() -> void:
 	assert_int(Global.current_run.inventory.weapon_at(0).get("paid_price", 0)).is_equal(12)
 
 
+func test_catalog_selection_uses_the_same_namespaced_weapon_id_in_run_and_inventory() -> void:
+	var character := Content.catalog.get_character(&"character/well_rounded")
+	var weapon := Content.catalog.get_weapon(&"weapon/pistol")
+	assert_bool(Global.select_character(character)).is_true()
+	assert_bool(Global.select_starting_weapon(weapon)).is_true()
+
+	assert_bool(Global.begin_selected_run(100)).is_true()
+
+	assert_str(Global.current_run.character_id).is_equal(
+		"potato_default:character/well_rounded"
+	)
+	assert_str(Global.current_run.starting_weapon_id).is_equal("potato_default:weapon/pistol")
+	assert_str(Global.current_run.inventory.weapon_at(0).get("weapon_id", "")).is_equal(
+		Global.current_run.starting_weapon_id
+	)
+
+
 func test_player_instances_do_not_share_the_scene_stat_resource() -> void:
 	var packed_scene := load("res://scenes/unit/players/player_brawler.tscn") as PackedScene
 	var first := auto_free(packed_scene.instantiate()) as Player

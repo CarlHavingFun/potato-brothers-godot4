@@ -3,9 +3,6 @@ class_name SelectionPanel
 
 signal on_selection_completed
 
-@export var players: Array[UnitStats]
-@export var start_weapons: Array[ItemWeapon]
-
 @onready var player_container: HBoxContainer = %PlayerContainer
 @onready var weapon_container: HBoxContainer = %WeaponContainer
 
@@ -24,23 +21,28 @@ func _ready() -> void:
 
 
 func load_players() -> void:
-	if players.is_empty():
+	var characters: Array[CharacterDef] = Content.catalog.get_characters()
+	if characters.is_empty():
 		return
 	
-	for player: UnitStats in players:
+	for character: CharacterDef in characters:
 		var card: SelectionCard = Global.SELECTION_CARD_SCENE.instantiate()
-		card.pressed.connect(_on_player_selected.bind(player))
+		card.pressed.connect(_on_player_selected.bind(character))
 		player_container.add_child(card)
-		card.set_icon(player.icon)
+		card.set_icon(character.stats.icon)
 
 
 func load_weapons() -> void:
-	if start_weapons.is_empty():
+	var weapons: Array[WeaponDef] = Content.catalog.get_weapons()
+	if weapons.is_empty():
 		return
 	
-	for weapon: ItemWeapon in start_weapons:
+	for definition: WeaponDef in weapons:
+		if definition.tiers.is_empty():
+			continue
+		var weapon := definition.tiers[0]
 		var card: SelectionCard = Global.SELECTION_CARD_SCENE.instantiate()
-		card.pressed.connect(_on_weapon_selected.bind(weapon))
+		card.pressed.connect(_on_weapon_selected.bind(definition))
 		weapon_container.add_child(card)
 		card.icon = weapon.item_icon
 
@@ -52,8 +54,10 @@ func show_player_info(value: bool) -> void:
 	player_description.visible = value
 
 
-func _on_player_selected(player: UnitStats) -> void:
-	Global.main_player_selected = player
+func _on_player_selected(character: CharacterDef) -> void:
+	if not Global.select_character(character):
+		return
+	var player := character.stats
 	show_player_info(true)
 	
 	player_icon.texture = player.icon
@@ -61,8 +65,8 @@ func _on_player_selected(player: UnitStats) -> void:
 	player_description.text = "[code]Health: [color=green]%s[/color]\nDamage: [color=green]%s[/color]\nSpeed: [color=green]%s[/color]\nLuck: [color=green]%s[/color]\nBlock Chance: [color=green]%s%%[/color][/code]" % [player.health, player.damage, player.speed, player.luck, player.block_chance]
 
 
-func _on_weapon_selected(weapon: ItemWeapon) -> void:
-	Global.main_weapon_selected = weapon
+func _on_weapon_selected(weapon: WeaponDef) -> void:
+	Global.select_starting_weapon(weapon)
 
 
 func _on_continue_buttom_pressed() -> void:

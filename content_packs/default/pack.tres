@@ -1,0 +1,761 @@
+[gd_resource type="Resource" script_class="ContentPackDef" format=3]
+
+[ext_resource type="Script" path="res://core/content/character_def.gd" id="1_u7nwy"]
+[ext_resource type="PackedScene" path="res://scenes/unit/players/player_brawler.tscn" id="2_5nmvh"]
+[ext_resource type="Resource" path="res://resources/units/players/stats_player_brawler.tres" id="3_vm1fs"]
+[ext_resource type="PackedScene" path="res://scenes/unit/players/player_bunny.tscn" id="4_6vwox"]
+[ext_resource type="Resource" path="res://resources/units/players/stats_player_bunny.tres" id="5_i7h65"]
+[ext_resource type="PackedScene" path="res://scenes/unit/players/player_crazy.tscn" id="6_4lw5p"]
+[ext_resource type="Resource" path="res://resources/units/players/stats_player_crazy.tres" id="7_3aiis"]
+[ext_resource type="PackedScene" path="res://scenes/unit/players/player_knight.tscn" id="8_dndku"]
+[ext_resource type="Resource" path="res://resources/units/players/stats_player_knight.tres" id="9_n02ax"]
+[ext_resource type="PackedScene" path="res://scenes/unit/players/player_well_rounded.tscn" id="10_6bkrh"]
+[ext_resource type="Resource" path="res://resources/units/players/stats_player_well_rounded.tres" id="11_ekhsh"]
+[ext_resource type="Script" path="res://core/content/difficulty_def.gd" id="12_7dayf"]
+[ext_resource type="Script" path="res://core/content/enemy_def.gd" id="13_2tpwy"]
+[ext_resource type="PackedScene" path="res://scenes/unit/enemy/enemy_charger.tscn" id="14_jtnvt"]
+[ext_resource type="Resource" path="res://resources/units/enemies/stats_enemy_charger.tres" id="15_30mdi"]
+[ext_resource type="PackedScene" path="res://scenes/unit/enemy/enemy_chaser_fast.tscn" id="16_6dwwn"]
+[ext_resource type="Resource" path="res://resources/units/enemies/stats_enemy_chaser_fast.tres" id="17_5qiun"]
+[ext_resource type="PackedScene" path="res://scenes/unit/enemy/enemy_chaser_mid.tscn" id="18_dt2ip"]
+[ext_resource type="Resource" path="res://resources/units/enemies/stats_enemy_chaser_mid.tres" id="19_xia1g"]
+[ext_resource type="PackedScene" path="res://scenes/unit/enemy/enemy_chaser_slow.tscn" id="20_gyk3q"]
+[ext_resource type="Resource" path="res://resources/units/enemies/stats_enemy_chaser_slow.tres" id="21_kfhbo"]
+[ext_resource type="PackedScene" path="res://scenes/unit/enemy/enemy_shooter.tscn" id="22_y1tu5"]
+[ext_resource type="Resource" path="res://resources/units/enemies/stats_enemy_shooter.tres" id="23_43m6r"]
+[ext_resource type="Script" path="res://core/content/passive_item_def.gd" id="24_58u2q"]
+[ext_resource type="Resource" path="res://resources/items/passives/data/passive_cape.tres" id="25_cak7n"]
+[ext_resource type="Resource" path="res://resources/items/passives/data/passive_mighty_sword.tres" id="26_e6euc"]
+[ext_resource type="Resource" path="res://resources/items/passives/data/passive_power_ball.tres" id="27_3x0kq"]
+[ext_resource type="Resource" path="res://resources/items/passives/data/passive_rage.tres" id="28_3m063"]
+[ext_resource type="Script" path="res://core/content/content_pack_def.gd" id="29_xa6el"]
+[ext_resource type="Script" path="res://core/content/upgrade_def.gd" id="30_45o4m"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/block/upgrade_block_1.tres" id="31_b6imo"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/block/upgrade_block_2.tres" id="32_aob88"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/block/upgrade_block_4.tres" id="33_f8xti"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/block/upgrade_block_5.tres" id="34_s2hc6"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/block/upgrade_block_6.tres" id="35_ye0er"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/block/upgrade_block_7.tres" id="36_h2cdp"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/damage/upgrade_damage_1.tres" id="37_x8iba"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/damage/upgrade_damage_2.tres" id="38_1blr2"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/damage/upgrade_damage_3.tres" id="39_5ajui"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/damage/upgrade_damage_5.tres" id="40_ekiji"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/damage/upgrade_damage_7.tres" id="41_jec54"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/damage/upgrade_damage_9.tres" id="42_kkoct"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/harvesting/upgrade_harvesting_1.tres" id="43_2ea5m"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/harvesting/upgrade_harvesting_10.tres" id="44_358vo"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/harvesting/upgrade_harvesting_2.tres" id="45_titae"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/harvesting/upgrade_harvesting_5.tres" id="46_5upij"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/harvesting/upgrade_harvesting_6.tres" id="47_ssood"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/harvesting/upgrade_harvesting_8.tres" id="48_yhb4o"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/health/upgrade_health_1.tres" id="49_tm2qo"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/health/upgrade_health_12.tres" id="50_l4y2m"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/health/upgrade_health_2.tres" id="51_q2xn7"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/health/upgrade_health_4.tres" id="52_wr17u"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/health/upgrade_health_5.tres" id="53_4uvxw"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/health/upgrade_health_8.tres" id="54_3rf28"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/hp_regen/upgrade_hp_regen_1.tres" id="55_2gqwd"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/hp_regen/upgrade_hp_regen_2.tres" id="56_yrvp7"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/hp_regen/upgrade_hp_regen_3.tres" id="57_did5x"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/hp_regen/upgrade_hp_regen_4.tres" id="58_o585s"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/life_steal/upgrade_life_steal_1.tres" id="59_s145b"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/life_steal/upgrade_life_steal_2.tres" id="60_jy3fc"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/life_steal/upgrade_life_steal_4.tres" id="61_s27uq"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/life_steal/upgrade_life_steal_5.tres" id="62_rmtcn"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/life_steal/upgrade_life_steal_7.tres" id="63_da66g"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/life_steal/upgrade_life_steal_9.tres" id="64_g7xet"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/luck/upgrade_luck_1.tres" id="65_x3xd1"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/luck/upgrade_luck_12.tres" id="66_qolb6"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/luck/upgrade_luck_3.tres" id="67_4d5kc"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/luck/upgrade_luck_5.tres" id="68_cuhey"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/luck/upgrade_luck_6.tres" id="69_b05bk"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/luck/upgrade_luck_9.tres" id="70_4txac"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/speed/upgrade_speed_10.tres" id="71_16d73"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/speed/upgrade_speed_12.tres" id="72_lf2ur"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/speed/upgrade_speed_15.tres" id="73_ebq22"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/speed/upgrade_speed_20.tres" id="74_jyr5u"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/speed/upgrade_speed_5.tres" id="75_77w8q"]
+[ext_resource type="Resource" path="res://resources/items/upgrades/data/speed/upgrade_speed_7.tres" id="76_kv5vl"]
+[ext_resource type="Script" path="res://core/content/wave_def.gd" id="77_js03e"]
+[ext_resource type="Resource" path="res://resources/waves/data/wave_1_to_5.tres" id="78_c87xp"]
+[ext_resource type="Script" path="res://core/content/weapon_def.gd" id="79_31san"]
+[ext_resource type="Script" path="res://resources/items/weapons/item_weapon.gd" id="80_pqqbw"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/axe/item_axe_1.tres" id="81_oau7k"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/axe/item_axe_2.tres" id="82_2y1rb"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/axe/item_axe_3.tres" id="83_fluvf"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/axe/item_axe_4.tres" id="84_ug7mv"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/chainsaw/item_chainsaw_1.tres" id="85_6t0tj"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/chainsaw/item_chainsaw_2.tres" id="86_u4rlw"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/chainsaw/item_chainsaw_3.tres" id="87_00jja"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/chainsaw/item_chainsaw_4.tres" id="88_wewdw"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/mace/item_mace_1.tres" id="89_nejog"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/mace/item_mace_2.tres" id="90_6p1kx"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/mace/item_mace_3.tres" id="91_3lw6r"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/mace/item_mace_4.tres" id="92_0ecfm"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/punch/item_punch_1.tres" id="93_a313j"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/punch/item_punch_2.tres" id="94_lhvd3"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/punch/item_punch_3.tres" id="95_p2qa5"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/punch/item_punch_4.tres" id="96_aykne"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/sword/item_sword_1.tres" id="97_cuctv"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/sword/item_sword_2.tres" id="98_sjqof"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/sword/item_sword_3.tres" id="99_nyfj0"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/sword/item_sword_4.tres" id="100_g8ngi"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/wand/item_wand_1.tres" id="101_cajt7"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/wand/item_wand_2.tres" id="102_bi8yi"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/wand/item_wand_3.tres" id="103_h3o7p"]
+[ext_resource type="Resource" path="res://resources/items/weapons/melee/wand/item_wand_4.tres" id="104_qqjbq"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/laser/item_laser_1.tres" id="105_iywlu"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/laser/item_laser_2.tres" id="106_j4tvy"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/laser/item_laser_3.tres" id="107_54xwl"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/laser/item_laser_4.tres" id="108_alf83"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/pistol/item_pistol_1.tres" id="109_kc2ed"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/pistol/item_pistol_2.tres" id="110_q08a2"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/pistol/item_pistol_3.tres" id="111_bpqdk"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/pistol/item_pistol_4.tres" id="112_ofwkf"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/revolver/item_revolver_1.tres" id="113_3s23t"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/revolver/item_revolver_2.tres" id="114_3yt7b"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/revolver/item_revolver_3.tres" id="115_s8hp7"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/revolver/item_revolver_4.tres" id="116_jef1c"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/shotgun/item_shotgun_1.tres" id="117_ioeqf"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/shotgun/item_shotgun_2.tres" id="118_vicbr"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/shotgun/item_shotgun_3.tres" id="119_ygn58"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/shotgun/item_shotgun_4.tres" id="120_nelgl"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/smg/item_smg_1.tres" id="121_hcprq"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/smg/item_smg_2.tres" id="122_gup4j"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/smg/item_smg_3.tres" id="123_5l63j"]
+[ext_resource type="Resource" path="res://resources/items/weapons/range/smg/item_smg_4.tres" id="124_3xbwk"]
+
+[sub_resource type="Resource" id="Resource_ecsjb"]
+script = ExtResource("1_u7nwy")
+scene = ExtResource("2_5nmvh")
+stats = ExtResource("3_vm1fs")
+content_id = &"character/brawler"
+display_name_key = &"character.brawler.name"
+description_key = &"character.brawler.description"
+
+[sub_resource type="Resource" id="Resource_ixntf"]
+script = ExtResource("1_u7nwy")
+scene = ExtResource("4_6vwox")
+stats = ExtResource("5_i7h65")
+content_id = &"character/bunny"
+display_name_key = &"character.bunny.name"
+description_key = &"character.bunny.description"
+
+[sub_resource type="Resource" id="Resource_tcxqr"]
+script = ExtResource("1_u7nwy")
+scene = ExtResource("6_4lw5p")
+stats = ExtResource("7_3aiis")
+content_id = &"character/crazy"
+display_name_key = &"character.crazy.name"
+description_key = &"character.crazy.description"
+
+[sub_resource type="Resource" id="Resource_ojuex"]
+script = ExtResource("1_u7nwy")
+scene = ExtResource("8_dndku")
+stats = ExtResource("9_n02ax")
+content_id = &"character/knight"
+display_name_key = &"character.knight.name"
+description_key = &"character.knight.description"
+
+[sub_resource type="Resource" id="Resource_vvpwe"]
+script = ExtResource("1_u7nwy")
+scene = ExtResource("10_6bkrh")
+stats = ExtResource("11_ekhsh")
+content_id = &"character/well_rounded"
+display_name_key = &"character.well_rounded.name"
+description_key = &"character.well_rounded.description"
+
+[sub_resource type="Resource" id="Resource_ovreh"]
+script = ExtResource("12_7dayf")
+
+[sub_resource type="Resource" id="Resource_wd31s"]
+script = ExtResource("12_7dayf")
+level = 2
+health_multiplier = 1.1
+damage_multiplier = 1.05
+spawn_density_multiplier = 1.1
+
+[sub_resource type="Resource" id="Resource_ncp08"]
+script = ExtResource("12_7dayf")
+level = 3
+health_multiplier = 1.25
+damage_multiplier = 1.15
+speed_multiplier = 1.03
+spawn_density_multiplier = 1.2
+
+[sub_resource type="Resource" id="Resource_grxrx"]
+script = ExtResource("12_7dayf")
+level = 4
+health_multiplier = 1.45
+damage_multiplier = 1.25
+speed_multiplier = 1.06
+spawn_density_multiplier = 1.3
+
+[sub_resource type="Resource" id="Resource_iuxon"]
+script = ExtResource("12_7dayf")
+level = 5
+health_multiplier = 1.7
+damage_multiplier = 1.4
+speed_multiplier = 1.1
+spawn_density_multiplier = 1.4
+
+[sub_resource type="Resource" id="Resource_2y4h3"]
+script = ExtResource("13_2tpwy")
+scene = ExtResource("14_jtnvt")
+stats = ExtResource("15_30mdi")
+content_id = &"enemy/charger"
+display_name_key = &"enemy.charger.name"
+description_key = &"enemy.charger.description"
+
+[sub_resource type="Resource" id="Resource_g800d"]
+script = ExtResource("13_2tpwy")
+scene = ExtResource("16_6dwwn")
+stats = ExtResource("17_5qiun")
+content_id = &"enemy/chaser_fast"
+display_name_key = &"enemy.chaser_fast.name"
+description_key = &"enemy.chaser_fast.description"
+
+[sub_resource type="Resource" id="Resource_sx2gm"]
+script = ExtResource("13_2tpwy")
+scene = ExtResource("18_dt2ip")
+stats = ExtResource("19_xia1g")
+content_id = &"enemy/chaser_mid"
+display_name_key = &"enemy.chaser_mid.name"
+description_key = &"enemy.chaser_mid.description"
+
+[sub_resource type="Resource" id="Resource_gtcgn"]
+script = ExtResource("13_2tpwy")
+scene = ExtResource("20_gyk3q")
+stats = ExtResource("21_kfhbo")
+content_id = &"enemy/chaser_slow"
+display_name_key = &"enemy.chaser_slow.name"
+description_key = &"enemy.chaser_slow.description"
+
+[sub_resource type="Resource" id="Resource_1kbp4"]
+script = ExtResource("13_2tpwy")
+scene = ExtResource("22_y1tu5")
+stats = ExtResource("23_43m6r")
+content_id = &"enemy/shooter"
+display_name_key = &"enemy.shooter.name"
+description_key = &"enemy.shooter.description"
+
+[sub_resource type="Resource" id="Resource_hmbeq"]
+script = ExtResource("24_58u2q")
+item = ExtResource("25_cak7n")
+content_id = &"passive/cape"
+display_name_key = &"passive.cape.name"
+description_key = &"passive.cape.description"
+
+[sub_resource type="Resource" id="Resource_5kcfq"]
+script = ExtResource("24_58u2q")
+item = ExtResource("26_e6euc")
+content_id = &"passive/mighty_sword"
+display_name_key = &"passive.mighty_sword.name"
+description_key = &"passive.mighty_sword.description"
+
+[sub_resource type="Resource" id="Resource_j0op4"]
+script = ExtResource("24_58u2q")
+item = ExtResource("27_3x0kq")
+content_id = &"passive/power_ball"
+display_name_key = &"passive.power_ball.name"
+description_key = &"passive.power_ball.description"
+
+[sub_resource type="Resource" id="Resource_8yb75"]
+script = ExtResource("24_58u2q")
+item = ExtResource("28_3m063")
+content_id = &"passive/rage"
+display_name_key = &"passive.rage.name"
+description_key = &"passive.rage.description"
+
+[sub_resource type="Resource" id="Resource_gh2a6"]
+script = ExtResource("30_45o4m")
+stat_id = 12
+item = ExtResource("31_b6imo")
+content_id = &"upgrade/legacy/block/upgrade_block_1"
+display_name_key = &"upgrade.legacy.block.upgrade_block_1.name"
+description_key = &"upgrade.legacy.block.upgrade_block_1.description"
+
+[sub_resource type="Resource" id="Resource_7xj8m"]
+script = ExtResource("30_45o4m")
+stat_id = 12
+item = ExtResource("32_aob88")
+content_id = &"upgrade/legacy/block/upgrade_block_2"
+display_name_key = &"upgrade.legacy.block.upgrade_block_2.name"
+description_key = &"upgrade.legacy.block.upgrade_block_2.description"
+
+[sub_resource type="Resource" id="Resource_4c86k"]
+script = ExtResource("30_45o4m")
+quality = 1
+stat_id = 12
+item = ExtResource("33_f8xti")
+content_id = &"upgrade/legacy/block/upgrade_block_4"
+display_name_key = &"upgrade.legacy.block.upgrade_block_4.name"
+description_key = &"upgrade.legacy.block.upgrade_block_4.description"
+
+[sub_resource type="Resource" id="Resource_hjf17"]
+script = ExtResource("30_45o4m")
+quality = 1
+stat_id = 12
+item = ExtResource("34_s2hc6")
+content_id = &"upgrade/legacy/block/upgrade_block_5"
+display_name_key = &"upgrade.legacy.block.upgrade_block_5.name"
+description_key = &"upgrade.legacy.block.upgrade_block_5.description"
+
+[sub_resource type="Resource" id="Resource_qirbk"]
+script = ExtResource("30_45o4m")
+quality = 2
+stat_id = 12
+item = ExtResource("35_ye0er")
+content_id = &"upgrade/legacy/block/upgrade_block_6"
+display_name_key = &"upgrade.legacy.block.upgrade_block_6.name"
+description_key = &"upgrade.legacy.block.upgrade_block_6.description"
+
+[sub_resource type="Resource" id="Resource_kl2ho"]
+script = ExtResource("30_45o4m")
+quality = 3
+stat_id = 12
+item = ExtResource("36_h2cdp")
+content_id = &"upgrade/legacy/block/upgrade_block_7"
+display_name_key = &"upgrade.legacy.block.upgrade_block_7.name"
+description_key = &"upgrade.legacy.block.upgrade_block_7.description"
+
+[sub_resource type="Resource" id="Resource_dtfsi"]
+script = ExtResource("30_45o4m")
+stat_id = 3
+item = ExtResource("37_x8iba")
+content_id = &"upgrade/legacy/damage/upgrade_damage_1"
+display_name_key = &"upgrade.legacy.damage.upgrade_damage_1.name"
+description_key = &"upgrade.legacy.damage.upgrade_damage_1.description"
+
+[sub_resource type="Resource" id="Resource_ppnrp"]
+script = ExtResource("30_45o4m")
+stat_id = 3
+item = ExtResource("38_1blr2")
+content_id = &"upgrade/legacy/damage/upgrade_damage_2"
+display_name_key = &"upgrade.legacy.damage.upgrade_damage_2.name"
+description_key = &"upgrade.legacy.damage.upgrade_damage_2.description"
+
+[sub_resource type="Resource" id="Resource_b7j2p"]
+script = ExtResource("30_45o4m")
+quality = 1
+stat_id = 3
+item = ExtResource("39_5ajui")
+content_id = &"upgrade/legacy/damage/upgrade_damage_3"
+display_name_key = &"upgrade.legacy.damage.upgrade_damage_3.name"
+description_key = &"upgrade.legacy.damage.upgrade_damage_3.description"
+
+[sub_resource type="Resource" id="Resource_1ep7m"]
+script = ExtResource("30_45o4m")
+quality = 1
+stat_id = 3
+item = ExtResource("40_ekiji")
+content_id = &"upgrade/legacy/damage/upgrade_damage_5"
+display_name_key = &"upgrade.legacy.damage.upgrade_damage_5.name"
+description_key = &"upgrade.legacy.damage.upgrade_damage_5.description"
+
+[sub_resource type="Resource" id="Resource_p004f"]
+script = ExtResource("30_45o4m")
+quality = 2
+stat_id = 3
+item = ExtResource("41_jec54")
+content_id = &"upgrade/legacy/damage/upgrade_damage_7"
+display_name_key = &"upgrade.legacy.damage.upgrade_damage_7.name"
+description_key = &"upgrade.legacy.damage.upgrade_damage_7.description"
+
+[sub_resource type="Resource" id="Resource_tccxw"]
+script = ExtResource("30_45o4m")
+quality = 3
+stat_id = 3
+item = ExtResource("42_kkoct")
+content_id = &"upgrade/legacy/damage/upgrade_damage_9"
+display_name_key = &"upgrade.legacy.damage.upgrade_damage_9.name"
+description_key = &"upgrade.legacy.damage.upgrade_damage_9.description"
+
+[sub_resource type="Resource" id="Resource_qhpnb"]
+script = ExtResource("30_45o4m")
+stat_id = 15
+item = ExtResource("43_2ea5m")
+content_id = &"upgrade/legacy/harvesting/upgrade_harvesting_1"
+display_name_key = &"upgrade.legacy.harvesting.upgrade_harvesting_1.name"
+description_key = &"upgrade.legacy.harvesting.upgrade_harvesting_1.description"
+
+[sub_resource type="Resource" id="Resource_faihm"]
+script = ExtResource("30_45o4m")
+quality = 3
+stat_id = 15
+item = ExtResource("44_358vo")
+content_id = &"upgrade/legacy/harvesting/upgrade_harvesting_10"
+display_name_key = &"upgrade.legacy.harvesting.upgrade_harvesting_10.name"
+description_key = &"upgrade.legacy.harvesting.upgrade_harvesting_10.description"
+
+[sub_resource type="Resource" id="Resource_iltbv"]
+script = ExtResource("30_45o4m")
+stat_id = 15
+item = ExtResource("45_titae")
+content_id = &"upgrade/legacy/harvesting/upgrade_harvesting_2"
+display_name_key = &"upgrade.legacy.harvesting.upgrade_harvesting_2.name"
+description_key = &"upgrade.legacy.harvesting.upgrade_harvesting_2.description"
+
+[sub_resource type="Resource" id="Resource_yh2h3"]
+script = ExtResource("30_45o4m")
+quality = 1
+stat_id = 15
+item = ExtResource("46_5upij")
+content_id = &"upgrade/legacy/harvesting/upgrade_harvesting_5"
+display_name_key = &"upgrade.legacy.harvesting.upgrade_harvesting_5.name"
+description_key = &"upgrade.legacy.harvesting.upgrade_harvesting_5.description"
+
+[sub_resource type="Resource" id="Resource_y50bj"]
+script = ExtResource("30_45o4m")
+quality = 1
+stat_id = 15
+item = ExtResource("47_ssood")
+content_id = &"upgrade/legacy/harvesting/upgrade_harvesting_6"
+display_name_key = &"upgrade.legacy.harvesting.upgrade_harvesting_6.name"
+description_key = &"upgrade.legacy.harvesting.upgrade_harvesting_6.description"
+
+[sub_resource type="Resource" id="Resource_6pkuc"]
+script = ExtResource("30_45o4m")
+quality = 2
+stat_id = 15
+item = ExtResource("48_yhb4o")
+content_id = &"upgrade/legacy/harvesting/upgrade_harvesting_8"
+display_name_key = &"upgrade.legacy.harvesting.upgrade_harvesting_8.name"
+description_key = &"upgrade.legacy.harvesting.upgrade_harvesting_8.description"
+
+[sub_resource type="Resource" id="Resource_38o73"]
+script = ExtResource("30_45o4m")
+stat_id = 0
+item = ExtResource("49_tm2qo")
+content_id = &"upgrade/legacy/health/upgrade_health_1"
+display_name_key = &"upgrade.legacy.health.upgrade_health_1.name"
+description_key = &"upgrade.legacy.health.upgrade_health_1.description"
+
+[sub_resource type="Resource" id="Resource_cdiax"]
+script = ExtResource("30_45o4m")
+quality = 3
+stat_id = 0
+item = ExtResource("50_l4y2m")
+content_id = &"upgrade/legacy/health/upgrade_health_12"
+display_name_key = &"upgrade.legacy.health.upgrade_health_12.name"
+description_key = &"upgrade.legacy.health.upgrade_health_12.description"
+
+[sub_resource type="Resource" id="Resource_i06le"]
+script = ExtResource("30_45o4m")
+stat_id = 0
+item = ExtResource("51_q2xn7")
+content_id = &"upgrade/legacy/health/upgrade_health_2"
+display_name_key = &"upgrade.legacy.health.upgrade_health_2.name"
+description_key = &"upgrade.legacy.health.upgrade_health_2.description"
+
+[sub_resource type="Resource" id="Resource_yu55q"]
+script = ExtResource("30_45o4m")
+quality = 1
+stat_id = 0
+item = ExtResource("52_wr17u")
+content_id = &"upgrade/legacy/health/upgrade_health_4"
+display_name_key = &"upgrade.legacy.health.upgrade_health_4.name"
+description_key = &"upgrade.legacy.health.upgrade_health_4.description"
+
+[sub_resource type="Resource" id="Resource_vjp8l"]
+script = ExtResource("30_45o4m")
+quality = 1
+stat_id = 0
+item = ExtResource("53_4uvxw")
+content_id = &"upgrade/legacy/health/upgrade_health_5"
+display_name_key = &"upgrade.legacy.health.upgrade_health_5.name"
+description_key = &"upgrade.legacy.health.upgrade_health_5.description"
+
+[sub_resource type="Resource" id="Resource_n5sf1"]
+script = ExtResource("30_45o4m")
+quality = 2
+stat_id = 0
+item = ExtResource("54_3rf28")
+content_id = &"upgrade/legacy/health/upgrade_health_8"
+display_name_key = &"upgrade.legacy.health.upgrade_health_8.name"
+description_key = &"upgrade.legacy.health.upgrade_health_8.description"
+
+[sub_resource type="Resource" id="Resource_avoqc"]
+script = ExtResource("30_45o4m")
+stat_id = 1
+item = ExtResource("55_2gqwd")
+content_id = &"upgrade/legacy/hp_regen/upgrade_hp_regen_1"
+display_name_key = &"upgrade.legacy.hp_regen.upgrade_hp_regen_1.name"
+description_key = &"upgrade.legacy.hp_regen.upgrade_hp_regen_1.description"
+
+[sub_resource type="Resource" id="Resource_612lk"]
+script = ExtResource("30_45o4m")
+quality = 1
+stat_id = 1
+item = ExtResource("56_yrvp7")
+content_id = &"upgrade/legacy/hp_regen/upgrade_hp_regen_2"
+display_name_key = &"upgrade.legacy.hp_regen.upgrade_hp_regen_2.name"
+description_key = &"upgrade.legacy.hp_regen.upgrade_hp_regen_2.description"
+
+[sub_resource type="Resource" id="Resource_8hn1r"]
+script = ExtResource("30_45o4m")
+quality = 2
+stat_id = 1
+item = ExtResource("57_did5x")
+content_id = &"upgrade/legacy/hp_regen/upgrade_hp_regen_3"
+display_name_key = &"upgrade.legacy.hp_regen.upgrade_hp_regen_3.name"
+description_key = &"upgrade.legacy.hp_regen.upgrade_hp_regen_3.description"
+
+[sub_resource type="Resource" id="Resource_rtt03"]
+script = ExtResource("30_45o4m")
+quality = 3
+stat_id = 1
+item = ExtResource("58_o585s")
+content_id = &"upgrade/legacy/hp_regen/upgrade_hp_regen_4"
+display_name_key = &"upgrade.legacy.hp_regen.upgrade_hp_regen_4.name"
+description_key = &"upgrade.legacy.hp_regen.upgrade_hp_regen_4.description"
+
+[sub_resource type="Resource" id="Resource_keej7"]
+script = ExtResource("30_45o4m")
+stat_id = 2
+item = ExtResource("59_s145b")
+content_id = &"upgrade/legacy/life_steal/upgrade_life_steal_1"
+display_name_key = &"upgrade.legacy.life_steal.upgrade_life_steal_1.name"
+description_key = &"upgrade.legacy.life_steal.upgrade_life_steal_1.description"
+
+[sub_resource type="Resource" id="Resource_bbtro"]
+script = ExtResource("30_45o4m")
+stat_id = 2
+item = ExtResource("60_jy3fc")
+content_id = &"upgrade/legacy/life_steal/upgrade_life_steal_2"
+display_name_key = &"upgrade.legacy.life_steal.upgrade_life_steal_2.name"
+description_key = &"upgrade.legacy.life_steal.upgrade_life_steal_2.description"
+
+[sub_resource type="Resource" id="Resource_pxj5n"]
+script = ExtResource("30_45o4m")
+quality = 1
+stat_id = 2
+item = ExtResource("61_s27uq")
+content_id = &"upgrade/legacy/life_steal/upgrade_life_steal_4"
+display_name_key = &"upgrade.legacy.life_steal.upgrade_life_steal_4.name"
+description_key = &"upgrade.legacy.life_steal.upgrade_life_steal_4.description"
+
+[sub_resource type="Resource" id="Resource_epm5q"]
+script = ExtResource("30_45o4m")
+quality = 1
+stat_id = 2
+item = ExtResource("62_rmtcn")
+content_id = &"upgrade/legacy/life_steal/upgrade_life_steal_5"
+display_name_key = &"upgrade.legacy.life_steal.upgrade_life_steal_5.name"
+description_key = &"upgrade.legacy.life_steal.upgrade_life_steal_5.description"
+
+[sub_resource type="Resource" id="Resource_w64wl"]
+script = ExtResource("30_45o4m")
+quality = 2
+stat_id = 2
+item = ExtResource("63_da66g")
+content_id = &"upgrade/legacy/life_steal/upgrade_life_steal_7"
+display_name_key = &"upgrade.legacy.life_steal.upgrade_life_steal_7.name"
+description_key = &"upgrade.legacy.life_steal.upgrade_life_steal_7.description"
+
+[sub_resource type="Resource" id="Resource_qaq7s"]
+script = ExtResource("30_45o4m")
+quality = 3
+stat_id = 2
+item = ExtResource("64_g7xet")
+content_id = &"upgrade/legacy/life_steal/upgrade_life_steal_9"
+display_name_key = &"upgrade.legacy.life_steal.upgrade_life_steal_9.name"
+description_key = &"upgrade.legacy.life_steal.upgrade_life_steal_9.description"
+
+[sub_resource type="Resource" id="Resource_sdogx"]
+script = ExtResource("30_45o4m")
+stat_id = 14
+item = ExtResource("65_x3xd1")
+content_id = &"upgrade/legacy/luck/upgrade_luck_1"
+display_name_key = &"upgrade.legacy.luck.upgrade_luck_1.name"
+description_key = &"upgrade.legacy.luck.upgrade_luck_1.description"
+
+[sub_resource type="Resource" id="Resource_h17hy"]
+script = ExtResource("30_45o4m")
+quality = 3
+stat_id = 14
+item = ExtResource("66_qolb6")
+content_id = &"upgrade/legacy/luck/upgrade_luck_12"
+display_name_key = &"upgrade.legacy.luck.upgrade_luck_12.name"
+description_key = &"upgrade.legacy.luck.upgrade_luck_12.description"
+
+[sub_resource type="Resource" id="Resource_hckna"]
+script = ExtResource("30_45o4m")
+stat_id = 14
+item = ExtResource("67_4d5kc")
+content_id = &"upgrade/legacy/luck/upgrade_luck_3"
+display_name_key = &"upgrade.legacy.luck.upgrade_luck_3.name"
+description_key = &"upgrade.legacy.luck.upgrade_luck_3.description"
+
+[sub_resource type="Resource" id="Resource_esnsy"]
+script = ExtResource("30_45o4m")
+quality = 1
+stat_id = 14
+item = ExtResource("68_cuhey")
+content_id = &"upgrade/legacy/luck/upgrade_luck_5"
+display_name_key = &"upgrade.legacy.luck.upgrade_luck_5.name"
+description_key = &"upgrade.legacy.luck.upgrade_luck_5.description"
+
+[sub_resource type="Resource" id="Resource_5do0l"]
+script = ExtResource("30_45o4m")
+quality = 1
+stat_id = 14
+item = ExtResource("69_b05bk")
+content_id = &"upgrade/legacy/luck/upgrade_luck_6"
+display_name_key = &"upgrade.legacy.luck.upgrade_luck_6.name"
+description_key = &"upgrade.legacy.luck.upgrade_luck_6.description"
+
+[sub_resource type="Resource" id="Resource_5xhd7"]
+script = ExtResource("30_45o4m")
+quality = 2
+stat_id = 14
+item = ExtResource("70_4txac")
+content_id = &"upgrade/legacy/luck/upgrade_luck_9"
+display_name_key = &"upgrade.legacy.luck.upgrade_luck_9.name"
+description_key = &"upgrade.legacy.luck.upgrade_luck_9.description"
+
+[sub_resource type="Resource" id="Resource_33yi0"]
+script = ExtResource("30_45o4m")
+quality = 1
+stat_id = 13
+item = ExtResource("71_16d73")
+content_id = &"upgrade/legacy/speed/upgrade_speed_10"
+display_name_key = &"upgrade.legacy.speed.upgrade_speed_10.name"
+description_key = &"upgrade.legacy.speed.upgrade_speed_10.description"
+
+[sub_resource type="Resource" id="Resource_vy5kh"]
+script = ExtResource("30_45o4m")
+quality = 1
+stat_id = 13
+item = ExtResource("72_lf2ur")
+content_id = &"upgrade/legacy/speed/upgrade_speed_12"
+display_name_key = &"upgrade.legacy.speed.upgrade_speed_12.name"
+description_key = &"upgrade.legacy.speed.upgrade_speed_12.description"
+
+[sub_resource type="Resource" id="Resource_fx6mq"]
+script = ExtResource("30_45o4m")
+quality = 2
+stat_id = 13
+item = ExtResource("73_ebq22")
+content_id = &"upgrade/legacy/speed/upgrade_speed_15"
+display_name_key = &"upgrade.legacy.speed.upgrade_speed_15.name"
+description_key = &"upgrade.legacy.speed.upgrade_speed_15.description"
+
+[sub_resource type="Resource" id="Resource_7i5cu"]
+script = ExtResource("30_45o4m")
+quality = 3
+stat_id = 13
+item = ExtResource("74_jyr5u")
+content_id = &"upgrade/legacy/speed/upgrade_speed_20"
+display_name_key = &"upgrade.legacy.speed.upgrade_speed_20.name"
+description_key = &"upgrade.legacy.speed.upgrade_speed_20.description"
+
+[sub_resource type="Resource" id="Resource_ed5ap"]
+script = ExtResource("30_45o4m")
+stat_id = 13
+item = ExtResource("75_77w8q")
+content_id = &"upgrade/legacy/speed/upgrade_speed_5"
+display_name_key = &"upgrade.legacy.speed.upgrade_speed_5.name"
+description_key = &"upgrade.legacy.speed.upgrade_speed_5.description"
+
+[sub_resource type="Resource" id="Resource_jjfdt"]
+script = ExtResource("30_45o4m")
+stat_id = 13
+item = ExtResource("76_kv5vl")
+content_id = &"upgrade/legacy/speed/upgrade_speed_7"
+display_name_key = &"upgrade.legacy.speed.upgrade_speed_7.name"
+description_key = &"upgrade.legacy.speed.upgrade_speed_7.description"
+
+[sub_resource type="Resource" id="Resource_dxm65"]
+script = ExtResource("77_js03e")
+duration = 10.0
+data = ExtResource("78_c87xp")
+content_id = &"wave/legacy_1_to_5"
+
+[sub_resource type="Resource" id="Resource_b8flm"]
+script = ExtResource("79_31san")
+tiers = Array[ExtResource("80_pqqbw")]([ExtResource("81_oau7k"), ExtResource("82_2y1rb"), ExtResource("83_fluvf"), ExtResource("84_ug7mv")])
+content_id = &"weapon/axe"
+display_name_key = &"weapon.axe.name"
+description_key = &"weapon.axe.description"
+
+[sub_resource type="Resource" id="Resource_sg6b4"]
+script = ExtResource("79_31san")
+tiers = Array[ExtResource("80_pqqbw")]([ExtResource("85_6t0tj"), ExtResource("86_u4rlw"), ExtResource("87_00jja"), ExtResource("88_wewdw")])
+content_id = &"weapon/chainsaw"
+display_name_key = &"weapon.chainsaw.name"
+description_key = &"weapon.chainsaw.description"
+
+[sub_resource type="Resource" id="Resource_vk2nx"]
+script = ExtResource("79_31san")
+tiers = Array[ExtResource("80_pqqbw")]([ExtResource("89_nejog"), ExtResource("90_6p1kx"), ExtResource("91_3lw6r"), ExtResource("92_0ecfm")])
+content_id = &"weapon/mace"
+display_name_key = &"weapon.mace.name"
+description_key = &"weapon.mace.description"
+
+[sub_resource type="Resource" id="Resource_ufyjc"]
+script = ExtResource("79_31san")
+tiers = Array[ExtResource("80_pqqbw")]([ExtResource("93_a313j"), ExtResource("94_lhvd3"), ExtResource("95_p2qa5"), ExtResource("96_aykne")])
+content_id = &"weapon/punch"
+display_name_key = &"weapon.punch.name"
+description_key = &"weapon.punch.description"
+
+[sub_resource type="Resource" id="Resource_0k44k"]
+script = ExtResource("79_31san")
+tiers = Array[ExtResource("80_pqqbw")]([ExtResource("97_cuctv"), ExtResource("98_sjqof"), ExtResource("99_nyfj0"), ExtResource("100_g8ngi")])
+content_id = &"weapon/sword"
+display_name_key = &"weapon.sword.name"
+description_key = &"weapon.sword.description"
+
+[sub_resource type="Resource" id="Resource_pj1tf"]
+script = ExtResource("79_31san")
+tiers = Array[ExtResource("80_pqqbw")]([ExtResource("101_cajt7"), ExtResource("102_bi8yi"), ExtResource("103_h3o7p"), ExtResource("104_qqjbq")])
+content_id = &"weapon/wand"
+display_name_key = &"weapon.wand.name"
+description_key = &"weapon.wand.description"
+
+[sub_resource type="Resource" id="Resource_4a23v"]
+script = ExtResource("79_31san")
+tiers = Array[ExtResource("80_pqqbw")]([ExtResource("105_iywlu"), ExtResource("106_j4tvy"), ExtResource("107_54xwl"), ExtResource("108_alf83")])
+content_id = &"weapon/laser"
+display_name_key = &"weapon.laser.name"
+description_key = &"weapon.laser.description"
+
+[sub_resource type="Resource" id="Resource_52gxa"]
+script = ExtResource("79_31san")
+tiers = Array[ExtResource("80_pqqbw")]([ExtResource("109_kc2ed"), ExtResource("110_q08a2"), ExtResource("111_bpqdk"), ExtResource("112_ofwkf")])
+content_id = &"weapon/pistol"
+display_name_key = &"weapon.pistol.name"
+description_key = &"weapon.pistol.description"
+
+[sub_resource type="Resource" id="Resource_v771v"]
+script = ExtResource("79_31san")
+tiers = Array[ExtResource("80_pqqbw")]([ExtResource("113_3s23t"), ExtResource("114_3yt7b"), ExtResource("115_s8hp7"), ExtResource("116_jef1c")])
+content_id = &"weapon/revolver"
+display_name_key = &"weapon.revolver.name"
+description_key = &"weapon.revolver.description"
+
+[sub_resource type="Resource" id="Resource_2wi7o"]
+script = ExtResource("79_31san")
+tiers = Array[ExtResource("80_pqqbw")]([ExtResource("117_ioeqf"), ExtResource("118_vicbr"), ExtResource("119_ygn58"), ExtResource("120_nelgl")])
+content_id = &"weapon/shotgun"
+display_name_key = &"weapon.shotgun.name"
+description_key = &"weapon.shotgun.description"
+
+[sub_resource type="Resource" id="Resource_hh36j"]
+script = ExtResource("79_31san")
+tiers = Array[ExtResource("80_pqqbw")]([ExtResource("121_hcprq"), ExtResource("122_gup4j"), ExtResource("123_5l63j"), ExtResource("124_3xbwk")])
+content_id = &"weapon/smg"
+display_name_key = &"weapon.smg.name"
+description_key = &"weapon.smg.description"
+
+[resource]
+script = ExtResource("29_xa6el")
+pack_id = &"potato_default"
+characters = Array[ExtResource("1_u7nwy")]([SubResource("Resource_ecsjb"), SubResource("Resource_ixntf"), SubResource("Resource_tcxqr"), SubResource("Resource_ojuex"), SubResource("Resource_vvpwe")])
+weapons = Array[ExtResource("79_31san")]([SubResource("Resource_b8flm"), SubResource("Resource_sg6b4"), SubResource("Resource_vk2nx"), SubResource("Resource_ufyjc"), SubResource("Resource_0k44k"), SubResource("Resource_pj1tf"), SubResource("Resource_4a23v"), SubResource("Resource_52gxa"), SubResource("Resource_v771v"), SubResource("Resource_2wi7o"), SubResource("Resource_hh36j")])
+passives = Array[ExtResource("24_58u2q")]([SubResource("Resource_hmbeq"), SubResource("Resource_5kcfq"), SubResource("Resource_j0op4"), SubResource("Resource_8yb75")])
+upgrades = Array[ExtResource("30_45o4m")]([SubResource("Resource_gh2a6"), SubResource("Resource_7xj8m"), SubResource("Resource_4c86k"), SubResource("Resource_hjf17"), SubResource("Resource_qirbk"), SubResource("Resource_kl2ho"), SubResource("Resource_dtfsi"), SubResource("Resource_ppnrp"), SubResource("Resource_b7j2p"), SubResource("Resource_1ep7m"), SubResource("Resource_p004f"), SubResource("Resource_tccxw"), SubResource("Resource_qhpnb"), SubResource("Resource_faihm"), SubResource("Resource_iltbv"), SubResource("Resource_yh2h3"), SubResource("Resource_y50bj"), SubResource("Resource_6pkuc"), SubResource("Resource_38o73"), SubResource("Resource_cdiax"), SubResource("Resource_i06le"), SubResource("Resource_yu55q"), SubResource("Resource_vjp8l"), SubResource("Resource_n5sf1"), SubResource("Resource_avoqc"), SubResource("Resource_612lk"), SubResource("Resource_8hn1r"), SubResource("Resource_rtt03"), SubResource("Resource_keej7"), SubResource("Resource_bbtro"), SubResource("Resource_pxj5n"), SubResource("Resource_epm5q"), SubResource("Resource_w64wl"), SubResource("Resource_qaq7s"), SubResource("Resource_sdogx"), SubResource("Resource_h17hy"), SubResource("Resource_hckna"), SubResource("Resource_esnsy"), SubResource("Resource_5do0l"), SubResource("Resource_5xhd7"), SubResource("Resource_33yi0"), SubResource("Resource_vy5kh"), SubResource("Resource_fx6mq"), SubResource("Resource_7i5cu"), SubResource("Resource_ed5ap"), SubResource("Resource_jjfdt")])
+enemies = Array[ExtResource("13_2tpwy")]([SubResource("Resource_2y4h3"), SubResource("Resource_g800d"), SubResource("Resource_sx2gm"), SubResource("Resource_gtcgn"), SubResource("Resource_1kbp4")])
+waves = Array[ExtResource("77_js03e")]([SubResource("Resource_dxm65")])
+difficulties = Array[ExtResource("12_7dayf")]([SubResource("Resource_ovreh"), SubResource("Resource_wd31s"), SubResource("Resource_ncp08"), SubResource("Resource_grxrx"), SubResource("Resource_iuxon")])

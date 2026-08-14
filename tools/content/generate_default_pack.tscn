@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource path="res://tools/content/generate_default_pack.gd" type="Script" id="1_generator"]
+
+[node name="GenerateDefaultPack" type="Node"]
+script = ExtResource("1_generator")

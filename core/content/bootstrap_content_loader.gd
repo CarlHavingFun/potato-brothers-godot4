@@ -10,6 +10,16 @@ var catalog := ContentCatalog.new()
 var last_errors := PackedStringArray()
 
 
+func _init() -> void:
+	var result := OK
+	if ResourceLoader.exists(DEFAULT_MANIFEST_PATH):
+		result = load_manifest(DEFAULT_MANIFEST_PATH, DEFAULT_MANIFEST_PATH.get_base_dir())
+	else:
+		result = mount_and_load(default_export_pack_path())
+	if result != OK:
+		push_error("Default content pack failed to load: %s" % "\n".join(last_errors))
+
+
 func load_manifest(manifest_path: String, source_root := "") -> int:
 	last_errors.clear()
 	if not ResourceLoader.exists(manifest_path):

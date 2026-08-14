@@ -10,6 +10,7 @@ var _passives: Dictionary = {}
 var _upgrades: Dictionary = {}
 var _enemies: Dictionary = {}
 var _waves: Dictionary = {}
+var _pack: ContentPackDef
 
 
 func register_pack(pack: ContentPackDef) -> int:
@@ -39,6 +40,7 @@ func register_pack(pack: ContentPackDef) -> int:
 			return result
 
 	pack_id = pack.pack_id
+	_pack = pack
 	_all = candidate_all
 	_characters = candidate_characters
 	_weapons = candidate_weapons
@@ -47,6 +49,30 @@ func register_pack(pack: ContentPackDef) -> int:
 	_enemies = candidate_enemies
 	_waves = candidate_waves
 	return OK
+
+
+func get_characters() -> Array[CharacterDef]:
+	return _pack.characters.duplicate() if _pack != null else []
+
+
+func get_weapons() -> Array[WeaponDef]:
+	return _pack.weapons.duplicate() if _pack != null else []
+
+
+func get_passives() -> Array[PassiveItemDef]:
+	return _pack.passives.duplicate() if _pack != null else []
+
+
+func get_upgrades() -> Array[UpgradeDef]:
+	return _pack.upgrades.duplicate() if _pack != null else []
+
+
+func get_enemies() -> Array[EnemyDef]:
+	return _pack.enemies.duplicate() if _pack != null else []
+
+
+func get_waves() -> Array[WaveDef]:
+	return _pack.waves.duplicate() if _pack != null else []
 
 
 func get_character(content_id: StringName) -> CharacterDef:
