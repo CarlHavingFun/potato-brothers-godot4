@@ -104,6 +104,29 @@ func test_validator_rejects_invalid_metadata_and_content_scripts() -> void:
 	assert_bool(report.contains("forbidden_script.gd")).is_true()
 
 
+func test_validator_rejects_missing_enemy_scene_and_unknown_wave_enemy() -> void:
+	var pack := ContentPackDef.new()
+	pack.pack_id = &"potato_default"
+
+	var enemy := EnemyDef.new()
+	enemy.content_id = &"enemy/chaser"
+	pack.enemies = [enemy]
+
+	var spawn := WaveSpawnDef.new()
+	spawn.enemy_id = &"enemy/missing"
+	var wave := WaveDef.new()
+	wave.content_id = &"wave/1"
+	wave.wave_number = 1
+	wave.spawns = [spawn]
+	pack.waves = [wave]
+
+	var errors := ContentValidator.new().validate_pack(pack)
+	var report := "\n".join(errors)
+
+	assert_bool(report.contains("enemy/chaser requires a scene")).is_true()
+	assert_bool(report.contains("wave/1 references unknown enemy enemy/missing")).is_true()
+
+
 func test_bootstrap_loads_a_valid_manifest_before_game_content_is_used() -> void:
 	assert_bool(ResourceLoader.exists(BOOTSTRAP_LOADER_SCRIPT)).is_true()
 	if not ResourceLoader.exists(BOOTSTRAP_LOADER_SCRIPT):
@@ -131,18 +154,19 @@ func test_bootstrap_loads_a_valid_manifest_before_game_content_is_used() -> void
 	)
 
 
-func test_default_content_pack_registers_the_current_playable_baseline() -> void:
+func test_default_content_pack_registers_the_phase_one_content_targets() -> void:
 	assert_bool(ResourceLoader.exists(DEFAULT_PACK_PATH)).is_true()
 	if not ResourceLoader.exists(DEFAULT_PACK_PATH):
 		return
 
 	var pack: ContentPackDef = load(DEFAULT_PACK_PATH)
 	assert_str(pack.pack_id).is_equal("potato_default")
-	assert_int(pack.characters.size()).is_equal(5)
+	assert_int(pack.characters.size()).is_equal(6)
 	assert_int(pack.weapons.size()).is_equal(11)
-	assert_int(pack.passives.size()).is_equal(4)
-	assert_int(pack.upgrades.size()).is_equal(46)
-	assert_int(pack.enemies.size()).is_equal(5)
+	assert_int(pack.passives.size()).is_equal(20)
+	assert_int(pack.upgrades.size()).is_equal(64)
+	assert_int(pack.enemies.size()).is_equal(8)
+	assert_int(pack.waves.size()).is_equal(10)
 	for weapon: WeaponDef in pack.weapons:
 		assert_int(weapon.tiers.size()).override_failure_message(String(weapon.content_id)).is_equal(4)
 
@@ -152,6 +176,8 @@ func test_default_content_pack_registers_the_current_playable_baseline() -> void
 	assert_int(catalog.register_pack(pack)).is_equal(OK)
 	assert_object(catalog.get_character(&"character/well_rounded")).is_not_null()
 	assert_object(catalog.get_weapon(&"weapon/pistol")).is_not_null()
+	assert_object(catalog.get_character(&"character/almighty")).is_not_null()
+	assert_object(catalog.get_enemy(&"enemy/mouse_dog")).is_not_null()
 
 
 func test_selection_and_player_creation_do_not_embed_specific_content_paths() -> void:
@@ -171,7 +197,7 @@ func test_selection_and_player_creation_do_not_embed_specific_content_paths() ->
 func test_catalog_builds_the_shop_pool_and_resolves_namespaced_item_ids() -> void:
 	var shop_items: Array[ItemBase] = Content.catalog.get_shop_items()
 
-	assert_int(shop_items.size()).is_equal(48)
+	assert_int(shop_items.size()).is_equal(64)
 	var pistol := Content.catalog.get_weapon(&"weapon/pistol")
 	assert_str(Content.catalog.get_item_stable_id(pistol.tiers[0])).is_equal(
 		"potato_default:weapon/pistol"
@@ -200,8 +226,11 @@ func test_shop_scene_does_not_embed_default_content_resources() -> void:
 
 
 func test_catalog_exposes_wave_and_difficulty_definitions() -> void:
-	assert_int(Content.catalog.get_waves().size()).is_equal(1)
-	assert_float(Content.catalog.get_waves()[0].duration).is_equal(10.0)
+	var waves := Content.catalog.get_waves()
+	assert_int(waves.size()).is_equal(10)
+	assert_array(waves.map(func(wave: WaveDef): return int(wave.duration))).is_equal(
+		[30, 35, 40, 45, 50, 55, 60, 65, 70, 90]
+	)
 	assert_float(Content.catalog.get_difficulty(5).health_multiplier).is_equal(1.70)
 	assert_float(Content.catalog.get_difficulty(5).spawn_density_multiplier).is_equal(1.40)
 
@@ -220,13 +249,13 @@ func test_arena_and_spawner_do_not_embed_default_wave_or_enemy_resources() -> vo
 
 func test_catalog_builds_upgrade_pool_with_namespaced_ids() -> void:
 	var upgrade_items: Array[ItemUpgrade] = Content.catalog.get_upgrade_items()
-	assert_int(upgrade_items.size()).is_equal(46)
+	assert_int(upgrade_items.size()).is_equal(64)
 
 	var health_upgrade := Content.catalog.get_upgrade(
-		&"upgrade/legacy/health/upgrade_health_1"
+		&"upgrade/max_health/common"
 	)
 	assert_str(Content.catalog.get_item_stable_id(health_upgrade.item)).is_equal(
-		"potato_default:upgrade/legacy/health/upgrade_health_1"
+		"potato_default:upgrade/max_health/common"
 	)
 
 

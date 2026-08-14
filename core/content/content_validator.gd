@@ -18,6 +18,7 @@ func validate_pack(pack: ContentPackDef, source_root := "") -> PackedStringArray
 
 	_validate_metadata(pack, errors)
 	_validate_definitions(pack, errors)
+	_validate_references(pack, errors)
 	if not source_root.is_empty():
 		_validate_source_directory(source_root.trim_suffix("/"), errors)
 	return errors
@@ -63,6 +64,30 @@ func _validate_definitions(pack: ContentPackDef, errors: PackedStringArray) -> v
 				errors.append("duplicate content_id %s" % stable_text)
 			else:
 				seen[stable_id] = true
+
+
+func _validate_references(pack: ContentPackDef, errors: PackedStringArray) -> void:
+	var enemy_ids: Dictionary = {}
+	for enemy: EnemyDef in pack.enemies:
+		if enemy == null:
+			continue
+		var local_id := String(enemy.content_id)
+		if enemy.scene == null:
+			errors.append("%s requires a scene" % local_id)
+		enemy_ids[enemy.content_id] = true
+		enemy_ids[enemy.get_stable_id(pack.pack_id)] = true
+
+	for wave: WaveDef in pack.waves:
+		if wave == null:
+			continue
+		for spawn: WaveSpawnDef in wave.spawns:
+			if spawn == null:
+				errors.append("%s contains a null spawn definition" % wave.content_id)
+				continue
+			if not enemy_ids.has(spawn.enemy_id):
+				errors.append(
+					"%s references unknown enemy %s" % [wave.content_id, spawn.enemy_id]
+				)
 
 
 func _validate_source_directory(path: String, errors: PackedStringArray) -> void:

@@ -184,3 +184,51 @@ func test_spawner_resolves_legacy_wave_data_through_the_content_catalog() -> voi
 
 	assert_object(wave_data).is_not_null()
 	assert_bool(wave_data.is_valid_index(4)).is_true()
+
+
+func test_spawner_ignores_spawn_request_without_definition_or_legacy_wave() -> void:
+	var spawner := Spawner.new()
+	spawner.add_child(Timer.new())
+	spawner.get_child(0).name = "SpawnTimer"
+	spawner.add_child(Timer.new())
+	spawner.get_child(1).name = "WaveTimer"
+	add_child(spawner)
+	await get_tree().process_frame
+
+	spawner.spawn_enemy()
+
+	assert_bool(spawner.spawn_timer.is_stopped()).is_true()
+	spawner.queue_free()
+
+
+func test_content_passive_and_upgrade_apply_all_sixteen_stat_ids() -> void:
+	Global.begin_run(303, null, 0)
+	var coffee := Content.catalog.get_passive(&"passive/coffee")
+	var melee_upgrade := Content.catalog.get_upgrade(&"upgrade/melee_damage/common")
+
+	assert_bool(Global.apply_passive_item(coffee.item)).is_true()
+	assert_bool(Global.apply_upgrade_item(melee_upgrade.item)).is_true()
+
+	assert_float(Global.current_run.player_stats.get_stat(StatId.DAMAGE)).is_equal(-2.0)
+	assert_float(Global.current_run.player_stats.get_stat(StatId.ATTACK_SPEED)).is_equal(10.0)
+	assert_float(Global.current_run.player_stats.get_stat(StatId.MELEE_DAMAGE)).is_equal(2.0)
+
+
+func test_wave_enemy_selection_is_seeded_and_boss_spawns_only_once() -> void:
+	var first: Spawner = auto_free(Spawner.new())
+	var second: Spawner = auto_free(Spawner.new())
+	var boss_wave := Content.catalog.get_wave(&"wave/10")
+	first.current_wave_definition = boss_wave
+	second.current_wave_definition = boss_wave
+	first.rng.seed = 404
+	second.rng.seed = 404
+	var first_ids: Array[String] = []
+	var second_ids: Array[String] = []
+	for index in range(40):
+		var first_enemy := first._get_random_enemy_definition()
+		var second_enemy := second._get_random_enemy_definition()
+		first_ids.append(String(first_enemy.get_stable_id(Content.catalog.pack_id)))
+		second_ids.append(String(second_enemy.get_stable_id(Content.catalog.pack_id)))
+
+	assert_array(first_ids).is_equal(second_ids)
+	assert_int(first_ids.count("potato_default:enemy/mouse_dog")).is_equal(1)

@@ -60,7 +60,7 @@ func _on_item_purchased(item: ItemBase) -> void:
 	elif item.item_type == ItemBase.ItemType.PASSIVE:
 		passives_container.add_child(item_card)
 		var passive := item as ItemPassive
-		passive.apply_passive()
+		Global.apply_passive_item(passive)
 	
 	item_card.item = item
 

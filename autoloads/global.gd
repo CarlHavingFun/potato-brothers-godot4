@@ -174,11 +174,12 @@ func try_purchase_item(item: ItemBase) -> int:
 		)
 	elif item is ItemPassive:
 		var passive := item as ItemPassive
+		var definition := Content.catalog.get_passive_definition_for_item(passive)
 		result = InventoryService.try_purchase_passive(
 			current_run,
 			Content.catalog.get_item_stable_id(passive),
 			passive.item_cost,
-			passive.max_stack
+			definition.max_stack if definition != null else passive.max_stack
 		)
 	if result == InventoryService.OK:
 		materials_changed.emit(current_run.materials)
@@ -222,6 +223,43 @@ func apply_stat_change(unit_property: String, amount: float) -> bool:
 	if is_instance_valid(player) and player.stats != null:
 		TUTORIAL_STATS_ADAPTER.apply_stat_to_unit(current_run.player_stats, player.stats, stat_id)
 	return true
+
+
+func apply_passive_item(item: ItemPassive) -> bool:
+	if current_run == null or item == null:
+		return false
+	var definition := Content.catalog.get_passive_definition_for_item(item)
+	if definition == null or definition.stat_modifiers.is_empty():
+		item.apply_passive()
+		return true
+	var applied := false
+	for stat_key: Variant in definition.stat_modifiers:
+		var stat_id := StatId.from_key(str(stat_key))
+		if not StatId.is_valid(stat_id):
+			push_warning("Unsupported passive stat '%s'." % stat_key)
+			continue
+		var amount := float(definition.stat_modifiers[stat_key])
+		current_run.player_stats.add_stat(stat_id, amount)
+		_sync_runtime_stat(stat_id)
+		applied = true
+	return applied
+
+
+func apply_upgrade_item(item: ItemUpgrade) -> bool:
+	if current_run == null or item == null:
+		return false
+	var definition := Content.catalog.get_upgrade_definition_for_item(item)
+	if definition == null or not StatId.is_valid(definition.stat_id):
+		item.apply_upgrade()
+		return true
+	current_run.player_stats.add_stat(definition.stat_id, definition.value)
+	_sync_runtime_stat(definition.stat_id)
+	return true
+
+
+func _sync_runtime_stat(stat_id: int) -> void:
+	if is_instance_valid(player) and player.stats != null:
+		TUTORIAL_STATS_ADAPTER.apply_stat_to_unit(current_run.player_stats, player.stats, stat_id)
 
 
 func get_stat_value(unit_property: String) -> float:

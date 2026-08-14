@@ -9,27 +9,42 @@ signal on_wave_completed
 @onready var wave_timer: Timer = $WaveTimer
 
 var wave_index := 1
+var current_wave_definition: WaveDef
 var current_wave_data: WaveData
 var spawned_enemies: Array[Enemy] = []
+var rng := RandomNumberGenerator.new()
+var boss_spawned := false
+
+
+func find_wave_definition() -> WaveDef:
+	for definition: WaveDef in Content.catalog.get_waves():
+		if definition == null:
+			continue
+		if definition.wave_number == wave_index:
+			return definition
+		if definition.data != null and definition.data.is_valid_index(wave_index):
+			return definition
+	return null
 
 
 func find_wave_data() -> WaveData:
-	for definition: WaveDef in Content.catalog.get_waves():
-		if definition == null or definition.data == null:
-			continue
-		if definition.wave_number == wave_index or definition.data.is_valid_index(wave_index):
-			return definition.data
-	return null
+	var definition := find_wave_definition()
+	return definition.data if definition != null else null
 
 func start_wave() -> void:
-	current_wave_data = find_wave_data()
-	if not current_wave_data:
+	current_wave_definition = find_wave_definition()
+	current_wave_data = current_wave_definition.data if current_wave_definition != null else null
+	if current_wave_definition == null:
 		printerr("No valid wave.")
 		spawn_timer.stop()
 		wave_timer.stop()
 		return
-	
-	wave_timer.wait_time = current_wave_data.wave_time
+	boss_spawned = false
+	rng.seed = (
+		(Global.current_run.random_seed if Global.current_run != null else 0)
+		+ wave_index * 1_000_003
+	)
+	wave_timer.wait_time = current_wave_definition.duration
 	wave_timer.start()
 	
 	set_spawn_timer()
@@ -37,13 +52,17 @@ func start_wave() -> void:
 
 func set_spawn_timer() -> void:
 	var base_wait_time := 1.0
-	match current_wave_data.spawn_type:
-		WaveData.SpawnType.FIXED:
-			base_wait_time = current_wave_data.fixed_spawn_time
-		WaveData.SpawnType.RANDOM:
-			var min_t := current_wave_data.min_spawn_time
-			var max_t := current_wave_data.max_spawn_time
-			base_wait_time = randf_range(min_t, max_t)
+	if current_wave_definition != null and not current_wave_definition.spawns.is_empty():
+		base_wait_time = current_wave_definition.fixed_spawn_time
+	elif current_wave_data != null:
+		match current_wave_data.spawn_type:
+			WaveData.SpawnType.FIXED:
+				base_wait_time = current_wave_data.fixed_spawn_time
+			WaveData.SpawnType.RANDOM:
+				base_wait_time = rng.randf_range(
+					current_wave_data.min_spawn_time,
+					current_wave_data.max_spawn_time
+				)
 	var difficulty_level := Global.current_run.difficulty if Global.current_run != null else 1
 	var difficulty := Content.catalog.get_difficulty(difficulty_level)
 	var density := difficulty.spawn_density_multiplier if difficulty != null else 1.0
@@ -54,13 +73,24 @@ func set_spawn_timer() -> void:
 
 
 func get_random_spawn_position() -> Vector2:
-	var random_x := randf_range(-spawn_area_size.x, spawn_area_size.x)
-	var random_y := randf_range(-spawn_area_size.y, spawn_area_size.y)
+	var random_x := rng.randf_range(-spawn_area_size.x, spawn_area_size.x)
+	var random_y := rng.randf_range(-spawn_area_size.y, spawn_area_size.y)
 	return Vector2(random_x, random_y)
 
 
 func spawn_enemy() -> void:
-	var enemy_scene := current_wave_data.get_random_unit_scene() as PackedScene
+	var enemy_definition := _get_random_enemy_definition()
+	var enemy_scene: PackedScene
+	if enemy_definition != null:
+		enemy_scene = enemy_definition.scene
+	elif current_wave_data != null:
+		enemy_scene = current_wave_data.get_random_unit_scene() as PackedScene
+	else:
+		spawn_timer.stop()
+		return
+	if enemy_scene == null:
+		spawn_timer.stop()
+		return
 	if enemy_scene:
 		var spawn_pos := get_random_spawn_position()
 		
@@ -72,7 +102,7 @@ func spawn_enemy() -> void:
 		
 		var enemy_instance := enemy_scene.instantiate() as Enemy
 		enemy_instance.stats = build_enemy_stats_for_wave(
-			enemy_instance.stats,
+			enemy_definition.stats if enemy_definition != null else enemy_instance.stats,
 			wave_index,
 			Global.current_run.difficulty if Global.current_run != null else 1
 		)
@@ -81,6 +111,26 @@ func spawn_enemy() -> void:
 		spawned_enemies.append(enemy_instance)
 	
 	set_spawn_timer()
+
+
+func _get_random_enemy_definition() -> EnemyDef:
+	if current_wave_definition == null or current_wave_definition.spawns.is_empty():
+		return null
+	var candidates: Array[WaveSpawnDef] = []
+	var weights: PackedFloat32Array = []
+	for spawn: WaveSpawnDef in current_wave_definition.spawns:
+		if spawn == null or (spawn.is_boss and boss_spawned):
+			continue
+		if Content.catalog.get_enemy(spawn.enemy_id) == null:
+			continue
+		candidates.append(spawn)
+		weights.append(spawn.weight)
+	if candidates.is_empty():
+		return null
+	var selected := candidates[rng.rand_weighted(weights)]
+	if selected.is_boss:
+		boss_spawned = true
+	return Content.catalog.get_enemy(selected.enemy_id)
 
 
 static func build_enemy_stats_for_wave(definition: UnitStats, wave: int, difficulty_level: int) -> UnitStats:

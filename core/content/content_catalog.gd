@@ -15,6 +15,8 @@ var _item_ids: Dictionary = {}
 var _item_paths: Dictionary = {}
 var _shop_items: Array[ItemBase] = []
 var _upgrade_items: Array[ItemUpgrade] = []
+var _passive_defs_by_item: Dictionary = {}
+var _upgrade_defs_by_item: Dictionary = {}
 var _pack: ContentPackDef
 
 
@@ -36,6 +38,8 @@ func register_pack(pack: ContentPackDef) -> int:
 	var candidate_item_paths: Dictionary = {}
 	var candidate_shop_items: Array[ItemBase] = []
 	var candidate_upgrade_items: Array[ItemUpgrade] = []
+	var candidate_passive_defs_by_item: Dictionary = {}
+	var candidate_upgrade_defs_by_item: Dictionary = {}
 	var collections := [
 		[pack.characters, candidate_characters],
 		[pack.weapons, candidate_weapons],
@@ -62,6 +66,7 @@ func register_pack(pack: ContentPackDef) -> int:
 			return ERR_INVALID_DATA
 		var stable_id := passive.get_stable_id(pack.pack_id)
 		candidate_item_ids[passive.item.get_instance_id()] = stable_id
+		candidate_passive_defs_by_item[passive.item.get_instance_id()] = passive
 		if not passive.item.resource_path.is_empty():
 			candidate_item_paths[passive.item.resource_path] = stable_id
 		candidate_shop_items.append(passive.item)
@@ -70,6 +75,7 @@ func register_pack(pack: ContentPackDef) -> int:
 			return ERR_INVALID_DATA
 		var stable_id := upgrade.get_stable_id(pack.pack_id)
 		candidate_item_ids[upgrade.item.get_instance_id()] = stable_id
+		candidate_upgrade_defs_by_item[upgrade.item.get_instance_id()] = upgrade
 		if not upgrade.item.resource_path.is_empty():
 			candidate_item_paths[upgrade.item.resource_path] = stable_id
 		candidate_upgrade_items.append(upgrade.item)
@@ -92,6 +98,8 @@ func register_pack(pack: ContentPackDef) -> int:
 	_item_paths = candidate_item_paths
 	_shop_items = candidate_shop_items
 	_upgrade_items = candidate_upgrade_items
+	_passive_defs_by_item = candidate_passive_defs_by_item
+	_upgrade_defs_by_item = candidate_upgrade_defs_by_item
 	return OK
 
 
@@ -133,6 +141,18 @@ func get_shop_items() -> Array[ItemBase]:
 
 func get_upgrade_items() -> Array[ItemUpgrade]:
 	return _upgrade_items.duplicate()
+
+
+func get_passive_definition_for_item(item: ItemPassive) -> PassiveItemDef:
+	if item == null:
+		return null
+	return _passive_defs_by_item.get(item.get_instance_id()) as PassiveItemDef
+
+
+func get_upgrade_definition_for_item(item: ItemUpgrade) -> UpgradeDef:
+	if item == null:
+		return null
+	return _upgrade_defs_by_item.get(item.get_instance_id()) as UpgradeDef
 
 
 func get_item_stable_id(item: ItemBase) -> StringName:

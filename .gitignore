@@ -3,6 +3,7 @@
 /dist/
 /reports/*
 !/reports/.gdignore
+/test_reports/
 *.tmp
 *.bak
 
