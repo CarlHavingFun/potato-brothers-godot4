@@ -174,3 +174,13 @@ func test_enemy_wave_scaling_returns_a_copy_and_applies_difficulty() -> void:
 	assert_int(runtime_stats.speed).is_equal(100)
 	assert_int(definition.health).is_equal(10)
 	assert_float(definition.damage).is_equal(3.0)
+
+
+func test_spawner_resolves_legacy_wave_data_through_the_content_catalog() -> void:
+	var spawner: Spawner = auto_free(Spawner.new())
+	spawner.wave_index = 4
+
+	var wave_data: WaveData = spawner.find_wave_data()
+
+	assert_object(wave_data).is_not_null()
+	assert_bool(wave_data.is_valid_index(4)).is_true()

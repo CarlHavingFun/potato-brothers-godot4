@@ -4,8 +4,6 @@ class_name Spawner
 signal on_wave_completed
 
 @export var spawn_area_size := Vector2(1000, 500)
-@export var waves_data: Array[WaveData]
-@export var enemy_collection: Array[UnitStats]
 
 @onready var spawn_timer: Timer = $SpawnTimer
 @onready var wave_timer: Timer = $WaveTimer
@@ -16,9 +14,11 @@ var spawned_enemies: Array[Enemy] = []
 
 
 func find_wave_data() -> WaveData:
-	for wave in waves_data:
-		if wave and wave.is_valid_index(wave_index):
-			return wave
+	for definition: WaveDef in Content.catalog.get_waves():
+		if definition == null or definition.data == null:
+			continue
+		if definition.wave_number == wave_index or definition.data.is_valid_index(wave_index):
+			return definition.data
 	return null
 
 func start_wave() -> void:
@@ -45,7 +45,7 @@ func set_spawn_timer() -> void:
 			var max_t := current_wave_data.max_spawn_time
 			base_wait_time = randf_range(min_t, max_t)
 	var difficulty_level := Global.current_run.difficulty if Global.current_run != null else 1
-	var difficulty := DifficultyDef.for_level(difficulty_level)
+	var difficulty := Content.catalog.get_difficulty(difficulty_level)
 	var density := difficulty.spawn_density_multiplier if difficulty != null else 1.0
 	spawn_timer.wait_time = base_wait_time / maxf(0.01, density)
 	
@@ -90,7 +90,7 @@ static func build_enemy_stats_for_wave(definition: UnitStats, wave: int, difficu
 	var completed_waves := maxi(0, wave - 1)
 	result.health = roundi(definition.health + definition.health_increase_per_wave * completed_waves)
 	result.damage = definition.damage + definition.damage_increase_per_wave * completed_waves
-	var difficulty := DifficultyDef.for_level(clampi(difficulty_level, 1, 5))
+	var difficulty := Content.catalog.get_difficulty(clampi(difficulty_level, 1, 5))
 	if difficulty != null:
 		result.health = difficulty.scale_health(result.health)
 		result.damage = difficulty.scale_damage(result.damage)

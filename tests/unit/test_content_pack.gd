@@ -197,3 +197,22 @@ func test_shop_scene_does_not_embed_default_content_resources() -> void:
 	assert_bool(shop_scene_source.contains("passive_cape.tres")).is_false()
 	assert_bool(shop_scene_source.contains("shop_items =")).is_false()
 	assert_bool(shop_script_source.contains("Content.catalog.get_shop_items()")).is_true()
+
+
+func test_catalog_exposes_wave_and_difficulty_definitions() -> void:
+	assert_int(Content.catalog.get_waves().size()).is_equal(1)
+	assert_float(Content.catalog.get_waves()[0].duration).is_equal(10.0)
+	assert_float(Content.catalog.get_difficulty(5).health_multiplier).is_equal(1.70)
+	assert_float(Content.catalog.get_difficulty(5).spawn_density_multiplier).is_equal(1.40)
+
+
+func test_arena_and_spawner_do_not_embed_default_wave_or_enemy_resources() -> void:
+	var arena_source := FileAccess.get_file_as_string("res://scenes/arena/arena.tscn")
+	var spawner_source := FileAccess.get_file_as_string("res://scenes/arena/spawner.gd")
+
+	assert_bool(arena_source.contains("wave_1_to_5.tres")).is_false()
+	assert_bool(arena_source.contains("stats_enemy_charger.tres")).is_false()
+	assert_bool(arena_source.contains("enemy_collection =")).is_false()
+	assert_bool(arena_source.contains("waves_data =")).is_false()
+	assert_bool(spawner_source.contains("Content.catalog.get_waves()")).is_true()
+	assert_bool(spawner_source.contains("DifficultyDef.for_level")).is_false()

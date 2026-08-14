@@ -10,6 +10,7 @@ var _passives: Dictionary = {}
 var _upgrades: Dictionary = {}
 var _enemies: Dictionary = {}
 var _waves: Dictionary = {}
+var _difficulties: Dictionary = {}
 var _item_ids: Dictionary = {}
 var _item_paths: Dictionary = {}
 var _shop_items: Array[ItemBase] = []
@@ -29,6 +30,7 @@ func register_pack(pack: ContentPackDef) -> int:
 	var candidate_upgrades: Dictionary = {}
 	var candidate_enemies: Dictionary = {}
 	var candidate_waves: Dictionary = {}
+	var candidate_difficulties: Dictionary = {}
 	var candidate_item_ids: Dictionary = {}
 	var candidate_item_paths: Dictionary = {}
 	var candidate_shop_items: Array[ItemBase] = []
@@ -61,6 +63,10 @@ func register_pack(pack: ContentPackDef) -> int:
 		if not passive.item.resource_path.is_empty():
 			candidate_item_paths[passive.item.resource_path] = stable_id
 		candidate_shop_items.append(passive.item)
+	for difficulty: DifficultyDef in pack.difficulties:
+		if difficulty == null or candidate_difficulties.has(difficulty.level):
+			return ERR_INVALID_DATA
+		candidate_difficulties[difficulty.level] = difficulty
 
 	pack_id = pack.pack_id
 	_pack = pack
@@ -71,6 +77,7 @@ func register_pack(pack: ContentPackDef) -> int:
 	_upgrades = candidate_upgrades
 	_enemies = candidate_enemies
 	_waves = candidate_waves
+	_difficulties = candidate_difficulties
 	_item_ids = candidate_item_ids
 	_item_paths = candidate_item_paths
 	_shop_items = candidate_shop_items
@@ -99,6 +106,14 @@ func get_enemies() -> Array[EnemyDef]:
 
 func get_waves() -> Array[WaveDef]:
 	return _pack.waves.duplicate() if _pack != null else []
+
+
+func get_difficulties() -> Array[DifficultyDef]:
+	return _pack.difficulties.duplicate() if _pack != null else []
+
+
+func get_difficulty(level: int) -> DifficultyDef:
+	return _difficulties.get(level) as DifficultyDef
 
 
 func get_shop_items() -> Array[ItemBase]:
