@@ -42,6 +42,15 @@ func remove_weapon(index: int) -> Dictionary:
 	return removed.duplicate(true)
 
 
+func find_weapon_slots(weapon_id: StringName, tier: int) -> Array[int]:
+	var result: Array[int] = []
+	for index in _weapons.size():
+		var weapon := _weapons[index]
+		if StringName(str(weapon.get("weapon_id", ""))) == weapon_id and int(weapon.get("tier", 0)) == tier:
+			result.append(index)
+	return result
+
+
 func passive_count(item_id: StringName) -> int:
 	return int(_passives.get(String(item_id), 0))
 

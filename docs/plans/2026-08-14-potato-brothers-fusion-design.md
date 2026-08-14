@@ -24,8 +24,9 @@ mutable state for one run, while `MetaProgress` owns unlocks and settings.
 reward services implement rules without mutating shared resources.
 
 Content uses stable identifiers and translation keys. Unity JSON is migration
-input only. Production builds never read the Unity project or call its former
-remote services.
+input only. No Unity legacy cloud client, identifier, endpoint, or fallback is
+part of the Godot production tree. Steam support will later be implemented as a
+new provider behind `SaveProvider`, without adapting the former HTTP service.
 
 ## Quality strategy
 
@@ -33,4 +34,3 @@ GdUnit4 is the deterministic regression gate. Godot MCP/CLI drives the live
 editor and game for scene-tree, collision, input, runtime-error, screenshot,
 and performance verification. Development addons and tests are excluded from
 exports.
-

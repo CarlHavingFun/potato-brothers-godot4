@@ -50,9 +50,14 @@ func _setup_session(session_id: int) -> void:
 	if session == null or _sessions.has(session_id):
 		return
 	_sessions[session_id] = session
-	session.stopped.connect(func() -> void:
-		_sessions.erase(session_id)
-		_retire_run())
+	var stopped_callback := _on_session_stopped.bind(session_id)
+	if not session.stopped.is_connected(stopped_callback):
+		session.stopped.connect(stopped_callback)
+
+
+func _on_session_stopped(session_id: int) -> void:
+	_sessions.erase(session_id)
+	_retire_run()
 
 
 ## Debug sessions attached to a running game, as [session_id, session] pairs.
@@ -89,6 +94,30 @@ func ensure_connected() -> Dictionary:
 	return {"found": found, "hooked": hooked}
 
 
+## Disconnect every editor-owned signal before the plugin drops its final bridge
+## reference. Signal callables retain RefCounted targets, so leaving even one
+## connection alive keeps this plugin, its session, and its GDScript resource alive
+## until ObjectDB teardown.
+func shutdown() -> void:
+	for panel: Node in find_by_class(EditorInterface.get_base_control(), "ScriptEditorDebugger"):
+		_disconnect_one(panel, "breaked", _on_breaked)
+		_disconnect_one(panel, "stack_dump", _on_stack_dump)
+		_disconnect_one(panel, "stack_frame_vars", _on_stack_frame_vars)
+		_disconnect_one(panel, "stack_frame_var", _on_stack_frame_var)
+		_disconnect_one(panel, "stopped", _on_stopped)
+	for session_id: int in _sessions:
+		var session: EditorDebuggerSession = _sessions[session_id]
+		if session == null:
+			continue
+		var stopped_callback := _on_session_stopped.bind(session_id)
+		if session.stopped.is_connected(stopped_callback):
+			session.stopped.disconnect(stopped_callback)
+	_sessions.clear()
+	_states.clear()
+	_armed.clear()
+	_run.clear()
+
+
 func _connect_one(panel: Node, signal_name: String, handler: Callable) -> void:
 	if not panel.has_signal(signal_name):
 		return
@@ -97,6 +126,14 @@ func _connect_one(panel: Node, signal_name: String, handler: Callable) -> void:
 	var bound := handler.bind(panel)
 	if not panel.is_connected(signal_name, bound):
 		panel.connect(signal_name, bound)
+
+
+func _disconnect_one(panel: Node, signal_name: String, handler: Callable) -> void:
+	if not panel.has_signal(signal_name):
+		return
+	var bound := handler.bind(panel)
+	if panel.is_connected(signal_name, bound):
+		panel.disconnect(signal_name, bound)
 
 
 ## A break beginning or ending. The editor raises this BEFORE the stack it then

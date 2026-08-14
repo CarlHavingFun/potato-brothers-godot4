@@ -5,6 +5,7 @@ class_name ItemPassive
 @export var add_stats: String
 @export var remove_value: float
 @export var remove_stats: String
+@export_range(1, 99, 1) var max_stack := 99
 
 func get_description() -> String:
 	var description := "[code]"
@@ -20,7 +21,7 @@ func get_description() -> String:
 
 func apply_passive() -> void:
 	if add_value != 0:
-		Global.player.stats[add_stats] += add_value
+		Global.apply_stat_change(add_stats, add_value)
 	
 	if remove_value != 0:
-		Global.player.stats[remove_stats] -= remove_value
+		Global.apply_stat_change(remove_stats, -remove_value)

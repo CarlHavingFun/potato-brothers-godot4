@@ -10,6 +10,11 @@ class_name Unit
 @onready var flash_timer: Timer = $FlashTimer
 
 func _ready() -> void:
+	# Scene resources are definitions. Every spawned unit owns an independent
+	# runtime copy so upgrades and per-wave scaling cannot mutate another unit or
+	# the immutable .tres cached by ResourceLoader.
+	if stats != null:
+		stats = stats.duplicate(true)
 	health_component.setup(stats)
 
 

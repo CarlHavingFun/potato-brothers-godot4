@@ -29,5 +29,19 @@ $runnerArguments = @(
 	"-rd", $ReportDirectory
 )
 
-& $GodotBinary @runnerArguments
-exit $LASTEXITCODE
+$previousErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+$output = @(& $GodotBinary @runnerArguments 2>&1)
+$exitCode = $LASTEXITCODE
+$ErrorActionPreference = $previousErrorActionPreference
+$output | ForEach-Object { Write-Output $_ }
+
+$leakPattern = "Leaked instance:|ObjectDB instances were leaked|resources still in use at exit"
+$leakLines = @($output | ForEach-Object { $_.ToString() } | Where-Object { $_ -match $leakPattern })
+if ($exitCode -eq 0 -and $leakLines.Count -gt 0) {
+	Write-Output "GdUnit completed but Godot reported leaked objects/resources:"
+	$leakLines | ForEach-Object { Write-Output $_ }
+	exit 1
+}
+
+exit $exitCode

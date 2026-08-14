@@ -12,7 +12,7 @@ var knockback_dir: Vector2
 var knockback_power: float
 
 func _process(delta: float) -> void:
-	if Global.game_paused: return
+	if not Global.is_combat_active(): return
 	
 	if not can_move:
 		return

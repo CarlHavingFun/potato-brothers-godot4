@@ -15,6 +15,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if not Global.is_combat_active(): return
 	if enemy == null:
 		return
 	

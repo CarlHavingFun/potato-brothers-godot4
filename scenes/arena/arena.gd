@@ -13,6 +13,7 @@ class_name Arena
 @onready var upgrade_panel: UpgradePanel = %UpgradePanel
 @onready var shop_panel: ShopPanel = %ShopPanel
 @onready var coins_bag: CoinsBag = %CoinsBag
+@onready var music_player: AudioStreamPlayer = $MusicPlayer
 
 var gold_list: Array[Coins]
 
@@ -22,10 +23,18 @@ func _ready() -> void:
 	Global.on_upgrade_selected.connect(_on_upgrade_selected)
 	Global.on_create_heal_text.connect(_on_create_heal_text)
 	Global.on_enemy_died.connect(_on_enemy_died)
+	call_deferred("_start_music")
+
+
+func _start_music() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	if is_instance_valid(music_player) and not music_player.playing:
+		music_player.play()
 
 
 func _process(delta: float) -> void:
-	if Global.game_paused: return
+	if not Global.is_combat_active(): return
 	wave_index_label.text = spawner.get_wave_text()
 	wave_time_label.text = spawner.get_wave_timer_text()
 
@@ -45,9 +54,10 @@ func show_upgrades() -> void:
 
 
 func start_new_wave() -> void:
-	Global.game_paused = false
 	Global.player.update_player_new_wave()
 	spawner.wave_index += 1
+	Global.current_run.wave = spawner.wave_index
+	Global.enter_phase(RunPhase.COMBAT)
 	spawner.start_wave()
 
 
@@ -94,6 +104,7 @@ func _on_create_heal_text(unit: Node2D, heal: float) -> void:
 
 func _on_upgrade_selected() -> void:
 	upgrade_panel.hide()
+	Global.enter_phase(RunPhase.SHOP)
 	shop_panel.load_shop(spawner.wave_index)
 	shop_panel.show()
 
@@ -116,11 +127,14 @@ func _on_enemy_died(enemy: Enemy) -> void:
 
 
 func _on_selection_panel_on_selection_completed() -> void:
+	if not Global.begin_selected_run():
+		return
 	var player := Global.get_selected_player()
 	add_child(player)
 	player.add_weapon(Global.main_weapon_selected)
 	shop_panel.create_item_weapon(Global.main_weapon_selected)
 	Global.equipped_weapons.append(Global.main_weapon_selected)
 	
+	Global.current_run.wave = spawner.wave_index
+	Global.enter_phase(RunPhase.COMBAT)
 	spawner.start_wave()
-	Global.game_paused = false

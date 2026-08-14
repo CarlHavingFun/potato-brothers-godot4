@@ -1,11 +1,15 @@
 extends Node
 
+const TUTORIAL_STATS_ADAPTER = preload("res://core/adapters/tutorial_stats_adapter.gd")
+
 signal on_create_block_text(unit: Node2D)
 signal on_create_damage_text(unit: Node2D, hitbox: HitboxComponent)
 signal on_create_heal_text(unit: Node2D, heal: float)
 
 signal on_upgrade_selected
 signal on_enemy_died(enemy: Enemy)
+signal materials_changed(value: int)
+signal run_phase_changed(phase: int)
 
 const FLASH_MATERIAL = preload("uid://coi4nu8ohpgeo")
 const FLOATING_TEXT_SCENE = preload("uid://bmy2qb3fuvnts")
@@ -53,22 +57,190 @@ enum UpgradeTier{
 	LEGENDARY
 }
 
-var coins: int = 500
+const STARTING_MATERIALS := 500
+
+var current_run: RunState
+var coins: int:
+	get:
+		return current_run.materials if current_run != null else 0
+	set(value):
+		_ensure_run()
+		current_run.materials = maxi(0, value)
+		materials_changed.emit(current_run.materials)
 var player: Player
-var game_paused := false
+var game_paused: bool:
+	get:
+		return not is_combat_active()
+	set(value):
+		if value:
+			if current_run != null and current_run.phase == RunPhase.COMBAT:
+				enter_phase(RunPhase.UPGRADE)
+		else:
+			enter_phase(RunPhase.COMBAT)
 
 var main_player_selected: UnitStats
 var main_weapon_selected: ItemWeapon
 
 var equipped_weapons: Array[ItemWeapon]
 
+
+func _init() -> void:
+	begin_run(0, null, STARTING_MATERIALS)
+
+
+func begin_run(seed_value: int = 0, source_stats: UnitStats = null, starting_materials: int = STARTING_MATERIALS) -> RunState:
+	var player_stats: PlayerStats = TUTORIAL_STATS_ADAPTER.to_player_stats(source_stats)
+	current_run = RunState.new(seed_value, player_stats)
+	current_run.materials = maxi(0, starting_materials)
+	player = null
+	equipped_weapons.clear()
+	materials_changed.emit(current_run.materials)
+	run_phase_changed.emit(current_run.phase)
+	return current_run
+
+
+func begin_selected_run(seed_value: int = 0) -> bool:
+	if main_player_selected == null or main_weapon_selected == null:
+		return false
+	begin_run(seed_value, main_player_selected, STARTING_MATERIALS)
+	current_run.character_id = main_player_selected.get_stable_id()
+	current_run.starting_weapon_id = main_weapon_selected.get_stable_id()
+	var slot := current_run.inventory.add_weapon(
+		main_weapon_selected.get_stable_id(),
+		int(main_weapon_selected.item_tier) + 1,
+		main_weapon_selected.item_cost
+	)
+	return slot >= 0
+
+
+func end_run() -> void:
+	current_run = null
+	player = null
+	equipped_weapons.clear()
+	main_player_selected = null
+	main_weapon_selected = null
+
+
+func enter_phase(next_phase: int) -> bool:
+	if current_run == null or not RunPhase.is_valid(next_phase):
+		return false
+	if current_run.phase == next_phase:
+		return true
+	if not current_run.try_transition(next_phase):
+		return false
+	run_phase_changed.emit(current_run.phase)
+	return true
+
+
+func is_combat_active() -> bool:
+	return current_run != null and current_run.phase == RunPhase.COMBAT
+
+
+func add_materials(amount: int) -> void:
+	if amount <= 0:
+		return
+	_ensure_run()
+	current_run.materials += amount
+	materials_changed.emit(current_run.materials)
+
+
+func try_spend_materials(amount: int) -> bool:
+	if amount < 0:
+		return false
+	_ensure_run()
+	if current_run.materials < amount:
+		return false
+	current_run.materials -= amount
+	materials_changed.emit(current_run.materials)
+	return true
+
+
+func try_purchase_item(item: ItemBase) -> int:
+	if item == null:
+		return InventoryService.INVALID_REQUEST
+	_ensure_run()
+	var result := InventoryService.INVALID_REQUEST
+	if item is ItemWeapon:
+		var weapon := item as ItemWeapon
+		result = InventoryService.try_purchase_weapon(
+			current_run,
+			weapon.get_stable_id(),
+			int(weapon.item_tier) + 1,
+			weapon.item_cost
+		)
+	elif item is ItemPassive:
+		var passive := item as ItemPassive
+		result = InventoryService.try_purchase_passive(
+			current_run,
+			passive.get_stable_id(),
+			passive.item_cost,
+			passive.max_stack
+		)
+	if result == InventoryService.OK:
+		materials_changed.emit(current_run.materials)
+	return result
+
+
+func try_combine_weapon(weapon: ItemWeapon) -> int:
+	if current_run == null or weapon == null:
+		return InventoryService.INVALID_REQUEST
+	var slots := current_run.inventory.find_weapon_slots(
+		weapon.get_stable_id(),
+		int(weapon.item_tier) + 1
+	)
+	if slots.size() < 2:
+		return InventoryService.WEAPONS_NOT_COMBINABLE
+	return InventoryService.try_combine_weapons(current_run, slots[0], slots[1])
+
+
+func try_sell_weapon(weapon: ItemWeapon) -> int:
+	if current_run == null or weapon == null:
+		return InventoryService.INVALID_REQUEST
+	var slots := current_run.inventory.find_weapon_slots(
+		weapon.get_stable_id(),
+		int(weapon.item_tier) + 1
+	)
+	if slots.is_empty():
+		return InventoryService.INVALID_WEAPON_SLOT
+	var result := InventoryService.try_sell_weapon(current_run, slots[0])
+	if result == InventoryService.OK:
+		materials_changed.emit(current_run.materials)
+	return result
+
+
+func apply_stat_change(unit_property: String, amount: float) -> bool:
+	if current_run == null:
+		return false
+	var stat_id: int = TUTORIAL_STATS_ADAPTER.stat_id_for_property(unit_property)
+	if not StatId.is_valid(stat_id) or not current_run.player_stats.add_stat(stat_id, amount):
+		push_warning("Unsupported tutorial stat '%s'; migration mapping is required." % unit_property)
+		return false
+	if is_instance_valid(player) and player.stats != null:
+		TUTORIAL_STATS_ADAPTER.apply_stat_to_unit(current_run.player_stats, player.stats, stat_id)
+	return true
+
+
+func get_stat_value(unit_property: String) -> float:
+	if current_run == null:
+		return 0.0
+	var stat_id: int = TUTORIAL_STATS_ADAPTER.stat_id_for_property(unit_property)
+	return current_run.player_stats.get_stat(stat_id)
+
+
+func _ensure_run() -> void:
+	if current_run == null:
+		begin_run(0, null, 0)
+
 func get_harvesting_coins() -> void:
-	coins += player.stats.harvesting
+	add_materials(roundi(get_stat_value("harvesting")))
 
 
 func get_selected_player() -> Player:
 	var player_scene := available_players[main_player_selected.name]
 	var player_instance := player_scene.instantiate()
+	player_instance.stats = main_player_selected.duplicate(true)
+	if current_run != null:
+		TUTORIAL_STATS_ADAPTER.apply_to_unit_stats(current_run.player_stats, player_instance.stats)
 	player = player_instance
 	return player
 
@@ -110,7 +282,8 @@ func calculate_tier_probability(current_wave: int, config: Dictionary) -> Array[
 	
 	# Player luck increases the chance of finding higher tiers.
 	# Example: 10 luck = 10% chance = 1.1 multi
-	var luck_factor := 1.0 + (Global.player.stats.luck / 100.0)
+	var luck := get_stat_value("luck")
+	var luck_factor := 1.0 + (luck / 100.0)
 	rare_chance *= luck_factor
 	epic_chance *= luck_factor
 	legendary_chance *= luck_factor
@@ -129,7 +302,7 @@ func calculate_tier_probability(current_wave: int, config: Dictionary) -> Array[
 	
 	# Debug print
 	print("Wave: %d, Luck: %.1f => Chances: C:%.2f R:%.2f E:%.2f L:%.2f" % 
-	[current_wave, Global.player.stats.luck, common_chance, rare_chance, epic_chance, legendary_chance])
+	[current_wave, luck, common_chance, rare_chance, epic_chance, legendary_chance])
 	
 	return [
 		max(0.0, common_chance),

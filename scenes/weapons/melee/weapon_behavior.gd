@@ -9,7 +9,7 @@ func execute_attack() -> void:
 	pass
 
 func get_damage() -> float:
-	var damage := weapon.data.stats.damage + Global.player.stats.damage
+	var damage := weapon.data.stats.damage + Global.get_stat_value("damage")
 	var crit_chance := weapon.data.stats.crit_chance
 	if Global.get_chance_sucess(crit_chance):
 		critical = true
@@ -18,7 +18,7 @@ func get_damage() -> float:
 
 
 func apply_life_steal() -> void:
-	var steal_chance := (Global.player.stats.life_steal / 100.0) + weapon.data.stats.life_steal
+	var steal_chance := (Global.get_stat_value("life_steal") / 100.0) + weapon.data.stats.life_steal
 	var can_steal := Global.get_chance_sucess(steal_chance)
 	if can_steal and is_instance_valid(Global.player):
 		Global.player.health_component.heal(1.0)

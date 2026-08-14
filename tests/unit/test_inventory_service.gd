@@ -72,3 +72,15 @@ func test_passive_purchase_honors_max_stack_without_charging() -> void:
 	assert_int(result).is_equal(InventoryService.MAX_PASSIVE_STACK)
 	assert_int(run_state.materials).is_equal(80)
 	assert_int(run_state.inventory.passive_count(&"unique_badge")).is_equal(1)
+
+
+func test_inventory_finds_only_matching_weapon_family_and_tier() -> void:
+	var inventory := InventoryState.new()
+	inventory.add_weapon(&"punch", 1, 10)
+	inventory.add_weapon(&"punch", 2, 20)
+	inventory.add_weapon(&"punch", 1, 30)
+	inventory.add_weapon(&"pistol", 1, 40)
+
+	var slots := inventory.find_weapon_slots(&"punch", 1)
+
+	assert_array(slots).contains_exactly([0, 2])

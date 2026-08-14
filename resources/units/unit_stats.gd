@@ -7,6 +7,7 @@ enum UnitType {
 }
 
 @export var name: String
+@export var content_id: StringName
 @export var type: UnitType
 @export var icon: Texture2D
 @export var health := 1
@@ -20,3 +21,11 @@ enum UnitType {
 @export var hp_regen := 0.0
 @export var life_steal := 0.0
 @export var harvesting := 0.0
+
+
+func get_stable_id() -> StringName:
+	if not content_id.is_empty():
+		return content_id
+	if not resource_path.is_empty():
+		return StringName(resource_path)
+	return StringName(name.to_snake_case())

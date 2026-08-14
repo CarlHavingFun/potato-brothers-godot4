@@ -20,6 +20,15 @@ func test_main_scene_can_be_instantiated() -> void:
 	arena.free()
 
 
+func test_arena_music_waits_until_after_the_initial_frame() -> void:
+	var packed_scene := load(MAIN_SCENE_PATH) as PackedScene
+	var arena := packed_scene.instantiate()
+	var music_player := arena.get_node("MusicPlayer") as AudioStreamPlayer
+
+	assert_bool(music_player.autoplay).is_false()
+	arena.free()
+
+
 func test_tutorial_character_and_weapon_baseline_is_preserved() -> void:
 	assert_int(_count_matching("res://scenes/unit/players", "player_", ".tscn", false)).is_equal(5)
 	assert_int(_count_matching("res://resources/items/weapons", "item_", "_1.tres", true)).is_equal(11)

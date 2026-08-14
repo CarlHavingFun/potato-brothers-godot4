@@ -35,11 +35,21 @@ The Godot MCP addon exposes its loopback-only HTTP endpoint at
 `http://127.0.0.1:9100/mcp` while the editor is open. Generated reports and
 screenshots stay under `reports/`, which Godot and Git both ignore.
 
-The optional Godot MCP 0.8.2 CLI belongs at `bin/godot-mcp.exe`. The binary is
-intentionally ignored by Git; with the editor open, verify the local setup with:
+The complete upstream Godot MCP 0.8.2 Windows AMD64 package is vendored at
+`tools/vendor/godot-mcp/0.8.2/`, including its bundled skill and checksum. The
+working CLI is extracted to `bin/godot-mcp.exe`; that generated copy is ignored
+so Git keeps a single authoritative binary archive. With the editor open,
+verify the local setup with:
 
 ```powershell
 .\bin\godot-mcp.exe doctor --project . --json
 .\bin\godot-mcp.exe --format json project info
 .\bin\godot-mcp.exe --format json scene tree --max-depth 2
 ```
+
+`RunState` is the authority for per-run materials, stats, inventory, wave,
+difficulty, and phase. `Global` remains a temporary compatibility facade and a
+holder for live scene references while tutorial systems are migrated. The
+production project contains no Unity legacy cloud endpoints; a regression test
+prevents them from being reintroduced. A future Steam integration must be a new
+`SaveProvider` implementation.

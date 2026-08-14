@@ -36,13 +36,18 @@ func start_wave() -> void:
 
 
 func set_spawn_timer() -> void:
+	var base_wait_time := 1.0
 	match current_wave_data.spawn_type:
 		WaveData.SpawnType.FIXED:
-			spawn_timer.wait_time = current_wave_data.fixed_spawn_time
+			base_wait_time = current_wave_data.fixed_spawn_time
 		WaveData.SpawnType.RANDOM:
 			var min_t := current_wave_data.min_spawn_time
 			var max_t := current_wave_data.max_spawn_time
-			spawn_timer.wait_time = randf_range(min_t, max_t)
+			base_wait_time = randf_range(min_t, max_t)
+	var difficulty_level := Global.current_run.difficulty if Global.current_run != null else 1
+	var difficulty := DifficultyDef.for_level(difficulty_level)
+	var density := difficulty.spawn_density_multiplier if difficulty != null else 1.0
+	spawn_timer.wait_time = base_wait_time / maxf(0.01, density)
 	
 	if spawn_timer.is_stopped():
 		spawn_timer.start()
@@ -66,6 +71,11 @@ func spawn_enemy() -> void:
 		spawn_anim.queue_free()
 		
 		var enemy_instance := enemy_scene.instantiate() as Enemy
+		enemy_instance.stats = build_enemy_stats_for_wave(
+			enemy_instance.stats,
+			wave_index,
+			Global.current_run.difficulty if Global.current_run != null else 1
+		)
 		enemy_instance.global_position = spawn_pos
 		get_parent().add_child(enemy_instance)
 		spawned_enemies.append(enemy_instance)
@@ -73,10 +83,19 @@ func spawn_enemy() -> void:
 	set_spawn_timer()
 
 
-func update_enemies_new_wave() -> void:
-	for stat: UnitStats in enemy_collection:
-		stat.health += stat.health_increase_per_wave
-		stat.damage += stat.damage_increase_per_wave
+static func build_enemy_stats_for_wave(definition: UnitStats, wave: int, difficulty_level: int) -> UnitStats:
+	if definition == null:
+		return null
+	var result := definition.duplicate(true) as UnitStats
+	var completed_waves := maxi(0, wave - 1)
+	result.health = roundi(definition.health + definition.health_increase_per_wave * completed_waves)
+	result.damage = definition.damage + definition.damage_increase_per_wave * completed_waves
+	var difficulty := DifficultyDef.for_level(clampi(difficulty_level, 1, 5))
+	if difficulty != null:
+		result.health = difficulty.scale_health(result.health)
+		result.damage = difficulty.scale_damage(result.damage)
+		result.speed = roundi(difficulty.scale_speed(result.speed))
+	return result
 
 
 func clear_enemies() -> void:
@@ -105,9 +124,8 @@ func _on_spawn_timer_timeout() -> void:
 
 
 func _on_wave_timer_timeout() -> void:
-	Global.game_paused = true
+	Global.enter_phase(RunPhase.UPGRADE)
 	Global.get_harvesting_coins()
 	on_wave_completed.emit()
 	spawn_timer.stop()
 	clear_enemies()
-	update_enemies_new_wave()

@@ -124,6 +124,7 @@ func _exit_tree() -> void:
 	if activity_log:
 		activity_log.queue_free()
 	if debugger_bridge:
+		debugger_bridge.shutdown()
 		remove_debugger_plugin(debugger_bridge)
 		debugger_bridge = null
 

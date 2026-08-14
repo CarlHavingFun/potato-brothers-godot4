@@ -11,14 +11,14 @@ class_name StatsContainer
 @onready var harvesting_label: Label = %HarvestingLabel
 
 func _process(delta: float) -> void:
-	if not is_instance_valid(Global.player):
+	if Global.current_run == null:
 		return
 	
-	health_label.text = str(Global.player.stats.health)
-	hp_regen_label.text = str(Global.player.stats.hp_regen)
-	life_steal_label.text = str(Global.player.stats.life_steal) + "%"
-	damage_label.text = str(Global.player.stats.damage)
-	luck_label.text = str(Global.player.stats.luck)
-	speed_label.text = str(Global.player.stats.speed)
-	block_label.text = str(Global.player.stats.block_chance) + "%"
-	harvesting_label.text = str(Global.player.stats.harvesting)
+	health_label.text = str(Global.get_stat_value("health"))
+	hp_regen_label.text = str(Global.get_stat_value("hp_regen"))
+	life_steal_label.text = str(Global.get_stat_value("life_steal")) + "%"
+	damage_label.text = str(Global.get_stat_value("damage"))
+	luck_label.text = str(Global.get_stat_value("luck"))
+	speed_label.text = str(Global.get_stat_value("speed"))
+	block_label.text = str(Global.get_stat_value("block_chance")) + "%"
+	harvesting_label.text = str(Global.get_stat_value("harvesting"))

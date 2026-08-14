@@ -24,7 +24,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if Global.game_paused: return
+	if not Global.is_combat_active(): return
 	
 	move_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	
@@ -89,7 +89,7 @@ func is_facing_right() -> bool:
 
 
 func update_player_new_wave() -> void:
-	stats.health += stats.health_increase_per_wave
+	Global.apply_stat_change("health", stats.health_increase_per_wave)
 	health_component.setup(stats)
 
 
