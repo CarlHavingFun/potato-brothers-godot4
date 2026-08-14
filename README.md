@@ -34,3 +34,12 @@ Run the headless GdUnit4 suite from PowerShell:
 The Godot MCP addon exposes its loopback-only HTTP endpoint at
 `http://127.0.0.1:9100/mcp` while the editor is open. Generated reports and
 screenshots stay under `reports/`, which Godot and Git both ignore.
+
+The optional Godot MCP 0.8.2 CLI belongs at `bin/godot-mcp.exe`. The binary is
+intentionally ignored by Git; with the editor open, verify the local setup with:
+
+```powershell
+.\bin\godot-mcp.exe doctor --project . --json
+.\bin\godot-mcp.exe --format json project info
+.\bin\godot-mcp.exe --format json scene tree --max-depth 2
+```
