@@ -17,8 +17,6 @@ enum BossState {
 @export var dash_speed_multiplier := 7.0
 @export var enraged_dash_speed_multiplier := 9.0
 
-@onready var attack_audio: AudioStreamPlayer2D = $AttackAudio
-
 var boss_state := BossState.TRACK
 var state_time := 0.0
 var cooldown_left := 1.0
@@ -78,23 +76,36 @@ func _start_windup() -> void:
 	state_time = windup_duration
 	can_move = false
 	dash_direction = global_position.direction_to(Global.player.global_position)
+	presentation_controller.set_semantic_state(&"telegraph")
+	GameplayCues.emit_cue(&"enemy.telegraph", {
+		"presentation_id": definition.get_presentation_id(Content.catalog.pack_id) if definition != null else &"enemy.mouse_dog",
+		"world_position": global_position,
+	})
 
 
 func _start_dash() -> void:
 	boss_state = BossState.DASH
 	state_time = dash_duration
 	visuals.modulate = Color(1.0, 0.2, 0.2)
-	if DisplayServer.get_name() != "headless" and is_instance_valid(attack_audio):
-		attack_audio.play()
+	presentation_controller.set_semantic_state(&"attack")
+	GameplayCues.emit_cue(&"boss.attack", {
+		"presentation_id": definition.get_presentation_id(Content.catalog.pack_id) if definition != null else &"enemy.mouse_dog",
+		"world_position": global_position,
+	})
 
 
 func _start_recovery() -> void:
 	boss_state = BossState.RECOVER
 	state_time = recovery_duration
 	cooldown_left = enraged_attack_cooldown if enraged else attack_cooldown
+	presentation_controller.set_semantic_state(&"idle")
 
 
 func _enter_enrage() -> void:
 	enraged = true
+	GameplayCues.emit_cue(&"boss.phase", {
+		"phase": &"enraged",
+		"presentation_id": definition.get_presentation_id(Content.catalog.pack_id) if definition != null else &"enemy.mouse_dog",
+	})
 	cooldown_left = minf(cooldown_left, enraged_attack_cooldown)
 	visuals.modulate = Color(1.0, 0.65, 0.65)

@@ -1,0 +1,19 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scenes/game_root/game_root.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/arena/arena.tscn" id="2_arena"]
+[ext_resource type="PackedScene" path="res://scenes/ui/frontend/frontend_shell.tscn" id="3_frontend"]
+[ext_resource type="PackedScene" path="res://scenes/ui/codex/codex_panel.tscn" id="4_codex"]
+
+[node name="GameRoot" type="Node"]
+script = ExtResource("1_script")
+
+[node name="Arena" parent="." instance=ExtResource("2_arena")]
+externally_managed_frontend = true
+
+[node name="FrontendLayer" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="FrontendShell" parent="FrontendLayer" instance=ExtResource("3_frontend")]
+
+[node name="CodexPanel" parent="FrontendLayer" instance=ExtResource("4_codex")]

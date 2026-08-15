@@ -2,7 +2,6 @@
 
 [ext_resource type="PackedScene" uid="uid://b4e7q33xixefa" path="res://scenes/unit/enemy/enemy_chaser_slow.tscn" id="1_ksdef"]
 [ext_resource type="Resource" uid="uid://cxvbykjlw4gle" path="res://resources/units/enemies/stats_enemy_charger.tres" id="2_4i178"]
-[ext_resource type="Texture2D" uid="uid://emsi6ifyt0vf" path="res://assets/sprites/Enemies/Enemy_5.png" id="2_knpng"]
 [ext_resource type="Script" uid="uid://b7pooscks25b2" path="res://scenes/unit/enemy/charge_behavior.gd" id="4_4i178"]
 
 [sub_resource type="Animation" id="Animation_4i178"]
@@ -47,7 +46,6 @@ _data = {
 stats = ExtResource("2_4i178")
 
 [node name="Sprite" parent="Visuals" index="1"]
-texture = ExtResource("2_knpng")
 
 [node name="CollisionShape2D" parent="HurtboxComponent" index="0"]
 visible = false

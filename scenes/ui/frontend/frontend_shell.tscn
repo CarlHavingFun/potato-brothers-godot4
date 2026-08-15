@@ -1,0 +1,720 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scenes/ui/frontend/frontend_shell.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleButtonNormal"]
+bg_color = Color(0.055, 0.065, 0.055, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.36, 0.4, 0.28, 0.9)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+content_margin_left = 24.0
+content_margin_top = 12.0
+content_margin_right = 24.0
+content_margin_bottom = 12.0
+
+[sub_resource type="StyleBoxFlat" id="StyleButtonHover"]
+bg_color = Color(0.19, 0.22, 0.13, 0.97)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.78, 0.8, 0.38, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+content_margin_left = 24.0
+content_margin_top = 12.0
+content_margin_right = 24.0
+content_margin_bottom = 12.0
+
+[sub_resource type="StyleBoxFlat" id="StyleButtonPressed"]
+bg_color = Color(0.41, 0.24, 0.08, 0.98)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(1, 0.63, 0.22, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+content_margin_left = 24.0
+content_margin_top = 12.0
+content_margin_right = 24.0
+content_margin_bottom = 12.0
+
+[sub_resource type="StyleBoxFlat" id="StyleCard"]
+bg_color = Color(0.035, 0.04, 0.035, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.31, 0.34, 0.23, 0.95)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+content_margin_left = 24.0
+content_margin_top = 20.0
+content_margin_right = 24.0
+content_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxFlat" id="StyleHeader"]
+bg_color = Color(0.035, 0.04, 0.035, 0.82)
+border_width_bottom = 2
+border_color = Color(0.45, 0.47, 0.28, 0.8)
+
+[sub_resource type="Theme" id="ThemeFrontend"]
+Button/colors/font_color = Color(0.93, 0.9, 0.77, 1)
+Button/colors/font_disabled_color = Color(0.42, 0.43, 0.38, 0.75)
+Button/colors/font_hover_color = Color(1, 0.88, 0.48, 1)
+Button/colors/font_focus_color = Color(1, 0.88, 0.48, 1)
+Button/font_sizes/font_size = 24
+Button/styles/normal = SubResource("StyleButtonNormal")
+Button/styles/hover = SubResource("StyleButtonHover")
+Button/styles/focus = SubResource("StyleButtonHover")
+Button/styles/pressed = SubResource("StyleButtonPressed")
+Button/styles/disabled = SubResource("StyleButtonNormal")
+Label/colors/font_color = Color(0.93, 0.9, 0.77, 1)
+Label/font_sizes/font_size = 24
+OptionButton/colors/font_color = Color(0.93, 0.9, 0.77, 1)
+OptionButton/font_sizes/font_size = 22
+OptionButton/styles/normal = SubResource("StyleButtonNormal")
+OptionButton/styles/hover = SubResource("StyleButtonHover")
+OptionButton/styles/focus = SubResource("StyleButtonHover")
+Panel/styles/panel = SubResource("StyleCard")
+RichTextLabel/colors/default_color = Color(0.88, 0.86, 0.75, 1)
+RichTextLabel/font_sizes/normal_font_size = 22
+
+[node name="FrontendShell" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = SubResource("ThemeFrontend")
+script = ExtResource("1_script")
+
+[node name="Background" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Shade" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.018, 0.022, 0.018, 0.38)
+
+[node name="Pages" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="DeviceHint" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -470.0
+offset_top = -54.0
+offset_right = -28.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.65, 0.75, 0.75, 0.9)
+theme_override_font_sizes/font_size = 20
+text = "Enter 确认  ·  Esc 返回"
+horizontal_alignment = 2
+
+[node name="TitlePage" type="Control" parent="Pages"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="SafeArea" type="MarginContainer" parent="Pages/TitlePage"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 88
+theme_override_constants/margin_top = 64
+theme_override_constants/margin_right = 88
+theme_override_constants/margin_bottom = 54
+
+[node name="Layout" type="VBoxContainer" parent="Pages/TitlePage/SafeArea"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Logo" type="VBoxContainer" parent="Pages/TitlePage/SafeArea/Layout"]
+layout_mode = 2
+theme_override_constants/separation = -20
+
+[node name="Name" type="Label" parent="Pages/TitlePage/SafeArea/Layout/Logo"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.67, 1)
+theme_override_colors/font_shadow_color = Color(0.08, 0.035, 0.01, 0.9)
+theme_override_constants/shadow_offset_x = 6
+theme_override_constants/shadow_offset_y = 8
+theme_override_font_sizes/font_size = 112
+text = "GOBRO"
+
+[node name="Tagline" type="Label" parent="Pages/TitlePage/SafeArea/Layout/Logo"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.98, 0.55, 0.18, 1)
+theme_override_font_sizes/font_size = 28
+text = "根系失控 · 武器全开"
+
+[node name="Spacer" type="Control" parent="Pages/TitlePage/SafeArea/Layout"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+
+[node name="Menu" type="VBoxContainer" parent="Pages/TitlePage/SafeArea/Layout"]
+custom_minimum_size = Vector2(430, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_constants/separation = 12
+
+[node name="PrimaryButton" type="Button" parent="Pages/TitlePage/SafeArea/Layout/Menu"]
+custom_minimum_size = Vector2(430, 78)
+layout_mode = 2
+theme_override_font_sizes/font_size = 34
+text = "开始"
+alignment = 0
+
+[node name="NewGameButton" type="Button" parent="Pages/TitlePage/SafeArea/Layout/Menu"]
+custom_minimum_size = Vector2(430, 62)
+layout_mode = 2
+text = "新游戏"
+alignment = 0
+
+[node name="ProfileButton" type="Button" parent="Pages/TitlePage/SafeArea/Layout/Menu"]
+custom_minimum_size = Vector2(430, 62)
+layout_mode = 2
+text = "档案 1"
+alignment = 0
+
+[node name="CodexButton" type="Button" parent="Pages/TitlePage/SafeArea/Layout/Menu"]
+custom_minimum_size = Vector2(430, 62)
+layout_mode = 2
+text = "图鉴"
+alignment = 0
+
+[node name="SettingsButton" type="Button" parent="Pages/TitlePage/SafeArea/Layout/Menu"]
+custom_minimum_size = Vector2(430, 62)
+layout_mode = 2
+text = "设置"
+alignment = 0
+
+[node name="QuitButton" type="Button" parent="Pages/TitlePage/SafeArea/Layout/Menu"]
+custom_minimum_size = Vector2(430, 62)
+layout_mode = 2
+text = "退出"
+alignment = 0
+
+[node name="Version" type="Label" parent="Pages/TitlePage/SafeArea/Layout"]
+layout_mode = 2
+size_flags_vertical = 10
+theme_override_colors/font_color = Color(0.65, 0.65, 0.56, 1)
+theme_override_font_sizes/font_size = 18
+text = "GOBRO · CORE PARITY BUILD"
+
+[node name="ProfilePage" type="Control" parent="Pages"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Content" type="VBoxContainer" parent="Pages/ProfilePage"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 72.0
+offset_top = 42.0
+offset_right = -72.0
+offset_bottom = -56.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 28
+
+[node name="Header" type="HBoxContainer" parent="Pages/ProfilePage/Content"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="BackButton" type="Button" parent="Pages/ProfilePage/Content/Header"]
+custom_minimum_size = Vector2(120, 62)
+layout_mode = 2
+text = "返回"
+
+[node name="Title" type="Label" parent="Pages/ProfilePage/Content/Header"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = "选择档案"
+
+[node name="ProfileChoices" type="VBoxContainer" parent="Pages/ProfilePage/Content"]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 3
+theme_override_constants/separation = 18
+
+[node name="RepairNotice" type="Label" parent="Pages/ProfilePage/Content"]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.76, 0.31, 1)
+theme_override_font_sizes/font_size = 20
+text = "存档已自动修复"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="CharacterPage" type="Control" parent="Pages"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Content" type="VBoxContainer" parent="Pages/CharacterPage"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 54.0
+offset_top = 32.0
+offset_right = -54.0
+offset_bottom = -44.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+
+[node name="Header" type="HBoxContainer" parent="Pages/CharacterPage/Content"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="BackButton" type="Button" parent="Pages/CharacterPage/Content/Header"]
+custom_minimum_size = Vector2(120, 58)
+layout_mode = 2
+text = "返回"
+
+[node name="Title" type="Label" parent="Pages/CharacterPage/Content/Header"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 46
+text = "选择人物"
+
+[node name="Body" type="HBoxContainer" parent="Pages/CharacterPage/Content"]
+custom_minimum_size = Vector2(0, 520)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 24
+
+[node name="CharacterCard" type="Panel" parent="Pages/CharacterPage/Content/Body"]
+custom_minimum_size = Vector2(720, 0)
+layout_mode = 2
+
+[node name="Info" type="VBoxContainer" parent="Pages/CharacterPage/Content/Body/CharacterCard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 28.0
+offset_top = 22.0
+offset_right = -28.0
+offset_bottom = -22.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 14
+
+[node name="Icon" type="TextureRect" parent="Pages/CharacterPage/Content/Body/CharacterCard/Info"]
+custom_minimum_size = Vector2(220, 220)
+layout_mode = 2
+size_flags_horizontal = 4
+expand_mode = 3
+stretch_mode = 5
+
+[node name="Name" type="Label" parent="Pages/CharacterPage/Content/Body/CharacterCard/Info"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 38
+text = "请选择人物"
+horizontal_alignment = 1
+
+[node name="Traits" type="RichTextLabel" parent="Pages/CharacterPage/Content/Body/CharacterCard/Info"]
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+fit_content = true
+text = "从下方网格选择一名 GOBRO。"
+
+[node name="OptionsCard" type="Panel" parent="Pages/CharacterPage/Content/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Options" type="VBoxContainer" parent="Pages/CharacterPage/Content/Body/OptionsCard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 28.0
+offset_top = 28.0
+offset_right = -28.0
+offset_bottom = -28.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 18
+
+[node name="Title" type="Label" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "单局选项"
+
+[node name="AimLabel" type="Label" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
+layout_mode = 2
+text = "瞄准模式"
+
+[node name="AimMode" type="OptionButton" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
+custom_minimum_size = Vector2(380, 64)
+layout_mode = 2
+focus_mode = 2
+
+[node name="RunModeLabel" type="Label" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
+layout_mode = 2
+text = "游戏模式"
+
+[node name="RunMode" type="OptionButton" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
+custom_minimum_size = Vector2(380, 64)
+layout_mode = 2
+focus_mode = 2
+
+[node name="Record" type="Label" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.79, 0.59, 1)
+text = "最高通关：—"
+
+[node name="CharacterChoices" type="GridContainer" parent="Pages/CharacterPage/Content"]
+layout_mode = 2
+theme_override_constants/h_separation = 14
+theme_override_constants/v_separation = 14
+columns = 7
+
+[node name="WeaponPage" type="Control" parent="Pages"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Content" type="VBoxContainer" parent="Pages/WeaponPage"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 54.0
+offset_top = 32.0
+offset_right = -54.0
+offset_bottom = -44.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+
+[node name="Header" type="HBoxContainer" parent="Pages/WeaponPage/Content"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="BackButton" type="Button" parent="Pages/WeaponPage/Content/Header"]
+custom_minimum_size = Vector2(120, 58)
+layout_mode = 2
+text = "返回"
+
+[node name="Title" type="Label" parent="Pages/WeaponPage/Content/Header"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 46
+text = "选择初始武器"
+
+[node name="Body" type="HBoxContainer" parent="Pages/WeaponPage/Content"]
+custom_minimum_size = Vector2(0, 520)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 24
+
+[node name="CharacterCard" type="Panel" parent="Pages/WeaponPage/Content/Body"]
+custom_minimum_size = Vector2(650, 0)
+layout_mode = 2
+
+[node name="Info" type="VBoxContainer" parent="Pages/WeaponPage/Content/Body/CharacterCard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 28.0
+offset_top = 24.0
+offset_right = -28.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Icon" type="TextureRect" parent="Pages/WeaponPage/Content/Body/CharacterCard/Info"]
+custom_minimum_size = Vector2(210, 210)
+layout_mode = 2
+size_flags_horizontal = 4
+expand_mode = 3
+stretch_mode = 5
+
+[node name="Name" type="Label" parent="Pages/WeaponPage/Content/Body/CharacterCard/Info"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 34
+horizontal_alignment = 1
+
+[node name="Traits" type="RichTextLabel" parent="Pages/WeaponPage/Content/Body/CharacterCard/Info"]
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+
+[node name="WeaponCard" type="Panel" parent="Pages/WeaponPage/Content/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Info" type="VBoxContainer" parent="Pages/WeaponPage/Content/Body/WeaponCard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 28.0
+offset_top = 24.0
+offset_right = -28.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Icon" type="TextureRect" parent="Pages/WeaponPage/Content/Body/WeaponCard/Info"]
+custom_minimum_size = Vector2(210, 210)
+layout_mode = 2
+size_flags_horizontal = 4
+expand_mode = 3
+stretch_mode = 5
+
+[node name="Name" type="Label" parent="Pages/WeaponPage/Content/Body/WeaponCard/Info"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 34
+text = "请选择武器"
+horizontal_alignment = 1
+
+[node name="Stats" type="RichTextLabel" parent="Pages/WeaponPage/Content/Body/WeaponCard/Info"]
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+
+[node name="WeaponChoices" type="GridContainer" parent="Pages/WeaponPage/Content"]
+layout_mode = 2
+theme_override_constants/h_separation = 14
+theme_override_constants/v_separation = 14
+columns = 7
+
+[node name="DifficultyPage" type="Control" parent="Pages"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Content" type="VBoxContainer" parent="Pages/DifficultyPage"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 54.0
+offset_top = 32.0
+offset_right = -54.0
+offset_bottom = -44.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 22
+
+[node name="Header" type="HBoxContainer" parent="Pages/DifficultyPage/Content"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="BackButton" type="Button" parent="Pages/DifficultyPage/Content/Header"]
+custom_minimum_size = Vector2(120, 58)
+layout_mode = 2
+text = "返回"
+
+[node name="Title" type="Label" parent="Pages/DifficultyPage/Content/Header"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 46
+text = "选择难度 · 最终一览"
+
+[node name="Overview" type="HBoxContainer" parent="Pages/DifficultyPage/Content"]
+custom_minimum_size = Vector2(0, 620)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 20
+
+[node name="CharacterCard" type="Panel" parent="Pages/DifficultyPage/Content/Overview"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Name" type="Label" parent="Pages/DifficultyPage/Content/Overview/CharacterCard"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = 70.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 32
+horizontal_alignment = 1
+
+[node name="Icon" type="TextureRect" parent="Pages/DifficultyPage/Content/Overview/CharacterCard"]
+layout_mode = 1
+anchors_preset = 10
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -110.0
+offset_top = 86.0
+offset_right = 110.0
+offset_bottom = 306.0
+grow_horizontal = 2
+expand_mode = 3
+stretch_mode = 5
+
+[node name="Traits" type="RichTextLabel" parent="Pages/DifficultyPage/Content/Overview/CharacterCard"]
+layout_mode = 1
+anchors_preset = 12
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -270.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 0
+bbcode_enabled = true
+
+[node name="WeaponCard" type="Panel" parent="Pages/DifficultyPage/Content/Overview"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Name" type="Label" parent="Pages/DifficultyPage/Content/Overview/WeaponCard"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = 70.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 32
+horizontal_alignment = 1
+
+[node name="Icon" type="TextureRect" parent="Pages/DifficultyPage/Content/Overview/WeaponCard"]
+layout_mode = 1
+anchors_preset = 10
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -110.0
+offset_top = 86.0
+offset_right = 110.0
+offset_bottom = 306.0
+grow_horizontal = 2
+expand_mode = 3
+stretch_mode = 5
+
+[node name="Stats" type="RichTextLabel" parent="Pages/DifficultyPage/Content/Overview/WeaponCard"]
+layout_mode = 1
+anchors_preset = 12
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -270.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 0
+bbcode_enabled = true
+
+[node name="DifficultyCard" type="Panel" parent="Pages/DifficultyPage/Content/Overview"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Title" type="Label" parent="Pages/DifficultyPage/Content/Overview/DifficultyCard"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = 70.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 32
+text = "难度规则"
+horizontal_alignment = 1
+
+[node name="Rules" type="RichTextLabel" parent="Pages/DifficultyPage/Content/Overview/DifficultyCard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 28.0
+offset_top = 94.0
+offset_right = -28.0
+offset_bottom = -28.0
+grow_horizontal = 2
+grow_vertical = 2
+bbcode_enabled = true
+text = "选择底部难度即可进入第一波。"
+
+[node name="DifficultyChoices" type="HBoxContainer" parent="Pages/DifficultyPage/Content"]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[connection signal="pressed" from="Pages/TitlePage/SafeArea/Layout/Menu/PrimaryButton" to="." method="_on_primary_pressed"]
+[connection signal="pressed" from="Pages/TitlePage/SafeArea/Layout/Menu/NewGameButton" to="." method="_on_new_game_pressed"]
+[connection signal="pressed" from="Pages/TitlePage/SafeArea/Layout/Menu/ProfileButton" to="." method="_on_profiles_pressed"]
+[connection signal="pressed" from="Pages/TitlePage/SafeArea/Layout/Menu/CodexButton" to="." method="_on_codex_pressed"]
+[connection signal="pressed" from="Pages/TitlePage/SafeArea/Layout/Menu/SettingsButton" to="." method="_on_settings_pressed"]
+[connection signal="pressed" from="Pages/TitlePage/SafeArea/Layout/Menu/QuitButton" to="." method="_on_quit_pressed"]
+[connection signal="pressed" from="Pages/ProfilePage/Content/Header/BackButton" to="." method="go_back"]
+[connection signal="pressed" from="Pages/CharacterPage/Content/Header/BackButton" to="." method="go_back"]
+[connection signal="item_selected" from="Pages/CharacterPage/Content/Body/OptionsCard/Options/AimMode" to="." method="_on_aim_mode_selected"]
+[connection signal="item_selected" from="Pages/CharacterPage/Content/Body/OptionsCard/Options/RunMode" to="." method="_on_run_mode_selected"]
+[connection signal="pressed" from="Pages/WeaponPage/Content/Header/BackButton" to="." method="go_back"]
+[connection signal="pressed" from="Pages/DifficultyPage/Content/Header/BackButton" to="." method="go_back"]

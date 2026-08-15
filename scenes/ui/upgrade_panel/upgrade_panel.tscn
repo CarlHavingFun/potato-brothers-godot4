@@ -57,6 +57,24 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 24
 
+[node name="RefreshRow" type="HBoxContainer" parent="MarginContainer/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="RefreshButton" type="Button" parent="MarginContainer/HBoxContainer/VBoxContainer/RefreshRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 64)
+layout_mode = 2
+focus_mode = 2
+text = "刷新"
+
+[node name="StatusLabel" type="Label" parent="MarginContainer/HBoxContainer/VBoxContainer/RefreshRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(420, 64)
+layout_mode = 2
+vertical_alignment = 1
+
 [node name="UpgradeCard" parent="MarginContainer/HBoxContainer/VBoxContainer/ItemsContainer" instance=ExtResource("2_vxs30")]
 layout_mode = 2
 
@@ -73,3 +91,5 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
+
+[connection signal="pressed" from="MarginContainer/HBoxContainer/VBoxContainer/RefreshRow/RefreshButton" to="." method="_on_refresh_button_pressed"]

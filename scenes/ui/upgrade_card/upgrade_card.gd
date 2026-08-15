@@ -9,7 +9,12 @@ class_name UpgradeCard
 
 func _set_data(value: ItemUpgrade) -> void:
 	item_data = value
-	item_icon.texture = item_data.item_icon
+	var definition := Content.catalog.get_upgrade_definition_for_item(item_data)
+	item_icon.texture = Presentation.resolve_texture(
+		&"pickup",
+		definition.get_presentation_id(Content.catalog.pack_id) if definition != null else Content.catalog.get_item_stable_id(item_data),
+		item_data.item_icon
+	)
 	item_name.text = Content.catalog.get_upgrade_display_name(item_data)
 	item_description.text = Content.catalog.get_upgrade_description(item_data)
 	
@@ -17,7 +22,13 @@ func _set_data(value: ItemUpgrade) -> void:
 	add_theme_stylebox_override("panel", style)
 
 func _on_custom_buttom_pressed() -> void:
-	if item_data and is_instance_valid(Global.player):
+	if (
+		item_data
+		and is_instance_valid(Global.player)
+		and Global.current_run != null
+		and Global.current_run.phase == RunPhase.UPGRADE
+		and Global.current_run.queued_level_ups > 0
+	):
 		Global.apply_upgrade_item(item_data)
-		SoundManager.play_sound(SoundManager.Sound.UI)
+		GameplayCues.emit_cue(&"ui.confirm")
 		Global.on_upgrade_selected.emit()

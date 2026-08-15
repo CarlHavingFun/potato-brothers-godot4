@@ -4,7 +4,6 @@
 [ext_resource type="Script" uid="uid://cm81pfwdbi3ho" path="res://scenes/unit/players/player.gd" id="2_xa7el"]
 [ext_resource type="Resource" uid="uid://ily2pkpehjv4" path="res://resources/units/players/stats_player_well_rounded.tres" id="3_xa7el"]
 [ext_resource type="Script" uid="uid://c0mirjaxbhe0q" path="res://scenes/unit/players/trail.gd" id="4_0kki1"]
-[ext_resource type="Texture2D" uid="uid://cproxhccob85g" path="res://assets/sprites/Players/Player_1.png" id="5_ht2l1"]
 [ext_resource type="Script" uid="uid://3xhc8o3yr61w" path="res://scenes/unit/players/weapon_container.gd" id="6_viu20"]
 
 [sub_resource type="Curve" id="Curve_ht2l1"]
@@ -20,9 +19,6 @@ radius = 34.0
 [node name="PlayerWellRounded" instance=ExtResource("1_wkafa")]
 collision_mask = 130
 script = ExtResource("2_xa7el")
-dash_duration = 0.4
-dash_speed_multi = 2.7
-dash_cooldown = 1.5
 stats = ExtResource("3_xa7el")
 
 [node name="Trail" type="Line2D" parent="Visuals" index="0" node_paths=PackedStringArray("player")]
@@ -39,7 +35,6 @@ z_index = 1
 
 [node name="Sprite" parent="Visuals" index="2"]
 z_index = 1
-texture = ExtResource("5_ht2l1")
 
 [node name="CollisionShape2D" parent="." index="1"]
 z_index = 1
@@ -132,14 +127,17 @@ position = Vector2(-60, -45)
 [node name="DashTimer" type="Timer" parent="." index="4"]
 one_shot = true
 
-[node name="DashCooldownTimer" type="Timer" parent="." index="5"]
+[node name="DashInvulnerabilityTimer" type="Timer" parent="." index="5"]
 one_shot = true
 
-[node name="TrailTimer" type="Timer" parent="." index="6"]
+[node name="DashCooldownTimer" type="Timer" parent="." index="6"]
+one_shot = true
+
+[node name="TrailTimer" type="Timer" parent="." index="7"]
 unique_name_in_owner = true
 one_shot = true
 
-[node name="HurtboxComponent" parent="." index="7"]
+[node name="HurtboxComponent" parent="." index="8"]
 collision_layer = 32
 collision_mask = 4
 
@@ -157,5 +155,7 @@ wait_time = 3.0
 autostart = true
 
 [connection signal="timeout" from="DashTimer" to="." method="_on_dash_timer_timeout"]
+[connection signal="timeout" from="DashInvulnerabilityTimer" to="." method="_on_dash_invulnerability_timer_timeout"]
+[connection signal="timeout" from="DashCooldownTimer" to="." method="_on_dash_cooldown_timer_timeout"]
 [connection signal="timeout" from="TrailTimer" to="Visuals/Trail" method="_on_trail_timer_timeout"]
 [connection signal="timeout" from="HPRegenTimer" to="." method="_on_hp_regen_timer_timeout"]

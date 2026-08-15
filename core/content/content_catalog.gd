@@ -164,6 +164,10 @@ func get_item_stable_id(item: ItemBase) -> StringName:
 	return stable_id if not stable_id.is_empty() else item.get_stable_id()
 
 
+func get_item_definition(item: ItemBase) -> ContentDef:
+	return _all.get(get_item_stable_id(item)) as ContentDef if item != null else null
+
+
 func get_item_display_name(item: ItemBase) -> String:
 	if item == null:
 		return ""
@@ -243,6 +247,15 @@ func get_wave(content_id: StringName) -> WaveDef:
 
 func has(content_id: StringName) -> bool:
 	return _all.has(_normalize_query(content_id))
+
+
+func get_definition(content_id: StringName) -> ContentDef:
+	return _all.get(_normalize_query(content_id)) as ContentDef
+
+
+func get_tags_for_item(item: ItemBase) -> Array[StringName]:
+	var definition := get_definition(get_item_stable_id(item))
+	return definition.tags.duplicate() if definition != null else []
 
 
 func _index_definitions(

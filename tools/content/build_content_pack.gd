@@ -28,6 +28,12 @@ func _build(source_root: String, manifest_path: String, output_path: String, con
 
 	var source_files := PackedStringArray()
 	_collect_files(source_root.trim_suffix("/"), source_files)
+	var presentation_root := source_root.trim_suffix("/").path_join("assets") + "/"
+	var gameplay_files := PackedStringArray()
+	for virtual_path: String in source_files:
+		if not virtual_path.begins_with(presentation_root):
+			gameplay_files.append(virtual_path)
+	source_files = gameplay_files
 	var path_errors := validator.validate_virtual_paths(source_files, source_root.trim_suffix("/"))
 	if not path_errors.is_empty():
 		printerr("Content path validation failed:\n%s" % "\n".join(path_errors))

@@ -57,9 +57,12 @@ var run_director: RunDirector
 var shop_service: ShopService
 var reward_service: RewardService
 var combat_resolver: CombatResolver
+var gameplay_effects: GameplayEffectRuntime
+var gameplay_effect_executor := GameplayEffectExecutor.new()
 var meta_progress := MetaProgress.new()
-var save_provider: SaveProvider = LocalSaveProvider.new()
+var save_provider: SaveProvider = ProfileSaveProvider.new()
 var restored_run: RunState
+var _combat_checkpoint: RunState
 var aim_mode: int = AimMode.AUTO_TARGET
 var coins: int:
 	get:
@@ -93,6 +96,8 @@ func _init() -> void:
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	if save_provider is ProfileSaveProvider:
+		(save_provider as ProfileSaveProvider).migrate_legacy()
 	load_progress()
 
 
@@ -121,12 +126,14 @@ func toggle_fullscreen() -> bool:
 
 
 func begin_run(seed_value: int = 0, source_stats: UnitStats = null, starting_materials: int = STARTING_MATERIALS) -> RunState:
+	_combat_checkpoint = null
 	var player_stats: PlayerStats = TUTORIAL_STATS_ADAPTER.to_player_stats(source_stats)
 	current_run = RunState.new(seed_value, player_stats)
 	run_director = RunDirector.new(current_run)
 	shop_service = ShopService.new(seed_value)
 	reward_service = RewardService.new(seed_value)
 	combat_resolver = CombatResolver.new(seed_value)
+	gameplay_effects = GameplayEffectRuntime.new(seed_value)
 	current_run.materials = maxi(0, starting_materials)
 	player = null
 	equipped_weapons.clear()
@@ -154,7 +161,38 @@ func begin_selected_run(seed_value: int = 0) -> bool:
 		int(main_weapon_selected.item_tier) + 1,
 		main_weapon_selected.item_cost
 	)
-	return slot >= 0
+	if slot < 0:
+		return false
+	meta_progress.mark_discovered(current_run.character_id)
+	meta_progress.mark_discovered(current_run.starting_weapon_id)
+	meta_progress.unlock_character(current_run.character_id)
+	_register_definition_effects(main_character_selected)
+	_register_definition_effects(main_weapon_definition_selected)
+	dispatch_gameplay_event(GameplayEvent.Type.RUN_STARTED)
+	return true
+
+
+func resume_run_state(checkpoint: RunState) -> bool:
+	if checkpoint == null or checkpoint.character_id.is_empty() or checkpoint.starting_weapon_id.is_empty():
+		return false
+	current_run = RunState.from_dict(checkpoint.to_dict())
+	run_director = RunDirector.new(current_run)
+	shop_service = ShopService.new(current_run.random_seed)
+	reward_service = RewardService.new(current_run.random_seed)
+	combat_resolver = CombatResolver.new(current_run.random_seed)
+	gameplay_effects = GameplayEffectRuntime.new(current_run.random_seed)
+	_restore_rng_states()
+	player = null
+	equipped_weapons.clear()
+	restored_run = RunState.from_dict(current_run.to_dict())
+	_combat_checkpoint = (
+		RunState.from_dict(current_run.to_dict())
+		if current_run.phase == RunPhase.COMBAT
+		else null
+	)
+	materials_changed.emit(current_run.materials)
+	run_phase_changed.emit(current_run.phase)
+	return true
 
 
 func end_run() -> void:
@@ -163,6 +201,7 @@ func end_run() -> void:
 	shop_service = null
 	reward_service = null
 	combat_resolver = null
+	gameplay_effects = null
 	player = null
 	equipped_weapons.clear()
 	main_player_selected = null
@@ -191,6 +230,11 @@ func load_progress() -> bool:
 	meta_progress = MetaProgress.from_dict(meta_data if meta_data is Dictionary else {})
 	var run_data: Variant = payload.get("run_state", null)
 	restored_run = RunState.from_dict(run_data) if run_data is Dictionary else null
+	_combat_checkpoint = (
+		RunState.from_dict(restored_run.to_dict())
+		if restored_run != null and restored_run.phase == RunPhase.COMBAT
+		else null
+	)
 	apply_meta_settings()
 	return not payload.is_empty()
 
@@ -200,8 +244,120 @@ func save_progress(include_run: bool = true) -> Error:
 		return ERR_UNAVAILABLE
 	var payload := {"meta_progress": meta_progress.to_dict()}
 	if include_run and current_run != null:
-		payload["run_state"] = current_run.to_dict()
-	return save_provider.save_slot(payload)
+		var snapshot: RunState
+		if current_run.phase == RunPhase.COMBAT and _combat_checkpoint != null:
+			snapshot = RunState.from_dict(_combat_checkpoint.to_dict())
+		else:
+			_capture_rng_states()
+			snapshot = RunState.from_dict(current_run.to_dict())
+		payload["run_state"] = snapshot.to_dict()
+		var save_result := save_provider.save_slot(payload)
+		if save_result == OK:
+			restored_run = RunState.from_dict(snapshot.to_dict())
+			_combat_checkpoint = (
+				RunState.from_dict(snapshot.to_dict())
+				if snapshot.phase == RunPhase.COMBAT
+				else null
+			)
+		return save_result
+	var save_result := save_provider.save_slot(payload)
+	if save_result == OK:
+		restored_run = null
+		_combat_checkpoint = null
+	return save_result
+
+
+func save_combat_checkpoint() -> Error:
+	if current_run == null or current_run.phase != RunPhase.COMBAT:
+		return ERR_INVALID_DATA
+	if save_provider == null or not save_provider.is_available():
+		return ERR_UNAVAILABLE
+	_capture_rng_states()
+	var snapshot := RunState.from_dict(current_run.to_dict())
+	var payload := {
+		"meta_progress": meta_progress.to_dict(),
+		"run_state": snapshot.to_dict(),
+	}
+	var save_result := save_provider.save_slot(payload)
+	if save_result == OK:
+		restored_run = RunState.from_dict(snapshot.to_dict())
+		_combat_checkpoint = RunState.from_dict(snapshot.to_dict())
+	return save_result
+
+
+func _capture_rng_states() -> void:
+	if current_run == null:
+		return
+	var states: Dictionary = {}
+	if shop_service != null:
+		states["shop"] = shop_service.rng.state
+	if reward_service != null:
+		states["reward"] = reward_service.rng.state
+	if combat_resolver != null:
+		states["combat"] = combat_resolver.rng.state
+	if gameplay_effects != null:
+		states["effects"] = gameplay_effects.rng.state
+	current_run.rng_states = states
+
+
+func _restore_rng_states() -> void:
+	if current_run == null:
+		return
+	var states := current_run.rng_states
+	if shop_service != null and states.has("shop"):
+		shop_service.rng.state = int(states["shop"])
+	if reward_service != null and states.has("reward"):
+		reward_service.rng.state = int(states["reward"])
+	if combat_resolver != null and states.has("combat"):
+		combat_resolver.rng.state = int(states["combat"])
+	if gameplay_effects != null and states.has("effects"):
+		gameplay_effects.rng.state = int(states["effects"])
+
+
+func switch_profile(profile_id: int) -> bool:
+	var provider := save_provider as ProfileSaveProvider
+	if provider == null or profile_id not in range(1, ProfileStore.MAX_PROFILES + 1):
+		return false
+	if current_run != null:
+		save_progress(true)
+	if not provider.set_active_profile(profile_id):
+		return false
+	end_run()
+	restored_run = null
+	_combat_checkpoint = null
+	meta_progress = MetaProgress.new()
+	load_progress()
+	return true
+
+
+func active_profile_id() -> int:
+	var provider := save_provider as ProfileSaveProvider
+	return provider.active_profile_id if provider != null else 1
+
+
+func profile_summaries() -> Array[Dictionary]:
+	var provider := save_provider as ProfileSaveProvider
+	return provider.summaries() if provider != null else []
+
+
+func rename_profile(profile_id: int, profile_name: String) -> Error:
+	var provider := save_provider as ProfileSaveProvider
+	if provider == null or provider.store == null:
+		return ERR_UNAVAILABLE
+	return provider.store.rename_profile(profile_id, profile_name)
+
+
+func delete_profile(profile_id: int) -> Error:
+	var provider := save_provider as ProfileSaveProvider
+	if provider == null or provider.store == null:
+		return ERR_UNAVAILABLE
+	var result := provider.store.delete_profile(profile_id)
+	if result == OK and profile_id == provider.active_profile_id:
+		end_run()
+		restored_run = null
+		_combat_checkpoint = null
+		meta_progress = MetaProgress.new()
+	return result
 
 
 func record_victory() -> bool:
@@ -210,6 +366,47 @@ func record_victory() -> bool:
 	var unlocked := meta_progress.record_victory(current_run.character_id, current_run.difficulty)
 	save_progress(false)
 	return unlocked
+
+
+func record_standard_victory_once() -> bool:
+	if current_run == null or current_run.standard_victory_recorded:
+		return false
+	current_run.standard_victory_recorded = true
+	meta_progress.record_victory(current_run.character_id, current_run.difficulty)
+	return true
+
+
+func record_endless_progress() -> bool:
+	if current_run == null or current_run.run_mode != RunMode.ENDLESS:
+		return false
+	return meta_progress.record_endless_wave(
+		current_run.character_id,
+		current_run.difficulty,
+		maxi(current_run.wave, current_run.highest_wave_reached)
+	)
+
+
+func record_run_summary(victory: bool) -> void:
+	if current_run == null:
+		return
+	meta_progress.recent_run_summary = {
+		"victory": victory,
+		"standard_victory_recorded": current_run.standard_victory_recorded,
+		"run_mode": current_run.run_mode,
+		"character_id": String(current_run.character_id),
+		"weapon_id": String(current_run.starting_weapon_id),
+		"difficulty": current_run.difficulty,
+		"wave": current_run.wave,
+		"highest_wave_reached": current_run.highest_wave_reached,
+		"kills": current_run.kill_count,
+		"boss_kills": current_run.boss_kill_count,
+		"elapsed_seconds": current_run.elapsed_seconds,
+		"materials": current_run.materials,
+	}
+
+
+func discover_content(content_id: StringName) -> bool:
+	return meta_progress.mark_discovered(content_id)
 
 
 func update_product_settings(
@@ -235,6 +432,8 @@ func update_product_settings(
 
 func apply_meta_settings() -> void:
 	aim_mode = meta_progress.aim_mode
+	if not meta_progress.input_bindings.is_empty():
+		InputRemapService.new().apply_actions(meta_progress.input_bindings)
 	TranslationServer.set_locale(meta_progress.locale)
 	_set_bus_linear_volume(&"Music", meta_progress.music_volume)
 	_set_bus_linear_volume(&"SFX", meta_progress.sfx_volume)
@@ -319,6 +518,23 @@ func try_purchase_item(item: ItemBase) -> int:
 		shop_service = ShopService.new(current_run.random_seed)
 	var result := shop_service.try_purchase(current_run, item, Content.catalog)
 	if result == InventoryService.OK:
+		meta_progress.mark_discovered(Content.catalog.get_item_stable_id(item))
+		rebuild_run_effects()
+		materials_changed.emit(current_run.materials)
+	return result
+
+
+func try_purchase_shop_slot(slot_index: int) -> int:
+	_ensure_run()
+	if shop_service == null:
+		shop_service = ShopService.new(current_run.random_seed)
+	var item := shop_service.resolve_slot_offer(current_run, slot_index, Content.catalog)
+	if item == null:
+		return InventoryService.INVALID_REQUEST
+	var result := shop_service.try_purchase_offer(current_run, slot_index, Content.catalog)
+	if result == InventoryService.OK:
+		meta_progress.mark_discovered(Content.catalog.get_item_stable_id(item))
+		rebuild_run_effects()
 		materials_changed.emit(current_run.materials)
 	return result
 
@@ -330,6 +546,7 @@ func try_claim_reward_item(item: ItemBase) -> int:
 		reward_service = RewardService.new(current_run.random_seed)
 	var result := reward_service.try_claim_item(current_run, item, Content.catalog)
 	if result == InventoryService.OK:
+		rebuild_run_effects()
 		materials_changed.emit(current_run.materials)
 	return result
 
@@ -350,7 +567,10 @@ func try_combine_weapon(weapon: ItemWeapon) -> int:
 		return InventoryService.INVALID_REQUEST
 	if shop_service == null:
 		shop_service = ShopService.new(current_run.random_seed)
-	return shop_service.try_combine_item(current_run, weapon, Content.catalog)
+	var result := shop_service.try_combine_item(current_run, weapon, Content.catalog)
+	if result == InventoryService.OK:
+		rebuild_run_effects()
+	return result
 
 
 func try_sell_weapon(weapon: ItemWeapon) -> int:
@@ -360,6 +580,7 @@ func try_sell_weapon(weapon: ItemWeapon) -> int:
 		shop_service = ShopService.new(current_run.random_seed)
 	var result := shop_service.try_sell_item(current_run, weapon, Content.catalog)
 	if result == InventoryService.OK:
+		rebuild_run_effects()
 		materials_changed.emit(current_run.materials)
 	return result
 
@@ -380,6 +601,10 @@ func apply_passive_item(item: ItemPassive) -> bool:
 	if current_run == null or item == null:
 		return false
 	var definition := Content.catalog.get_passive_definition_for_item(item)
+	if definition != null and current_run.inventory.passive_count(
+		definition.get_stable_id(Content.catalog.pack_id)
+	) == 0:
+		_register_definition_effects(definition)
 	if definition == null or definition.stat_modifiers.is_empty():
 		item.apply_passive()
 		return true
@@ -394,6 +619,74 @@ func apply_passive_item(item: ItemPassive) -> bool:
 		_sync_runtime_stat(stat_id)
 		applied = true
 	return applied
+
+
+func dispatch_gameplay_event(
+	event_type: int,
+	values: Dictionary = {},
+	event_tags: Array[StringName] = [],
+	source: Object = null,
+	target: Object = null,
+	source_tags: Array[StringName] = [],
+	target_tags: Array[StringName] = []
+) -> EffectResult:
+	if gameplay_effects == null:
+		gameplay_effects = GameplayEffectRuntime.new(current_run.random_seed if current_run != null else 0)
+	var context := GameplayEventContext.new(event_type)
+	context.values = values.duplicate(true)
+	context.tags = event_tags.duplicate()
+	context.source = source
+	context.target = target
+	context.source_tags = source_tags.duplicate()
+	context.target_tags = target_tags.duplicate()
+	var result := gameplay_effects.dispatch(context)
+	if current_run != null:
+		for raw_stat_id: Variant in result.stat_changes:
+			var stat_id := int(raw_stat_id)
+			if StatId.is_valid(stat_id):
+				current_run.player_stats.add_stat(stat_id, float(result.stat_changes[raw_stat_id]))
+				_sync_runtime_stat(stat_id)
+	if result.healing > 0.0 and is_instance_valid(player):
+		player.health_component.heal(result.healing)
+		on_create_heal_text.emit(player, result.healing)
+	gameplay_effect_executor.apply_result(result, context, get_tree())
+	return result
+
+
+func rebuild_run_effects() -> void:
+	var previous_rng_state := (
+		gameplay_effects.rng.state
+		if gameplay_effects != null
+		else int(current_run.rng_states.get("effects", 0)) if current_run != null else 0
+	)
+	gameplay_effects = GameplayEffectRuntime.new(current_run.random_seed if current_run != null else 0)
+	_register_definition_effects(main_character_selected)
+	if main_character_selected != null and main_character_selected.rules != null:
+		gameplay_effects.register_effects(main_character_selected.rules.permanent_effects)
+	if current_run == null:
+		return
+	var inventory_data := current_run.inventory.to_dict()
+	var weapons: Variant = inventory_data.get("weapons", [])
+	if weapons is Array:
+		for entry: Variant in weapons:
+			if entry is Dictionary:
+				_register_definition_effects(Content.catalog.get_weapon(
+					StringName(str(entry.get("weapon_id", "")))
+				))
+	var passives: Variant = inventory_data.get("passives", {})
+	if passives is Dictionary:
+		for raw_id: Variant in passives:
+			_register_definition_effects(
+				Content.catalog.get_passive(StringName(str(raw_id))),
+				maxi(1, int(passives[raw_id]))
+			)
+	if previous_rng_state != 0:
+		gameplay_effects.rng.state = previous_rng_state
+
+
+func _register_definition_effects(definition: ContentDef, stack_count: int = 1) -> void:
+	if definition != null and gameplay_effects != null:
+		gameplay_effects.register_effects(definition.effects, stack_count)
 
 
 func apply_upgrade_item(item: ItemUpgrade) -> bool:
@@ -507,10 +800,51 @@ func calculate_tier_probability(current_wave: int, config: Dictionary) -> Array[
 	)
 
 
-func select_items_for_offer(item_pool: Array, current_wave: int, config: Dictionary) -> Array:
+func select_items_for_offer(
+	item_pool: Array,
+	current_wave: int,
+	config: Dictionary,
+	requested_count: int = 4
+) -> Array:
 	_ensure_run()
 	if shop_service == null:
 		shop_service = ShopService.new(current_run.random_seed)
 	return shop_service.select_offers(
-		item_pool, current_wave, get_stat_value("luck"), config, 4
+		item_pool,
+		current_wave,
+		get_stat_value("luck"),
+		config,
+		requested_count,
+		Content.catalog,
+		_owned_build_tags()
 	)
+
+
+func _owned_build_tags() -> Array[StringName]:
+	var result: Array[StringName] = []
+	for definition: ContentDef in [main_character_selected, main_weapon_definition_selected]:
+		if definition == null:
+			continue
+		for tag: StringName in definition.tags:
+			if tag not in result:
+				result.append(tag)
+	if current_run == null:
+		return result
+	for tag: StringName in current_run.shop_bias_tags:
+		if tag not in result:
+			result.append(tag)
+	var inventory_data := current_run.inventory.to_dict()
+	for weapon_slot: Dictionary in inventory_data.get("weapons", []):
+		var weapon_def := Content.catalog.get_weapon(StringName(weapon_slot.get("weapon_id", "")))
+		if weapon_def != null:
+			for tag: StringName in weapon_def.tags:
+				if tag not in result:
+					result.append(tag)
+	var passive_counts: Dictionary = inventory_data.get("passives", {})
+	for passive_key: Variant in passive_counts:
+		var passive_def := Content.catalog.get_passive(StringName(str(passive_key)))
+		if passive_def != null:
+			for tag: StringName in passive_def.tags:
+				if tag not in result:
+					result.append(tag)
+	return result

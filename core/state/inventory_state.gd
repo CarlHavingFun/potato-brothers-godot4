@@ -7,6 +7,7 @@ const MAX_WEAPON_TIER := 4
 
 var _weapons: Array[Dictionary] = []
 var _passives: Dictionary = {}
+var weapon_slot_limit := MAX_WEAPON_SLOTS
 
 
 func weapon_count() -> int:
@@ -14,7 +15,7 @@ func weapon_count() -> int:
 
 
 func has_weapon_slot() -> bool:
-	return weapon_count() < MAX_WEAPON_SLOTS
+	return weapon_count() < clampi(weapon_slot_limit, 1, MAX_WEAPON_SLOTS)
 
 
 func add_weapon(weapon_id: StringName, tier: int, paid_price: int = 0) -> int:
@@ -70,11 +71,15 @@ func to_dict() -> Dictionary:
 	return {
 		"weapons": serialized_weapons,
 		"passives": _passives.duplicate(true),
+		"weapon_slot_limit": weapon_slot_limit,
 	}
 
 
 static func from_dict(data: Dictionary) -> InventoryState:
 	var result := InventoryState.new()
+	result.weapon_slot_limit = clampi(
+		int(data.get("weapon_slot_limit", MAX_WEAPON_SLOTS)), 1, MAX_WEAPON_SLOTS
+	)
 	var raw_weapons: Variant = data.get("weapons", [])
 	if raw_weapons is Array:
 		for raw_weapon: Variant in raw_weapons:

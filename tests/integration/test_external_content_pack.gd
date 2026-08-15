@@ -61,4 +61,6 @@ func test_generated_default_pck_contains_only_restricted_content_files() -> void
 	for path: String in files:
 		var allowed := path.begins_with("res://content_packs/default/") or path.begins_with("res://.godot/imported/")
 		assert_bool(allowed).override_failure_message(path).is_true()
+		assert_bool(path.contains("/assets/")).override_failure_message(path).is_false()
+		assert_bool(path.begins_with("res://.godot/imported/")).override_failure_message(path).is_false()
 		assert_bool(ContentValidator.FORBIDDEN_EXTENSIONS.has(path.get_extension().to_lower())).override_failure_message(path).is_false()

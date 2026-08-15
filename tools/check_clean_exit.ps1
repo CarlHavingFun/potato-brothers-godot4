@@ -10,6 +10,10 @@ param(
 
 $ErrorActionPreference = "Continue"
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$consoleBinary = Join-Path (Split-Path -Parent $GodotBinary) (([System.IO.Path]::GetFileNameWithoutExtension($GodotBinary)) + "_console.exe")
+if (-not $GodotBinary.EndsWith("_console.exe", [System.StringComparison]::OrdinalIgnoreCase) -and (Test-Path -LiteralPath $consoleBinary)) {
+	$GodotBinary = $consoleBinary
+}
 $arguments = @("--headless", "--path", $projectRoot, "--quit", "--verbose")
 if ($Mode -eq "Editor") {
 	$arguments = @("--headless", "--editor", "--path", $projectRoot, "--quit", "--verbose")

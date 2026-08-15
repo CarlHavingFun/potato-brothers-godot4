@@ -1,0 +1,24 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/arena/ecology/ecology_pickup.gd" id="1_pickup"]
+
+[sub_resource type="CircleShape2D" id="Circle_pickup"]
+radius = 34.0
+
+[node name="EcologyPickup" type="Area2D"]
+collision_layer = 64
+collision_mask = 1
+script = ExtResource("1_pickup")
+
+[node name="Glow" type="PointLight2D" parent="."]
+energy = 0.35
+texture_scale = 0.5
+
+[node name="Body" type="Polygon2D" parent="."]
+polygon = PackedVector2Array(0, -24, 21, -4, 13, 23, -13, 23, -21, -4)
+color = Color(0.43, 0.85, 0.45, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("Circle_pickup")
+
+[connection signal="body_entered" from="." to="." method="_on_body_entered"]

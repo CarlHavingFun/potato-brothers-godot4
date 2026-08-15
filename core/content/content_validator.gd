@@ -62,6 +62,95 @@ func validate_virtual_paths(paths: PackedStringArray, allowed_root: String) -> P
 	return errors
 
 
+func validate_release_matrix(pack: ContentPackDef) -> PackedStringArray:
+	var errors := PackedStringArray()
+	if pack == null:
+		errors.append("release pack is required")
+		return errors
+	var expected_counts := {
+		"characters": 12,
+		"weapons": 24,
+		"passives": 60,
+		"enemies": 22,
+		"waves": 20,
+	}
+	var actual_counts := {
+		"characters": pack.characters.size(),
+		"weapons": pack.weapons.size(),
+		"passives": pack.passives.size(),
+		"enemies": pack.enemies.size(),
+		"waves": pack.waves.size(),
+	}
+	for key: String in expected_counts:
+		if actual_counts[key] != expected_counts[key]:
+			errors.append("release %s requires %d entries, got %d" % [
+				key, expected_counts[key], actual_counts[key]
+			])
+	for definition: ContentDef in pack.characters + pack.weapons + pack.passives + pack.enemies:
+		if definition != null and definition.tags.is_empty():
+			errors.append("%s requires at least one gameplay tag" % definition.content_id)
+	for character: CharacterDef in pack.characters:
+		if character != null and character.stats == null:
+			errors.append("%s requires stats" % character.content_id)
+		elif character != null and character.rules == null:
+			errors.append("%s requires CharacterRuleDef" % character.content_id)
+	for weapon: WeaponDef in pack.weapons:
+		if weapon == null:
+			continue
+		if weapon.attack_pattern == null:
+			errors.append("%s requires AttackPatternDef" % weapon.content_id)
+		for tier_index in weapon.tiers.size():
+			var tier := weapon.tiers[tier_index]
+			if tier == null or tier.scene == null:
+				errors.append("%s tier %d requires a mechanical scene" % [weapon.content_id, tier_index + 1])
+			elif tier_index < weapon.tiers.size() - 1 and tier.upgrade_to != weapon.tiers[tier_index + 1]:
+				errors.append("%s tier %d has a broken upgrade chain" % [weapon.content_id, tier_index + 1])
+	for passive: PassiveItemDef in pack.passives:
+		if passive != null and passive.item == null:
+			errors.append("%s requires an item definition" % passive.content_id)
+	for enemy: EnemyDef in pack.enemies:
+		if enemy != null and enemy.behavior == null:
+			errors.append("%s requires EnemyBehaviorDef" % enemy.content_id)
+	for difficulty: DifficultyDef in pack.difficulties:
+		if difficulty != null and difficulty.mutator == null:
+			errors.append("difficulty %d requires DifficultyMutatorDef" % difficulty.level)
+	var tag_targets := {
+		&"normal": 18,
+		&"elite": 2,
+		&"boss": 2,
+	}
+	for target_tag: StringName in tag_targets:
+		var count := 0
+		for enemy: EnemyDef in pack.enemies:
+			if enemy != null and target_tag in enemy.tags:
+				count += 1
+		if count != tag_targets[target_tag]:
+			errors.append("enemy tag %s requires %d entries, got %d" % [
+				target_tag, tag_targets[target_tag], count
+			])
+	_validate_release_translation_names(pack, errors)
+	return errors
+
+
+func _validate_release_translation_names(pack: ContentPackDef, errors: PackedStringArray) -> void:
+	var translation_sources: Array[String] = []
+	for path: String in pack.translation_paths:
+		if FileAccess.file_exists(path):
+			translation_sources.append(FileAccess.get_file_as_string(path))
+	if translation_sources.size() < 2:
+		errors.append("release pack requires English and Simplified Chinese translations")
+		return
+	for definition: ContentDef in pack.characters + pack.weapons + pack.passives + pack.enemies:
+		if definition == null or definition.display_name_key.is_empty():
+			continue
+		var needle := "msgid \"%s\"" % definition.display_name_key
+		for source_index in translation_sources.size():
+			if not translation_sources[source_index].contains(needle):
+				errors.append("missing release translation %s in source %d" % [
+					definition.display_name_key, source_index
+				])
+
+
 func _validate_metadata(pack: ContentPackDef, errors: PackedStringArray) -> void:
 	var pack_id_pattern := RegEx.new()
 	pack_id_pattern.compile("^[a-z0-9][a-z0-9_.-]*$")

@@ -34,7 +34,9 @@ func load_players() -> void:
 		card.button_group = player_button_group
 		card.pressed.connect(_on_player_selected.bind(character, card))
 		player_container.add_child(card)
-		card.set_icon(character.stats.icon)
+		card.set_icon(Presentation.resolve_texture(
+			&"character", character.get_presentation_id(Content.catalog.pack_id), character.stats.icon
+		))
 
 
 func load_weapons() -> void:
@@ -50,7 +52,9 @@ func load_weapons() -> void:
 		card.button_group = weapon_button_group
 		card.pressed.connect(_on_weapon_selected.bind(definition, card))
 		weapon_container.add_child(card)
-		card.icon = weapon.item_icon
+		card.icon = Presentation.resolve_texture(
+			&"weapon", definition.get_presentation_id(Content.catalog.pack_id), weapon.item_icon
+		)
 
 
 func show_player_info(value: bool) -> void:
@@ -86,7 +90,9 @@ func _on_player_selected(character: CharacterDef, card: SelectionCard = null) ->
 	var player := character.stats
 	show_player_info(true)
 	
-	player_icon.texture = player.icon
+	player_icon.texture = Presentation.resolve_texture(
+		&"character", character.get_presentation_id(Content.catalog.pack_id), player.icon
+	)
 	player_name.text = Content.catalog.get_character_display_name(character)
 	player_description.text = "[code]Health: [color=green]%s[/color]\nDamage: [color=green]%s[/color]\nSpeed: [color=green]%s[/color]\nLuck: [color=green]%s[/color]\nBlock Chance: [color=green]%s%%[/color][/code]" % [player.health, player.damage, player.speed, player.luck, player.block_chance]
 
@@ -99,7 +105,7 @@ func _on_weapon_selected(weapon: WeaponDef, card: SelectionCard = null) -> void:
 
 
 func _on_continue_buttom_pressed() -> void:
-	SoundManager.play_sound(SoundManager.Sound.UI)
+	GameplayCues.emit_cue(&"ui.confirm")
 	
 	if not Global.main_player_selected or not Global.main_weapon_selected:
 		return

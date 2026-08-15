@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://1soxcbowsco2" path="res://scenes/projectiles/projectile.gd" id="1_71gtn"]
 [ext_resource type="PackedScene" uid="uid://3t6iqc1kav5h" path="res://scenes/components/hitbox_component.tscn" id="1_u4710"]
-[ext_resource type="Texture2D" uid="uid://45dwbyxmy4wd" path="res://assets/sprites/Projectiles/Projectile_2.png" id="2_yt6ye"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_reban"]
 radius = 16.0312
@@ -13,7 +12,6 @@ hitbox = NodePath("HitboxComponent")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 scale = Vector2(0.6, 0.6)
-texture = ExtResource("2_yt6ye")
 
 [node name="HitboxComponent" parent="." instance=ExtResource("1_u4710")]
 collision_layer = 16

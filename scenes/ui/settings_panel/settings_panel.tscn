@@ -90,6 +90,18 @@ text = "ui.settings.language"
 unique_name_in_owner = true
 layout_mode = 2
 
+[node name="KeybindLabel" type="Label" parent="Center/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "按键重映射"
+
+[node name="KeybindGrid" type="GridContainer" parent="Center/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 22
+theme_override_constants/v_separation = 6
+columns = 2
+
 [node name="Buttons" type="HBoxContainer" parent="Center/Content"]
 layout_mode = 2
 theme_override_constants/separation = 20

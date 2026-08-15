@@ -7,11 +7,11 @@ func set_icon(texture: Texture2D) -> void:
 
 
 func _on_pressed() -> void:
-	SoundManager.play_sound(SoundManager.Sound.UI)
+	GameplayCues.emit_cue(&"ui.confirm")
 
 
 func _on_mouse_entered() -> void:
-	SoundManager.play_sound(SoundManager.Sound.UI)
+	GameplayCues.emit_cue(&"ui.hover")
 
 
 func _on_toggled(is_selected: bool) -> void:

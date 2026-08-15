@@ -25,3 +25,32 @@ func test_purchased_weapon_projects_to_ui_without_requiring_a_runtime_player() -
 
 	assert_int(panel.weapons_container.get_child_count()).is_equal(1)
 	assert_int(Global.equipped_weapons.size()).is_equal(1)
+
+
+func test_each_shop_card_controls_only_its_own_lock() -> void:
+	panel.load_shop(2)
+	assert_int(panel.items_container.get_child_count()).is_equal(RunState.SHOP_SLOT_COUNT)
+	var second_card := panel.items_container.get_child(1) as ShopCard
+	assert_object(second_card).is_not_null()
+
+	second_card.lock_button.button_pressed = true
+	second_card.lock_button.toggled.emit(true)
+
+	assert_bool(Global.current_run.shop_slots[0].locked).is_false()
+	assert_bool(Global.current_run.shop_slots[1].locked).is_true()
+	assert_bool(Global.current_run.shop_slots[2].locked).is_false()
+	assert_bool(Global.current_run.shop_slots[3].locked).is_false()
+
+
+func test_refresh_keeps_locked_card_in_the_same_slot() -> void:
+	panel.load_shop(3)
+	var locked_id := Global.current_run.shop_slots[2].offer_id
+	var third_card := panel.items_container.get_child(2) as ShopCard
+	third_card.lock_button.button_pressed = true
+	third_card.lock_button.toggled.emit(true)
+
+	panel._on_refresh_button_pressed()
+
+	assert_str(String(Global.current_run.shop_slots[2].offer_id)).is_equal(String(locked_id))
+	assert_bool(Global.current_run.shop_slots[2].locked).is_true()
+	assert_int(panel.items_container.get_child_count()).is_equal(RunState.SHOP_SLOT_COUNT)

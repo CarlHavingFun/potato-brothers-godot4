@@ -16,13 +16,24 @@ func show_result(run_state: RunState, victory: bool) -> void:
 	if run_state == null:
 		details_label.text = "No run data"
 		return
-	details_label.text = tr("ui.settlement.details") % [
-		String(run_state.character_id),
-		run_state.difficulty,
-		run_state.wave,
-		run_state.materials,
-		_format_time(run_state.elapsed_seconds),
-	]
+	if run_state.run_mode == RunMode.ENDLESS:
+		details_label.text = tr("ui.settlement.endless_details") % [
+			String(run_state.character_id),
+			run_state.difficulty,
+			maxi(run_state.wave, run_state.highest_wave_reached),
+			run_state.kill_count,
+			run_state.boss_kill_count,
+			run_state.materials,
+			_format_time(run_state.elapsed_seconds),
+		]
+	else:
+		details_label.text = tr("ui.settlement.standard_details") % [
+			String(run_state.character_id),
+			run_state.difficulty,
+			run_state.wave,
+			run_state.materials,
+			_format_time(run_state.elapsed_seconds),
+		]
 
 
 func _format_time(seconds: float) -> String:

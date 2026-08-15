@@ -1,0 +1,146 @@
+[gd_resource type="Resource" script_class="SkinPackDef" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://core/presentation/skin_pack_def.gd" id="1_skin"]
+[ext_resource type="Texture2D" path="res://icon.svg" id="2_logo"]
+[ext_resource type="Texture2D" path="res://assets/ui/gobro_menu_background.png" id="3_bg"]
+[ext_resource type="FontFile" path="res://assets/font/Bake Soda.otf" id="4_font"]
+
+[resource]
+script = ExtResource("1_skin")
+skin_id = &"dev_placeholder"
+product_name = "GOBRO Development"
+logo = ExtResource("2_logo")
+background = ExtResource("3_bg")
+font = ExtResource("4_font")
+translation_paths = PackedStringArray("res://content_packs/default/i18n/game.zh_CN.po", "res://content_packs/default/i18n/game.en.po")
+accent_color = Color(0.392, 0.835, 0.553, 1)
+asset_tables = {
+&"character": {
+&"character.almighty": "res://assets/sprites/Players/Player_1.png",
+&"character.bloodbound": "res://assets/sprites/Players/Player_2.png",
+&"character.brawler": "res://assets/sprites/Players/Player_2.png",
+&"character.bunny": "res://assets/sprites/Players/Player_4.png",
+&"character.crazy": "res://assets/sprites/Players/Player_3}.png",
+&"character.dash_raider": "res://assets/sprites/Players/Player_3}.png",
+&"character.ember_sage": "res://assets/sprites/Players/Player_4.png",
+&"character.glass_cannon": "res://assets/sprites/Players/Player_3}.png",
+&"character.knight": "res://assets/sprites/Players/Player_5.png",
+&"character.scrap_broker": "res://assets/sprites/Players/Player_1.png",
+&"character.scrapwright": "res://assets/sprites/Players/Player_1.png",
+&"character.well_rounded": "res://assets/sprites/Players/Player_1.png"
+},
+&"enemy": {
+&"enemy.blink_rat": "res://assets/sprites/Enemies/Enemy_5.png",
+&"enemy.brood_pod": "res://assets/sprites/Enemies/Enemy_1.png",
+&"enemy.bulwark": "res://assets/sprites/Enemies/Enemy_1.png",
+&"enemy.charger": "res://assets/sprites/Enemies/Enemy_5.png",
+&"enemy.chaser_fast": "res://assets/sprites/Enemies/Enemy_3.png",
+&"enemy.chaser_mid": "res://assets/sprites/Enemies/Enemy_2.png",
+&"enemy.chaser_slow": "res://assets/sprites/Enemies/Enemy_1.png",
+&"enemy.dapan": "res://assets/sprites/Enemies/Enemy_4.png",
+&"enemy.flanker": "res://assets/sprites/Enemies/Enemy_5.png",
+&"enemy.hazard_weaver": "res://assets/sprites/Enemies/Enemy_4.png",
+&"enemy.hex_slinger": "res://assets/sprites/Enemies/Enemy_4.png",
+&"enemy.iron_maw": "res://assets/sprites/Enemies/Enemy_5.png",
+&"enemy.medic_spore": "res://assets/sprites/Enemies/Enemy_4.png",
+&"enemy.mouse_dog": "res://assets/sprites/Enemies/Enemy_5.png",
+&"enemy.scrap_thief": "res://assets/sprites/Enemies/Enemy_3.png",
+&"enemy.scrap_titan": "res://assets/sprites/Enemies/Enemy_2.png",
+&"enemy.shellback": "res://assets/sprites/Enemies/Enemy_2.png",
+&"enemy.shooter": "res://assets/sprites/Enemies/Enemy_4.png",
+&"enemy.swarm_mite": "res://assets/sprites/Enemies/Enemy_3.png",
+&"enemy.volt_stalker": "res://assets/sprites/Enemies/Enemy_4.png",
+&"enemy.war_drummer": "res://assets/sprites/Enemies/Enemy_4.png",
+&"enemy.xiami": "res://assets/sprites/Enemies/Enemy_2.png"
+},
+&"pickup": {
+&"pickup.chest": "res://assets/sprites/Spawn_mark.png",
+&"pickup.heal": "res://assets/sprites/Gold/gold_4.png",
+&"pickup.material": "res://assets/sprites/Gold/gold_1.png",
+&"pickup.shadow": "res://assets/sprites/shadow.png"
+},
+&"projectile": {
+&"projectile.enemy": "res://assets/sprites/Projectiles/Projectile_enemy.png",
+&"weapon.boomerang": "res://assets/sprites/Projectiles/Projectile_4.png",
+&"weapon.carbine": "res://assets/sprites/Projectiles/Projectile_2.png",
+&"weapon.drone_beacon": "res://assets/sprites/Projectiles/Projectile_3.png",
+&"weapon.frost_orb": "res://assets/sprites/Projectiles/Projectile_3.png",
+&"weapon.laser": "res://assets/sprites/Projectiles/Projectile_3.png",
+&"weapon.needler": "res://assets/sprites/Projectiles/Projectile_5.png",
+&"weapon.pistol": "res://assets/sprites/Projectiles/Projectile_2.png",
+&"weapon.railbow": "res://assets/sprites/Projectiles/Projectile_3.png",
+&"weapon.revolver": "res://assets/sprites/Projectiles/Projectile_4.png",
+&"weapon.shotgun": "res://assets/sprites/Projectiles/Projectile_1.png",
+&"weapon.shrapnel_launcher": "res://assets/sprites/Projectiles/Projectile_1.png",
+&"weapon.smg": "res://assets/sprites/Projectiles/Projectile_5.png",
+&"weapon.storm_coil": "res://assets/sprites/Projectiles/Projectile_5.png",
+&"weapon.turret_kit": "res://assets/sprites/Projectiles/Projectile_2.png",
+&"weapon.void_prism": "res://assets/sprites/Projectiles/Projectile_4.png"
+},
+&"scene": {
+&"scene.arena.background": "res://assets/sprites/BG.png",
+&"scene.arena.floor": "res://assets/sprites/Map.png",
+&"scene.enemy.spawn": "res://assets/sprites/Spawn_mark.png"
+},
+&"weapon": {
+&"weapon.axe": "res://assets/sprites/Weapons/Melee/Weapon_axe.png",
+&"weapon.boomerang": "res://assets/sprites/Weapons/Range/WeaponRevolver.png",
+&"weapon.carbine": "res://assets/sprites/Weapons/Range/WeaponPistol.png",
+&"weapon.chainsaw": "res://assets/sprites/Weapons/Melee/Weapon_chainsaw.png",
+&"weapon.cleaver": "res://assets/sprites/Weapons/Melee/Weapon_axe.png",
+&"weapon.drone_beacon": "res://assets/sprites/Weapons/Range/WeaponLaser.png",
+&"weapon.ember_staff": "res://assets/sprites/Weapons/Melee/Weapon_wand.png",
+&"weapon.frost_orb": "res://assets/sprites/Weapons/Range/WeaponLaser.png",
+&"weapon.laser": "res://assets/sprites/Weapons/Range/WeaponLaser.png",
+&"weapon.mace": "res://assets/sprites/Weapons/Melee/Weapon_mace.png",
+&"weapon.needler": "res://assets/sprites/Weapons/Range/WeaponSMG.png",
+&"weapon.pistol": "res://assets/sprites/Weapons/Range/WeaponPistol.png",
+&"weapon.punch": "res://assets/sprites/Weapons/Melee/Weapon_Punch.png",
+&"weapon.railbow": "res://assets/sprites/Weapons/Range/WeaponLaser.png",
+&"weapon.revolver": "res://assets/sprites/Weapons/Range/WeaponRevolver.png",
+&"weapon.shotgun": "res://assets/sprites/Weapons/Range/WeaponShotgun.png",
+&"weapon.shrapnel_launcher": "res://assets/sprites/Weapons/Range/WeaponShotgun.png",
+&"weapon.smg": "res://assets/sprites/Weapons/Range/WeaponSMG.png",
+&"weapon.spear": "res://assets/sprites/Weapons/Melee/Weapon_sword.png",
+&"weapon.storm_coil": "res://assets/sprites/Weapons/Range/WeaponSMG.png",
+&"weapon.sword": "res://assets/sprites/Weapons/Melee/Weapon_sword.png",
+&"weapon.turret_kit": "res://assets/sprites/Weapons/Range/WeaponPistol.png",
+&"weapon.void_prism": "res://assets/sprites/Weapons/Range/WeaponRevolver.png",
+&"weapon.wand": "res://assets/sprites/Weapons/Melee/Weapon_wand.png"
+}
+}
+fallback_asset_paths = {
+&"character": "res://icon.svg",
+&"enemy": "res://assets/sprites/Enemies/Enemy_1.png",
+&"pickup": "res://assets/sprites/Gold/gold_1.png",
+&"projectile": "res://assets/sprites/Projectiles/Projectile_1.png",
+&"scene": "res://assets/ui/gobro_menu_background.png",
+&"weapon": "res://assets/sprites/Weapons/Melee/Weapon_Punch.png"
+}
+animation_maps = {
+&"character": {&"default": {&"dash": &"move", &"death": &"die", &"hit": &"idle", &"idle": &"idle", &"move": &"move", &"spawn": &"idle"}},
+&"enemy": {&"default": {&"attack": &"idle", &"death": &"die", &"hit": &"idle", &"idle": &"idle", &"move": &"move", &"spawn": &"idle", &"telegraph": &"idle"}},
+&"weapon": {&"default": {&"attack": &"attack", &"idle": &"idle"}}
+}
+audio_cues = {
+&"boss.attack": "res://assets/audio/Punch.mp3",
+&"enemy.telegraph": "res://assets/audio/UI Pop.mp3",
+&"hit.critical": "res://assets/audio/EnemyHit.wav",
+&"hit.normal": "res://assets/audio/EnemyHit.wav",
+&"ui.confirm": "res://assets/audio/UI Pop.mp3",
+&"ui.hover": "res://assets/audio/UI Pop.mp3",
+&"ui.purchase": "res://assets/audio/UI Pop.mp3",
+&"weapon.fire": "res://assets/audio/ShotgunFire.wav"
+}
+music_tracks = {
+&"combat": "res://assets/audio/Bg Music.mp3"
+}
+particle_cues = {
+&"hit.critical": "res://content_packs/skins/dev_placeholder/hit_spark.tscn"
+}
+screen_shake_cues = {
+&"hit.critical": {"duration": 0.08, "strength": 6.0}
+}
+rumble_cues = {
+&"hit.critical": {"duration": 0.1, "weak": 0.25, "strong": 0.5}
+}

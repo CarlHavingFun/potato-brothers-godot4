@@ -18,6 +18,10 @@ if ([string]::IsNullOrWhiteSpace($GodotBinary)) {
 if ([string]::IsNullOrWhiteSpace($GodotBinary) -or -not (Test-Path -LiteralPath $GodotBinary)) {
 	throw "Godot 4.7.1 was not found. Pass -GodotBinary or set GODOT_BIN."
 }
+$consoleBinary = Join-Path (Split-Path -Parent $GodotBinary) (([System.IO.Path]::GetFileNameWithoutExtension($GodotBinary)) + "_console.exe")
+if (-not $GodotBinary.EndsWith("_console.exe", [System.StringComparison]::OrdinalIgnoreCase) -and (Test-Path -LiteralPath $consoleBinary)) {
+	$GodotBinary = $consoleBinary
+}
 
 & $GodotBinary --headless --path $projectRoot res://tools/content/validate_content_pack.tscn -- `
 	--manifest $ManifestPath --source-root $SourceRoot

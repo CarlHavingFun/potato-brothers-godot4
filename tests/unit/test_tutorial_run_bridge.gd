@@ -108,9 +108,9 @@ func test_catalog_selection_uses_the_same_namespaced_weapon_id_in_run_and_invent
 	assert_bool(Global.begin_selected_run(100)).is_true()
 
 	assert_str(Global.current_run.character_id).is_equal(
-		"potato_default:character/well_rounded"
+		"core:character/well_rounded"
 	)
-	assert_str(Global.current_run.starting_weapon_id).is_equal("potato_default:weapon/pistol")
+	assert_str(Global.current_run.starting_weapon_id).is_equal("core:weapon/pistol")
 	assert_str(Global.current_run.inventory.weapon_at(0).get("weapon_id", "")).is_equal(
 		Global.current_run.starting_weapon_id
 	)
@@ -126,7 +126,7 @@ func test_catalog_shop_purchase_and_combine_keep_the_weapon_family_id() -> void:
 
 	assert_int(Global.current_run.inventory.weapon_count()).is_equal(1)
 	assert_str(Global.current_run.inventory.weapon_at(0).get("weapon_id", "")).is_equal(
-		"potato_default:weapon/pistol"
+		"core:weapon/pistol"
 	)
 	assert_int(Global.current_run.inventory.weapon_at(0).get("tier", 0)).is_equal(2)
 
@@ -214,7 +214,7 @@ func test_content_passive_and_upgrade_apply_all_sixteen_stat_ids() -> void:
 	assert_float(Global.current_run.player_stats.get_stat(StatId.MELEE_DAMAGE)).is_equal(2.0)
 
 
-func test_wave_enemy_selection_is_seeded_and_boss_spawns_only_once() -> void:
+func test_wave_enemy_selection_is_seeded_and_priority_enemy_spawns_only_once() -> void:
 	var first: Spawner = auto_free(Spawner.new())
 	var second: Spawner = auto_free(Spawner.new())
 	var boss_wave := Content.catalog.get_wave(&"wave/10")
@@ -231,4 +231,4 @@ func test_wave_enemy_selection_is_seeded_and_boss_spawns_only_once() -> void:
 		second_ids.append(String(second_enemy.get_stable_id(Content.catalog.pack_id)))
 
 	assert_array(first_ids).is_equal(second_ids)
-	assert_int(first_ids.count("potato_default:enemy/mouse_dog")).is_equal(1)
+	assert_int(first_ids.count("core:enemy/iron_maw")).is_equal(1)

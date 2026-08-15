@@ -11,6 +11,12 @@ const RESOLUTIONS := ["1280x720", "1600x900", "1920x1080"]
 @onready var resolution_option: OptionButton = %ResolutionOption
 @onready var aim_option: OptionButton = %AimOption
 @onready var locale_option: OptionButton = %LocaleOption
+@onready var keybind_grid: GridContainer = %KeybindGrid
+
+var remap_service := InputRemapService.new()
+var awaiting_action: StringName = &""
+var binding_buttons: Dictionary = {}
+var _binding_snapshot: Dictionary = {}
 
 
 func _ready() -> void:
@@ -20,7 +26,9 @@ func _ready() -> void:
 	aim_option.add_item(tr("ui.settings.manual_aim"), AimMode.MANUAL_MOUSE)
 	locale_option.add_item("简体中文")
 	locale_option.add_item("English")
+	_build_keybind_rows()
 	load_settings()
+	set_process_input(true)
 
 
 func _notification(what: int) -> void:
@@ -38,9 +46,70 @@ func load_settings() -> void:
 	resolution_option.select(maxi(0, RESOLUTIONS.find(settings.resolution)))
 	aim_option.select(settings.aim_mode)
 	locale_option.select(0 if settings.locale == "zh_CN" else 1)
+	_binding_snapshot = remap_service.serialize_actions()
+	_refresh_binding_labels()
+
+
+func _build_keybind_rows() -> void:
+	var labels := {
+		&"move_up": "向上移动",
+		&"move_down": "向下移动",
+		&"move_left": "向左移动",
+		&"move_right": "向右移动",
+		&"dash": "冲刺",
+	}
+	for action: StringName in InputRemapService.REMAPPABLE_ACTIONS:
+		var label := Label.new()
+		label.text = labels.get(action, String(action))
+		label.add_theme_font_size_override(&"font_size", 20)
+		keybind_grid.add_child(label)
+		var button := Button.new()
+		button.custom_minimum_size = Vector2(300, 40)
+		button.pressed.connect(_begin_rebind.bind(action))
+		keybind_grid.add_child(button)
+		binding_buttons[action] = button
+
+
+func _begin_rebind(action: StringName) -> void:
+	awaiting_action = action
+	var button := binding_buttons.get(action) as Button
+	if button != null:
+		button.text = "请按键盘键或手柄按钮…"
+
+
+func _input(event: InputEvent) -> void:
+	if awaiting_action.is_empty() or not visible:
+		return
+	if event is InputEventKey and (event as InputEventKey).pressed:
+		if (event as InputEventKey).keycode == KEY_ESCAPE:
+			awaiting_action = &""
+			_refresh_binding_labels()
+			get_viewport().set_input_as_handled()
+			return
+		_commit_rebind(event)
+	elif event is InputEventJoypadButton and (event as InputEventJoypadButton).pressed:
+		_commit_rebind(event)
+
+
+func _commit_rebind(event: InputEvent) -> void:
+	remap_service.rebind(awaiting_action, event)
+	awaiting_action = &""
+	_refresh_binding_labels()
+	get_viewport().set_input_as_handled()
+
+
+func _refresh_binding_labels() -> void:
+	for action: StringName in binding_buttons:
+		var parts: Array[String] = []
+		for event: InputEvent in InputMap.action_get_events(action):
+			if event is InputEventKey or event is InputEventJoypadButton:
+				parts.append(event.as_text())
+		var button := binding_buttons[action] as Button
+		button.text = " / ".join(parts) if not parts.is_empty() else "未绑定"
 
 
 func _on_apply_button_pressed() -> void:
+	Global.meta_progress.input_bindings = remap_service.serialize_actions()
 	Global.update_product_settings(
 		music_slider.value / 100.0,
 		sfx_slider.value / 100.0,
@@ -54,6 +123,8 @@ func _on_apply_button_pressed() -> void:
 
 
 func _on_cancel_button_pressed() -> void:
+	awaiting_action = &""
+	remap_service.apply_actions(_binding_snapshot)
 	load_settings()
 	closed.emit()
 	hide()

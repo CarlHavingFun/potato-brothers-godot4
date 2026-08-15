@@ -2,7 +2,7 @@ class_name ContentPackDef
 extends Resource
 
 
-const CURRENT_API_VERSION := 1
+const CURRENT_API_VERSION := 2
 
 
 @export var pack_id: StringName

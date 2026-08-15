@@ -25,6 +25,15 @@ func queue_rewards(run_state: RunState, amount: int = 1) -> bool:
 	return true
 
 
+func queue_enemy_drop(run_state: RunState, enemy_tags: Array[StringName]) -> int:
+	if run_state == null:
+		return 0
+	if &"elite" not in enemy_tags and &"boss" not in enemy_tags:
+		return 0
+	run_state.queued_rewards += 1
+	return 1
+
+
 func experience_required_for_level(level: int) -> int:
 	return 10 + maxi(0, level - 1) * 5
 
@@ -48,7 +57,25 @@ func claim_level_up(run_state: RunState) -> bool:
 	if run_state == null or run_state.queued_level_ups <= 0:
 		return false
 	run_state.queued_level_ups -= 1
+	run_state.upgrade_refresh_count = 0
 	return true
+
+
+func upgrade_refresh_price(run_state: RunState, current_wave: int) -> int:
+	if run_state == null:
+		return 0
+	return maxi(1, 1 + floori(float(maxi(1, current_wave)) / 5.0)) + run_state.upgrade_refresh_count * 2
+
+
+func try_refresh_upgrades(run_state: RunState, current_wave: int) -> int:
+	if run_state == null or run_state.queued_level_ups <= 0:
+		return InventoryService.INVALID_REQUEST
+	var price := upgrade_refresh_price(run_state, current_wave)
+	if run_state.materials < price:
+		return InventoryService.INSUFFICIENT_MATERIALS
+	run_state.materials -= price
+	run_state.upgrade_refresh_count += 1
+	return InventoryService.OK
 
 
 func claim_reward(run_state: RunState) -> bool:

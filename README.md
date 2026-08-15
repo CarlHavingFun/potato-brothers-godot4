@@ -1,17 +1,20 @@
-# Potato Brothers Godot 4
+# GOBRO · Godot 4
 
 An independent Godot 4.7.1 project that combines the runnable Godot tutorial
 implementation with the broader gameplay systems and assets from the local
 Unity/Tuanjie reproduction.
 
-## Phase 1 target
+## Core-parity target
 
-- 6 characters
-- 11 weapon families with 4 tiers each
-- 20 passive items
+- 12 characters
+- 24 weapon families with 4 tiers each
+- 60 passive items
 - 16 stat families with 4 upgrade tiers each
-- 10 waves, 5 difficulty levels, and the MouseDog boss
+- 20 waves, 5 difficulty levels, 2 elites, and 2 final bosses
+- standard and deterministic endless runs with wave checkpoints and per-character records
 - shop, inventory, rewards, win/loss settlement, unlocks, and local saves
+- save v3 profiles with v1/v2 and legacy namespace migration
+- presentation-neutral `core:` gameplay IDs with build-selected `SkinPackDef` manifests
 - Simplified Chinese and English UI
 
 The Unity/Tuanjie project, the tutorial source project, and `c-sbro` are
@@ -38,10 +41,21 @@ Linux, and macOS, and assemble the internal playtest archives with:
 .\tools\build_release.ps1 -GodotBinary D:\path\to\Godot_v4.7.1-stable_win64_console.exe
 ```
 
-Release output is written to `dist/potato-brothers-phase1/`. The build uses a
+Choose the presentation shell at build time without changing gameplay IDs:
+
+```powershell
+.\tools\build_release.ps1 `
+  -GodotBinary D:\path\to\Godot_v4.7.1-stable_win64_console.exe `
+  -SkinManifest res://content_packs/skins/dev_placeholder/skin.tres
+```
+
+Release output is written to the configured `dist` directory. The build uses a
 sanitized staging copy, so MCP, GdUnit4, tests, and the source content directory
-cannot enter the core PCK. The separately validated `default_content.pck` is
-then placed beside the Windows/Linux executable and inside the macOS app bundle.
+cannot enter the core PCK. It also removes every unselected skin before export.
+The separately validated gameplay-only `default_content.pck` is then placed
+beside the Windows/Linux executable and inside the macOS app bundle. Godot's
+matching official export templates must be installed before producing platform
+executables; editor and test runs do not require those templates.
 
 The Godot MCP addon exposes its loopback-only HTTP endpoint at
 `http://127.0.0.1:9100/mcp` while the editor is open. Generated reports and

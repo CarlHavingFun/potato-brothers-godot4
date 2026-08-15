@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://dtnbj3i3i3tyx" path="res://scenes/ui/selection_panel/selection_panel.gd" id="1_un15a"]
 [ext_resource type="StyleBox" uid="uid://dn43vff5bgab1" path="res://styles/common_style.tres" id="2_mgmnq"]
-[ext_resource type="Texture2D" uid="uid://cproxhccob85g" path="res://assets/sprites/Players/Player_1.png" id="3_jgkb1"]
 [ext_resource type="PackedScene" uid="uid://fbgjpc1m3ig1" path="res://scenes/ui/custom_button/custom_buttom.tscn" id="4_58qwm"]
 [ext_resource type="PackedScene" uid="uid://dnablojs1s8" path="res://scenes/ui/selection_panel/selection_card.tscn" id="5_8wgut"]
 
@@ -87,7 +86,6 @@ custom_minimum_size = Vector2(128, 128)
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
-texture = ExtResource("3_jgkb1")
 expand_mode = 1
 stretch_mode = 5
 

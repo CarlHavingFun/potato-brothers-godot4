@@ -34,7 +34,9 @@ func select_offers(
 	current_wave: int,
 	luck: float,
 	config: Dictionary,
-	requested_count: int = 4
+	requested_count: int = 4,
+	content_catalog: ContentCatalog = null,
+	owned_tags: Array[StringName] = []
 ) -> Array:
 	var result: Array = []
 	if requested_count <= 0 or item_pool.is_empty():
@@ -49,7 +51,7 @@ func select_offers(
 		var candidates := _items_at_or_below_tier(item_pool, tier, result)
 		if candidates.is_empty():
 			continue
-		result.append(candidates[rng.randi_range(0, candidates.size() - 1)])
+		result.append(_select_weighted_candidate(candidates, content_catalog, owned_tags))
 	if result.size() < target_count:
 		var remaining := item_pool.filter(func(item: Variant): return not result.has(item))
 		while result.size() < target_count and not remaining.is_empty():
@@ -66,69 +68,147 @@ func try_purchase(run_state: RunState, item: ItemBase, content_catalog: ContentC
 			run_state,
 			content_catalog.get_item_stable_id(item),
 			int(item.item_tier) + 1,
-			item.item_cost
+			purchase_price(run_state, item)
 		)
 	if item is ItemPassive:
 		var definition := content_catalog.get_passive_definition_for_item(item)
 		return InventoryService.try_purchase_passive(
 			run_state,
 			content_catalog.get_item_stable_id(item),
-			item.item_cost,
+			purchase_price(run_state, item),
 			definition.max_stack if definition != null else item.max_stack
 		)
 	return InventoryService.INVALID_REQUEST
+
+
+func purchase_price(run_state: RunState, item: ItemBase) -> int:
+	if item == null:
+		return 0
+	var difficulty := Content.catalog.get_difficulty(run_state.difficulty) if run_state != null else null
+	return difficulty.scale_shop_price(item.item_cost) if difficulty != null else item.item_cost
 
 
 func refresh_price(current_wave: int, refresh_count: int) -> int:
 	return maxi(1, current_wave) + 2 + maxi(0, refresh_count) * 2
 
 
+func refresh_price_for_slots(current_wave: int, refresh_count: int, unlocked_slots: int) -> int:
+	if unlocked_slots <= 0:
+		return 0
+	return ceili(refresh_price(current_wave, refresh_count) * minf(4.0, unlocked_slots) / 4.0)
+
+
 func try_refresh(run_state: RunState, current_wave: int) -> int:
 	if run_state == null:
 		return InventoryService.INVALID_REQUEST
-	var price := refresh_price(current_wave, run_state.shop_refresh_count)
+	_ensure_slots(run_state)
+	var unlocked_count := 0
+	for slot: ShopSlotState in run_state.shop_slots:
+		if not slot.locked:
+			unlocked_count += 1
+	if unlocked_count == 0:
+		return InventoryService.INVALID_REQUEST
+	var price := refresh_price_for_run(run_state, current_wave, unlocked_count)
 	if run_state.materials < price:
 		return InventoryService.INSUFFICIENT_MATERIALS
 	run_state.materials -= price
 	run_state.shop_refresh_count += 1
-	run_state.shop_locked = false
-	run_state.shop_offer_ids.clear()
+	for slot: ShopSlotState in run_state.shop_slots:
+		if not slot.locked:
+			slot.clear_offer()
+	_sync_legacy_fields(run_state)
 	return InventoryService.OK
+
+
+func refresh_price_for_run(run_state: RunState, current_wave: int, unlocked_slots: int = 4) -> int:
+	if run_state == null:
+		return 0
+	var base_price := refresh_price_for_slots(current_wave, run_state.shop_refresh_count, unlocked_slots)
+	var difficulty := Content.catalog.get_difficulty(run_state.difficulty)
+	var result := difficulty.scale_shop_price(base_price) if difficulty != null else base_price
+	if run_state.run_mode == RunMode.ENDLESS and current_wave > 20:
+		result = ceili(result * EndlessScalingDef.new().shop_price_multiplier(current_wave))
+	return result
 
 
 func set_locked(run_state: RunState, locked: bool) -> bool:
 	if run_state == null:
 		return false
-	run_state.shop_locked = locked
+	_ensure_slots(run_state)
+	for slot: ShopSlotState in run_state.shop_slots:
+		slot.locked = locked
+	_sync_legacy_fields(run_state)
+	return true
+
+
+func set_slot_locked(run_state: RunState, slot_index: int, locked: bool) -> bool:
+	if run_state == null:
+		return false
+	_ensure_slots(run_state)
+	if slot_index < 0 or slot_index >= run_state.shop_slots.size():
+		return false
+	run_state.shop_slots[slot_index].locked = locked
+	_sync_legacy_fields(run_state)
 	return true
 
 
 func store_offers(run_state: RunState, offers: Array, content_catalog: ContentCatalog) -> bool:
 	if run_state == null or content_catalog == null:
 		return false
-	run_state.shop_offer_ids.clear()
-	for item: Variant in offers:
+	_ensure_slots(run_state)
+	var offer_index := 0
+	for slot: ShopSlotState in run_state.shop_slots:
+		if not slot.needs_offer():
+			continue
+		if offer_index >= offers.size():
+			slot.clear_offer()
+			continue
+		var item: Variant = offers[offer_index]
+		offer_index += 1
 		if not item is ItemBase:
+			slot.clear_offer()
 			continue
 		var typed_item := item as ItemBase
-		run_state.shop_offer_ids.append({
-			"id": String(content_catalog.get_item_stable_id(typed_item)),
-			"tier": int(typed_item.item_tier) + 1,
-			"type": int(typed_item.item_type),
-		})
+		slot.set_offer(
+			content_catalog.get_item_stable_id(typed_item),
+			int(typed_item.item_tier) + 1,
+			int(typed_item.item_type)
+		)
+	_sync_legacy_fields(run_state)
 	return true
+
+
+func _sync_legacy_fields(run_state: RunState) -> void:
+	run_state.shop_offer_ids.clear()
+	var occupied := 0
+	var locked := 0
+	for slot: ShopSlotState in run_state.shop_slots:
+		if slot.is_empty():
+			continue
+		occupied += 1
+		if slot.locked:
+			locked += 1
+		run_state.shop_offer_ids.append({
+			"id": String(slot.offer_id),
+			"tier": slot.tier,
+			"type": slot.item_type,
+		})
+	run_state.shop_locked = occupied > 0 and locked == occupied
 
 
 func resolve_offers(run_state: RunState, content_catalog: ContentCatalog) -> Array[ItemBase]:
 	var result: Array[ItemBase] = []
 	if run_state == null or content_catalog == null:
 		return result
-	for entry: Dictionary in run_state.shop_offer_ids:
+	_ensure_slots(run_state)
+	for slot: ShopSlotState in run_state.shop_slots:
+		if slot.is_empty():
+			continue
 		var item: ItemBase
-		var content_id := StringName(str(entry.get("id", "")))
-		if int(entry.get("type", -1)) == ItemBase.ItemType.WEAPON:
-			item = content_catalog.get_weapon_tier(content_id, int(entry.get("tier", 1)))
-		elif int(entry.get("type", -1)) == ItemBase.ItemType.PASSIVE:
+		var content_id := slot.offer_id
+		if slot.item_type == ItemBase.ItemType.WEAPON:
+			item = content_catalog.get_weapon_tier(content_id, slot.tier)
+		elif slot.item_type == ItemBase.ItemType.PASSIVE:
 			var passive := content_catalog.get_passive(content_id)
 			item = passive.item if passive != null else null
 		if item != null:
@@ -136,17 +216,102 @@ func resolve_offers(run_state: RunState, content_catalog: ContentCatalog) -> Arr
 	return result
 
 
+func resolve_slot_offer(
+	run_state: RunState,
+	slot_index: int,
+	content_catalog: ContentCatalog
+) -> ItemBase:
+	if run_state == null or content_catalog == null:
+		return null
+	_ensure_slots(run_state)
+	if slot_index < 0 or slot_index >= run_state.shop_slots.size():
+		return null
+	var slot: ShopSlotState = run_state.shop_slots[slot_index]
+	if slot.is_empty():
+		return null
+	if slot.item_type == ItemBase.ItemType.WEAPON:
+		return content_catalog.get_weapon_tier(slot.offer_id, slot.tier)
+	if slot.item_type == ItemBase.ItemType.PASSIVE:
+		var passive := content_catalog.get_passive(slot.offer_id)
+		return passive.item if passive != null else null
+	return null
+
+
+func try_purchase_offer(
+	run_state: RunState,
+	slot_index: int,
+	content_catalog: ContentCatalog
+) -> int:
+	var item := resolve_slot_offer(run_state, slot_index, content_catalog)
+	if item == null:
+		return InventoryService.INVALID_REQUEST
+	var result := try_purchase(run_state, item, content_catalog)
+	if result != InventoryService.OK:
+		return result
+	run_state.shop_slots[slot_index].mark_purchased()
+	_sync_legacy_fields(run_state)
+	return result
+
+
+func prepare_next_wave(run_state: RunState) -> void:
+	if run_state == null:
+		return
+	_ensure_slots(run_state)
+	run_state.shop_refresh_count = 0
+	for slot: ShopSlotState in run_state.shop_slots:
+		if not slot.locked:
+			slot.clear_offer()
+	_sync_legacy_fields(run_state)
+
+
 func consume_offer(run_state: RunState, item: ItemBase, content_catalog: ContentCatalog) -> bool:
 	if run_state == null or item == null or content_catalog == null:
 		return false
 	var stable_id := String(content_catalog.get_item_stable_id(item))
 	var tier := int(item.item_tier) + 1
-	for index in run_state.shop_offer_ids.size():
-		var entry := run_state.shop_offer_ids[index]
-		if str(entry.get("id", "")) == stable_id and int(entry.get("tier", 0)) == tier:
-			run_state.shop_offer_ids.remove_at(index)
+	_ensure_slots(run_state)
+	for slot: ShopSlotState in run_state.shop_slots:
+		if String(slot.offer_id) == stable_id and slot.tier == tier:
+			slot.mark_purchased()
+			_sync_legacy_fields(run_state)
 			return true
 	return false
+
+
+func tag_affinity_weight(item_tags: Array[StringName], owned_tags: Array[StringName]) -> float:
+	var matches := 0
+	for tag: StringName in item_tags:
+		if tag in owned_tags:
+			matches += 1
+	return minf(1.75, 1.0 + matches * 0.375)
+
+
+func _select_weighted_candidate(
+	candidates: Array,
+	content_catalog: ContentCatalog,
+	owned_tags: Array[StringName]
+) -> Variant:
+	if candidates.is_empty():
+		return null
+	if content_catalog == null or owned_tags.is_empty():
+		return candidates[rng.randi_range(0, candidates.size() - 1)]
+	var total_weight := 0.0
+	var weights: Array[float] = []
+	for candidate: ItemBase in candidates:
+		var weight := tag_affinity_weight(content_catalog.get_tags_for_item(candidate), owned_tags)
+		weights.append(weight)
+		total_weight += weight
+	var roll := rng.randf() * total_weight
+	for index in candidates.size():
+		roll -= weights[index]
+		if roll <= 0.0:
+			return candidates[index]
+	return candidates.back()
+
+
+func _ensure_slots(run_state: RunState) -> void:
+	while run_state.shop_slots.size() < RunState.SHOP_SLOT_COUNT:
+		run_state.shop_slots.append(ShopSlotState.new())
 
 
 func try_combine_item(

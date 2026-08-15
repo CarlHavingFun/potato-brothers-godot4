@@ -25,6 +25,10 @@ func test_five_default_difficulties_match_approved_multipliers() -> void:
 	assert_float(difficulty_five.damage_multiplier).is_equal(1.4)
 	assert_float(difficulty_five.speed_multiplier).is_equal(1.1)
 	assert_float(difficulty_five.spawn_density_multiplier).is_equal(1.4)
+	assert_float(difficulty_five.elite_health_multiplier).is_greater(1.0)
+	assert_float(difficulty_five.shop_price_multiplier).is_greater(1.0)
+	assert_float(difficulty_five.material_drop_multiplier).is_less(1.0)
+	assert_bool(difficulty_five.rule_tags.has(&"elite_frenzy")).is_true()
 
 
 func test_difficulty_scaling_is_deterministic() -> void:
@@ -34,6 +38,9 @@ func test_difficulty_scaling_is_deterministic() -> void:
 	assert_float(difficulty.scale_damage(10.0)).is_equal(11.5)
 	assert_float(difficulty.scale_speed(200.0)).is_equal(206.0)
 	assert_int(difficulty.scale_spawn_count(11)).is_equal(13)
+	assert_int(difficulty.scale_elite_health(101)).is_greater(difficulty.scale_health(101))
+	assert_int(difficulty.scale_shop_price(11)).is_greater(11)
+	assert_int(difficulty.scale_material_drop(10)).is_less(10)
 
 
 func test_meta_progress_unlocks_only_the_next_difficulty() -> void:
@@ -118,6 +125,8 @@ func test_meta_progress_round_trip_preserves_product_settings() -> void:
 	progress.resolution = "1280x720"
 	progress.aim_mode = AimMode.MANUAL_MOUSE
 	progress.locale = "en"
+	progress.mark_discovered(&"potato_default:weapon/axe")
+	progress.recent_run_summary = {"wave": 20, "victory": true}
 
 	var restored := MetaProgress.from_dict(progress.to_dict())
 
@@ -127,6 +136,8 @@ func test_meta_progress_round_trip_preserves_product_settings() -> void:
 	assert_str(restored.resolution).is_equal("1280x720")
 	assert_int(restored.aim_mode).is_equal(AimMode.MANUAL_MOUSE)
 	assert_str(restored.locale).is_equal("en")
+	assert_bool(restored.is_discovered(&"potato_default:weapon/axe")).is_true()
+	assert_int(restored.recent_run_summary.get("wave", 0)).is_equal(20)
 
 
 func _cleanup_save_files() -> void:

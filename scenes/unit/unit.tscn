@@ -1,7 +1,6 @@
 [gd_scene load_steps=11 format=3 uid="uid://bfis58i4px2f4"]
 
 [ext_resource type="Script" uid="uid://bwbvmvqys3khj" path="res://scenes/unit/unit.gd" id="1_fmv3f"]
-[ext_resource type="Texture2D" uid="uid://devt2xbk78rej" path="res://assets/sprites/shadow.png" id="1_fvc8g"]
 [ext_resource type="PackedScene" uid="uid://dp3xumk1n2wmf" path="res://scenes/components/hurtbox_component.tscn" id="3_vh40f"]
 [ext_resource type="PackedScene" uid="uid://bpcuanowj1v1l" path="res://scenes/components/health_component.tscn" id="4_bhlit"]
 [ext_resource type="PackedScene" uid="uid://cekdcr85webjl" path="res://scenes/ui/health_bar/health_bar.tscn" id="5_vgvef"]
@@ -236,7 +235,6 @@ scale = Vector2(0.5, 0.5)
 [node name="Shadow" type="Sprite2D" parent="Visuals"]
 modulate = Color(0.101961, 0.101961, 0.101961, 0.588235)
 scale = Vector2(0.8, 1)
-texture = ExtResource("1_fvc8g")
 
 [node name="Sprite" type="Sprite2D" parent="Visuals"]
 unique_name_in_owner = true

@@ -1,7 +1,6 @@
 [gd_scene load_steps=6 format=3 uid="uid://c4cjnb8eiq6ds"]
 
 [ext_resource type="PackedScene" uid="uid://ce1tkjy826jkd" path="res://scenes/weapons/weapon_base.tscn" id="1_t2mr8"]
-[ext_resource type="Texture2D" uid="uid://bbw1axlomamnl" path="res://assets/sprites/Weapons/Melee/Weapon_axe.png" id="2_8qyoe"]
 [ext_resource type="PackedScene" uid="uid://3t6iqc1kav5h" path="res://scenes/components/hitbox_component.tscn" id="3_hoyei"]
 [ext_resource type="Script" uid="uid://v6gqfor36uur" path="res://scenes/weapons/melee/melee_behavior.gd" id="4_m7whl"]
 
@@ -12,7 +11,6 @@ size = Vector2(132, 54)
 
 [node name="Sprite2D" parent="." index="0"]
 position = Vector2(27, 9)
-texture = ExtResource("2_8qyoe")
 
 [node name="HitboxComponent" parent="Sprite2D" index="0" instance=ExtResource("3_hoyei")]
 collision_layer = 16

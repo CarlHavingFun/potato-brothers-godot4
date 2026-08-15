@@ -2,7 +2,6 @@
 
 [ext_resource type="PackedScene" uid="uid://bfis58i4px2f4" path="res://scenes/unit/unit.tscn" id="1_dd0vi"]
 [ext_resource type="Script" uid="uid://cslieepfyhg7k" path="res://scenes/unit/enemy/enemy.gd" id="2_lmqbh"]
-[ext_resource type="Texture2D" uid="uid://d1ou504pylric" path="res://assets/sprites/Enemies/Enemy_1.png" id="2_oo7ju"]
 [ext_resource type="Resource" uid="uid://bot26fxolfx55" path="res://resources/units/enemies/stats_enemy_chaser_slow.tres" id="3_lmqbh"]
 [ext_resource type="PackedScene" uid="uid://3t6iqc1kav5h" path="res://scenes/components/hitbox_component.tscn" id="5_e15k4"]
 
@@ -26,7 +25,6 @@ flock_push = 20.0
 stats = ExtResource("3_lmqbh")
 
 [node name="Sprite" parent="Visuals" index="1"]
-texture = ExtResource("2_oo7ju")
 
 [node name="CollisionShape2D" parent="." index="1"]
 position = Vector2(0, -30)

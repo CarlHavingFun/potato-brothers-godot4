@@ -103,6 +103,17 @@ func test_repeat_enabled_contact_hitbox_ticks_until_exit() -> void:
 	assert_int(hit_count[0]).is_equal(2)
 
 
+func test_runtime_weapon_resolves_its_typed_attack_pattern() -> void:
+	var shotgun := Content.catalog.get_weapon(&"weapon/shotgun")
+	var weapon: Weapon = auto_free(shotgun.tiers[0].scene.instantiate() as Weapon)
+	add_child(weapon)
+	await await_idle_frame()
+	weapon.setup_weapon(shotgun.tiers[0])
+
+	assert_object(weapon.current_attack_pattern()).is_same(shotgun.attack_pattern)
+	assert_int(weapon.current_attack_pattern().shot_rotations(0.0).size()).is_equal(5)
+
+
 func test_single_hitbox_does_not_repeat_and_enemy_contact_uses_confirmed_interval() -> void:
 	var hurtbox: HurtboxComponent = auto_free(HurtboxComponent.new())
 	var hitbox: HitboxComponent = auto_free(HitboxComponent.new())

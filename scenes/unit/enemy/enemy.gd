@@ -1,6 +1,8 @@
 extends Unit
 class_name Enemy
 
+signal reinforcement_requested(source: Enemy)
+
 @export var flock_push := 20.0
 
 const FLOCK_CELL_SIZE := 160.0
@@ -14,6 +16,10 @@ static var _flock_cache_frame := -1
 @onready var knockback_timer: Timer = $KnockbackTimer
 
 var can_move := true
+var definition: EnemyDef
+var role_profile := EnemyRoleProfile.new()
+var role_pulse_remaining := 2.5
+var reinforcements_spawned := 0
 
 var knockback_dir: Vector2
 var knockback_power: float
@@ -21,6 +27,18 @@ var knockback_power: float
 
 func _ready() -> void:
 	super._ready()
+	add_to_group(GameplayEffectExecutor.ENEMY_GROUP)
+	if definition != null:
+		role_profile = (
+			definition.behavior.to_role_profile()
+			if definition.behavior != null
+			else EnemyRoleRules.new().profile_for(definition.tags)
+		)
+		configure_presentation(&"enemy", definition.get_presentation_id(Content.catalog.pack_id))
+		if definition.behavior != null:
+			status_immunities = definition.behavior.status_immunities.duplicate()
+	presentation_controller.set_semantic_state(&"spawn")
+	role_pulse_remaining = role_profile.pulse_interval
 	_flock_members[get_instance_id()] = weakref(self)
 	# Neighbor lookup is handled by the shared spatial grid below. Keeping this
 	# Area2D active makes crowded waves perform the same broad-phase query 250
@@ -39,11 +57,18 @@ func _process(delta: float) -> void:
 	
 	if not can_move:
 		return
+	presentation_controller.set_semantic_state(&"move")
+	_tick_role_behavior(delta)
 	
 	if not can_move_towards_player():
 		return
 	
-	velocity = (get_move_direction() + knockback_dir * knockback_power) * stats.speed
+	velocity = (
+		(get_move_direction() + knockback_dir * knockback_power)
+		* stats.speed
+		* _nearby_buffer_multiplier()
+		* effect_speed_multiplier()
+	)
 	move_and_slide()
 	update_rotation()
 
@@ -53,6 +78,9 @@ func get_move_direction() -> Vector2:
 		return Vector2.ZERO
 	
 	var direction := global_position.direction_to(Global.player.global_position)
+	if not is_zero_approx(role_profile.flank_angle):
+		var flank_side := -1.0 if global_position.x < Global.player.global_position.x else 1.0
+		direction = direction.rotated(role_profile.flank_angle * flank_side)
 	_rebuild_flock_grid()
 	var own_cell := _flock_cell(global_position)
 	var neighbor_count := 0
@@ -72,6 +100,70 @@ func get_move_direction() -> Vector2:
 					return direction
 	
 	return direction
+
+
+func _nearby_buffer_multiplier() -> float:
+	var bonus := 0.0
+	var own_cell := _flock_cell(global_position)
+	for cell_y: int in range(own_cell.y - 1, own_cell.y + 2):
+		for cell_x: int in range(own_cell.x - 1, own_cell.x + 2):
+			for body: Enemy in _flock_cells.get(Vector2i(cell_x, cell_y), []):
+				if body == self or not is_instance_valid(body):
+					continue
+				if body.role_profile.ally_speed_bonus <= 0.0:
+					continue
+				if global_position.distance_squared_to(body.global_position) <= 180.0 * 180.0:
+					bonus += body.role_profile.ally_speed_bonus
+	return 1.0 + minf(0.35, bonus)
+
+
+func _tick_role_behavior(delta: float) -> void:
+	if (
+		role_profile.heal_amount <= 0.0
+		and role_profile.hazard_damage <= 0.0
+		and role_profile.material_steal <= 0
+		and role_profile.slow_multiplier >= 1.0
+		and not role_profile.can_spawn_reinforcements
+		and role_profile.ambush_distance <= 0.0
+	):
+		return
+	role_pulse_remaining -= delta
+	if role_pulse_remaining > 0.0:
+		return
+	role_pulse_remaining = role_profile.pulse_interval
+	if role_profile.heal_amount > 0.0:
+		_heal_nearby_allies()
+	if not is_instance_valid(Global.player):
+		return
+	var player_distance := global_position.distance_to(Global.player.global_position)
+	if player_distance <= role_profile.effect_radius:
+		if role_profile.hazard_damage > 0.0:
+			Global.player.health_component.take_damage(role_profile.hazard_damage)
+		if role_profile.material_steal > 0:
+			Global.try_spend_materials(role_profile.material_steal)
+		if role_profile.slow_multiplier < 1.0:
+			Global.player.apply_enemy_slow(role_profile.slow_multiplier, role_profile.pulse_interval)
+	if role_profile.can_spawn_reinforcements and reinforcements_spawned < 2:
+		reinforcements_spawned += 1
+		reinforcement_requested.emit(self)
+	if role_profile.ambush_distance > 0.0 and is_instance_valid(Global.player):
+		var side := -1.0 if global_position.x > Global.player.global_position.x else 1.0
+		global_position = Global.player.global_position + Vector2(side * role_profile.ambush_distance, -80.0)
+		GameplayCues.emit_cue(&"enemy.telegraph", {
+			"presentation_id": definition.get_presentation_id(Content.catalog.pack_id) if definition != null else &"",
+			"world_position": global_position,
+			"shape": &"ambush",
+		})
+
+
+func _heal_nearby_allies() -> void:
+	var radius_squared := role_profile.effect_radius * role_profile.effect_radius
+	for member_ref: WeakRef in _flock_members.values():
+		var ally := member_ref.get_ref() as Enemy
+		if ally == null or ally == self or not ally.is_inside_tree():
+			continue
+		if global_position.distance_squared_to(ally.global_position) <= radius_squared:
+			ally.health_component.heal(role_profile.heal_amount)
 
 
 static func _flock_cell(world_position: Vector2) -> Vector2i:
@@ -131,7 +223,7 @@ func reset_knockback() -> void:
 
 func destroy_enemy() -> void:
 	can_move = false
-	anim_player.play("die")
+	presentation_controller.set_semantic_state(&"death")
 	await anim_player.animation_finished
 	queue_free()
 
@@ -148,5 +240,12 @@ func _on_hurtbox_component_on_damaged(hitbox: HitboxComponent) -> void:
 		apply_knockback(dir, hitbox.knockback_power)
 
 
+func incoming_damage_multiplier() -> float:
+	return role_profile.damage_taken_multiplier
+
+
 func _on_health_component_on_unit_died() -> void:
+	Global.dispatch_gameplay_event(
+		GameplayEvent.Type.KILLED, {}, [], kill_credit_source(Global.player), self
+	)
 	Global.on_enemy_died.emit(self)

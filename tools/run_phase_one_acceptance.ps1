@@ -9,6 +9,10 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($GodotBinary) -or -not (Test-Path -LiteralPath $GodotBinary)) {
 	throw "Godot 4.7.1 was not found. Pass -GodotBinary or set GODOT_BIN."
 }
+$consoleBinary = Join-Path (Split-Path -Parent $GodotBinary) (([System.IO.Path]::GetFileNameWithoutExtension($GodotBinary)) + "_console.exe")
+if (-not $GodotBinary.EndsWith("_console.exe", [System.StringComparison]::OrdinalIgnoreCase) -and (Test-Path -LiteralPath $consoleBinary)) {
+	$GodotBinary = $consoleBinary
+}
 
 & $GodotBinary --headless --editor --path $projectRoot --import --quit
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

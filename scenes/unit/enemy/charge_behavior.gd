@@ -36,6 +36,10 @@ func _process(delta: float) -> void:
 
 func start_charge() -> void:
 	enemy.can_move = false
+	GameplayCues.emit_cue(&"enemy.telegraph", {
+		"presentation_id": enemy.definition.get_presentation_id(Content.catalog.pack_id) if enemy.definition != null else &"",
+		"world_position": enemy.global_position,
+	})
 	anim_effects.play("charge")
 	await anim_effects.animation_finished
 	is_charging = true

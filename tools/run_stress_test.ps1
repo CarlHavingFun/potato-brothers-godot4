@@ -6,6 +6,10 @@ param(
 
 $ErrorActionPreference = "Continue"
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$consoleBinary = Join-Path (Split-Path -Parent $GodotBinary) (([System.IO.Path]::GetFileNameWithoutExtension($GodotBinary)) + "_console.exe")
+if (-not $GodotBinary.EndsWith("_console.exe", [System.StringComparison]::OrdinalIgnoreCase) -and (Test-Path -LiteralPath $consoleBinary)) {
+	$GodotBinary = $consoleBinary
+}
 $output = @(& $GodotBinary --path $projectRoot --resolution 1920x1080 `
 	res://tests/performance/combat_stress.tscn 2>&1)
 $exitCode = $LASTEXITCODE

@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://ciwpleyi5ot6u" path="res://scenes/ui/upgrade_card/upgrade_card.gd" id="1_7erta"]
 [ext_resource type="StyleBox" uid="uid://dn43vff5bgab1" path="res://styles/common_style.tres" id="1_v41mk"]
-[ext_resource type="Texture2D" uid="uid://dn68qq5evmvwa" path="res://assets/sprites/Upgrades/12.png" id="3_kjnsj"]
 [ext_resource type="PackedScene" uid="uid://fbgjpc1m3ig1" path="res://scenes/ui/custom_button/custom_buttom.tscn" id="4_oy0iu"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_w4p5w"]
@@ -36,7 +35,6 @@ custom_minimum_size = Vector2(100, 100)
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
-texture = ExtResource("3_kjnsj")
 expand_mode = 1
 stretch_mode = 5
 

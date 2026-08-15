@@ -3,6 +3,7 @@ param(
 	[string]$GodotBinary = $env:GODOT_BIN,
 	[ValidateSet("Windows", "Linux", "macOS")]
 	[string[]]$Platforms = @("Windows", "Linux", "macOS"),
+	[string]$SkinManifest = "res://content_packs/skins/dev_placeholder/skin.tres",
 	[switch]$SkipAcceptance
 )
 
@@ -11,7 +12,7 @@ $projectRoot = (Resolve-Path (Split-Path -Parent $PSScriptRoot)).Path
 $buildRoot = Join-Path $projectRoot "builds"
 $stagingRoot = Join-Path $buildRoot "release_staging"
 $stagingProject = Join-Path $stagingRoot "core_project"
-$distRoot = Join-Path $projectRoot "dist\potato-brothers-phase1"
+$distRoot = Join-Path $projectRoot "dist\gobro-core-parity"
 $contentPack = Join-Path $buildRoot "content\default_content.pck"
 
 if ([string]::IsNullOrWhiteSpace($GodotBinary)) {
@@ -20,6 +21,10 @@ if ([string]::IsNullOrWhiteSpace($GodotBinary)) {
 }
 if ([string]::IsNullOrWhiteSpace($GodotBinary) -or -not (Test-Path -LiteralPath $GodotBinary)) {
 	throw "Godot 4.7.1 was not found. Pass -GodotBinary or set GODOT_BIN."
+}
+$consoleBinary = Join-Path (Split-Path -Parent $GodotBinary) (([System.IO.Path]::GetFileNameWithoutExtension($GodotBinary)) + "_console.exe")
+if (-not $GodotBinary.EndsWith("_console.exe", [System.StringComparison]::OrdinalIgnoreCase) -and (Test-Path -LiteralPath $consoleBinary)) {
+	$GodotBinary = $consoleBinary
 }
 
 function Assert-ChildPath([string]$Path, [string]$Parent) {
@@ -36,10 +41,35 @@ function Reset-GeneratedDirectory([string]$Path, [string]$Parent) {
 	New-Item -ItemType Directory -Force -Path $Path | Out-Null
 }
 
+function Remove-UnselectedSkinDirectories([string]$SkinRoot, [string]$SelectedSkinDirectory) {
+	$resolvedSkinRoot = [System.IO.Path]::GetFullPath($SkinRoot)
+	$resolvedSelected = [System.IO.Path]::GetFullPath($SelectedSkinDirectory)
+	Assert-ChildPath $resolvedSelected $resolvedSkinRoot
+	Get-ChildItem -LiteralPath $resolvedSkinRoot -Directory | ForEach-Object {
+		$resolvedCandidate = [System.IO.Path]::GetFullPath($_.FullName)
+		Assert-ChildPath $resolvedCandidate $resolvedSkinRoot
+		if (-not $resolvedCandidate.Equals($resolvedSelected, [System.StringComparison]::OrdinalIgnoreCase)) {
+			Remove-Item -LiteralPath $resolvedCandidate -Recurse -Force
+		}
+	}
+}
+
 function Invoke-Godot([string[]]$Arguments) {
 	& $GodotBinary @Arguments
 	if ($LASTEXITCODE -ne 0) { throw "Godot failed with exit code ${LASTEXITCODE}: $($Arguments -join ' ')" }
 }
+
+if (-not $SkinManifest.StartsWith("res://content_packs/skins/", [System.StringComparison]::Ordinal) -or -not $SkinManifest.EndsWith("/skin.tres", [System.StringComparison]::Ordinal)) {
+	throw "SkinManifest must identify one skin under res://content_packs/skins/<id>/skin.tres."
+}
+$skinRelativePath = $SkinManifest.Substring(6).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+$selectedSkinSource = Join-Path $projectRoot $skinRelativePath
+$sourceSkinRoot = Join-Path $projectRoot "content_packs\skins"
+Assert-ChildPath $selectedSkinSource $sourceSkinRoot
+if (-not (Test-Path -LiteralPath $selectedSkinSource -PathType Leaf)) {
+	throw "Selected skin manifest is missing: $selectedSkinSource"
+}
+$selectedSkinName = Split-Path -Leaf (Split-Path -Parent $selectedSkinSource)
 
 Reset-GeneratedDirectory $stagingRoot $buildRoot
 if (-not $SkipAcceptance) {
@@ -62,6 +92,13 @@ foreach ($entry in $releaseEntries) {
 	if (-not (Test-Path -LiteralPath $source)) { throw "Release source is missing: $source" }
 	Copy-Item -LiteralPath $source -Destination $stagingProject -Recurse -Force
 }
+$stagedSkinRoot = Join-Path $stagingProject "content_packs\skins"
+$stagedSelectedSkinDirectory = Join-Path $stagedSkinRoot $selectedSkinName
+Remove-UnselectedSkinDirectories $stagedSkinRoot $stagedSelectedSkinDirectory
+$stagedSelectedManifest = Join-Path $stagingProject $skinRelativePath
+if (-not (Test-Path -LiteralPath $stagedSelectedManifest -PathType Leaf)) {
+	throw "Selected skin was not staged: $stagedSelectedManifest"
+}
 
 $stagedProjectFile = Join-Path $stagingProject "project.godot"
 $projectText = Get-Content -LiteralPath $stagedProjectFile -Raw
@@ -69,14 +106,15 @@ $projectText = $projectText -replace '(?m)^MCPGameInspector=.*\r?\n', ''
 $projectText = $projectText -replace '(?m)^MCPGameInput=.*\r?\n', ''
 $projectText = $projectText -replace '(?m)^enabled=PackedStringArray\(.*\)$', 'enabled=PackedStringArray()'
 $projectText = $projectText -replace '(?m)^theme/custom_font=.*\r?\n', ''
+$projectText = $projectText -replace '(?m)^skin_manifest="[^"]*"$', ('skin_manifest="' + $SkinManifest + '"')
 [System.IO.File]::WriteAllText($stagedProjectFile, $projectText, [System.Text.UTF8Encoding]::new($false))
 
 Invoke-Godot @("--headless", "--editor", "--path", $stagingProject, "--import", "--quit")
 
 $platformConfig = @{
-	Windows = @{ Preset = "Windows Desktop"; Folder = "windows"; File = "PotatoBrothers.exe" }
-	Linux   = @{ Preset = "Linux"; Folder = "linux"; File = "PotatoBrothers.x86_64" }
-	macOS   = @{ Preset = "macOS"; Folder = "macos"; File = "PotatoBrothers.zip" }
+	Windows = @{ Preset = "Windows Desktop"; Folder = "windows"; File = "GOBRO.exe" }
+	Linux   = @{ Preset = "Linux"; Folder = "linux"; File = "GOBRO.x86_64" }
+	macOS   = @{ Preset = "macOS"; Folder = "macos"; File = "GOBRO.zip" }
 }
 $inspectorSource = Join-Path $projectRoot "tools\release_inspector"
 $inspectorProject = Join-Path $stagingRoot "inspector_project"
@@ -127,13 +165,13 @@ foreach ($platform in $Platforms) {
 				} finally { $noticeStream.Dispose() }
 			}
 		} finally { $archive.Dispose() }
-		Invoke-Godot @("--headless", "--path", $inspectorProject, "--script", $inspectorScript, "--", $macCorePck)
-		$releaseArchive = Join-Path $distRoot "PotatoBrothers-Phase1-macOS-universal.zip"
+		Invoke-Godot @("--headless", "--path", $inspectorProject, "--script", $inspectorScript, "--", $macCorePck, "--skin-manifest", $SkinManifest)
+		$releaseArchive = Join-Path $distRoot "GOBRO-core-parity-macOS-universal.zip"
 		Copy-Item -LiteralPath $exportPath -Destination $releaseArchive -Force
 	} else {
 		$corePck = [System.IO.Path]::ChangeExtension($exportPath, ".pck")
 		if (-not (Test-Path -LiteralPath $corePck)) { throw "Core PCK was not generated: $corePck" }
-		Invoke-Godot @("--headless", "--path", $inspectorProject, "--script", $inspectorScript, "--", $corePck)
+		Invoke-Godot @("--headless", "--path", $inspectorProject, "--script", $inspectorScript, "--", $corePck, "--skin-manifest", $SkinManifest)
 		Copy-Item -LiteralPath $contentPack -Destination (Join-Path $platformDir "default_content.pck") -Force
 		Copy-Item -LiteralPath (Join-Path $projectRoot "docs\PHASE_ONE_PLAYTEST.md") -Destination (Join-Path $platformDir "PLAYTEST.md") -Force
 		Copy-Item -LiteralPath (Join-Path $projectRoot "docs\THIRD_PARTY.md") -Destination (Join-Path $platformDir "THIRD_PARTY.md") -Force
@@ -145,11 +183,11 @@ foreach ($platform in $Platforms) {
 				$smokeErrors = @(Get-Content -LiteralPath $smokeLog | Where-Object { $_ -match "SCRIPT ERROR|ERROR:|ObjectDB instances were leaked|resources still in use" })
 				if ($smokeErrors.Count -gt 0) { throw "Exported Windows smoke test logged errors: $($smokeErrors -join [Environment]::NewLine)" }
 			}
-			$releaseArchive = Join-Path $distRoot "PotatoBrothers-Phase1-Windows-x86_64.zip"
+			$releaseArchive = Join-Path $distRoot "GOBRO-core-parity-Windows-x86_64.zip"
 			tar -a -cf $releaseArchive -C $platformDir .
 			if ($LASTEXITCODE -ne 0) { throw "Windows archive creation failed" }
 		} else {
-			$releaseArchive = Join-Path $distRoot "PotatoBrothers-Phase1-Linux-x86_64.tar.gz"
+			$releaseArchive = Join-Path $distRoot "GOBRO-core-parity-Linux-x86_64.tar.gz"
 			tar -czf $releaseArchive -C $platformDir .
 			if ($LASTEXITCODE -ne 0) { throw "Linux archive creation failed" }
 		}
@@ -166,13 +204,14 @@ Get-ChildItem -LiteralPath $distRoot -File -Recurse | Where-Object Name -ne "rel
 	}
 }
 $manifest = [ordered]@{
-	product = "Potato Brothers"
+	product = "GOBRO"
 	phase = 1
 	version = "0.1.0-playtest"
 	godot = "4.7.1"
 	commit = $commit
 	created_utc = [DateTime]::UtcNow.ToString("o")
-	content_pack = "potato_default"
+	content_pack = "core"
+	skin_manifest = $SkinManifest
 	platforms = $Platforms
 	files = $fileRecords
 }

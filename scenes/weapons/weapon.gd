@@ -13,8 +13,14 @@ var targets: Array[Enemy]
 var closest_target: Enemy
 var weapon_spread: float
 var aim_resolver := AimResolver.new()
+var pending_pierce := 0
+var pending_bounce := 0
+var presentation_controller: PresentationController
 
 func _ready() -> void:
+	presentation_controller = PresentationController.new()
+	presentation_controller.name = "PresentationController"
+	add_child(presentation_controller)
 	atk_start_pos = sprite.position
 
 
@@ -28,6 +34,7 @@ func _process(delta: float) -> void:
 		else:
 			closest_target = null
 	
+	presentation_controller.set_semantic_state(&"attack" if is_attacking else &"idle")
 	rotate_to_target()
 	update_visuals()
 	
@@ -37,6 +44,15 @@ func _process(delta: float) -> void:
 
 func setup_weapon(data: ItemWeapon) -> void:
 	self.data = data
+	var definition := Content.catalog.get_weapon(Content.catalog.get_item_stable_id(data))
+	if definition != null:
+		presentation_controller.configure(
+			sprite,
+			&"weapon",
+			definition.get_presentation_id(Content.catalog.pack_id),
+			sprite.texture
+		)
+	presentation_controller.set_semantic_state(&"idle")
 	collision.shape = collision.shape.duplicate()
 	collision.shape.radius = Global.combat_resolver.attack_range(
 		data.stats.max_range, Global.current_run.player_stats
@@ -46,11 +62,50 @@ func setup_weapon(data: ItemWeapon) -> void:
 
 func use_weapon() -> void:
 	calculate_spread()
+	var definition := Content.catalog.get_weapon(Content.catalog.get_item_stable_id(data))
+	Global.dispatch_gameplay_event(
+		GameplayEvent.Type.ATTACKED,
+		{"base_damage": data.stats.damage},
+		definition.tags if definition != null else [],
+		self
+	)
+	GameplayCues.emit_cue(&"weapon.fire", {
+		"presentation_id": definition.get_presentation_id(Content.catalog.pack_id) if definition != null else &"",
+		"world_position": global_position,
+	})
 	weapon_behavior.execute_attack()
-	cooldown_timer.wait_time = Global.combat_resolver.attack_cooldown(
+	var base_cooldown := Global.combat_resolver.attack_cooldown(
 		data.stats.cooldown, Global.current_run.player_stats
 	) if Global.current_run != null and Global.combat_resolver != null else data.stats.cooldown
+	var pattern := current_attack_pattern()
+	cooldown_timer.wait_time = base_cooldown * (
+		pattern.cooldown_multiplier if pattern != null else 1.0
+	)
 	cooldown_timer.start()
+
+
+func current_attack_pattern() -> AttackPatternDef:
+	if data == null:
+		return null
+	var definition := Content.catalog.get_weapon(Content.catalog.get_item_stable_id(data))
+	return definition.attack_pattern if definition != null else null
+
+
+func apply_attack_effects(result: EffectResult) -> void:
+	pending_pierce += maxi(0, result.pierce)
+	pending_bounce += maxi(0, result.bounce)
+
+
+func consume_projectile_effects() -> Dictionary:
+	var result := {"pierce": pending_pierce, "bounce": pending_bounce}
+	pending_pierce = 0
+	pending_bounce = 0
+	return result
+
+
+func spawn_effect_projectiles(commands: Array[Dictionary]) -> void:
+	if weapon_behavior != null and weapon_behavior.has_method("spawn_effect_projectiles"):
+		weapon_behavior.call("spawn_effect_projectiles", commands)
 
 
 func rotate_to_target() -> void:
@@ -63,7 +118,7 @@ func rotate_to_target() -> void:
 func get_custom_rotation_to_target() -> float:
 	if Global.aim_mode == AimMode.MANUAL_MOUSE:
 		return aim_resolver.rotation_to_aim(
-			global_position, Global.aim_mode, Vector2.ZERO, get_global_mouse_position(), false
+			global_position, Global.aim_mode, Vector2.ZERO, _manual_aim_position(), false
 		) + weapon_spread
 	if not closest_target or not is_instance_valid(closest_target):
 		return rotation
@@ -75,7 +130,7 @@ func get_custom_rotation_to_target() -> float:
 func get_rotation_to_target() -> float:
 	if Global.aim_mode == AimMode.MANUAL_MOUSE:
 		return aim_resolver.rotation_to_aim(
-			global_position, Global.aim_mode, Vector2.ZERO, get_global_mouse_position(), false
+			global_position, Global.aim_mode, Vector2.ZERO, _manual_aim_position(), false
 		)
 	if targets.size() == 0:
 		return get_idle_rotation()
@@ -89,6 +144,13 @@ func get_idle_rotation() -> float:
 		return 0
 	else:
 		return PI
+
+
+func _manual_aim_position() -> Vector2:
+	var stick := Input.get_vector(&"aim_left", &"aim_right", &"aim_up", &"aim_down")
+	if stick.length() >= 0.25:
+		return global_position + stick.normalized() * 1000.0
+	return get_global_mouse_position()
 
 
 func update_visuals() -> void:

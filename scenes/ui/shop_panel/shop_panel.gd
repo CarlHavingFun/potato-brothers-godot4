@@ -10,7 +10,6 @@ const SHOP_CARD_SCENE = preload("uid://csmrkxii0a74i")
 @onready var weapons_container: GridContainer = %WeaponsContainer
 
 @onready var combine_button: Button = %CombineButton
-@onready var lock_button: Button = %LockButton
 @onready var refresh_button: Button = %RefreshButton
 
 var context_card: ItemCard
@@ -21,32 +20,47 @@ func _ready() -> void:
 
 
 func reset_inventory() -> void:
-	for child in passives_container.get_children(): child.queue_free()
-	for child in weapons_container.get_children(): child.queue_free()
-	for child in items_container.get_children(): child.queue_free()
+	_clear_children(passives_container)
+	_clear_children(weapons_container)
+	_clear_children(items_container)
 	context_card = null
 	combine_button.disabled = true
 
 func load_shop(wave: int, force_refresh: bool = false) -> void:
 	current_wave = wave
-	for child in items_container.get_children(): child.queue_free()
+	_clear_children(items_container)
 	if Global.current_run == null:
 		return
 	var config := Global.SHOP_PROBABILITY_CONFIG
 	var shop_items: Array[ItemBase] = Content.catalog.get_shop_items()
-	var selected_items: Array[ItemBase] = []
-	if not force_refresh and Global.current_run.shop_locked:
-		selected_items = Global.shop_service.resolve_offers(Global.current_run, Content.catalog)
-	if selected_items.is_empty():
-		selected_items.assign(Global.select_items_for_offer(shop_items, current_wave, config))
+	var missing_count := 0
+	for slot: ShopSlotState in Global.current_run.shop_slots:
+		if not slot.locked and slot.needs_offer():
+			missing_count += 1
+	if missing_count > 0:
+		var selected_items: Array[ItemBase] = []
+		selected_items.assign(Global.select_items_for_offer(
+			shop_items, current_wave, config, missing_count
+		))
 		Global.shop_service.store_offers(Global.current_run, selected_items, Content.catalog)
-	for shop_item : ItemBase in selected_items:
+	for slot_index in Global.current_run.shop_slots.size():
+		var shop_item := Global.shop_service.resolve_slot_offer(
+			Global.current_run, slot_index, Content.catalog
+		)
+		if shop_item == null:
+			continue
 		var card_instance := SHOP_CARD_SCENE.instantiate() as ShopCard
 		card_instance.on_item_purchased.connect(_on_item_purchased)
+		card_instance.lock_toggled.connect(_on_slot_lock_toggled)
 		items_container.add_child(card_instance)
 		card_instance.shop_item = shop_item
-	lock_button.button_pressed = Global.current_run.shop_locked
+		card_instance.configure_slot(slot_index, Global.current_run.shop_slots[slot_index].locked)
 	_update_refresh_text()
+
+
+func _clear_children(container: Node) -> void:
+	for child: Node in container.get_children():
+		child.free()
 
 
 func create_item_card() -> ItemCard:
@@ -62,13 +76,13 @@ func create_item_weapon(weapon: ItemWeapon) -> void:
 
 
 func _on_new_wave_button_pressed() -> void:
-	SoundManager.play_sound(SoundManager.Sound.UI)
+	GameplayCues.emit_cue(&"ui.confirm")
 	on_shop_next_wave.emit()
 
 
-func _on_lock_button_toggled(pressed: bool) -> void:
+func _on_slot_lock_toggled(slot_index: int, pressed: bool) -> void:
 	if Global.current_run != null:
-		Global.shop_service.set_locked(Global.current_run, pressed)
+		Global.shop_service.set_slot_locked(Global.current_run, slot_index, pressed)
 		Global.save_progress()
 
 
@@ -79,6 +93,7 @@ func _on_refresh_button_pressed() -> void:
 	if result != InventoryService.OK:
 		return
 	Global.materials_changed.emit(Global.current_run.materials)
+	Global.dispatch_gameplay_event(GameplayEvent.Type.SHOP_REFRESHED, {"wave": current_wave})
 	load_shop(current_wave, true)
 	Global.save_progress()
 
@@ -86,15 +101,28 @@ func _on_refresh_button_pressed() -> void:
 func _update_refresh_text() -> void:
 	if Global.current_run == null:
 		return
-	refresh_button.text = "%s (%s)" % [tr("ui.shop.refresh"), Global.shop_service.refresh_price(
-		current_wave, Global.current_run.shop_refresh_count
+	var unlocked_count := Global.current_run.shop_slots.filter(
+		func(slot: ShopSlotState): return not slot.locked
+	).size()
+	refresh_button.text = "%s (%s)" % [tr("ui.shop.refresh"), Global.shop_service.refresh_price_for_run(
+		Global.current_run, current_wave, unlocked_count
 	)]
 
 
-func _on_item_purchased(item: ItemBase) -> void:
-	if Global.current_run != null:
+func _on_item_purchased(item: ItemBase, slot_index: int = -1) -> void:
+	if Global.current_run != null and slot_index < 0:
 		Global.shop_service.consume_offer(Global.current_run, item, Content.catalog)
 	project_item(item)
+	var purchase_tags: Array[StringName] = (
+		[&"purchase/weapon"] as Array[StringName]
+		if item is ItemWeapon
+		else [&"purchase/passive"] as Array[StringName]
+	)
+	Global.dispatch_gameplay_event(
+		GameplayEvent.Type.PURCHASED,
+		{"cost": item.item_cost},
+		purchase_tags
+	)
 	Global.save_progress()
 
 
@@ -134,7 +162,7 @@ func _on_item_card_selected(card: ItemCard) -> void:
 
 
 func _on_combine_button_pressed() -> void:
-	SoundManager.play_sound(SoundManager.Sound.UI)
+	GameplayCues.emit_cue(&"ui.confirm")
 	
 	if not context_card:
 		return
@@ -185,7 +213,7 @@ func _on_combine_button_pressed() -> void:
 
 
 func _on_sell_button_pressed() -> void:
-	SoundManager.play_sound(SoundManager.Sound.UI)
+	GameplayCues.emit_cue(&"ui.confirm")
 	
 	if not context_card:
 		return

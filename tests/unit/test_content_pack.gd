@@ -31,7 +31,7 @@ func test_content_pack_definition_exposes_a_versioned_contract() -> void:
 	var pack_script: Script = load(CONTENT_PACK_SCRIPT)
 	var pack: Resource = pack_script.new()
 
-	assert_int(pack.get("content_api_version")).is_equal(1)
+	assert_int(pack.get("content_api_version")).is_equal(2)
 	assert_str(pack.get("pack_version")).is_equal("0.1.0")
 
 
@@ -46,9 +46,10 @@ func test_content_definition_types_are_explicit_and_namespaced() -> void:
 	var definition: Resource = definition_script.new()
 	definition.set("content_id", &"character/well_rounded")
 
-	assert_str(definition.call("get_stable_id", &"potato_default")).is_equal(
-		"potato_default:character/well_rounded"
+	assert_str(definition.call("get_stable_id", &"core")).is_equal(
+		"core:character/well_rounded"
 	)
+	assert_str(definition.get("presentation_id")).is_equal("")
 
 
 func test_catalog_registration_is_atomic_and_queryable_by_stable_id() -> void:
@@ -59,7 +60,7 @@ func test_catalog_registration_is_atomic_and_queryable_by_stable_id() -> void:
 	var catalog_script: Script = load(CONTENT_CATALOG_SCRIPT)
 	var duplicate_catalog: RefCounted = catalog_script.new()
 	var duplicate_pack := ContentPackDef.new()
-	duplicate_pack.pack_id = &"potato_default"
+	duplicate_pack.pack_id = &"core"
 	var first := CharacterDef.new()
 	first.content_id = &"character/well_rounded"
 	var duplicate := CharacterDef.new()
@@ -71,13 +72,13 @@ func test_catalog_registration_is_atomic_and_queryable_by_stable_id() -> void:
 
 	var catalog: RefCounted = catalog_script.new()
 	var pack := ContentPackDef.new()
-	pack.pack_id = &"potato_default"
+	pack.pack_id = &"core"
 	pack.characters = [first]
 
 	assert_int(catalog.call("register_pack", pack)).is_equal(OK)
 	assert_object(catalog.call("get_character", &"character/well_rounded")).is_same(first)
 	assert_object(
-		catalog.call("get_character", &"potato_default:character/well_rounded")
+		catalog.call("get_character", &"core:character/well_rounded")
 	).is_same(first)
 
 
@@ -106,7 +107,7 @@ func test_validator_rejects_invalid_metadata_and_content_scripts() -> void:
 
 func test_validator_rejects_missing_enemy_scene_and_unknown_wave_enemy() -> void:
 	var pack := ContentPackDef.new()
-	pack.pack_id = &"potato_default"
+	pack.pack_id = &"core"
 
 	var enemy := EnemyDef.new()
 	enemy.content_id = &"enemy/chaser"
@@ -133,7 +134,7 @@ func test_bootstrap_loads_a_valid_manifest_before_game_content_is_used() -> void
 		return
 
 	var pack := ContentPackDef.new()
-	pack.pack_id = &"potato_default"
+	pack.pack_id = &"core"
 	var character := CharacterDef.new()
 	character.content_id = &"character/well_rounded"
 	var default_character := Content.catalog.get_character(&"character/well_rounded")
@@ -152,35 +153,51 @@ func test_bootstrap_loads_a_valid_manifest_before_game_content_is_used() -> void
 	var catalog: RefCounted = loader.get("catalog")
 	var loaded_character: CharacterDef = catalog.call("get_character", &"character/well_rounded")
 	assert_object(loaded_character).is_not_null()
-	assert_str(loaded_character.get_stable_id(&"potato_default")).is_equal(
-		"potato_default:character/well_rounded"
+	assert_str(loaded_character.get_stable_id(&"core")).is_equal(
+		"core:character/well_rounded"
 	)
 
 
-func test_default_content_pack_registers_the_phase_one_content_targets() -> void:
+func test_default_content_pack_registers_the_core_parity_content_targets() -> void:
 	assert_bool(ResourceLoader.exists(DEFAULT_PACK_PATH)).is_true()
 	if not ResourceLoader.exists(DEFAULT_PACK_PATH):
 		return
 
 	var pack: ContentPackDef = load(DEFAULT_PACK_PATH)
-	assert_str(pack.pack_id).is_equal("potato_default")
-	assert_int(pack.characters.size()).is_equal(6)
-	assert_int(pack.weapons.size()).is_equal(11)
-	assert_int(pack.passives.size()).is_equal(20)
+	assert_str(pack.pack_id).is_equal("core")
+	assert_int(pack.characters.size()).is_equal(12)
+	assert_int(pack.weapons.size()).is_equal(24)
+	assert_int(pack.passives.size()).is_equal(60)
 	assert_int(pack.upgrades.size()).is_equal(64)
-	assert_int(pack.enemies.size()).is_equal(8)
-	assert_int(pack.waves.size()).is_equal(10)
+	assert_int(pack.enemies.size()).is_equal(22)
+	assert_int(pack.waves.size()).is_equal(20)
 	for weapon: WeaponDef in pack.weapons:
 		assert_int(weapon.tiers.size()).override_failure_message(String(weapon.content_id)).is_equal(4)
 
 	var errors := ContentValidator.new().validate_pack(pack, "res://content_packs/default")
 	assert_array(errors).is_empty()
+	assert_array(ContentValidator.new().validate_release_matrix(pack)).is_empty()
 	var catalog := ContentCatalog.new()
 	assert_int(catalog.register_pack(pack)).is_equal(OK)
 	assert_object(catalog.get_character(&"character/well_rounded")).is_not_null()
 	assert_object(catalog.get_weapon(&"weapon/pistol")).is_not_null()
 	assert_object(catalog.get_character(&"character/almighty")).is_not_null()
 	assert_object(catalog.get_enemy(&"enemy/mouse_dog")).is_not_null()
+
+
+func test_non_damage_trigger_passives_do_not_emit_unconsumed_extra_damage() -> void:
+	for passive_id: StringName in [
+		&"passive/hunter_mark",
+		&"passive/harvest_bell",
+		&"passive/dash_charge",
+	]:
+		var passive := Content.catalog.get_passive(passive_id)
+		assert_object(passive).is_not_null()
+		if passive == null:
+			continue
+		for effect: EffectDef in passive.effects:
+			for operation: EffectOperationDef in effect.operations:
+				assert_int(operation.kind).is_not_equal(EffectOperationDef.Kind.EXTRA_DAMAGE)
 
 
 func test_selection_and_player_creation_do_not_embed_specific_content_paths() -> void:
@@ -200,17 +217,17 @@ func test_selection_and_player_creation_do_not_embed_specific_content_paths() ->
 func test_catalog_builds_the_shop_pool_and_resolves_namespaced_item_ids() -> void:
 	var shop_items: Array[ItemBase] = Content.catalog.get_shop_items()
 
-	assert_int(shop_items.size()).is_equal(64)
+	assert_int(shop_items.size()).is_equal(156)
 	var pistol := Content.catalog.get_weapon(&"weapon/pistol")
 	assert_str(Content.catalog.get_item_stable_id(pistol.tiers[0])).is_equal(
-		"potato_default:weapon/pistol"
+		"core:weapon/pistol"
 	)
 	assert_object(
-		Content.catalog.get_weapon_tier(&"potato_default:weapon/pistol", 1)
+		Content.catalog.get_weapon_tier(&"core:weapon/pistol", 1)
 	).is_same(pistol.tiers[0])
 	var cape := Content.catalog.get_passive(&"passive/cape")
 	assert_str(Content.catalog.get_item_stable_id(cape.item)).is_equal(
-		"potato_default:passive/cape"
+		"core:passive/cape"
 	)
 
 
@@ -230,9 +247,9 @@ func test_shop_scene_does_not_embed_default_content_resources() -> void:
 
 func test_catalog_exposes_wave_and_difficulty_definitions() -> void:
 	var waves := Content.catalog.get_waves()
-	assert_int(waves.size()).is_equal(10)
+	assert_int(waves.size()).is_equal(20)
 	assert_array(waves.map(func(wave: WaveDef): return int(wave.duration))).is_equal(
-		[30, 35, 40, 45, 50, 55, 60, 65, 70, 90]
+		[30, 35, 40, 45, 50, 55, 60, 65, 70, 60, 70, 70, 75, 75, 65, 80, 80, 85, 85, 90]
 	)
 	assert_float(Content.catalog.get_difficulty(5).health_multiplier).is_equal(1.70)
 	assert_float(Content.catalog.get_difficulty(5).spawn_density_multiplier).is_equal(1.40)
@@ -258,7 +275,7 @@ func test_catalog_builds_upgrade_pool_with_namespaced_ids() -> void:
 		&"upgrade/max_health/common"
 	)
 	assert_str(Content.catalog.get_item_stable_id(health_upgrade.item)).is_equal(
-		"potato_default:upgrade/max_health/common"
+		"core:upgrade/max_health/common"
 	)
 
 

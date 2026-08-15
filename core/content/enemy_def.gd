@@ -4,4 +4,4 @@ extends ContentDef
 
 @export var scene: PackedScene
 @export var stats: UnitStats
-@export var tags: Array[StringName]
+@export var behavior: EnemyBehaviorDef

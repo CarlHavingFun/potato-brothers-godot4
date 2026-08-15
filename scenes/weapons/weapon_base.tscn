@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://jgcwdnw0j3td" path="res://scenes/weapons/weapon.gd" id="1_v4xn6"]
 [ext_resource type="Shader" uid="uid://cxmfa2mmvn3lr" path="res://shaders/outline.gdshader" id="2_omet7"]
-[ext_resource type="Texture2D" uid="uid://l5hst1cf27oo" path="res://assets/sprites/Weapons/Melee/Weapon_Punch.png" id="3_cs7wt"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_no4jq"]
 resource_local_to_scene = true
@@ -21,7 +20,6 @@ script = ExtResource("1_v4xn6")
 z_index = 1
 material = SubResource("ShaderMaterial_no4jq")
 scale = Vector2(0.5, 0.5)
-texture = ExtResource("3_cs7wt")
 
 [node name="RangeArea" type="Area2D" parent="."]
 collision_layer = 0
