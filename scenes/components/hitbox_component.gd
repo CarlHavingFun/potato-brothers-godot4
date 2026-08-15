@@ -3,6 +3,8 @@ class_name HitboxComponent
 
 signal on_hit_hurtbox(hurtbox: HurtboxComponent)
 
+@export_range(0.0, 10.0, 0.05, "or_greater") var repeat_interval := 0.0
+
 var damage := 1.0
 var display_damage := 1.0
 var critical := false

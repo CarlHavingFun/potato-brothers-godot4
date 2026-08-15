@@ -53,6 +53,7 @@ debug_color = Color(0.636395, 0.34082, 1, 0.42)
 [node name="HitboxComponent" parent="." index="5" instance=ExtResource("5_e15k4")]
 collision_layer = 4
 collision_mask = 32
+repeat_interval = 0.75
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="HitboxComponent" index="0"]
 position = Vector2(0, -30)

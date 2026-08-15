@@ -22,6 +22,7 @@ func _process(delta: float) -> void:
 	if not Global.is_combat_active(): return
 	
 	if not is_attacking:
+		prune_targets()
 		if targets.size() > 0:
 			update_closest_target()
 		else:
@@ -84,7 +85,7 @@ func get_rotation_to_target() -> float:
 
 
 func get_idle_rotation() -> float:
-	if Global.player.is_facing_right():
+	if is_instance_valid(Global.player) and Global.player.is_facing_right():
 		return 0
 	else:
 		return PI
@@ -106,9 +107,9 @@ func update_closest_target() -> void:
 	closest_target = get_closest_target()
 
 
-func get_closest_target() -> Node2D:
+func get_closest_target() -> Enemy:
 	if targets.size() == 0:
-		return
+		return null
 	
 	var closest_enemy := targets[0]
 	var closest_distance := global_position.distance_to(closest_enemy.global_position)
@@ -122,6 +123,24 @@ func get_closest_target() -> Node2D:
 			closest_distance = distance
 	
 	return closest_enemy
+
+
+func prune_targets() -> void:
+	for index: int in range(targets.size() - 1, -1, -1):
+		var target := targets[index]
+		if not is_instance_valid(target) or not target.is_inside_tree():
+			targets.remove_at(index)
+	if not is_instance_valid(closest_target) or not closest_target in targets:
+		closest_target = null
+
+
+func resolve_enemy_target(area: Area2D) -> Enemy:
+	var current: Node = area
+	while current != null:
+		if current is Enemy:
+			return current as Enemy
+		current = current.get_parent()
+	return null
 
 
 func can_use_weapon() -> bool:
@@ -140,10 +159,14 @@ func apply_tier_outline() -> void:
 
 
 func _on_range_area_area_entered(area: Area2D) -> void:
-	targets.push_back(area)
+	var target := resolve_enemy_target(area)
+	if target != null and not target in targets:
+		targets.push_back(target)
 
 
 func _on_range_area_area_exited(area: Area2D) -> void:
-	targets.erase(area)
+	var target := resolve_enemy_target(area)
+	if target != null:
+		targets.erase(target)
 	if targets.size() == 0:
 		closest_target = null

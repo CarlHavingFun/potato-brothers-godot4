@@ -11,6 +11,10 @@ signal on_selection_completed
 @onready var player_title: Label = %PlayerTitle
 @onready var player_description: RichTextLabel = %PlayerDescription
 
+var player_button_group := ButtonGroup.new()
+var weapon_button_group := ButtonGroup.new()
+
+
 func _ready() -> void:
 	for child in player_container.get_children(): child.queue_free()
 	for child in weapon_container.get_children(): child.queue_free()
@@ -27,7 +31,8 @@ func load_players() -> void:
 	
 	for character: CharacterDef in characters:
 		var card: SelectionCard = Global.SELECTION_CARD_SCENE.instantiate()
-		card.pressed.connect(_on_player_selected.bind(character))
+		card.button_group = player_button_group
+		card.pressed.connect(_on_player_selected.bind(character, card))
 		player_container.add_child(card)
 		card.set_icon(character.stats.icon)
 
@@ -42,7 +47,8 @@ func load_weapons() -> void:
 			continue
 		var weapon := definition.tiers[0]
 		var card: SelectionCard = Global.SELECTION_CARD_SCENE.instantiate()
-		card.pressed.connect(_on_weapon_selected.bind(definition))
+		card.button_group = weapon_button_group
+		card.pressed.connect(_on_weapon_selected.bind(definition, card))
 		weapon_container.add_child(card)
 		card.icon = weapon.item_icon
 
@@ -54,9 +60,29 @@ func show_player_info(value: bool) -> void:
 	player_description.visible = value
 
 
-func _on_player_selected(character: CharacterDef) -> void:
+func reset_selection() -> void:
+	for node: Node in player_container.get_children():
+		var card := node as BaseButton
+		if card != null:
+			card.set_pressed_no_signal(false)
+			var indicator := card.get_node_or_null("SelectedIndicator") as Control
+			if indicator != null:
+				indicator.hide()
+	for node: Node in weapon_container.get_children():
+		var card := node as BaseButton
+		if card != null:
+			card.set_pressed_no_signal(false)
+			var indicator := card.get_node_or_null("SelectedIndicator") as Control
+			if indicator != null:
+				indicator.hide()
+	show_player_info(false)
+
+
+func _on_player_selected(character: CharacterDef, card: SelectionCard = null) -> void:
 	if not Global.select_character(character):
 		return
+	if card != null:
+		card.button_pressed = true
 	var player := character.stats
 	show_player_info(true)
 	
@@ -65,8 +91,11 @@ func _on_player_selected(character: CharacterDef) -> void:
 	player_description.text = "[code]Health: [color=green]%s[/color]\nDamage: [color=green]%s[/color]\nSpeed: [color=green]%s[/color]\nLuck: [color=green]%s[/color]\nBlock Chance: [color=green]%s%%[/color][/code]" % [player.health, player.damage, player.speed, player.luck, player.block_chance]
 
 
-func _on_weapon_selected(weapon: WeaponDef) -> void:
-	Global.select_starting_weapon(weapon)
+func _on_weapon_selected(weapon: WeaponDef, card: SelectionCard = null) -> void:
+	if not Global.select_starting_weapon(weapon):
+		return
+	if card != null:
+		card.button_pressed = true
 
 
 func _on_continue_buttom_pressed() -> void:

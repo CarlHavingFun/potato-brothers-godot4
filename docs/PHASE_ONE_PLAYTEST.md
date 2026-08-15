@@ -16,6 +16,14 @@ Keep `default_content.pck` beside the Windows/Linux executable. On macOS it is
 already stored inside the application bundle. Start a new game, select a
 character, weapon, and unlocked difficulty.
 
+## Controls
+
+- Move: WASD or arrow keys
+- Dash: Space
+- Pause: Escape
+- Toggle fullscreen/windowed: F11 or Alt+Enter
+- Menu route: Settings -> disable Fullscreen -> Apply
+
 ## Feedback checkpoint
 
 Please record character, weapon, difficulty, wave, build commit, and the exact

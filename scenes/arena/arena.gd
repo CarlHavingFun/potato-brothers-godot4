@@ -197,10 +197,19 @@ func _on_selection_panel_on_selection_completed() -> void:
 
 
 func _on_difficulty_panel_difficulty_selected(level: int) -> void:
+	if is_instance_valid(Global.player) or Global.is_combat_active():
+		difficulty_panel.hide()
+		return
 	if not Global.begin_selected_run():
 		return
 	Global.current_run.difficulty = clampi(level, 1, 5)
 	var player := Global.get_selected_player()
+	if player == null:
+		Global.end_run()
+		difficulty_panel.show()
+		return
+	difficulty_panel.hide()
+	selection_panel.hide()
 	add_child(player)
 	player.health_component.on_unit_died.connect(_on_player_died, CONNECT_ONE_SHOT)
 	player.add_weapon(Global.main_weapon_selected)
@@ -299,3 +308,4 @@ func _reset_runtime_run() -> void:
 	shop_panel.reset_inventory()
 	spawner.wave_index = 1
 	Global.end_run()
+	selection_panel.reset_selection()

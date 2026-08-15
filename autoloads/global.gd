@@ -50,6 +50,7 @@ enum UpgradeTier{
 }
 
 const STARTING_MATERIALS := 500
+const QUICK_WINDOWED_RESOLUTION := "1280x720"
 
 var current_run: RunState
 var run_director: RunDirector
@@ -91,7 +92,32 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	load_progress()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not is_fullscreen_toggle_event(event):
+		return
+	toggle_fullscreen()
+	get_viewport().set_input_as_handled()
+
+
+func is_fullscreen_toggle_event(event: InputEvent) -> bool:
+	var key_event := event as InputEventKey
+	if key_event == null or not key_event.pressed or key_event.echo:
+		return false
+	var key := key_event.keycode if key_event.keycode != KEY_NONE else key_event.physical_keycode
+	return key == KEY_F11 or (key_event.alt_pressed and key in [KEY_ENTER, KEY_KP_ENTER])
+
+
+func toggle_fullscreen() -> bool:
+	meta_progress.fullscreen = not meta_progress.fullscreen
+	if not meta_progress.fullscreen:
+		meta_progress.resolution = QUICK_WINDOWED_RESOLUTION
+	apply_meta_settings()
+	save_progress(current_run != null)
+	return meta_progress.fullscreen
 
 
 func begin_run(seed_value: int = 0, source_stats: UnitStats = null, starting_materials: int = STARTING_MATERIALS) -> RunState:
@@ -217,9 +243,22 @@ func apply_meta_settings() -> void:
 	DisplayServer.window_set_mode(
 		DisplayServer.WINDOW_MODE_FULLSCREEN if meta_progress.fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
 	)
+	if meta_progress.fullscreen:
+		return
+	_apply_windowed_geometry()
+	call_deferred("_apply_windowed_geometry")
+
+
+func _apply_windowed_geometry() -> void:
+	if DisplayServer.get_name() == "headless" or meta_progress.fullscreen:
+		return
 	var parts := meta_progress.resolution.split("x")
 	if parts.size() == 2:
-		DisplayServer.window_set_size(Vector2i(maxi(640, int(parts[0])), maxi(360, int(parts[1]))))
+		var window_size := Vector2i(maxi(640, int(parts[0])), maxi(360, int(parts[1])))
+		DisplayServer.window_set_size(window_size)
+		var usable_rect := DisplayServer.screen_get_usable_rect(DisplayServer.SCREEN_OF_MAIN_WINDOW)
+		var centered_position := usable_rect.position + (usable_rect.size - window_size) / 2
+		DisplayServer.window_set_position(centered_position)
 
 
 func translate_text(key: StringName, english_fallback: String) -> String:
