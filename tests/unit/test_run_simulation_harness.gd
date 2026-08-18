@@ -16,7 +16,8 @@ func test_fixed_seed_standard_run_reaches_one_terminal_victory() -> void:
 	assert_int(run.highest_wave_reached).is_equal(20)
 	assert_bool(run.standard_victory_recorded).is_true()
 	assert_int(run.phase).is_equal(RunPhase.VICTORY)
-	assert_int(run.boss_kill_count).is_equal(1)
+	assert_int(run.boss_kill_count).is_equal(2)
+	assert_int(_boss_count_at(result, 20)).is_equal(2)
 	assert_str(str(result.get("event_hash", ""))).has_length(64)
 
 

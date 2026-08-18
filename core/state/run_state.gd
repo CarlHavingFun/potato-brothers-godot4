@@ -25,8 +25,10 @@ var dash_duration_multiplier := 1.0
 var level: int = 1
 var experience: int = 0
 var materials: int = 0
+var material_bag: int = 0
 var queued_level_ups: int = 0
 var queued_rewards: int = 0
+var queued_reward_floors: Array[int] = []
 var elapsed_seconds: float = 0.0
 var shop_refresh_count: int = 0
 var upgrade_refresh_count: int = 0
@@ -86,8 +88,10 @@ func to_dict() -> Dictionary:
 		"level": level,
 		"experience": experience,
 		"materials": materials,
+		"material_bag": material_bag,
 		"queued_level_ups": queued_level_ups,
 		"queued_rewards": queued_rewards,
+		"queued_reward_floors": queued_reward_floors.duplicate(),
 		"elapsed_seconds": elapsed_seconds,
 		"shop_refresh_count": shop_refresh_count,
 		"upgrade_refresh_count": upgrade_refresh_count,
@@ -130,8 +134,17 @@ static func from_dict(data: Dictionary) -> RunState:
 	result.level = maxi(1, int(data.get("level", 1)))
 	result.experience = maxi(0, int(data.get("experience", 0)))
 	result.materials = maxi(0, int(data.get("materials", 0)))
+	result.material_bag = maxi(0, int(data.get("material_bag", 0)))
 	result.queued_level_ups = maxi(0, int(data.get("queued_level_ups", 0)))
 	result.queued_rewards = maxi(0, int(data.get("queued_rewards", 0)))
+	var stored_reward_floors: Variant = data.get("queued_reward_floors", [])
+	if stored_reward_floors is Array:
+		for floor_value: Variant in stored_reward_floors:
+			if result.queued_reward_floors.size() >= result.queued_rewards:
+				break
+			result.queued_reward_floors.append(clampi(
+				int(floor_value), Global.UpgradeTier.COMMON, Global.UpgradeTier.LEGENDARY
+			))
 	result.elapsed_seconds = maxf(0.0, float(data.get("elapsed_seconds", 0.0)))
 	result.shop_refresh_count = maxi(0, int(data.get("shop_refresh_count", 0)))
 	result.upgrade_refresh_count = maxi(0, int(data.get("upgrade_refresh_count", 0)))

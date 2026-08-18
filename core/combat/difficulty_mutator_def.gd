@@ -12,6 +12,9 @@ extends Resource
 @export var economy_pressure := 0.0
 @export var elite_frenzy := false
 @export var boss_extra_phase := false
+@export var randomized_encounters := false
+@export_range(0, 4, 1) var horde_event_count := 0
+@export var double_final_boss := false
 
 
 func pressure_score() -> float:
@@ -23,4 +26,6 @@ func pressure_score() -> float:
 		+ economy_pressure
 		+ (1.0 if elite_frenzy else 0.0)
 		+ (1.2 if boss_extra_phase else 0.0)
+		+ float(horde_event_count) * 0.25
+		+ (0.8 if double_final_boss else 0.0)
 	)

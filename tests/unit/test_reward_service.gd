@@ -97,6 +97,21 @@ func test_chests_are_driven_by_elite_and_boss_drops_not_normal_enemies() -> void
 	assert_int(run.queued_rewards).is_equal(2)
 
 
+func test_resolving_an_enemy_drop_rolls_once_and_keeps_queue_api_compatible() -> void:
+	var direct_run := RunState.new(78)
+	var compatibility_run := RunState.new(78)
+	var direct := RewardService.new(78)
+	var compatibility := RewardService.new(78)
+
+	var kind := direct.resolve_enemy_drop(direct_run, [&"elite"])
+	var queued := compatibility.queue_enemy_drop(compatibility_run, [&"elite"])
+
+	assert_bool(direct.is_chest_drop(kind)).is_true()
+	assert_int(queued).is_equal(1)
+	assert_int(direct.rng.state).is_equal(compatibility.rng.state)
+	assert_int(direct_run.queued_rewards).is_equal(compatibility_run.queued_rewards)
+
+
 func test_upgrade_refresh_spends_materials_increases_price_and_rolls_back() -> void:
 	var run := RunState.new(606)
 	var service := RewardService.new(606)
@@ -121,3 +136,97 @@ func test_claiming_an_upgrade_resets_refresh_price_for_the_next_choice() -> void
 
 	assert_int(service.claim_level_up_and_get_next_phase(run)).is_equal(RunPhase.UPGRADE)
 	assert_int(run.upgrade_refresh_count).is_zero()
+
+
+func test_drop_rolls_are_reproducible_and_luck_increases_normal_chest_frequency() -> void:
+	var first := RewardService.new(901)
+	var second := RewardService.new(901)
+	var first_rolls: Array[int] = []
+	var second_rolls: Array[int] = []
+	for draw in 128:
+		first_rolls.append(first.roll_drop([&"normal"], 250.0, 12))
+		second_rolls.append(second.roll_drop([&"normal"], 250.0, 12))
+
+	assert_array(first_rolls).is_equal(second_rolls)
+	assert_bool(first_rolls.any(func(kind: int): return first.is_chest_drop(kind))).is_true()
+
+
+func test_elite_and_boss_drops_have_guaranteed_distinct_reward_floors() -> void:
+	var run := RunState.new(902)
+	var service := RewardService.new(902)
+	assert_int(service.queue_enemy_drop(run, [&"elite"])).is_equal(1)
+	assert_int(service.queue_enemy_drop(run, [&"boss"])).is_equal(1)
+
+	var first_reward := service.select_reward(Content.catalog.get_shop_items(), 20, run)
+	assert_object(first_reward).is_not_null()
+	assert_int(int(first_reward.item_tier)).is_equal(Global.UpgradeTier.LEGENDARY)
+	assert_bool(service.claim_reward(run)).is_true()
+	var second_reward := service.select_reward(Content.catalog.get_shop_items(), 20, run)
+	assert_object(second_reward).is_not_null()
+	assert_bool(int(second_reward.item_tier) >= Global.UpgradeTier.EPIC).is_true()
+
+
+func test_tree_drop_table_can_produce_material_healing_and_chests() -> void:
+	var service := RewardService.new(903)
+	var kinds := {}
+	for draw in 256:
+		kinds[service.roll_drop([&"source/tree"], 75.0, 8)] = true
+
+	assert_bool(kinds.has(service.DROP_MATERIAL)).is_true()
+	assert_bool(kinds.has(service.DROP_HEAL)).is_true()
+	assert_bool(kinds.has(service.DROP_CHEST)).is_true()
+
+
+func test_reward_quality_queue_survives_run_state_round_trip() -> void:
+	var run := RunState.new(904)
+	var service := RewardService.new(904)
+	service.queue_enemy_drop(run, [&"elite"])
+	service.queue_enemy_drop(run, [&"boss"])
+
+	var restored := RunState.from_dict(run.to_dict())
+
+	assert_int(restored.queued_rewards).is_equal(2)
+	assert_array(restored.queued_reward_floors).contains_exactly_in_any_order([
+		Global.UpgradeTier.EPIC,
+		Global.UpgradeTier.LEGENDARY,
+	])
+
+
+func test_uncollected_materials_are_banked_and_double_future_pickups_once() -> void:
+	var run := RunState.new(905)
+	var service := RewardService.new(905)
+
+	assert_int(service.bank_materials(run, 7)).is_equal(7)
+	assert_int(run.material_bag).is_equal(7)
+	assert_int(service.collect_material_pickup(run, 4)).is_equal(8)
+	assert_int(run.materials).is_equal(8)
+	assert_int(run.experience).is_equal(8)
+	assert_int(run.material_bag).is_equal(3)
+	assert_int(service.collect_material_pickup(run, 5)).is_equal(8)
+	assert_int(run.materials).is_equal(16)
+	assert_int(run.material_bag).is_zero()
+
+
+func test_material_bag_survives_checkpoint_and_old_saves_default_to_empty() -> void:
+	var run := RunState.new(906)
+	run.material_bag = 13
+
+	var restored := RunState.from_dict(run.to_dict())
+	var legacy := RunState.from_dict({"random_seed": 906, "materials": 4})
+
+	assert_int(restored.material_bag).is_equal(13)
+	assert_int(legacy.material_bag).is_zero()
+
+
+func test_abandoned_reward_floor_cannot_leak_into_a_later_chest() -> void:
+	var run := RunState.new(907)
+	var service := RewardService.new(907)
+	run.queued_rewards = 0
+	run.queued_reward_floors = [Global.UpgradeTier.LEGENDARY]
+
+	service.queue_rewards(run, 1)
+	var reward := service.select_reward(Content.catalog.get_shop_items(), 1, run)
+
+	assert_array(run.queued_reward_floors).contains_exactly([Global.UpgradeTier.COMMON])
+	assert_object(reward).is_not_null()
+	assert_int(int(reward.item_tier)).is_equal(Global.UpgradeTier.COMMON)

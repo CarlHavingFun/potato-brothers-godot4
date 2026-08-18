@@ -49,7 +49,7 @@ enum UpgradeTier{
 	LEGENDARY
 }
 
-const STARTING_MATERIALS := 500
+const STARTING_MATERIALS := 35
 const QUICK_WINDOWED_RESOLUTION := "1280x720"
 
 var current_run: RunState
@@ -495,10 +495,12 @@ func collect_materials(amount: int) -> int:
 	if amount <= 0:
 		return 0
 	_ensure_run()
-	add_materials(amount)
 	if reward_service == null:
 		reward_service = RewardService.new(current_run.random_seed)
-	return reward_service.add_experience(current_run, amount)
+	var level_before := current_run.level
+	reward_service.collect_material_pickup(current_run, amount)
+	materials_changed.emit(current_run.materials)
+	return current_run.level - level_before
 
 
 func try_spend_materials(amount: int) -> bool:

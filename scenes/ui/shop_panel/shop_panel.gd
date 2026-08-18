@@ -33,14 +33,21 @@ func load_shop(wave: int, force_refresh: bool = false) -> void:
 		return
 	var config := Global.SHOP_PROBABILITY_CONFIG
 	var shop_items: Array[ItemBase] = Content.catalog.get_shop_items()
+	var occupied_families := {}
 	var missing_count := 0
 	for slot: ShopSlotState in Global.current_run.shop_slots:
 		if not slot.locked and slot.needs_offer():
 			missing_count += 1
+		elif not slot.is_empty():
+			occupied_families[String(slot.offer_id)] = true
 	if missing_count > 0:
+		var eligible_items: Array[ItemBase] = []
+		for candidate: ItemBase in shop_items:
+			if not occupied_families.has(String(Content.catalog.get_item_stable_id(candidate))):
+				eligible_items.append(candidate)
 		var selected_items: Array[ItemBase] = []
 		selected_items.assign(Global.select_items_for_offer(
-			shop_items, current_wave, config, missing_count
+			eligible_items, current_wave, config, missing_count
 		))
 		Global.shop_service.store_offers(Global.current_run, selected_items, Content.catalog)
 	for slot_index in Global.current_run.shop_slots.size():
@@ -120,6 +127,7 @@ func _on_item_purchased(item: ItemBase, slot_index: int = -1) -> void:
 		{"cost": item.item_cost},
 		purchase_tags
 	)
+	_update_refresh_text()
 	Global.save_progress()
 
 

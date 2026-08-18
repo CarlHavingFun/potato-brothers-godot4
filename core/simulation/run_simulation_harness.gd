@@ -29,7 +29,7 @@ func simulate(target_wave: int, run_mode: int, difficulty: int = 1) -> Dictionar
 		var wave := _wave_for(wave_number, run.difficulty, endless_generator)
 		if wave == null:
 			return {}
-		var record := _simulate_wave(wave, director)
+		var record := _simulate_wave(wave, director, run.difficulty)
 		wave_records.append(record)
 		var bosses: Array = record.get("bosses", [])
 		if not bosses.is_empty():
@@ -79,12 +79,13 @@ func _wave_for(
 	return null
 
 
-func _simulate_wave(wave: WaveDef, director: WaveDirector) -> Dictionary:
+func _simulate_wave(wave: WaveDef, director: WaveDirector, difficulty_level: int) -> Dictionary:
 	var priority_ids: Array[String] = []
 	var boss_ids: Array[String] = []
 	var elite_ids: Array[String] = []
-	for priority_index: int in wave.priority_spawn_count:
-		var enemy_id := director.select_enemy_id(wave, priority_index)
+	var priority_limit := director.priority_spawn_limit(wave, difficulty_level)
+	for priority_index: int in priority_limit:
+		var enemy_id := director.select_enemy_id(wave, priority_index, difficulty_level)
 		if enemy_id.is_empty():
 			continue
 		priority_ids.append(String(enemy_id))
@@ -95,7 +96,9 @@ func _simulate_wave(wave: WaveDef, director: WaveDirector) -> Dictionary:
 			elite_ids.append(String(enemy_id))
 	var sample_ids: Array[String] = []
 	for sample_index: int in 3:
-		var enemy_id := director.select_enemy_id(wave, wave.priority_spawn_count + sample_index)
+		var enemy_id := director.select_enemy_id(
+			wave, priority_limit + sample_index, difficulty_level
+		)
 		if not enemy_id.is_empty():
 			sample_ids.append(String(enemy_id))
 	return {
@@ -107,4 +110,5 @@ func _simulate_wave(wave: WaveDef, director: WaveDirector) -> Dictionary:
 		"elites": elite_ids,
 		"sample": sample_ids,
 		"density": snappedf(wave.spawn_density_multiplier, 0.0001),
+		"encounter": String(director.encounter_kind(wave.wave_number, difficulty_level)),
 	}

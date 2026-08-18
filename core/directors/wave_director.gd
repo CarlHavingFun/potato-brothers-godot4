@@ -3,17 +3,30 @@ extends RefCounted
 
 
 const STREAM_OFFSET := 0x57415645
+const SCHEDULE_OFFSET := 0x454E434F
+const ELITE_IDS: Array[StringName] = [&"enemy/iron_maw", &"enemy/volt_stalker"]
+const ELITE_WINDOWS: Array[Vector2i] = [Vector2i(9, 11), Vector2i(14, 16)]
+const HORDE_WINDOWS: Array[Vector2i] = [
+	Vector2i(5, 8), Vector2i(11, 14), Vector2i(16, 18),
+]
 
 var catalog: ContentCatalog
 var rng := RandomNumberGenerator.new()
+var _run_seed := 0
+var _schedule_cache: Dictionary = {}
 
 
 func _init(content_catalog: ContentCatalog = null, run_seed: int = 0) -> void:
 	catalog = content_catalog
+	_run_seed = run_seed
 	rng.seed = run_seed ^ STREAM_OFFSET
 
 
-func select_enemy_id(wave: WaveDef, priority_state: Variant = false) -> StringName:
+func select_enemy_id(
+	wave: WaveDef,
+	priority_state: Variant = false,
+	difficulty_level: int = 1
+) -> StringName:
 	if wave == null or catalog == null:
 		return &""
 	var priority_count := (
@@ -21,30 +34,105 @@ func select_enemy_id(wave: WaveDef, priority_state: Variant = false) -> StringNa
 		if priority_state is int
 		else (1 if bool(priority_state) else 0)
 	)
-	var priority_spawns: Array[WaveSpawnDef] = []
-	for spawn: WaveSpawnDef in wave.spawns:
-		if spawn != null and spawn.is_priority_spawn() and catalog.get_enemy(spawn.enemy_id) != null:
-			priority_spawns.append(spawn)
-	priority_spawns.sort_custom(func(first: WaveSpawnDef, second: WaveSpawnDef) -> bool:
-		return String(first.enemy_id) < String(second.enemy_id)
-	)
-	var priority_limit := mini(wave.priority_spawn_count, priority_spawns.size())
+	var priority_ids := _priority_enemy_ids(wave, difficulty_level)
+	var priority_limit := priority_spawn_limit(wave, difficulty_level)
 	if priority_count < priority_limit:
-		if priority_limit == 1 and priority_spawns.size() > 1:
-			return priority_spawns[rng.randi_range(0, priority_spawns.size() - 1)].enemy_id
-		return priority_spawns[priority_count].enemy_id
+		if priority_limit == 1 and priority_ids.size() > 1:
+			return priority_ids[rng.randi_range(0, priority_ids.size() - 1)]
+		return priority_ids[priority_count]
+
 	var candidates: Array[WaveSpawnDef] = []
-	var weights := PackedFloat32Array()
+	var horde_candidates: Array[WaveSpawnDef] = []
 	for spawn: WaveSpawnDef in wave.spawns:
 		if spawn == null or spawn.is_priority_spawn():
 			continue
-		if catalog.get_enemy(spawn.enemy_id) == null:
+		var enemy := catalog.get_enemy(spawn.enemy_id)
+		if enemy == null:
 			continue
 		candidates.append(spawn)
-		weights.append(maxf(0.01, spawn.weight))
+		if _is_horde_enemy(enemy):
+			horde_candidates.append(spawn)
+	if encounter_kind(wave.wave_number, difficulty_level) == &"horde" \
+	and not horde_candidates.is_empty():
+		candidates = horde_candidates
 	if candidates.is_empty():
 		return &""
+	var weights := PackedFloat32Array()
+	for spawn: WaveSpawnDef in candidates:
+		weights.append(maxf(0.01, spawn.weight))
 	return candidates[rng.rand_weighted(weights)].enemy_id
+
+
+func encounter_schedule(difficulty_level: int) -> Dictionary:
+	var normalized_level := clampi(difficulty_level, 1, 5)
+	if _schedule_cache.has(normalized_level):
+		return (_schedule_cache[normalized_level] as Dictionary).duplicate(true)
+	var schedule: Dictionary = {20: &"boss"}
+	if normalized_level == 1:
+		schedule[10] = &"elite"
+		schedule[15] = &"elite"
+	else:
+		var schedule_rng := RandomNumberGenerator.new()
+		schedule_rng.seed = (
+			_run_seed ^ SCHEDULE_OFFSET ^ (normalized_level * 1_000_033)
+		)
+		for window: Vector2i in ELITE_WINDOWS:
+			schedule[schedule_rng.randi_range(window.x, window.y)] = &"elite"
+		var difficulty := DifficultyDef.for_level(normalized_level)
+		var horde_count := difficulty.horde_events_per_run() if difficulty != null else 0
+		for window_index: int in mini(horde_count, HORDE_WINDOWS.size()):
+			var window := HORDE_WINDOWS[window_index]
+			var available: Array[int] = []
+			for candidate_wave: int in range(window.x, window.y + 1):
+				if not schedule.has(candidate_wave):
+					available.append(candidate_wave)
+			if not available.is_empty():
+				schedule[available[schedule_rng.randi_range(0, available.size() - 1)]] = &"horde"
+	_schedule_cache[normalized_level] = schedule.duplicate(true)
+	return schedule
+
+
+func encounter_kind(wave_number: int, difficulty_level: int) -> StringName:
+	if wave_number > 20:
+		return &"standard"
+	return StringName(encounter_schedule(difficulty_level).get(wave_number, &"standard"))
+
+
+func encounter_waves(kind: StringName, difficulty_level: int) -> Array[int]:
+	var result: Array[int] = []
+	for raw_wave_number: Variant in encounter_schedule(difficulty_level).keys():
+		var wave_number := int(raw_wave_number)
+		if encounter_kind(wave_number, difficulty_level) == kind:
+			result.append(wave_number)
+	result.sort()
+	return result
+
+
+func encounter_density_multiplier(wave_number: int, difficulty_level: int) -> float:
+	return 1.45 if encounter_kind(wave_number, difficulty_level) == &"horde" else 1.0
+
+
+func priority_spawn_limit(wave: WaveDef, difficulty_level: int = 1) -> int:
+	if wave == null:
+		return 0
+	if wave.wave_number > 20:
+		return mini(wave.priority_spawn_count, _explicit_priority_ids(wave).size())
+	match encounter_kind(wave.wave_number, difficulty_level):
+		&"boss":
+			var difficulty := DifficultyDef.for_level(clampi(difficulty_level, 1, 5))
+			var desired := difficulty.final_boss_count() if difficulty != null else 1
+			return mini(desired, _explicit_priority_ids(wave, true, false).size())
+		&"elite":
+			return 1 if not _planned_elite_ids(wave.wave_number, difficulty_level).is_empty() else 0
+	return 0
+
+
+func is_priority_enemy_id(
+	wave: WaveDef,
+	enemy_id: StringName,
+	difficulty_level: int = 1
+) -> bool:
+	return enemy_id in _priority_enemy_ids(wave, difficulty_level)
 
 
 func is_final_wave(wave_number: int, run_mode: int = RunMode.STANDARD) -> bool:
@@ -57,3 +145,51 @@ func is_final_wave(wave_number: int, run_mode: int = RunMode.STANDARD) -> bool:
 		if wave != null:
 			final_wave = maxi(final_wave, wave.wave_number)
 	return final_wave > 0 and wave_number >= final_wave
+
+
+func _priority_enemy_ids(wave: WaveDef, difficulty_level: int) -> Array[StringName]:
+	if wave.wave_number > 20:
+		return _explicit_priority_ids(wave)
+	match encounter_kind(wave.wave_number, difficulty_level):
+		&"boss":
+			return _explicit_priority_ids(wave, true, false)
+		&"elite":
+			return _planned_elite_ids(wave.wave_number, difficulty_level)
+	return [] as Array[StringName]
+
+
+func _planned_elite_ids(wave_number: int, difficulty_level: int) -> Array[StringName]:
+	var elite_waves := encounter_waves(&"elite", difficulty_level)
+	var event_index := elite_waves.find(wave_number)
+	if event_index < 0:
+		return [] as Array[StringName]
+	var first_index := 0
+	if difficulty_level > 1:
+		first_index = int(abs(_run_seed ^ SCHEDULE_OFFSET)) % ELITE_IDS.size()
+	var selected_id := ELITE_IDS[(first_index + event_index) % ELITE_IDS.size()]
+	return [selected_id] as Array[StringName] if catalog.get_enemy(selected_id) != null else [] as Array[StringName]
+
+
+func _explicit_priority_ids(
+	wave: WaveDef,
+	include_bosses: bool = true,
+	include_elites: bool = true
+) -> Array[StringName]:
+	var result: Array[StringName] = []
+	for spawn: WaveSpawnDef in wave.spawns:
+		if spawn == null or catalog.get_enemy(spawn.enemy_id) == null:
+			continue
+		if (spawn.is_boss and include_bosses) or (spawn.is_elite and include_elites):
+			result.append(spawn.enemy_id)
+	result.sort_custom(func(first: StringName, second: StringName) -> bool:
+		return String(first) < String(second)
+	)
+	return result
+
+
+static func _is_horde_enemy(enemy: EnemyDef) -> bool:
+	if enemy == null:
+		return false
+	if &"swarm" in enemy.tags or &"chaser_fast" in enemy.tags:
+		return true
+	return enemy.behavior != null and enemy.behavior.role_id == &"swarm"

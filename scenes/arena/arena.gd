@@ -112,11 +112,13 @@ func start_new_wave() -> void:
 
 func clean_arena() -> void:
 	if gold_list.size() > 0:
-		var target_center_pos := coins_bag.global_position + coins_bag.size / 2.0
+		var uncollected_value := 0
 		for gold in gold_list:
-			if is_instance_valid(gold):
-				var gold_item := gold as Coins
-				gold_item.set_collection_target(target_center_pos)
+			if is_instance_valid(gold) and not gold.is_queued_for_deletion():
+				uncollected_value += maxi(0, gold.value)
+				gold.queue_free()
+		if Global.current_run != null and Global.reward_service != null:
+			Global.reward_service.bank_materials(Global.current_run, uncollected_value)
 	
 	gold_list.clear()
 	for entity: EffectAlly in effect_entities:
@@ -275,7 +277,11 @@ func _on_enemy_died(enemy: Enemy) -> void:
 			Global.current_run.boss_kill_count += 1
 	spawn_coins(enemy)
 	if enemy.definition != null:
-		Global.reward_service.queue_enemy_drop(Global.current_run, enemy.definition.tags)
+		var drop_kind := Global.reward_service.resolve_enemy_drop(
+			Global.current_run, enemy.definition.tags
+		)
+		if drop_kind == RewardService.DROP_HEAL:
+			ecology.spawn_world_drop(enemy.global_position, drop_kind)
 	if is_final_boss_enemy(enemy):
 		spawner.complete_boss_victory()
 

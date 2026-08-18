@@ -41,22 +41,51 @@ func select_offers(
 	var result: Array = []
 	if requested_count <= 0 or item_pool.is_empty():
 		return result
-	var target_count := mini(requested_count, item_pool.size())
-	var probabilities := calculate_tier_probabilities(current_wave, luck, config)
-	var attempts := 0
-	var max_attempts := maxi(16, item_pool.size() * 16)
+	var target_count: int = mini(requested_count, item_pool.size())
+	var probabilities: Array[float] = calculate_tier_probabilities(current_wave, luck, config)
+	var weapon_quota: int = mini(_minimum_weapon_offers(current_wave), target_count)
+	while result.size() < weapon_quota:
+		var weapon: Variant = _draw_offer(
+			item_pool, probabilities, result, content_catalog, owned_tags, true
+		)
+		if weapon == null:
+			break
+		result.append(weapon)
+	var attempts: int = 0
+	var max_attempts: int = maxi(16, item_pool.size() * 16)
 	while result.size() < target_count and attempts < max_attempts:
 		attempts += 1
-		var tier := _roll_tier(probabilities)
-		var candidates := _items_at_or_below_tier(item_pool, tier, result)
-		if candidates.is_empty():
+		var candidate: Variant = _draw_offer(
+			item_pool, probabilities, result, content_catalog, owned_tags, false
+		)
+		if candidate == null:
 			continue
-		result.append(_select_weighted_candidate(candidates, content_catalog, owned_tags))
+		result.append(candidate)
 	if result.size() < target_count:
-		var remaining := item_pool.filter(func(item: Variant): return not result.has(item))
+		var remaining: Array = item_pool.filter(
+			func(item: Variant): return item is ItemBase and not _contains_offer_family(
+				result, item as ItemBase, content_catalog
+			)
+		)
 		while result.size() < target_count and not remaining.is_empty():
-			var index := rng.randi_range(0, remaining.size() - 1)
-			result.append(remaining.pop_at(index))
+			var selected: Variant = _select_weighted_candidate(
+				remaining, content_catalog, owned_tags
+			)
+			result.append(selected)
+			remaining = remaining.filter(
+				func(item: Variant): return not _same_offer_family(
+					item as ItemBase, selected as ItemBase, content_catalog
+				)
+			)
+	# Small or third-party pools may expose fewer unique families than slots. In that
+	# case keep the old object-level uniqueness fallback rather than returning holes.
+	if result.size() < target_count:
+		var remaining_items: Array = item_pool.filter(
+			func(item: Variant): return not result.has(item)
+		)
+		while result.size() < target_count and not remaining_items.is_empty():
+			var index := rng.randi_range(0, remaining_items.size() - 1)
+			result.append(remaining_items.pop_at(index))
 	return result
 
 
@@ -123,12 +152,26 @@ func try_refresh(run_state: RunState, current_wave: int) -> int:
 func refresh_price_for_run(run_state: RunState, current_wave: int, unlocked_slots: int = 4) -> int:
 	if run_state == null:
 		return 0
+	if free_refresh_count(run_state) > 0:
+		return 0
 	var base_price := refresh_price_for_slots(current_wave, run_state.shop_refresh_count, unlocked_slots)
 	var difficulty := Content.catalog.get_difficulty(run_state.difficulty)
 	var result := difficulty.scale_shop_price(base_price) if difficulty != null else base_price
 	if run_state.run_mode == RunMode.ENDLESS and current_wave > 20:
 		result = ceili(result * EndlessScalingDef.new().shop_price_multiplier(current_wave))
 	return result
+
+
+func free_refresh_count(run_state: RunState) -> int:
+	if run_state == null:
+		return 0
+	_ensure_slots(run_state)
+	# The entitlement is represented by the serialized slot state itself. Clearing
+	# the slots consumes it, so it survives checkpoints without another save field.
+	for slot: ShopSlotState in run_state.shop_slots:
+		if not slot.purchased:
+			return 0
+	return 1
 
 
 func set_locked(run_state: RunState, locked: bool) -> bool:
@@ -286,6 +329,54 @@ func tag_affinity_weight(item_tags: Array[StringName], owned_tags: Array[StringN
 	return minf(1.75, 1.0 + matches * 0.375)
 
 
+func _minimum_weapon_offers(current_wave: int) -> int:
+	if current_wave <= 2:
+		return 2
+	if current_wave <= 5:
+		return 1
+	return 0
+
+
+func _draw_offer(
+	item_pool: Array,
+	probabilities: Array[float],
+	excluded: Array,
+	content_catalog: ContentCatalog,
+	owned_tags: Array[StringName],
+	weapons_only: bool
+) -> Variant:
+	for attempt in 8:
+		var candidates := _items_at_or_below_tier(
+			item_pool, _roll_tier(probabilities), excluded, content_catalog, weapons_only
+		)
+		if not candidates.is_empty():
+			return _select_weighted_candidate(candidates, content_catalog, owned_tags)
+	return null
+
+
+func _contains_offer_family(
+	offers: Array,
+	candidate: ItemBase,
+	content_catalog: ContentCatalog
+) -> bool:
+	for offer: ItemBase in offers:
+		if _same_offer_family(offer, candidate, content_catalog):
+			return true
+	return false
+
+
+func _same_offer_family(
+	first: ItemBase,
+	second: ItemBase,
+	content_catalog: ContentCatalog
+) -> bool:
+	if first == null or second == null:
+		return false
+	var first_id := content_catalog.get_item_stable_id(first) if content_catalog != null else first.get_stable_id()
+	var second_id := content_catalog.get_item_stable_id(second) if content_catalog != null else second.get_stable_id()
+	return not first_id.is_empty() and first_id == second_id
+
+
 func _select_weighted_candidate(
 	candidates: Array,
 	content_catalog: ContentCatalog,
@@ -365,11 +456,23 @@ func _roll_tier(probabilities: Array[float]) -> int:
 	return 0
 
 
-func _items_at_or_below_tier(item_pool: Array, desired_tier: int, excluded: Array) -> Array:
+func _items_at_or_below_tier(
+	item_pool: Array,
+	desired_tier: int,
+	excluded: Array,
+	content_catalog: ContentCatalog = null,
+	weapons_only: bool = false
+) -> Array:
 	for tier in range(desired_tier, -1, -1):
 		var candidates := item_pool.filter(
 			func(item: Variant):
-				return item is ItemBase and int(item.item_tier) == tier and not excluded.has(item)
+				return (
+					item is ItemBase
+					and (not weapons_only or item is ItemWeapon)
+					and int(item.item_tier) == tier
+					and not excluded.has(item)
+					and not _contains_offer_family(excluded, item as ItemBase, content_catalog)
+				)
 		)
 		if not candidates.is_empty():
 			return candidates

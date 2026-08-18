@@ -53,3 +53,31 @@ func test_wave_20_chooses_one_of_two_final_bosses_deterministically() -> void:
 		observed[String(seeded.select_enemy_id(wave, false))] = true
 	assert_bool(observed.has("enemy/mouse_dog")).is_true()
 	assert_bool(observed.has("enemy/scrap_titan")).is_true()
+
+
+func test_difficulty_driven_encounter_schedule_is_deterministic() -> void:
+	var first := WaveDirector.new(Content.catalog, 9071)
+	var second := WaveDirector.new(Content.catalog, 9071)
+	var first_schedule := first.encounter_schedule(4)
+	var second_schedule := second.encounter_schedule(4)
+
+	assert_dict(first_schedule).is_equal(second_schedule)
+	assert_int(first.encounter_waves(&"elite", 4).size()).is_equal(2)
+	assert_int(first.encounter_waves(&"horde", 4).size()).is_greater_equal(2)
+	for elite_wave: int in first.encounter_waves(&"elite", 4):
+		assert_bool(elite_wave >= 9 and elite_wave <= 16).is_true()
+		assert_bool(first.encounter_waves(&"horde", 4).has(elite_wave)).is_false()
+
+
+func test_difficulty_five_spawns_both_final_bosses_once() -> void:
+	var director := WaveDirector.new(Content.catalog, 771)
+	var wave := Content.catalog.get_wave(&"wave/20")
+
+	assert_int(director.priority_spawn_limit(wave, 1)).is_equal(1)
+	assert_int(director.priority_spawn_limit(wave, 5)).is_equal(2)
+	var first_id := director.select_enemy_id(wave, 0, 5)
+	var second_id := director.select_enemy_id(wave, 1, 5)
+
+	assert_bool(["enemy/mouse_dog", "enemy/scrap_titan"].has(String(first_id))).is_true()
+	assert_bool(["enemy/mouse_dog", "enemy/scrap_titan"].has(String(second_id))).is_true()
+	assert_str(second_id).is_not_equal(String(first_id))

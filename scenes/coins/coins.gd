@@ -34,7 +34,7 @@ func _process(delta: float) -> void:
 	if target_pos != Vector2.ZERO:
 		global_position = global_position.move_toward(target_pos, move_speed * delta)
 	
-	if global_position.distance_to(target_pos) < collect_distance:
+	if target_pos != Vector2.ZERO and global_position.distance_to(target_pos) < collect_distance:
 		add_coins()
 
 

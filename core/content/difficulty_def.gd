@@ -85,6 +85,29 @@ func scale_material_drop(base_drop: int) -> int:
 	return maxi(1, floori(base_drop * material_drop_multiplier))
 
 
+func final_boss_count() -> int:
+	# Level is authoritative so content packs created before the new mutator
+	# fields still receive the difficulty-five encounter rule.
+	return 2 if level >= 5 else 1
+
+
+func uses_randomized_encounters() -> bool:
+	return level >= 2 or (mutator != null and mutator.randomized_encounters)
+
+
+func horde_events_per_run() -> int:
+	if mutator != null and mutator.horde_event_count > 0:
+		return mutator.horde_event_count
+	match level:
+		2:
+			return 1
+		3:
+			return 2
+		4, 5:
+			return 3
+	return 0
+
+
 static func _mutator_for_level(difficulty_level: int) -> DifficultyMutatorDef:
 	var result := DifficultyMutatorDef.new()
 	result.level = clampi(difficulty_level, 1, 5)
@@ -97,4 +120,7 @@ static func _mutator_for_level(difficulty_level: int) -> DifficultyMutatorDef:
 	result.economy_pressure = maxf(0.0, float(result.level - 2) * 0.12)
 	result.elite_frenzy = result.level >= 5
 	result.boss_extra_phase = result.level >= 5
+	result.randomized_encounters = result.level >= 2
+	result.horde_event_count = [0, 0, 1, 2, 3, 3][result.level]
+	result.double_final_boss = result.level >= 5
 	return result

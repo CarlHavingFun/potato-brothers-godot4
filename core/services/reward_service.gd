@@ -3,8 +3,14 @@ extends RefCounted
 
 
 const STREAM_OFFSET := 0x52455744
+const DROP_NONE := DropTableDef.DropKind.NONE
+const DROP_MATERIAL := DropTableDef.DropKind.MATERIAL
+const DROP_HEAL := DropTableDef.DropKind.HEAL
+const DROP_CHEST := DropTableDef.DropKind.CHEST
+const DROP_LEGENDARY_CHEST := DropTableDef.DropKind.LEGENDARY_CHEST
 
 var rng := RandomNumberGenerator.new()
+var drop_table := DropTableDef.new()
 
 
 func _init(run_seed: int = 0) -> void:
@@ -21,17 +27,81 @@ func queue_level_ups(run_state: RunState, amount: int = 1) -> bool:
 func queue_rewards(run_state: RunState, amount: int = 1) -> bool:
 	if run_state == null or amount <= 0:
 		return false
+	if run_state.queued_rewards <= 0:
+		run_state.queued_reward_floors.clear()
 	run_state.queued_rewards += amount
+	for _reward_index in amount:
+		run_state.queued_reward_floors.append(Global.UpgradeTier.COMMON)
 	return true
 
 
 func queue_enemy_drop(run_state: RunState, enemy_tags: Array[StringName]) -> int:
+	return 1 if is_chest_drop(resolve_enemy_drop(run_state, enemy_tags)) else 0
+
+
+func resolve_enemy_drop(run_state: RunState, enemy_tags: Array[StringName]) -> int:
 	if run_state == null:
+		return DROP_NONE
+	var luck: float = run_state.player_stats.get_stat(StatId.LUCK)
+	var drop_kind: int = roll_drop(enemy_tags, luck, run_state.wave)
+	if not is_chest_drop(drop_kind):
+		return drop_kind
+	var reward_floor: int = Global.UpgradeTier.COMMON
+	if drop_kind == DROP_LEGENDARY_CHEST:
+		reward_floor = Global.UpgradeTier.LEGENDARY
+	elif &"elite" in enemy_tags:
+		reward_floor = Global.UpgradeTier.EPIC
+	elif luck >= 100.0:
+		reward_floor = Global.UpgradeTier.RARE
+	_queue_reward_floor(run_state, reward_floor)
+	return drop_kind
+
+
+func roll_drop(
+	source_tags: Array[StringName],
+	luck: float,
+	current_wave: int,
+	unit_roll: float = -1.0
+) -> int:
+	var resolved_roll: float = rng.randf() if unit_roll < 0.0 else unit_roll
+	return drop_table.roll(drop_table.weights_for(source_tags, luck, current_wave), resolved_roll)
+
+
+func is_chest_drop(drop_kind: int) -> bool:
+	return drop_kind in [DROP_CHEST, DROP_LEGENDARY_CHEST]
+
+
+func collect_world_drop(run_state: RunState, drop_kind: int, amount: int = 1) -> int:
+	if run_state == null or amount <= 0:
 		return 0
-	if &"elite" not in enemy_tags and &"boss" not in enemy_tags:
+	match drop_kind:
+		DROP_MATERIAL:
+			return collect_material_pickup(run_state, amount)
+		DROP_CHEST:
+			_queue_reward_floor(run_state, Global.UpgradeTier.COMMON)
+			return 1
+		DROP_LEGENDARY_CHEST:
+			_queue_reward_floor(run_state, Global.UpgradeTier.LEGENDARY)
+			return 1
+	return 0
+
+
+func bank_materials(run_state: RunState, amount: int) -> int:
+	if run_state == null or amount <= 0:
 		return 0
-	run_state.queued_rewards += 1
-	return 1
+	run_state.material_bag += amount
+	return amount
+
+
+func collect_material_pickup(run_state: RunState, amount: int) -> int:
+	if run_state == null or amount <= 0:
+		return 0
+	var bag_bonus: int = mini(amount, run_state.material_bag)
+	run_state.material_bag -= bag_bonus
+	var collected_total := amount + bag_bonus
+	run_state.materials += collected_total
+	add_experience(run_state, collected_total)
+	return collected_total
 
 
 func experience_required_for_level(level: int) -> int:
@@ -81,7 +151,7 @@ func try_refresh_upgrades(run_state: RunState, current_wave: int) -> int:
 func claim_reward(run_state: RunState) -> bool:
 	if run_state == null or run_state.queued_rewards <= 0:
 		return false
-	run_state.queued_rewards -= 1
+	_consume_reward(run_state)
 	return true
 
 
@@ -118,7 +188,7 @@ func try_claim_item(run_state: RunState, item: ItemBase, content_catalog: Conten
 			definition.max_stack if definition != null else item.max_stack
 		)
 	if result == InventoryService.OK:
-		run_state.queued_rewards -= 1
+		_consume_reward(run_state)
 	return result
 
 
@@ -127,7 +197,7 @@ func recycle_item(run_state: RunState, item: ItemBase) -> int:
 		return 0
 	var materials := maxi(1, floori(item.item_cost * 0.5))
 	run_state.materials += materials
-	run_state.queued_rewards -= 1
+	_consume_reward(run_state)
 	return materials
 
 
@@ -140,7 +210,11 @@ func select_unique(pool: Array, requested_count: int) -> Array:
 	return result
 
 
-func select_reward(pool: Array[ItemBase], current_wave: int) -> ItemBase:
+func select_reward(
+	pool: Array[ItemBase],
+	current_wave: int,
+	run_state: RunState = null
+) -> ItemBase:
 	var maximum_tier := Global.UpgradeTier.COMMON
 	if current_wave >= 7:
 		maximum_tier = Global.UpgradeTier.LEGENDARY
@@ -148,10 +222,51 @@ func select_reward(pool: Array[ItemBase], current_wave: int) -> ItemBase:
 		maximum_tier = Global.UpgradeTier.EPIC
 	elif current_wave >= 2:
 		maximum_tier = Global.UpgradeTier.RARE
+	var active_run: RunState = run_state if run_state != null else Global.current_run
+	var minimum_tier: int = _next_reward_floor(active_run)
+	maximum_tier = maxi(maximum_tier, minimum_tier)
 	var available: Array[ItemBase] = []
 	for item: ItemBase in pool:
-		if item != null and int(item.item_tier) <= maximum_tier:
+		if (
+			item != null
+			and int(item.item_tier) >= minimum_tier
+			and int(item.item_tier) <= maximum_tier
+		):
 			available.append(item)
+	if available.is_empty() and minimum_tier > Global.UpgradeTier.COMMON:
+		for item: ItemBase in pool:
+			if item != null and int(item.item_tier) <= maximum_tier:
+				available.append(item)
 	if available.is_empty():
 		return null
 	return available[rng.randi_range(0, available.size() - 1)]
+
+
+func _queue_reward_floor(run_state: RunState, floor_tier: int) -> void:
+	if run_state.queued_rewards <= 0:
+		run_state.queued_reward_floors.clear()
+	run_state.queued_rewards += 1
+	run_state.queued_reward_floors.append(clampi(
+		floor_tier, Global.UpgradeTier.COMMON, Global.UpgradeTier.LEGENDARY
+	))
+
+
+func _next_reward_floor(run_state: RunState) -> int:
+	if (
+		run_state == null
+		or run_state.queued_rewards <= 0
+		or run_state.queued_reward_floors.is_empty()
+	):
+		return Global.UpgradeTier.COMMON
+	return int(run_state.queued_reward_floors.max())
+
+
+func _consume_reward(run_state: RunState) -> void:
+	run_state.queued_rewards = maxi(0, run_state.queued_rewards - 1)
+	if run_state.queued_rewards <= 0:
+		run_state.queued_reward_floors.clear()
+		return
+	if run_state.queued_reward_floors.is_empty():
+		return
+	var next_floor: int = _next_reward_floor(run_state)
+	run_state.queued_reward_floors.erase(next_floor)

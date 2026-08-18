@@ -1,7 +1,7 @@
 extends Node2D
 class_name ArenaEcology
 
-enum PickupKind { HEAL, CHEST }
+enum PickupKind { NONE, MATERIAL, HEAL, CHEST, LEGENDARY_CHEST }
 
 const TREE_SCENE := preload("res://scenes/arena/ecology/ecology_tree.tscn")
 const PICKUP_SCENE := preload("res://scenes/arena/ecology/ecology_pickup.tscn")
@@ -44,20 +44,17 @@ func setup_wave(wave: int, run_seed: int, player: Player) -> void:
 			effective_danger_interval *= difficulty.mutator.hazard_interval_multiplier
 			danger_radius *= difficulty.mutator.hazard_radius_multiplier
 	_rng.seed = run_seed ^ (_wave * 0x45D9F3B)
-	var tree_count := maxi(3, 8 - _wave / 4)
+	var tree_count: int = maxi(3, 8 - _wave / 4)
 	for tree_index in tree_count:
-		var position := _roll_world_position(360.0)
+		var position: Vector2 = _roll_world_position(360.0)
+		var tree_drop: int = _roll_tree_drop()
 		tree_positions.append(position)
 		if is_inside_tree():
-			_spawn_tree(position, _rng.randi_range(PickupKind.HEAL, PickupKind.CHEST))
-	var heal_position := _roll_world_position(220.0)
+			_spawn_tree(position, tree_drop)
+	var heal_position: Vector2 = _roll_world_position(220.0)
 	pickup_kinds.append(PickupKind.HEAL)
 	if is_inside_tree():
 		_spawn_pickup(heal_position, PickupKind.HEAL)
-	if _wave % 5 == 0:
-		pickup_kinds.append(PickupKind.CHEST)
-		if is_inside_tree():
-			_spawn_pickup(_roll_world_position(300.0), PickupKind.CHEST)
 	danger_center = _roll_world_position(260.0) if danger_enabled else Vector2.ZERO
 	queue_redraw()
 
@@ -123,7 +120,10 @@ func _spawn_tree(world_position: Vector2, kind: int) -> void:
 func _spawn_pickup(world_position: Vector2, kind: int) -> void:
 	var pickup := PICKUP_SCENE.instantiate() as EcologyPickup
 	pickup.position = world_position
-	pickup.configure(kind, 7.0 + _wave * 0.25)
+	var amount: float = (
+		3.0 + _wave * 0.35 if kind == PickupKind.MATERIAL else 7.0 + _wave * 0.25
+	)
+	pickup.configure(kind, amount)
 	pickup.set_meta(&"ecology_runtime", true)
 	add_child(pickup)
 
@@ -131,6 +131,31 @@ func _spawn_pickup(world_position: Vector2, kind: int) -> void:
 func _on_tree_harvested(world_position: Vector2, kind: int) -> void:
 	pickup_kinds.append(kind)
 	call_deferred("_spawn_pickup", to_local(world_position), kind)
+
+
+func _roll_tree_drop() -> int:
+	var luck: float = (
+		Global.current_run.player_stats.get_stat(StatId.LUCK)
+		if Global.current_run != null
+		else 0.0
+	)
+	if Global.reward_service != null:
+		return Global.reward_service.roll_drop(
+			[&"source/tree"], luck, _wave, _rng.randf()
+		)
+	var fallback_table := DropTableDef.new()
+	return fallback_table.roll(
+		fallback_table.weights_for([&"source/tree"], luck, _wave), _rng.randf()
+	)
+
+
+func spawn_world_drop(world_position: Vector2, kind: int) -> bool:
+	if kind <= PickupKind.NONE or kind > PickupKind.LEGENDARY_CHEST:
+		return false
+	pickup_kinds.append(kind)
+	if is_inside_tree():
+		call_deferred("_spawn_pickup", to_local(world_position), kind)
+	return true
 
 
 func _roll_world_position(minimum_center_distance: float) -> Vector2:

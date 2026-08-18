@@ -17,6 +17,7 @@ var rng := RandomNumberGenerator.new()
 var wave_director: WaveDirector
 var boss_spawned := false
 var priority_spawns_emitted := 0
+var expected_priority_spawns := 0
 var endless_generator: EndlessWaveGenerator
 
 
@@ -61,6 +62,10 @@ func start_wave() -> void:
 	)
 	rng.seed = wave_seed
 	wave_director = WaveDirector.new(Content.catalog, wave_seed)
+	var difficulty_level := Global.current_run.difficulty if Global.current_run != null else 1
+	expected_priority_spawns = wave_director.priority_spawn_limit(
+		current_wave_definition, difficulty_level
+	)
 	wave_timer.wait_time = current_wave_definition.duration
 	wave_timer.start()
 	
@@ -85,6 +90,8 @@ func set_spawn_timer() -> void:
 	var density := difficulty.spawn_density_multiplier if difficulty != null else 1.0
 	if current_wave_definition != null:
 		density *= current_wave_definition.spawn_density_multiplier
+	if wave_director != null:
+		density *= wave_director.encounter_density_multiplier(wave_index, difficulty_level)
 	spawn_timer.wait_time = base_wait_time / maxf(0.01, density)
 	
 	if spawn_timer.is_stopped():
@@ -169,17 +176,27 @@ func _get_random_enemy_definition() -> EnemyDef:
 		return null
 	if wave_director == null:
 		wave_director = WaveDirector.new(Content.catalog, rng.seed)
+	var difficulty_level := Global.current_run.difficulty if Global.current_run != null else 1
+	if expected_priority_spawns <= 0:
+		expected_priority_spawns = wave_director.priority_spawn_limit(
+			current_wave_definition, difficulty_level
+		)
 	var enemy_id := wave_director.select_enemy_id(
 		current_wave_definition,
-		priority_spawns_emitted
+		priority_spawns_emitted,
+		difficulty_level
 	)
 	if enemy_id.is_empty():
 		return null
-	for spawn: WaveSpawnDef in current_wave_definition.spawns:
-		if spawn != null and spawn.enemy_id == enemy_id and spawn.is_priority_spawn():
-			boss_spawned = true
-			priority_spawns_emitted += 1
-			break
+	if (
+		priority_spawns_emitted < expected_priority_spawns
+		and wave_director.is_priority_enemy_id(
+			current_wave_definition, enemy_id, difficulty_level
+		)
+	):
+		var priority_definition := Content.catalog.get_enemy(enemy_id)
+		boss_spawned = priority_definition != null and &"boss" in priority_definition.tags
+		priority_spawns_emitted += 1
 	return Content.catalog.get_enemy(enemy_id)
 
 
@@ -283,4 +300,14 @@ func complete_boss_victory() -> bool:
 		return false
 	if Global.current_run != null and Global.current_run.run_mode == RunMode.ENDLESS:
 		return false
+	if priority_spawns_emitted < expected_priority_spawns:
+		return false
+	for enemy: Enemy in spawned_enemies:
+		if (
+			is_instance_valid(enemy)
+			and enemy.definition != null
+			and &"boss" in enemy.definition.tags
+			and enemy.health_component.current_health > 0.0
+		):
+			return false
 	return complete_wave()

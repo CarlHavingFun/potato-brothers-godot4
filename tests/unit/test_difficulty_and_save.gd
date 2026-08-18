@@ -29,6 +29,10 @@ func test_five_default_difficulties_match_approved_multipliers() -> void:
 	assert_float(difficulty_five.shop_price_multiplier).is_greater(1.0)
 	assert_float(difficulty_five.material_drop_multiplier).is_less(1.0)
 	assert_bool(difficulty_five.rule_tags.has(&"elite_frenzy")).is_true()
+	assert_bool(difficulty_five.mutator.randomized_encounters).is_true()
+	assert_int(difficulty_five.mutator.horde_event_count).is_equal(3)
+	assert_bool(difficulty_five.mutator.double_final_boss).is_true()
+	assert_int(difficulty_five.final_boss_count()).is_equal(2)
 
 
 func test_difficulty_scaling_is_deterministic() -> void:

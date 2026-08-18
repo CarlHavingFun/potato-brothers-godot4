@@ -9,6 +9,11 @@ func after_test() -> void:
 	Global.end_run()
 
 
+func test_default_starting_economy_is_release_scaled_instead_of_debug_scaled() -> void:
+	assert_int(Global.STARTING_MATERIALS).is_greater_equal(20)
+	assert_int(Global.STARTING_MATERIALS).is_less_equal(60)
+
+
 func test_begin_run_maps_tutorial_stats_and_resets_previous_run() -> void:
 	var source := UnitStats.new()
 	source.health = 20
@@ -44,6 +49,18 @@ func test_legacy_coins_property_forwards_to_authoritative_run_state() -> void:
 	assert_int(Global.coins).is_equal(52)
 	assert_bool(Global.try_spend_materials(50)).is_true()
 	assert_int(Global.coins).is_equal(2)
+
+
+func test_global_material_collection_consumes_the_banked_material_bonus_once() -> void:
+	Global.begin_run(11, null, 10)
+	Global.current_run.material_bag = 5
+
+	var levels_gained := Global.collect_materials(3)
+
+	assert_int(levels_gained).is_zero()
+	assert_int(Global.current_run.materials).is_equal(16)
+	assert_int(Global.current_run.experience).is_equal(6)
+	assert_int(Global.current_run.material_bag).is_equal(2)
 
 
 func test_shop_purchase_uses_inventory_service_before_charging() -> void:

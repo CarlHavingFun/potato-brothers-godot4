@@ -6,7 +6,7 @@
 animations = []
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_c7nue"]
-radius = 120.88
+radius = 42.0
 
 [node name="Coins" type="Area2D"]
 collision_layer = 64
@@ -15,11 +15,11 @@ script = ExtResource("1_dvgxo")
 
 [node name="Shadow" type="Sprite2D" parent="."]
 modulate = Color(0.0980392, 0.0980392, 0.0980392, 0.54902)
-scale = Vector2(0.2, 0.4)
+scale = Vector2(0.11, 0.2)
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 position = Vector2(0, -21)
-scale = Vector2(0.5, 0.5)
+scale = Vector2(0.24, 0.24)
 sprite_frames = SubResource("SpriteFrames_7focv")
 autoplay = "default"
 frame = 1

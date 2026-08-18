@@ -3,6 +3,13 @@ class_name Enemy
 
 signal reinforcement_requested(source: Enemy)
 
+enum BehaviorState {
+	APPROACH,
+	WINDUP,
+	ATTACK,
+	RECOVER,
+}
+
 @export var flock_push := 20.0
 
 const FLOCK_CELL_SIZE := 160.0
@@ -20,6 +27,8 @@ var definition: EnemyDef
 var role_profile := EnemyRoleProfile.new()
 var role_pulse_remaining := 2.5
 var reinforcements_spawned := 0
+var behavior_state := BehaviorState.APPROACH
+var behavior_state_remaining := 0.0
 
 var knockback_dir: Vector2
 var knockback_power: float
@@ -54,13 +63,14 @@ func _process(delta: float) -> void:
 	if not Global.is_combat_active():
 		velocity = Vector2.ZERO
 		return
-	
+	_tick_role_behavior(delta)
 	if not can_move:
+		velocity = Vector2.ZERO
 		return
 	presentation_controller.set_semantic_state(&"move")
-	_tick_role_behavior(delta)
 	
 	if not can_move_towards_player():
+		velocity = Vector2.ZERO
 		return
 	
 	velocity = (
@@ -78,6 +88,14 @@ func get_move_direction() -> Vector2:
 		return Vector2.ZERO
 	
 	var direction := global_position.direction_to(Global.player.global_position)
+	if definition != null and definition.behavior != null \
+	and definition.behavior.movement_mode == &"keep_distance":
+		var distance := global_position.distance_to(Global.player.global_position)
+		if distance < 260.0:
+			direction = -direction
+		elif distance <= 430.0:
+			var strafe_side := -1.0 if global_position.x < Global.player.global_position.x else 1.0
+			direction = direction.rotated(strafe_side * PI * 0.5)
 	if not is_zero_approx(role_profile.flank_angle):
 		var flank_side := -1.0 if global_position.x < Global.player.global_position.x else 1.0
 		direction = direction.rotated(role_profile.flank_angle * flank_side)
@@ -118,19 +136,66 @@ func _nearby_buffer_multiplier() -> float:
 
 
 func _tick_role_behavior(delta: float) -> void:
-	if (
-		role_profile.heal_amount <= 0.0
-		and role_profile.hazard_damage <= 0.0
-		and role_profile.material_steal <= 0
-		and role_profile.slow_multiplier >= 1.0
-		and not role_profile.can_spawn_reinforcements
-		and role_profile.ambush_distance <= 0.0
-	):
+	if not _has_role_action():
 		return
-	role_pulse_remaining -= delta
-	if role_pulse_remaining > 0.0:
+	if behavior_state == BehaviorState.APPROACH:
+		role_pulse_remaining -= delta
+		if role_pulse_remaining <= 0.0:
+			_enter_role_state(BehaviorState.WINDUP)
 		return
-	role_pulse_remaining = role_profile.pulse_interval
+	behavior_state_remaining -= delta
+	if behavior_state_remaining > 0.0:
+		return
+	_enter_role_state(next_behavior_state(behavior_state))
+
+
+func _has_role_action() -> bool:
+	return (
+		role_profile.heal_amount > 0.0
+		or role_profile.hazard_damage > 0.0
+		or role_profile.material_steal > 0
+		or role_profile.slow_multiplier < 1.0
+		or role_profile.can_spawn_reinforcements
+		or role_profile.ambush_distance > 0.0
+	)
+
+
+func _enter_role_state(next_state: int) -> void:
+	behavior_state = next_state
+	match behavior_state:
+		BehaviorState.APPROACH:
+			can_move = true
+			role_pulse_remaining = role_profile.pulse_interval
+			presentation_controller.set_semantic_state(&"move")
+		BehaviorState.WINDUP:
+			can_move = false
+			velocity = Vector2.ZERO
+			behavior_state_remaining = maxf(
+				0.2,
+				definition.behavior.telegraph_seconds
+				if definition != null and definition.behavior != null
+				else 0.35
+			)
+			presentation_controller.set_semantic_state(&"telegraph")
+			GameplayCues.emit_cue(&"enemy.telegraph", {
+				"presentation_id": definition.get_presentation_id(Content.catalog.pack_id) if definition != null else &"",
+				"world_position": global_position,
+				"shape": definition.behavior.role_id if definition != null and definition.behavior != null else &"pulse",
+			})
+		BehaviorState.ATTACK:
+			behavior_state_remaining = 0.12
+			presentation_controller.set_semantic_state(&"attack")
+			_execute_role_action()
+		BehaviorState.RECOVER:
+			behavior_state_remaining = 0.32
+			presentation_controller.set_semantic_state(&"idle")
+
+
+func _execute_role_action() -> void:
+	GameplayCues.emit_cue(&"enemy.attack", {
+		"presentation_id": definition.get_presentation_id(Content.catalog.pack_id) if definition != null else &"",
+		"world_position": global_position,
+	})
 	if role_profile.heal_amount > 0.0:
 		_heal_nearby_allies()
 	if not is_instance_valid(Global.player):
@@ -149,11 +214,17 @@ func _tick_role_behavior(delta: float) -> void:
 	if role_profile.ambush_distance > 0.0 and is_instance_valid(Global.player):
 		var side := -1.0 if global_position.x > Global.player.global_position.x else 1.0
 		global_position = Global.player.global_position + Vector2(side * role_profile.ambush_distance, -80.0)
-		GameplayCues.emit_cue(&"enemy.telegraph", {
-			"presentation_id": definition.get_presentation_id(Content.catalog.pack_id) if definition != null else &"",
-			"world_position": global_position,
-			"shape": &"ambush",
-		})
+
+
+static func next_behavior_state(current_state: int) -> int:
+	match current_state:
+		BehaviorState.APPROACH:
+			return BehaviorState.WINDUP
+		BehaviorState.WINDUP:
+			return BehaviorState.ATTACK
+		BehaviorState.ATTACK:
+			return BehaviorState.RECOVER
+	return BehaviorState.APPROACH
 
 
 func _heal_nearby_allies() -> void:

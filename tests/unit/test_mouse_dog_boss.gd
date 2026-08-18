@@ -98,3 +98,27 @@ func test_scrap_titan_has_an_independent_scene_script_and_phase_rules() -> void:
 	assert_bool(bool(titan.get_script().call("should_enter_overdrive", 40.0, 100.0, 5))).is_true()
 	assert_int(int(titan.get_script().call("burst_projectile_count", 1, false))).is_equal(8)
 	assert_int(int(titan.get_script().call("burst_projectile_count", 5, true))).is_equal(16)
+
+
+func test_mouse_dog_rotates_dash_slam_and_double_dash_attacks() -> void:
+	assert_int(MouseDogBoss.attack_kind_for(0, false, 1)).is_equal(
+		MouseDogBoss.AttackKind.DASH
+	)
+	assert_int(MouseDogBoss.attack_kind_for(2, false, 1)).is_equal(
+		MouseDogBoss.AttackKind.SLAM
+	)
+	assert_int(MouseDogBoss.attack_kind_for(1, true, 5)).is_equal(
+		MouseDogBoss.AttackKind.DOUBLE_DASH
+	)
+
+
+func test_scrap_titan_rotates_radial_aimed_and_ground_pulse_attacks() -> void:
+	assert_int(ScrapTitanBoss.attack_kind_for(0, false)).is_equal(
+		ScrapTitanBoss.AttackKind.RADIAL
+	)
+	assert_int(ScrapTitanBoss.attack_kind_for(1, false)).is_equal(
+		ScrapTitanBoss.AttackKind.AIMED_VOLLEY
+	)
+	assert_int(ScrapTitanBoss.attack_kind_for(2, true)).is_equal(
+		ScrapTitanBoss.AttackKind.GROUND_PULSE
+	)
