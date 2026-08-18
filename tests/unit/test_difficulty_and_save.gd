@@ -121,18 +121,24 @@ func test_default_save_path_is_namespaced_by_content_pack() -> void:
 	)
 
 
-func test_meta_progress_round_trip_preserves_product_settings() -> void:
-	var progress := MetaProgress.new()
-	progress.music_volume = 0.35
-	progress.sfx_volume = 0.65
-	progress.fullscreen = true
-	progress.resolution = "1280x720"
-	progress.aim_mode = AimMode.MANUAL_MOUSE
-	progress.locale = "en"
-	progress.mark_discovered(&"potato_default:weapon/axe")
-	progress.recent_run_summary = {"wave": 20, "victory": true}
+func test_meta_progress_reads_legacy_settings_but_new_payload_omits_them() -> void:
+	var legacy_payload := {
+		"highest_unlocked_difficulty": 2,
+		"music_volume": 0.35,
+		"sfx_volume": 0.65,
+		"fullscreen": true,
+		"resolution": "1280x720",
+		"aim_mode": AimMode.MANUAL_MOUSE,
+		"locale": "en",
+		"enemy_health_scale": 0.75,
+		"enemy_damage_scale": 1.25,
+		"enemy_speed_scale": 0.9,
+		"input_bindings": {"dash": [{"type": "key", "physical_keycode": KEY_SPACE}]},
+		"discovered_content": {"potato_default:weapon/axe": true},
+		"recent_run_summary": {"wave": 20, "victory": true},
+	}
 
-	var restored := MetaProgress.from_dict(progress.to_dict())
+	var restored := MetaProgress.from_dict(legacy_payload)
 
 	assert_float(restored.music_volume).is_equal(0.35)
 	assert_float(restored.sfx_volume).is_equal(0.65)
@@ -140,8 +146,23 @@ func test_meta_progress_round_trip_preserves_product_settings() -> void:
 	assert_str(restored.resolution).is_equal("1280x720")
 	assert_int(restored.aim_mode).is_equal(AimMode.MANUAL_MOUSE)
 	assert_str(restored.locale).is_equal("en")
-	assert_bool(restored.is_discovered(&"potato_default:weapon/axe")).is_true()
-	assert_int(restored.recent_run_summary.get("wave", 0)).is_equal(20)
+	assert_float(restored.enemy_health_scale).is_equal(0.75)
+	assert_float(restored.enemy_damage_scale).is_equal(1.25)
+	assert_float(restored.enemy_speed_scale).is_equal(0.9)
+	assert_bool(restored.input_bindings.has("dash")).is_true()
+
+	var new_payload := restored.to_dict()
+	for legacy_setting_key: String in [
+		"music_volume", "sfx_volume", "fullscreen", "resolution", "aim_mode", "locale",
+		"enemy_health_scale", "enemy_damage_scale", "enemy_speed_scale", "input_bindings",
+	]:
+		assert_bool(new_payload.has(legacy_setting_key)).is_false()
+	var round_trip := MetaProgress.from_dict(new_payload)
+	assert_int(round_trip.highest_unlocked_difficulty).is_equal(2)
+	assert_bool(round_trip.is_discovered(&"potato_default:weapon/axe")).is_true()
+	assert_int(round_trip.recent_run_summary.get("wave", 0)).is_equal(20)
+	assert_float(round_trip.music_volume).is_equal(0.7)
+	assert_float(round_trip.enemy_health_scale).is_equal(1.0)
 
 
 func _cleanup_save_files() -> void:

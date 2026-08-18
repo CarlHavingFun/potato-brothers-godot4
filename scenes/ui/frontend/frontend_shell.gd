@@ -104,7 +104,9 @@ func begin_new_run(
 ) -> bool:
 	var target_profile := profile_id if profile_id > 0 else Global.active_profile_id()
 	var target_seed := random_seed if random_seed != 0 else _make_prerun_seed()
-	var target_aim := aim_mode if AimMode.is_valid(aim_mode) else Global.meta_progress.aim_mode
+	var target_aim := (
+		aim_mode if AimMode.is_valid(aim_mode) else Global.product_settings.aim_mode
+	)
 	if target_profile != Global.active_profile_id() and not Global.switch_profile(target_profile):
 		return false
 	var target_run_mode := run_mode if RunMode.is_valid(run_mode) else RunMode.STANDARD
@@ -255,7 +257,11 @@ func _setup_aim_mode() -> void:
 	aim_mode_option.clear()
 	aim_mode_option.add_item(tr("ui.settings.auto_aim"), AimMode.AUTO_TARGET)
 	aim_mode_option.add_item(tr("ui.settings.manual_aim"), AimMode.MANUAL_MOUSE)
-	aim_mode_option.select(draft.aim_mode if AimMode.is_valid(draft.aim_mode) else Global.meta_progress.aim_mode)
+	aim_mode_option.select(
+		draft.aim_mode
+		if AimMode.is_valid(draft.aim_mode)
+		else Global.product_settings.aim_mode
+	)
 
 
 func _on_aim_mode_selected(index: int) -> void:

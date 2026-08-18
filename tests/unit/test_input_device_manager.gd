@@ -47,3 +47,50 @@ func test_input_remapping_round_trips_keyboard_and_gamepad_bindings() -> void:
 	InputMap.action_erase_events(&"dash")
 	for original: InputEvent in original_events:
 		InputMap.action_add_event(&"dash", original)
+
+
+func test_input_remapping_reports_conflicts_and_can_replace_them() -> void:
+	var service := InputRemapService.new()
+	var original := service.serialize_actions()
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_W
+
+	var conflicts := service.find_conflicts(&"dash", key)
+
+	assert_array(conflicts).contains([&"move_up"])
+	assert_bool(service.rebind(&"dash", key)).is_false()
+	assert_bool(service.rebind(&"dash", key, true)).is_true()
+	assert_bool(service.find_conflicts(&"dash", key).is_empty()).is_true()
+	var move_up_still_uses_w := false
+	for event: InputEvent in InputMap.action_get_events(&"move_up"):
+		if event is InputEventKey and (event as InputEventKey).physical_keycode == KEY_W:
+			move_up_still_uses_w = true
+	assert_bool(move_up_still_uses_w).is_false()
+	service.apply_actions(original)
+
+
+func test_input_remapping_supports_axes_defaults_and_transactional_deadzone() -> void:
+	var service := InputRemapService.new()
+	var original := service.serialize_actions()
+	var original_deadzone := service.gamepad_deadzone()
+	var axis := InputEventJoypadMotion.new()
+	axis.axis = JOY_AXIS_RIGHT_X
+	axis.axis_value = -1.0
+
+	assert_bool(service.rebind(&"move_left", axis, true)).is_true()
+	var has_axis := false
+	for event: InputEvent in InputMap.action_get_events(&"move_left"):
+		if event is InputEventJoypadMotion:
+			has_axis = true
+	assert_bool(has_axis).is_true()
+	service.set_gamepad_deadzone(0.55)
+	assert_float(service.gamepad_deadzone()).is_equal_approx(0.55, 0.001)
+	service.restore_defaults([&"move_left", &"dash", &"pause"])
+	assert_bool(InputMap.has_action(&"pause")).is_true()
+	var default_dash: Array = service.serialize_actions([&"dash"]).get("dash", [])
+	assert_bool(default_dash.any(func(data: Dictionary): return int(data.get("physical_keycode", 0)) == KEY_SPACE)).is_true()
+	assert_bool(default_dash.any(func(data: Dictionary): return int(data.get("button_index", -1)) == JOY_BUTTON_X)).is_true()
+	var default_pause: Array = service.serialize_actions([&"pause"]).get("pause", [])
+	assert_bool(default_pause.any(func(data: Dictionary): return int(data.get("physical_keycode", 0)) == KEY_ESCAPE)).is_true()
+	service.apply_actions(original)
+	service.set_gamepad_deadzone(original_deadzone)

@@ -8,12 +8,12 @@ var _original_bindings: Dictionary
 
 func before_test() -> void:
 	_original_bindings = InputRemapService.new().serialize_actions()
-	Global.meta_progress.input_bindings = _original_bindings.duplicate(true)
+	Global.product_settings.input_bindings = _original_bindings.duplicate(true)
 
 
 func after_test() -> void:
 	InputRemapService.new().apply_actions(_original_bindings)
-	Global.meta_progress.input_bindings = _original_bindings.duplicate(true)
+	Global.product_settings.input_bindings = _original_bindings.duplicate(true)
 
 
 func test_cancel_restores_staged_key_remap_without_persisting_it() -> void:
@@ -34,6 +34,6 @@ func test_cancel_restores_staged_key_remap_without_persisting_it() -> void:
 	panel.call("_commit_rebind", replacement)
 
 	assert_bool(InputRemapService.new().serialize_actions([&"dash"]) == before).is_false()
-	assert_dict(Global.meta_progress.input_bindings).is_equal(_original_bindings)
+	assert_dict(Global.product_settings.input_bindings).is_equal(_original_bindings)
 	panel.call("_on_cancel_button_pressed")
 	assert_dict(InputRemapService.new().serialize_actions([&"dash"])).is_equal(before)

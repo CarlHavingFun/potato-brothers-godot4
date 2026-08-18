@@ -1,8 +1,41 @@
 extends GdUnitTestSuite
 
 
+const TEST_SETTINGS_ROOT := "user://tests/runtime_regression_settings"
+const DEADZONE_ACTIONS: Array[StringName] = [
+	&"move_left", &"move_right", &"move_up", &"move_down",
+	&"aim_left", &"aim_right", &"aim_up", &"aim_down",
+]
+
+var _original_product_settings: ProductSettings
+var _original_settings_store: SettingsStore
+var _original_settings_initialized: bool
+var _original_deadzones: Dictionary = {}
+
+
+func before_test() -> void:
+	_original_product_settings = Global.product_settings.copy()
+	_original_settings_store = Global.settings_store
+	_original_settings_initialized = Global._settings_initialized
+	_original_deadzones.clear()
+	for action: StringName in DEADZONE_ACTIONS:
+		if InputMap.has_action(action):
+			_original_deadzones[action] = InputMap.action_get_deadzone(action)
+	_cleanup_settings_files()
+	Global.settings_store = SettingsStore.new(TEST_SETTINGS_ROOT)
+	Global._settings_initialized = true
+
+
 func after_test() -> void:
 	Global.end_run()
+	Global.restore_product_settings(_original_product_settings)
+	for raw_action: Variant in _original_deadzones:
+		InputMap.action_set_deadzone(
+			StringName(raw_action), float(_original_deadzones[raw_action])
+		)
+	Global.settings_store = _original_settings_store
+	Global._settings_initialized = _original_settings_initialized
+	_cleanup_settings_files()
 
 
 func test_fullscreen_shortcuts_are_recognized_and_toggle_saved_state() -> void:
@@ -22,28 +55,32 @@ func test_fullscreen_shortcuts_are_recognized_and_toggle_saved_state() -> void:
 	assert_bool(Global.call("is_fullscreen_toggle_event", f11)).is_true()
 	assert_bool(Global.call("is_fullscreen_toggle_event", alt_enter)).is_true()
 
-	var original := Global.meta_progress.fullscreen
+	var initial := Global.product_settings.copy()
+	initial.display_mode = DisplayMode.WINDOWED
+	initial.resolution = Vector2i(1600, 900)
+	assert_bool(Global.preview_product_settings(initial)).is_true()
 	Global.call("toggle_fullscreen")
-	assert_bool(Global.meta_progress.fullscreen).is_equal(not original)
-	Global.meta_progress.fullscreen = original
-	Global.apply_meta_settings()
-	Global.save_progress(Global.current_run != null)
+	assert_int(Global.product_settings.display_mode).is_equal(
+		DisplayMode.BORDERLESS_FULLSCREEN
+	)
+	assert_int(Global.settings_store.load_settings().display_mode).is_equal(
+		DisplayMode.BORDERLESS_FULLSCREEN
+	)
 
 
 func test_leaving_fullscreen_uses_a_shrinkable_window_size() -> void:
-	var original_fullscreen := Global.meta_progress.fullscreen
-	var original_resolution := Global.meta_progress.resolution
-	Global.meta_progress.fullscreen = true
-	Global.meta_progress.resolution = "1920x1080"
+	var initial := Global.product_settings.copy()
+	initial.display_mode = DisplayMode.BORDERLESS_FULLSCREEN
+	initial.resolution = Vector2i(1920, 1080)
+	assert_bool(Global.preview_product_settings(initial)).is_true()
 
 	Global.toggle_fullscreen()
 
-	assert_bool(Global.meta_progress.fullscreen).is_false()
-	assert_str(Global.meta_progress.resolution).is_equal("1280x720")
-	Global.meta_progress.fullscreen = original_fullscreen
-	Global.meta_progress.resolution = original_resolution
-	Global.apply_meta_settings()
-	Global.save_progress(Global.current_run != null)
+	assert_int(Global.product_settings.display_mode).is_equal(DisplayMode.WINDOWED)
+	assert_object(Global.product_settings.resolution).is_equal(Vector2i(1280, 720))
+	var saved := Global.settings_store.load_settings()
+	assert_int(saved.display_mode).is_equal(DisplayMode.WINDOWED)
+	assert_object(saved.resolution).is_equal(Vector2i(1280, 720))
 
 
 func test_weapon_detection_resolves_hurtbox_owner_and_starts_auto_attack() -> void:
@@ -169,3 +206,11 @@ func _has_property(object: Object, property_name: StringName) -> bool:
 		if StringName(property.get("name", "")) == property_name:
 			return true
 	return false
+
+
+func _cleanup_settings_files() -> void:
+	var path := "%s/settings_v1.json" % TEST_SETTINGS_ROOT
+	for suffix: String in ["", ".tmp", ".bak"]:
+		var target := path + suffix
+		if FileAccess.file_exists(target):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(target))

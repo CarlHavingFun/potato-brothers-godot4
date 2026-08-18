@@ -151,7 +151,12 @@ func _spawn_enemy_definition(enemy_definition: EnemyDef, spawn_pos: Vector2) -> 
 			wave_index,
 			Global.current_run.difficulty if Global.current_run != null else 1,
 			enemy_definition.tags if enemy_definition != null else [] as Array[StringName],
-			endless_generator.scaling if endless_generator != null and wave_index > 20 else null
+			endless_generator.scaling if endless_generator != null and wave_index > 20 else null,
+			{
+				"health": Global.product_settings.enemy_health_scale,
+				"damage": Global.product_settings.enemy_damage_scale,
+				"speed": Global.product_settings.enemy_speed_scale,
+			}
 		)
 		enemy_instance.global_position = spawn_pos
 		get_parent().add_child(enemy_instance)
@@ -205,7 +210,8 @@ static func build_enemy_stats_for_wave(
 	wave: int,
 	difficulty_level: int,
 	enemy_tags: Array[StringName] = [],
-	endless_scaling: EndlessScalingDef = null
+	endless_scaling: EndlessScalingDef = null,
+	accessibility_scales: Dictionary = {}
 ) -> UnitStats:
 	if definition == null:
 		return null
@@ -230,6 +236,15 @@ static func build_enemy_stats_for_wave(
 		result.gold_drop = maxi(1, floori(
 			result.gold_drop * endless_scaling.material_drop_multiplier(wave)
 		))
+	result.health = maxi(1, roundi(
+		result.health * clampf(float(accessibility_scales.get("health", 1.0)), 0.25, 2.0)
+	))
+	result.damage = maxf(0.0,
+		result.damage * clampf(float(accessibility_scales.get("damage", 1.0)), 0.25, 2.0)
+	)
+	result.speed = maxi(1, roundi(
+		result.speed * clampf(float(accessibility_scales.get("speed", 1.0)), 0.25, 2.0)
+	))
 	return result
 
 

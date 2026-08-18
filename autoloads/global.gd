@@ -10,6 +10,7 @@ signal on_upgrade_selected
 signal on_enemy_died(enemy: Enemy)
 signal materials_changed(value: int)
 signal run_phase_changed(phase: int)
+signal product_settings_changed(settings: ProductSettings)
 
 const FLASH_MATERIAL = preload("uid://coi4nu8ohpgeo")
 const FLOATING_TEXT_SCENE = preload("uid://bmy2qb3fuvnts")
@@ -60,10 +61,15 @@ var combat_resolver: CombatResolver
 var gameplay_effects: GameplayEffectRuntime
 var gameplay_effect_executor := GameplayEffectExecutor.new()
 var meta_progress := MetaProgress.new()
+var product_settings := ProductSettings.new()
+var settings_store := SettingsStore.new()
 var save_provider: SaveProvider = ProfileSaveProvider.new()
 var restored_run: RunState
 var _combat_checkpoint: RunState
 var aim_mode: int = AimMode.AUTO_TARGET
+var _settings_initialized := false
+var _paused_by_focus_loss := false
+var _muted_by_focus_loss := false
 var coins: int:
 	get:
 		return current_run.materials if current_run != null else 0
@@ -101,6 +107,15 @@ func _ready() -> void:
 	load_progress()
 
 
+func _notification(what: int) -> void:
+	if not is_node_ready():
+		return
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		_handle_focus_lost()
+	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		_handle_focus_regained()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not is_fullscreen_toggle_event(event):
 		return
@@ -117,12 +132,14 @@ func is_fullscreen_toggle_event(event: InputEvent) -> bool:
 
 
 func toggle_fullscreen() -> bool:
-	meta_progress.fullscreen = not meta_progress.fullscreen
-	if not meta_progress.fullscreen:
-		meta_progress.resolution = QUICK_WINDOWED_RESOLUTION
-	apply_meta_settings()
-	save_progress(current_run != null)
-	return meta_progress.fullscreen
+	var updated := product_settings.copy()
+	if updated.display_mode == DisplayMode.WINDOWED:
+		updated.display_mode = DisplayMode.BORDERLESS_FULLSCREEN
+	else:
+		updated.display_mode = DisplayMode.WINDOWED
+		updated.resolution = _parse_resolution_string(QUICK_WINDOWED_RESOLUTION)
+	apply_product_settings(updated, true)
+	return product_settings.display_mode != DisplayMode.WINDOWED
 
 
 func begin_run(seed_value: int = 0, source_stats: UnitStats = null, starting_materials: int = STARTING_MATERIALS) -> RunState:
@@ -223,11 +240,14 @@ func enter_phase(next_phase: int) -> bool:
 
 func load_progress() -> bool:
 	if save_provider == null or not save_provider.is_available():
-		apply_meta_settings()
+		_ensure_product_settings({})
+		apply_product_settings(product_settings, false)
 		return false
 	var payload := save_provider.load_slot()
 	var meta_data: Variant = payload.get("meta_progress", {})
-	meta_progress = MetaProgress.from_dict(meta_data if meta_data is Dictionary else {})
+	var legacy_meta: Dictionary = meta_data if meta_data is Dictionary else {}
+	_ensure_product_settings(legacy_meta)
+	meta_progress = MetaProgress.from_dict(legacy_meta)
 	var run_data: Variant = payload.get("run_state", null)
 	restored_run = RunState.from_dict(run_data) if run_data is Dictionary else null
 	if restored_run != null and not restored_run.is_resumable_checkpoint():
@@ -237,7 +257,7 @@ func load_progress() -> bool:
 		if restored_run != null and restored_run.phase == RunPhase.COMBAT
 		else null
 	)
-	apply_meta_settings()
+	apply_product_settings(product_settings, false)
 	return not payload.is_empty()
 
 
@@ -417,49 +437,182 @@ func update_product_settings(
 	use_fullscreen: bool,
 	resolution_value: String,
 	aim_value: int,
-	locale_value: String
+	locale_value: String,
+	enemy_health_scale: float = -1.0,
+	enemy_damage_scale: float = -1.0,
+	enemy_speed_scale: float = -1.0
 ) -> bool:
 	if not AimMode.is_valid(aim_value) or locale_value not in ["zh_CN", "en"]:
 		return false
-	meta_progress.music_volume = clampf(music, 0.0, 1.0)
-	meta_progress.sfx_volume = clampf(sfx, 0.0, 1.0)
-	meta_progress.fullscreen = use_fullscreen
-	meta_progress.resolution = resolution_value
-	meta_progress.aim_mode = aim_value
-	meta_progress.locale = locale_value
-	apply_meta_settings()
-	save_progress(current_run != null)
-	return true
+	var updated := product_settings.copy()
+	updated.music_volume = clampf(music, 0.0, 1.0)
+	updated.sfx_volume = clampf(sfx, 0.0, 1.0)
+	updated.display_mode = (
+		DisplayMode.BORDERLESS_FULLSCREEN if use_fullscreen else DisplayMode.WINDOWED
+	)
+	updated.resolution = _parse_resolution_string(resolution_value)
+	updated.aim_mode = aim_value
+	updated.locale = locale_value
+	if enemy_health_scale >= 0.0:
+		updated.enemy_health_scale = clampf(enemy_health_scale, 0.25, 2.0)
+	if enemy_damage_scale >= 0.0:
+		updated.enemy_damage_scale = clampf(enemy_damage_scale, 0.25, 2.0)
+	if enemy_speed_scale >= 0.0:
+		updated.enemy_speed_scale = clampf(enemy_speed_scale, 0.25, 2.0)
+	return apply_product_settings(updated, true)
 
 
 func apply_meta_settings() -> void:
-	aim_mode = meta_progress.aim_mode
-	if not meta_progress.input_bindings.is_empty():
-		InputRemapService.new().apply_actions(meta_progress.input_bindings)
-	TranslationServer.set_locale(meta_progress.locale)
-	_set_bus_linear_volume(&"Music", meta_progress.music_volume)
-	_set_bus_linear_volume(&"SFX", meta_progress.sfx_volume)
-	if DisplayServer.get_name() == "headless":
+	_ensure_product_settings(meta_progress.to_dict())
+	apply_product_settings(product_settings, false)
+
+
+func apply_product_settings(settings: ProductSettings, persist: bool = true) -> bool:
+	if settings == null:
+		return false
+	var normalized := settings.copy().sanitize()
+	if persist and settings_store.save_settings(normalized) != OK:
+		return false
+	product_settings = normalized
+	aim_mode = product_settings.aim_mode
+	if not product_settings.input_bindings.is_empty():
+		InputRemapService.new().apply_actions(product_settings.input_bindings)
+	_apply_input_deadzone(product_settings.gamepad_deadzone)
+	TranslationServer.set_locale(product_settings.locale)
+	_set_bus_linear_volume(&"Master", product_settings.master_volume)
+	_set_bus_linear_volume(&"Music", product_settings.music_volume)
+	_set_bus_linear_volume(&"SFX", product_settings.sfx_volume)
+	ThemeDB.fallback_base_scale = product_settings.ui_scale
+	Engine.max_fps = product_settings.fps_cap
+	_apply_display_settings()
+	product_settings_changed.emit(product_settings.copy())
+	return true
+
+
+func preview_product_settings(settings: ProductSettings) -> bool:
+	return apply_product_settings(settings, false)
+
+
+func restore_product_settings(settings: ProductSettings) -> bool:
+	return apply_product_settings(settings, false)
+
+
+func available_resolutions() -> Array[Vector2i]:
+	var candidates: Array[Vector2i] = [
+		Vector2i(1280, 720),
+		Vector2i(1600, 900),
+		Vector2i(1920, 1080),
+		Vector2i(2560, 1440),
+		Vector2i(3840, 2160),
+	]
+	var screen_size := ProductSettings.DEFAULT_RESOLUTION
+	if DisplayServer.get_name() != "headless":
+		screen_size = DisplayServer.screen_get_size(DisplayServer.SCREEN_OF_MAIN_WINDOW)
+	var result: Array[Vector2i] = []
+	for candidate: Vector2i in candidates:
+		if candidate.x <= screen_size.x and candidate.y <= screen_size.y:
+			result.append(candidate)
+	for required: Vector2i in [product_settings.resolution, screen_size]:
+		if (
+			required.x >= ProductSettings.MIN_RESOLUTION.x
+			and required.y >= ProductSettings.MIN_RESOLUTION.y
+			and required not in result
+		):
+			result.append(required)
+	result.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.x * a.y < b.x * b.y)
+	return result
+
+
+func _ensure_product_settings(legacy_meta: Dictionary) -> void:
+	if _settings_initialized:
 		return
-	DisplayServer.window_set_mode(
-		DisplayServer.WINDOW_MODE_FULLSCREEN if meta_progress.fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
+	product_settings = (
+		settings_store.load_settings()
+		if settings_store.has_saved_settings()
+		else settings_store.migrate_from_legacy_meta(legacy_meta)
 	)
-	if meta_progress.fullscreen:
+	_settings_initialized = true
+
+
+func _apply_display_settings() -> void:
+	if DisplayServer.get_name() == "headless" or "--wid" in OS.get_cmdline_args():
 		return
-	_apply_windowed_geometry()
-	call_deferred("_apply_windowed_geometry")
+	DisplayServer.window_set_vsync_mode(
+		DisplayServer.VSYNC_ENABLED
+		if product_settings.vsync_enabled
+		else DisplayServer.VSYNC_DISABLED
+	)
+	match product_settings.display_mode:
+		DisplayMode.WINDOWED:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+			_apply_windowed_geometry()
+			call_deferred("_apply_windowed_geometry")
+		DisplayMode.EXCLUSIVE_FULLSCREEN:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
+		_:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 
 
 func _apply_windowed_geometry() -> void:
-	if DisplayServer.get_name() == "headless" or meta_progress.fullscreen or "--wid" in OS.get_cmdline_args():
+	if (
+		DisplayServer.get_name() == "headless"
+		or product_settings.display_mode != DisplayMode.WINDOWED
+		or "--wid" in OS.get_cmdline_args()
+	):
 		return
-	var parts := meta_progress.resolution.split("x")
-	if parts.size() == 2:
-		var window_size := Vector2i(maxi(640, int(parts[0])), maxi(360, int(parts[1])))
-		DisplayServer.window_set_size(window_size)
-		var usable_rect := DisplayServer.screen_get_usable_rect(DisplayServer.SCREEN_OF_MAIN_WINDOW)
-		var centered_position := usable_rect.position + (usable_rect.size - window_size) / 2
-		DisplayServer.window_set_position(centered_position)
+	var window_size := Vector2i(
+		maxi(ProductSettings.MIN_RESOLUTION.x, product_settings.resolution.x),
+		maxi(ProductSettings.MIN_RESOLUTION.y, product_settings.resolution.y),
+	)
+	var usable_rect := DisplayServer.screen_get_usable_rect(DisplayServer.SCREEN_OF_MAIN_WINDOW)
+	window_size.x = mini(window_size.x, usable_rect.size.x)
+	window_size.y = mini(window_size.y, usable_rect.size.y)
+	DisplayServer.window_set_size(window_size)
+	var centered_position := usable_rect.position + (usable_rect.size - window_size) / 2
+	DisplayServer.window_set_position(centered_position)
+
+
+func _apply_input_deadzone(value: float) -> void:
+	for action: StringName in [
+		&"move_left", &"move_right", &"move_up", &"move_down",
+		&"aim_left", &"aim_right", &"aim_up", &"aim_down",
+	]:
+		if InputMap.has_action(action):
+			InputMap.action_set_deadzone(action, value)
+
+
+func _parse_resolution_string(value: String) -> Vector2i:
+	var parts := value.to_lower().split("x", false, 1)
+	if parts.size() != 2 or not parts[0].is_valid_int() or not parts[1].is_valid_int():
+		return ProductSettings.DEFAULT_RESOLUTION
+	return Vector2i(
+		maxi(ProductSettings.MIN_RESOLUTION.x, int(parts[0])),
+		maxi(ProductSettings.MIN_RESOLUTION.y, int(parts[1])),
+	)
+
+
+func _handle_focus_lost() -> void:
+	if product_settings.mute_on_focus_lost and not _muted_by_focus_loss:
+		var master_index := AudioServer.get_bus_index(&"Master")
+		if master_index >= 0:
+			AudioServer.set_bus_mute(master_index, true)
+			_muted_by_focus_loss = true
+	if (
+		product_settings.pause_on_focus_lost
+		and is_combat_active()
+		and not get_tree().paused
+	):
+		get_tree().paused = true
+		_paused_by_focus_loss = true
+
+
+func _handle_focus_regained() -> void:
+	if _muted_by_focus_loss:
+		_set_bus_linear_volume(&"Master", product_settings.master_volume)
+		_muted_by_focus_loss = false
+	if _paused_by_focus_loss:
+		get_tree().paused = false
+		_paused_by_focus_loss = false
 
 
 func translate_text(key: StringName, english_fallback: String) -> String:

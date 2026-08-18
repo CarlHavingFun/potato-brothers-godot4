@@ -193,6 +193,26 @@ func test_enemy_wave_scaling_returns_a_copy_and_applies_difficulty() -> void:
 	assert_float(definition.damage).is_equal(3.0)
 
 
+func test_enemy_wave_scaling_applies_accessibility_after_difficulty_and_endless() -> void:
+	var definition := UnitStats.new()
+	definition.health = 20
+	definition.damage = 4.0
+	definition.speed = 100
+
+	var runtime_stats := Spawner.build_enemy_stats_for_wave(
+		definition,
+		1,
+		1,
+		[] as Array[StringName],
+		null,
+		{"health": 0.5, "damage": 2.0, "speed": 0.75}
+	)
+
+	assert_int(runtime_stats.health).is_equal(10)
+	assert_float(runtime_stats.damage).is_equal(8.0)
+	assert_int(runtime_stats.speed).is_equal(75)
+
+
 func test_spawner_resolves_legacy_wave_data_through_the_content_catalog() -> void:
 	var spawner: Spawner = auto_free(Spawner.new())
 	spawner.wave_index = 4

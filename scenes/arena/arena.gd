@@ -2,6 +2,8 @@ extends Node2D
 class_name Arena
 
 const MAX_EFFECT_ENTITIES_PER_KIND := 6
+const RUN_HUD_FORMATTER := preload("res://core/presentation/run_hud_formatter.gd")
+const EFFECT_PROJECTILE_SCENE := preload("res://scenes/projectiles/projectile_pistol.tscn")
 
 signal frontend_requested
 
@@ -13,6 +15,13 @@ signal frontend_requested
 
 @onready var wave_index_label: Label = %WaveIndexLabel
 @onready var wave_time_label: Label = %WaveTimeLabel
+@onready var encounter_label: Label = %EncounterLabel
+@onready var next_wave_label: Label = %NextWaveLabel
+@onready var boss_status_label: Label = %BossStatusLabel
+@onready var player_status_label: Label = %PlayerStatusLabel
+@onready var health_hud_label: Label = %HealthHudLabel
+@onready var experience_hud_label: Label = %ExperienceHudLabel
+@onready var material_bag_label: Label = %MaterialBagLabel
 
 @onready var spawner: Spawner = $Spawner
 @onready var ecology: ArenaEcology = %ArenaEcology
@@ -43,6 +52,7 @@ func _ready() -> void:
 	Global.on_create_heal_text.connect(_on_create_heal_text)
 	Global.on_enemy_died.connect(_on_enemy_died)
 	reset_to_title()
+	refresh_presentation_settings()
 	call_deferred("_start_music")
 
 
@@ -68,10 +78,80 @@ func _process(delta: float) -> void:
 	Global.current_run.elapsed_seconds += delta
 	wave_index_label.text = spawner.get_wave_text()
 	wave_time_label.text = spawner.get_wave_timer_text()
+	_refresh_runtime_hud()
+
+
+func _refresh_runtime_hud() -> void:
+	_refresh_player_vitals()
+	var current := spawner.current_wave_definition
+	encounter_label.text = tr(RUN_HUD_FORMATTER.encounter_key(current)) if current != null else ""
+	var next_wave := Content.catalog.get_wave(StringName("wave/%02d" % (spawner.wave_index + 1)))
+	if next_wave != null:
+		next_wave_label.text = tr("ui.hud.next_wave") % tr(RUN_HUD_FORMATTER.encounter_key(next_wave))
+	else:
+		next_wave_label.text = ""
+	_refresh_player_status()
+	_refresh_boss_status()
+
+
+func _refresh_player_vitals() -> void:
+	health_hud_label.visible = GameplayCuePresenter.runtime_bool(
+		&"show_player_health_bar", true
+	)
+	if Global.current_run == null or not is_instance_valid(Global.player):
+		health_hud_label.text = ""
+		experience_hud_label.text = ""
+		material_bag_label.text = ""
+		return
+	var health := Global.player.health_component
+	health_hud_label.text = tr("ui.hud.health") % [
+		roundi(health.current_health), roundi(health.max_health),
+	]
+	var required := Global.reward_service.experience_required_for_level(Global.current_run.level)
+	experience_hud_label.text = tr("ui.hud.experience") % [
+		Global.current_run.level, Global.current_run.experience, required,
+	]
+	material_bag_label.text = tr("ui.hud.material_bag") % Global.current_run.material_bag
+
+
+func _refresh_player_status() -> void:
+	if not is_instance_valid(Global.player):
+		player_status_label.text = ""
+		return
+	var parts: Array[String] = []
+	for entry: Dictionary in RUN_HUD_FORMATTER.status_entries(Global.player.active_effect_statuses):
+		var status_id := str(entry.get("status_id", ""))
+		parts.append("%s ×%d" % [tr("status.%s" % status_id), int(entry.get("stacks", 1))])
+	player_status_label.text = "  ".join(parts)
+
+
+func _refresh_boss_status() -> void:
+	boss_status_label.visible = GameplayCuePresenter.runtime_bool(
+		&"show_boss_health_bar", true
+	)
+	if not boss_status_label.visible:
+		boss_status_label.text = ""
+		return
+	var snapshot := RUN_HUD_FORMATTER.boss_snapshot(spawner.spawned_enemies)
+	if snapshot.is_empty():
+		boss_status_label.text = ""
+		return
+	var phase_key := "ui.hud.boss_phase.%s" % str(snapshot.get("phase", "base"))
+	boss_status_label.text = tr("ui.hud.boss_status") % [
+		int(snapshot.get("count", 1)),
+		tr(phase_key),
+		roundi(float(snapshot.get("health", 0.0))),
+		roundi(float(snapshot.get("maximum_health", 0.0))),
+	]
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel") and Global.is_combat_active():
+	var pause_pressed := (
+		event.is_action_pressed(&"pause")
+		if InputMap.has_action(&"pause")
+		else event.is_action_pressed(&"ui_cancel")
+	)
+	if pause_pressed and Global.is_combat_active():
 		_pause_game()
 		get_viewport().set_input_as_handled()
 
@@ -108,6 +188,7 @@ func start_new_wave() -> void:
 	Global.dispatch_gameplay_event(GameplayEvent.Type.WAVE_STARTED, {"wave": spawner.wave_index})
 	ecology.setup_wave(spawner.wave_index, Global.current_run.random_seed, Global.player)
 	spawner.start_wave()
+	_refresh_runtime_hud()
 
 
 func clean_arena() -> void:
@@ -151,7 +232,51 @@ func spawn_effect_entities(
 				else Vector2.ZERO
 			)
 			entity.setup(kind, StringName(str(command.get("content_id", ""))), anchor, index)
+			entity.projectile_requested.connect(_on_effect_ally_projectile_requested)
 			effect_entities.append(entity)
+
+
+func _on_effect_ally_projectile_requested(
+	origin: Vector2,
+	target: Node2D,
+	damage_amount: float,
+	source: Node2D,
+	metadata: Dictionary
+) -> void:
+	if not is_instance_valid(target) or not is_instance_valid(source):
+		return
+	var projectile := EFFECT_PROJECTILE_SCENE.instantiate() as Projectile
+	if projectile == null:
+		return
+	get_tree().root.add_child(projectile)
+	projectile.global_position = origin
+	var direction := origin.direction_to(target.global_position)
+	if direction.is_zero_approx():
+		direction = Vector2.RIGHT
+	var entity_kind := StringName(str(metadata.get("entity_kind", "building")))
+	var effect_tags: Array[StringName] = [&"engineering", entity_kind]
+	var presentation_id := (
+		&"weapon.drone_beacon" if entity_kind == &"summon" else &"weapon.turret_kit"
+	)
+	projectile.set_projectile(
+		direction * maxf(1.0, float(metadata.get("projectile_speed", 600.0))),
+		maxf(0.0, damage_amount),
+		false,
+		1.5,
+		Global.player if is_instance_valid(Global.player) else source,
+		source,
+		effect_tags,
+		0,
+		0,
+		presentation_id
+	)
+	if bool(metadata.get("homing", false)):
+		projectile.configure_homing(target)
+	GameplayCues.emit_cue(&"weapon.fire", {
+		"content_id": str(metadata.get("content_id", "")),
+		"world_position": origin,
+		"entity_kind": String(entity_kind),
+	})
 
 
 func spawn_coins(enemy: Enemy) -> void:
@@ -173,11 +298,15 @@ func _on_create_block_text(unit: Node2D) -> void:
 
 
 func _on_create_damage_text(unit: Node2D, hitbox: HitboxComponent) -> void:
-	var text := create_floating_text(unit)
-	var color := critical_color if hitbox.critical else normal_color
-	text.setup(str(snappedf(hitbox.display_damage, 0.1)), color)
+	if GameplayCuePresenter.runtime_bool(&"show_damage_numbers", true):
+		var text := create_floating_text(unit)
+		var color := critical_color if hitbox.critical else normal_color
+		text.setup(str(snappedf(hitbox.display_damage, 0.1)), color)
 	if is_instance_valid(game_camera):
-		game_camera.add_trauma(0.22 if unit is Player else (0.14 if hitbox.critical else 0.04))
+		var base_trauma := 0.22 if unit is Player else (0.14 if hitbox.critical else 0.04)
+		game_camera.add_trauma(
+			base_trauma * GameplayCuePresenter.screen_shake_multiplier()
+		)
 
 
 func _on_create_heal_text(unit: Node2D, heal: float) -> void:
@@ -539,6 +668,22 @@ func _on_settings_requested() -> void:
 
 func _on_settings_panel_closed() -> void:
 	settings_panel.hide()
+	refresh_presentation_settings()
+
+
+func refresh_presentation_settings() -> void:
+	if is_instance_valid(Global.player):
+		Global.player.refresh_presentation_settings()
+	if is_instance_valid(spawner):
+		for enemy: Enemy in spawner.spawned_enemies:
+			if is_instance_valid(enemy):
+				enemy.refresh_presentation_settings()
+	if get_tree() != null:
+		for projectile: Node in get_tree().get_nodes_in_group(&"presentation_projectiles"):
+			if projectile.has_method("refresh_presentation_settings"):
+				projectile.call("refresh_presentation_settings")
+	if is_instance_valid(health_hud_label) and is_instance_valid(boss_status_label):
+		_refresh_runtime_hud()
 
 
 func _on_settlement_panel_retry_requested() -> void:

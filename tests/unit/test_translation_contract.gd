@@ -16,7 +16,7 @@ func test_missing_translation_uses_explicit_english_fallback() -> void:
 	)
 
 
-func test_settings_panel_exposes_all_phase_one_product_controls() -> void:
+func test_settings_panel_exposes_all_release_product_controls() -> void:
 	var path := "res://scenes/ui/settings_panel/settings_panel.tscn"
 	assert_bool(ResourceLoader.exists(path)).is_true()
 	if not ResourceLoader.exists(path):
@@ -24,7 +24,14 @@ func test_settings_panel_exposes_all_phase_one_product_controls() -> void:
 	var panel: Node = auto_free(load(path).instantiate())
 	add_child(panel)
 	await await_idle_frame()
-	for control_name: String in ["MusicSlider", "SfxSlider", "FullscreenCheck", "ResolutionOption", "AimOption", "LocaleOption"]:
+	for control_name: String in [
+		"MasterSlider", "MusicSlider", "SfxSlider", "MuteOnFocusCheck",
+		"DisplayModeOption", "ResolutionOption", "VsyncCheck", "FpsCapOption",
+		"AimOption", "PauseOnFocusCheck", "DamageNumbersCheck", "PlayerHealthBarCheck",
+		"BossHealthBarCheck", "LocaleOption", "EnemyHealthSlider", "EnemyDamageSlider",
+		"EnemySpeedSlider", "UiScaleSlider", "ScreenShakeSlider", "RumbleSlider",
+		"ReducedFlashesCheck", "HighContrastProjectilesCheck", "DeadzoneSlider", "KeybindGrid",
+	]:
 		assert_object(panel.find_child(control_name, true, false)).is_not_null()
 
 

@@ -1,9 +1,21 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scenes/ui/settings_panel/settings_panel.gd" id="1"]
 
 [sub_resource type="StyleBoxFlat" id="background"]
-bg_color = Color(0.045, 0.055, 0.075, 0.99)
+bg_color = Color(0.035, 0.043, 0.061, 0.99)
+
+[sub_resource type="StyleBoxFlat" id="page_background"]
+bg_color = Color(0.065, 0.078, 0.105, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.19, 0.23, 0.31, 0.9)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
 
 [node name="SettingsPanel" type="Panel"]
 process_mode = 3
@@ -15,109 +27,238 @@ grow_vertical = 2
 theme_override_styles/panel = SubResource("background")
 script = ExtResource("1")
 
-[node name="Center" type="CenterContainer" parent="."]
+[node name="SafeArea" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 16.0
+offset_right = -24.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Layout" type="VBoxContainer" parent="SafeArea"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Header" type="HBoxContainer" parent="SafeArea/Layout"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+alignment = 1
+
+[node name="Title" type="Label" parent="SafeArea/Layout/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 42
+text = "ui.settings.title"
+vertical_alignment = 1
+
+[node name="NavigationHint" type="Label" parent="SafeArea/Layout/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.84, 1)
+theme_override_font_sizes/font_size = 18
+text = "ui.settings.tab_hint"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="Tabs" type="HBoxContainer" parent="SafeArea/Layout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PageFrame" type="PanelContainer" parent="SafeArea/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("page_background")
+
+[node name="PageStack" type="Control" parent="SafeArea/Layout/PageFrame"]
+clip_contents = true
+custom_minimum_size = Vector2(0, 320)
+layout_mode = 2
+
+[node name="AudioPage" type="ScrollContainer" parent="SafeArea/Layout/PageFrame/PageStack"]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+horizontal_scroll_mode = 0
 
-[node name="Content" type="VBoxContainer" parent="Center"]
-custom_minimum_size = Vector2(720, 720)
+[node name="Margin" type="MarginContainer" parent="SafeArea/Layout/PageFrame/PageStack/AudioPage"]
+custom_minimum_size = Vector2(760, 0)
 layout_mode = 2
-theme_override_constants/separation = 18
-alignment = 1
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 18
 
-[node name="Title" type="Label" parent="Center/Content"]
+[node name="Content" type="VBoxContainer" parent="SafeArea/Layout/PageFrame/PageStack/AudioPage/Margin"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 58
-text = "ui.settings.title"
+theme_override_constants/separation = 14
+
+[node name="DisplayPage" type="ScrollContainer" parent="SafeArea/Layout/PageFrame/PageStack"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="Margin" type="MarginContainer" parent="SafeArea/Layout/PageFrame/PageStack/DisplayPage"]
+custom_minimum_size = Vector2(760, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 18
+
+[node name="Content" type="VBoxContainer" parent="SafeArea/Layout/PageFrame/PageStack/DisplayPage/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="GameplayPage" type="ScrollContainer" parent="SafeArea/Layout/PageFrame/PageStack"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="Margin" type="MarginContainer" parent="SafeArea/Layout/PageFrame/PageStack/GameplayPage"]
+custom_minimum_size = Vector2(760, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 18
+
+[node name="Content" type="VBoxContainer" parent="SafeArea/Layout/PageFrame/PageStack/GameplayPage/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="AccessibilityPage" type="ScrollContainer" parent="SafeArea/Layout/PageFrame/PageStack"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="Margin" type="MarginContainer" parent="SafeArea/Layout/PageFrame/PageStack/AccessibilityPage"]
+custom_minimum_size = Vector2(760, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 18
+
+[node name="Content" type="VBoxContainer" parent="SafeArea/Layout/PageFrame/PageStack/AccessibilityPage/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="ControlsPage" type="ScrollContainer" parent="SafeArea/Layout/PageFrame/PageStack"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="Margin" type="MarginContainer" parent="SafeArea/Layout/PageFrame/PageStack/ControlsPage"]
+custom_minimum_size = Vector2(760, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 18
+
+[node name="Content" type="VBoxContainer" parent="SafeArea/Layout/PageFrame/PageStack/ControlsPage/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="StatusLabel" type="Label" parent="SafeArea/Layout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.72, 0.3, 1)
+theme_override_font_sizes/font_size = 17
 horizontal_alignment = 1
 
-[node name="MusicLabel" type="Label" parent="Center/Content"]
+[node name="Footer" type="HBoxContainer" parent="SafeArea/Layout"]
+custom_minimum_size = Vector2(0, 58)
 layout_mode = 2
-theme_override_font_sizes/font_size = 24
-text = "ui.settings.music"
+theme_override_constants/separation = 14
+alignment = 2
 
-[node name="MusicSlider" type="HSlider" parent="Center/Content"]
-unique_name_in_owner = true
+[node name="ResetButton" type="Button" parent="SafeArea/Layout/Footer"]
+custom_minimum_size = Vector2(190, 52)
 layout_mode = 2
-max_value = 100.0
-value = 70.0
+theme_override_font_sizes/font_size = 22
+text = "ui.settings.reset_all"
 
-[node name="SfxLabel" type="Label" parent="Center/Content"]
+[node name="Spacer" type="Control" parent="SafeArea/Layout/Footer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 24
-text = "ui.settings.sfx"
+size_flags_horizontal = 3
 
-[node name="SfxSlider" type="HSlider" parent="Center/Content"]
-unique_name_in_owner = true
+[node name="CancelButton" type="Button" parent="SafeArea/Layout/Footer"]
+custom_minimum_size = Vector2(190, 52)
 layout_mode = 2
-max_value = 100.0
-value = 80.0
-
-[node name="FullscreenCheck" type="CheckButton" parent="Center/Content"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_font_sizes/font_size = 24
-text = "ui.settings.fullscreen"
-
-[node name="ResolutionLabel" type="Label" parent="Center/Content"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 24
-text = "ui.settings.resolution"
-
-[node name="ResolutionOption" type="OptionButton" parent="Center/Content"]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="AimLabel" type="Label" parent="Center/Content"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 24
-text = "ui.settings.aim"
-
-[node name="AimOption" type="OptionButton" parent="Center/Content"]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="LocaleLabel" type="Label" parent="Center/Content"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 24
-text = "ui.settings.language"
-
-[node name="LocaleOption" type="OptionButton" parent="Center/Content"]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="KeybindLabel" type="Label" parent="Center/Content"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 24
-text = "ui.settings.remap"
-
-[node name="KeybindGrid" type="GridContainer" parent="Center/Content"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/h_separation = 22
-theme_override_constants/v_separation = 6
-columns = 2
-
-[node name="Buttons" type="HBoxContainer" parent="Center/Content"]
-layout_mode = 2
-theme_override_constants/separation = 20
-alignment = 1
-
-[node name="ApplyButton" type="Button" parent="Center/Content/Buttons"]
-custom_minimum_size = Vector2(300, 64)
-layout_mode = 2
-theme_override_font_sizes/font_size = 28
-text = "ui.common.apply"
-
-[node name="CancelButton" type="Button" parent="Center/Content/Buttons"]
-custom_minimum_size = Vector2(300, 64)
-layout_mode = 2
-theme_override_font_sizes/font_size = 28
+theme_override_font_sizes/font_size = 22
 text = "ui.common.cancel"
 
-[connection signal="pressed" from="Center/Content/Buttons/ApplyButton" to="." method="_on_apply_button_pressed"]
-[connection signal="pressed" from="Center/Content/Buttons/CancelButton" to="." method="_on_cancel_button_pressed"]
+[node name="ApplyButton" type="Button" parent="SafeArea/Layout/Footer"]
+custom_minimum_size = Vector2(220, 52)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "ui.common.apply"
+
+[node name="ConflictDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+process_mode = 3
+title = "ui.settings.binding_conflict_title"
+ok_button_text = "ui.settings.replace_binding"
+cancel_button_text = "ui.common.cancel"
+
+[node name="DisplayConfirmDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+process_mode = 3
+title = "ui.settings.keep_display_title"
+ok_button_text = "ui.settings.keep_display"
+cancel_button_text = "ui.settings.revert_display"
+
+[node name="DisplayConfirmTimer" type="Timer" parent="."]
+unique_name_in_owner = true
+process_mode = 3
+wait_time = 10.0
+one_shot = true
+
+[connection signal="pressed" from="SafeArea/Layout/Footer/ResetButton" to="." method="_on_reset_button_pressed"]
+[connection signal="pressed" from="SafeArea/Layout/Footer/CancelButton" to="." method="_on_cancel_button_pressed"]
+[connection signal="pressed" from="SafeArea/Layout/Footer/ApplyButton" to="." method="_on_apply_button_pressed"]
+[connection signal="confirmed" from="ConflictDialog" to="." method="_on_conflict_replace_confirmed"]
+[connection signal="canceled" from="ConflictDialog" to="." method="_on_conflict_canceled"]
+[connection signal="confirmed" from="DisplayConfirmDialog" to="." method="_on_display_keep_confirmed"]
+[connection signal="canceled" from="DisplayConfirmDialog" to="." method="_on_display_revert_requested"]
+[connection signal="timeout" from="DisplayConfirmTimer" to="." method="_on_display_revert_requested"]

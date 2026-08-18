@@ -11,6 +11,9 @@ var music_volume: float = 0.7
 var sfx_volume: float = 0.8
 var fullscreen: bool = false
 var resolution: String = "1920x1080"
+var enemy_health_scale: float = 1.0
+var enemy_damage_scale: float = 1.0
+var enemy_speed_scale: float = 1.0
 var discovered_content: Dictionary = {}
 var unlocked_character_ids: Array[String] = []
 var recent_run_summary: Dictionary = {}
@@ -81,17 +84,10 @@ func to_dict() -> Dictionary:
 		"highest_unlocked_difficulty": highest_unlocked_difficulty,
 		"character_highest_clears": character_highest_clears.duplicate(true),
 		"character_endless_highs": character_endless_highs.duplicate(true),
-		"aim_mode": aim_mode,
-		"locale": locale,
-		"music_volume": music_volume,
-		"sfx_volume": sfx_volume,
-		"fullscreen": fullscreen,
-		"resolution": resolution,
 		"discovered_content": discovered_content.duplicate(true),
 		"unlocked_character_ids": unlocked_character_ids.duplicate(),
 		"recent_run_summary": recent_run_summary.duplicate(true),
 		"repair_notices": repair_notices.duplicate(),
-		"input_bindings": input_bindings.duplicate(true),
 	}
 
 
@@ -115,6 +111,9 @@ static func from_dict(data: Dictionary) -> MetaProgress:
 	result.sfx_volume = clampf(float(data.get("sfx_volume", 0.8)), 0.0, 1.0)
 	result.fullscreen = bool(data.get("fullscreen", false))
 	result.resolution = str(data.get("resolution", "1920x1080"))
+	result.enemy_health_scale = clampf(float(data.get("enemy_health_scale", 1.0)), 0.25, 2.0)
+	result.enemy_damage_scale = clampf(float(data.get("enemy_damage_scale", 1.0)), 0.25, 2.0)
+	result.enemy_speed_scale = clampf(float(data.get("enemy_speed_scale", 1.0)), 0.25, 2.0)
 	var raw_discovered: Variant = data.get("discovered_content", {})
 	if raw_discovered is Dictionary:
 		for raw_id: Variant in raw_discovered:
