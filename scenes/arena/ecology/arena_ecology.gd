@@ -130,7 +130,7 @@ func _spawn_pickup(world_position: Vector2, kind: int) -> void:
 
 func _on_tree_harvested(world_position: Vector2, kind: int) -> void:
 	pickup_kinds.append(kind)
-	_spawn_pickup(to_local(world_position), kind)
+	call_deferred("_spawn_pickup", to_local(world_position), kind)
 
 
 func _roll_world_position(minimum_center_distance: float) -> Vector2:

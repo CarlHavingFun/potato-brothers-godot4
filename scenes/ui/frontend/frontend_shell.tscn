@@ -148,7 +148,7 @@ grow_horizontal = 0
 grow_vertical = 0
 theme_override_colors/font_color = Color(0.65, 0.75, 0.75, 0.9)
 theme_override_font_sizes/font_size = 20
-text = "Enter 确认  ·  Esc 返回"
+text = "ui.frontend.device_hint_default"
 horizontal_alignment = 2
 
 [node name="TitlePage" type="Control" parent="Pages"]
@@ -192,7 +192,7 @@ text = "GOBRO"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.98, 0.55, 0.18, 1)
 theme_override_font_sizes/font_size = 28
-text = "根系失控 · 武器全开"
+text = "ui.frontend.subtitle"
 
 [node name="Spacer" type="Control" parent="Pages/TitlePage/SafeArea/Layout"]
 custom_minimum_size = Vector2(0, 36)
@@ -208,37 +208,37 @@ theme_override_constants/separation = 12
 custom_minimum_size = Vector2(430, 78)
 layout_mode = 2
 theme_override_font_sizes/font_size = 34
-text = "开始"
+text = "ui.title.start"
 alignment = 0
 
 [node name="NewGameButton" type="Button" parent="Pages/TitlePage/SafeArea/Layout/Menu"]
 custom_minimum_size = Vector2(430, 62)
 layout_mode = 2
-text = "新游戏"
+text = "ui.title.new_game"
 alignment = 0
 
 [node name="ProfileButton" type="Button" parent="Pages/TitlePage/SafeArea/Layout/Menu"]
 custom_minimum_size = Vector2(430, 62)
 layout_mode = 2
-text = "档案 1"
+text = "ui.title.profiles"
 alignment = 0
 
 [node name="CodexButton" type="Button" parent="Pages/TitlePage/SafeArea/Layout/Menu"]
 custom_minimum_size = Vector2(430, 62)
 layout_mode = 2
-text = "图鉴"
+text = "ui.title.codex"
 alignment = 0
 
 [node name="SettingsButton" type="Button" parent="Pages/TitlePage/SafeArea/Layout/Menu"]
 custom_minimum_size = Vector2(430, 62)
 layout_mode = 2
-text = "设置"
+text = "ui.title.settings"
 alignment = 0
 
 [node name="QuitButton" type="Button" parent="Pages/TitlePage/SafeArea/Layout/Menu"]
 custom_minimum_size = Vector2(430, 62)
 layout_mode = 2
-text = "退出"
+text = "ui.title.quit"
 alignment = 0
 
 [node name="Version" type="Label" parent="Pages/TitlePage/SafeArea/Layout"]
@@ -246,7 +246,7 @@ layout_mode = 2
 size_flags_vertical = 10
 theme_override_colors/font_color = Color(0.65, 0.65, 0.56, 1)
 theme_override_font_sizes/font_size = 18
-text = "GOBRO · CORE PARITY BUILD"
+text = "ui.frontend.build"
 
 [node name="ProfilePage" type="Control" parent="Pages"]
 visible = false
@@ -277,12 +277,12 @@ theme_override_constants/separation = 24
 [node name="BackButton" type="Button" parent="Pages/ProfilePage/Content/Header"]
 custom_minimum_size = Vector2(120, 62)
 layout_mode = 2
-text = "返回"
+text = "ui.common.back"
 
 [node name="Title" type="Label" parent="Pages/ProfilePage/Content/Header"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 48
-text = "选择档案"
+text = "ui.profile.title"
 
 [node name="ProfileChoices" type="VBoxContainer" parent="Pages/ProfilePage/Content"]
 layout_mode = 2
@@ -295,7 +295,7 @@ visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.76, 0.31, 1)
 theme_override_font_sizes/font_size = 20
-text = "存档已自动修复"
+text = "ui.profile.repair.title"
 horizontal_alignment = 1
 autowrap_mode = 2
 
@@ -328,12 +328,12 @@ theme_override_constants/separation = 20
 [node name="BackButton" type="Button" parent="Pages/CharacterPage/Content/Header"]
 custom_minimum_size = Vector2(120, 58)
 layout_mode = 2
-text = "返回"
+text = "ui.common.back"
 
 [node name="Title" type="Label" parent="Pages/CharacterPage/Content/Header"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 46
-text = "选择人物"
+text = "ui.character.title"
 
 [node name="Body" type="HBoxContainer" parent="Pages/CharacterPage/Content"]
 custom_minimum_size = Vector2(0, 520)
@@ -368,7 +368,7 @@ stretch_mode = 5
 [node name="Name" type="Label" parent="Pages/CharacterPage/Content/Body/CharacterCard/Info"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 38
-text = "请选择人物"
+text = "ui.character.choose"
 horizontal_alignment = 1
 
 [node name="Traits" type="RichTextLabel" parent="Pages/CharacterPage/Content/Body/CharacterCard/Info"]
@@ -376,7 +376,7 @@ layout_mode = 2
 size_flags_vertical = 3
 bbcode_enabled = true
 fit_content = true
-text = "从下方网格选择一名 GOBRO。"
+text = "ui.character.hint"
 
 [node name="OptionsCard" type="Panel" parent="Pages/CharacterPage/Content/Body"]
 layout_mode = 2
@@ -398,11 +398,11 @@ theme_override_constants/separation = 18
 [node name="Title" type="Label" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "单局选项"
+text = "ui.character.run_options"
 
 [node name="AimLabel" type="Label" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
 layout_mode = 2
-text = "瞄准模式"
+text = "ui.settings.aim"
 
 [node name="AimMode" type="OptionButton" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
 custom_minimum_size = Vector2(380, 64)
@@ -411,7 +411,7 @@ focus_mode = 2
 
 [node name="RunModeLabel" type="Label" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
 layout_mode = 2
-text = "游戏模式"
+text = "ui.character.run_mode"
 
 [node name="RunMode" type="OptionButton" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
 custom_minimum_size = Vector2(380, 64)
@@ -421,7 +421,7 @@ focus_mode = 2
 [node name="Record" type="Label" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.75, 0.79, 0.59, 1)
-text = "最高通关：—"
+text = "ui.character.record_empty"
 
 [node name="CharacterChoices" type="GridContainer" parent="Pages/CharacterPage/Content"]
 layout_mode = 2
@@ -458,12 +458,12 @@ theme_override_constants/separation = 20
 [node name="BackButton" type="Button" parent="Pages/WeaponPage/Content/Header"]
 custom_minimum_size = Vector2(120, 58)
 layout_mode = 2
-text = "返回"
+text = "ui.common.back"
 
 [node name="Title" type="Label" parent="Pages/WeaponPage/Content/Header"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 46
-text = "选择初始武器"
+text = "ui.weapon.title"
 
 [node name="Body" type="HBoxContainer" parent="Pages/WeaponPage/Content"]
 custom_minimum_size = Vector2(0, 520)
@@ -530,7 +530,7 @@ stretch_mode = 5
 [node name="Name" type="Label" parent="Pages/WeaponPage/Content/Body/WeaponCard/Info"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 34
-text = "请选择武器"
+text = "ui.weapon.choose"
 horizontal_alignment = 1
 
 [node name="Stats" type="RichTextLabel" parent="Pages/WeaponPage/Content/Body/WeaponCard/Info"]
@@ -573,12 +573,12 @@ theme_override_constants/separation = 20
 [node name="BackButton" type="Button" parent="Pages/DifficultyPage/Content/Header"]
 custom_minimum_size = Vector2(120, 58)
 layout_mode = 2
-text = "返回"
+text = "ui.common.back"
 
 [node name="Title" type="Label" parent="Pages/DifficultyPage/Content/Header"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 46
-text = "选择难度 · 最终一览"
+text = "ui.difficulty.overview_title"
 
 [node name="Overview" type="HBoxContainer" parent="Pages/DifficultyPage/Content"]
 custom_minimum_size = Vector2(0, 620)
@@ -684,7 +684,7 @@ offset_right = -24.0
 offset_bottom = 70.0
 grow_horizontal = 2
 theme_override_font_sizes/font_size = 32
-text = "难度规则"
+text = "ui.difficulty.rules_title"
 horizontal_alignment = 1
 
 [node name="Rules" type="RichTextLabel" parent="Pages/DifficultyPage/Content/Overview/DifficultyCard"]
@@ -699,7 +699,7 @@ offset_bottom = -28.0
 grow_horizontal = 2
 grow_vertical = 2
 bbcode_enabled = true
-text = "选择底部难度即可进入第一波。"
+text = "ui.difficulty.hint"
 
 [node name="DifficultyChoices" type="HBoxContainer" parent="Pages/DifficultyPage/Content"]
 layout_mode = 2

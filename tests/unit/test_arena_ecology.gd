@@ -40,3 +40,16 @@ func test_high_difficulty_mutator_makes_danger_zones_faster_and_larger() -> void
 	assert_bool(pressured.effective_danger_interval < normal.effective_danger_interval).is_true()
 	assert_bool(pressured.danger_radius > normal.danger_radius).is_true()
 	Global.end_run()
+
+
+func test_tree_harvest_defers_pickup_creation_until_physics_flush_is_safe() -> void:
+	var ecology: ArenaEcology = auto_free(ArenaEcology.new())
+	add_child(ecology)
+	var child_count := ecology.get_child_count()
+
+	ecology._on_tree_harvested(Vector2(40.0, 20.0), ArenaEcology.PickupKind.HEAL)
+
+	assert_int(ecology.get_child_count()).is_equal(child_count)
+	await await_idle_frame()
+	assert_int(ecology.get_child_count()).is_equal(child_count + 1)
+	assert_object(ecology.get_child(child_count)).is_instanceof(EcologyPickup)

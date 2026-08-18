@@ -81,6 +81,38 @@ func test_weapon_detection_resolves_hurtbox_owner_and_starts_auto_attack() -> vo
 			child.queue_free()
 
 
+func test_auto_target_uses_tree_only_when_no_enemy_is_in_range() -> void:
+	var weapon_definition := Content.catalog.get_weapon(&"weapon/pistol")
+	var holder: Node2D = auto_free(Node2D.new())
+	var tree: EcologyTree = auto_free(load(
+		"res://scenes/arena/ecology/ecology_tree.tscn"
+	).instantiate() as EcologyTree)
+	var enemy: Enemy = auto_free(load(
+		"res://scenes/unit/enemy/enemy_chaser_slow.tscn"
+	).instantiate() as Enemy)
+	var weapon: Weapon = auto_free(weapon_definition.tiers[0].scene.instantiate() as Weapon)
+	add_child(holder)
+	holder.add_child(tree)
+	holder.add_child(enemy)
+	holder.add_child(weapon)
+	tree.position = Vector2(20.0, 0.0)
+	enemy.position = Vector2(200.0, 0.0)
+
+	var tree_hurtbox := tree.get_node("Hurtbox") as Area2D
+	var enemy_hurtbox := enemy.get_node("HurtboxComponent") as Area2D
+	weapon._on_range_area_area_entered(tree_hurtbox)
+	weapon.update_closest_target()
+	assert_object(weapon.closest_target).is_same(tree)
+
+	weapon._on_range_area_area_entered(enemy_hurtbox)
+	weapon.update_closest_target()
+	assert_object(weapon.closest_target).is_same(enemy)
+
+	weapon._on_range_area_area_exited(enemy_hurtbox)
+	weapon.update_closest_target()
+	assert_object(weapon.closest_target).is_same(tree)
+
+
 func test_repeat_enabled_contact_hitbox_ticks_until_exit() -> void:
 	var hurtbox: HurtboxComponent = auto_free(HurtboxComponent.new())
 	var hitbox: HitboxComponent = auto_free(HitboxComponent.new())

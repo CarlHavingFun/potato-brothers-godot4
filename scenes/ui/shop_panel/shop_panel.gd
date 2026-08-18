@@ -113,11 +113,8 @@ func _on_item_purchased(item: ItemBase, slot_index: int = -1) -> void:
 	if Global.current_run != null and slot_index < 0:
 		Global.shop_service.consume_offer(Global.current_run, item, Content.catalog)
 	project_item(item)
-	var purchase_tags: Array[StringName] = (
-		[&"purchase/weapon"] as Array[StringName]
-		if item is ItemWeapon
-		else [&"purchase/passive"] as Array[StringName]
-	)
+	var purchase_tags: Array[StringName] = []
+	purchase_tags.append(&"purchase/weapon" if item is ItemWeapon else &"purchase/passive")
 	Global.dispatch_gameplay_event(
 		GameplayEvent.Type.PURCHASED,
 		{"cost": item.item_cost},

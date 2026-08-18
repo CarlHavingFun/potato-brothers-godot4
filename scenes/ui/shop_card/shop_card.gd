@@ -21,6 +21,12 @@ func _ready() -> void:
 	material_icon.texture = Presentation.resolve_texture(&"pickup", &"pickup.material")
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED and is_node_ready() and shop_item != null:
+		_set_shop_item(shop_item)
+		status_label.text = tr("ui.shop.slot_locked") if lock_button.button_pressed else ""
+
+
 func configure_slot(index: int, locked: bool) -> void:
 	slot_index = index
 	lock_button.set_pressed_no_signal(locked)
@@ -79,16 +85,16 @@ func _build_detail_text(value: ItemBase) -> String:
 		else Content.catalog.get_passive(stable_id)
 	)
 	if definition != null and not definition.tags.is_empty():
-		lines.append("标签：%s" % " / ".join(definition.tags.map(
-			func(tag: StringName): return String(tag)
+		lines.append(tr("ui.shop.tags") % " / ".join(definition.tags.map(
+			func(tag: StringName): return Content.catalog.get_tag_display_name(tag)
 		)))
 	if value is ItemWeapon and Global.current_run != null:
 		var tier := int(value.item_tier) + 1
 		if not Global.current_run.inventory.find_weapon_slots(stable_id, tier).is_empty() and tier < InventoryState.MAX_WEAPON_TIER:
-			lines.append("[color=#9ed66f]购买后可合成至 %d 阶[/color]" % (tier + 1))
+			lines.append(tr("ui.shop.merge_preview") % (tier + 1))
 		var weapon := value as ItemWeapon
 		if weapon.stats != null:
-			lines.append("伤害 %.1f · 攻速 %.2fs · 射程 %.0f" % [
+			lines.append(tr("ui.shop.weapon_stats") % [
 				weapon.stats.damage, weapon.stats.cooldown, weapon.stats.max_range,
 			])
 	return "\n".join(lines)

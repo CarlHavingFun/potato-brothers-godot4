@@ -16,6 +16,7 @@ const RESOLUTIONS := ["1280x720", "1600x900", "1920x1080"]
 var remap_service := InputRemapService.new()
 var awaiting_action: StringName = &""
 var binding_buttons: Dictionary = {}
+var binding_labels: Dictionary = {}
 var _binding_snapshot: Dictionary = {}
 
 
@@ -24,8 +25,8 @@ func _ready() -> void:
 		resolution_option.add_item(resolution)
 	aim_option.add_item(tr("ui.settings.auto_aim"), AimMode.AUTO_TARGET)
 	aim_option.add_item(tr("ui.settings.manual_aim"), AimMode.MANUAL_MOUSE)
-	locale_option.add_item("简体中文")
-	locale_option.add_item("English")
+	locale_option.add_item(tr("ui.language.zh_cn"))
+	locale_option.add_item(tr("ui.language.en"))
 	_build_keybind_rows()
 	load_settings()
 	set_process_input(true)
@@ -36,6 +37,10 @@ func _notification(what: int) -> void:
 		return
 	aim_option.set_item_text(0, tr("ui.settings.auto_aim"))
 	aim_option.set_item_text(1, tr("ui.settings.manual_aim"))
+	locale_option.set_item_text(0, tr("ui.language.zh_cn"))
+	locale_option.set_item_text(1, tr("ui.language.en"))
+	_refresh_action_labels()
+	_refresh_binding_labels()
 
 
 func load_settings() -> void:
@@ -51,18 +56,12 @@ func load_settings() -> void:
 
 
 func _build_keybind_rows() -> void:
-	var labels := {
-		&"move_up": "向上移动",
-		&"move_down": "向下移动",
-		&"move_left": "向左移动",
-		&"move_right": "向右移动",
-		&"dash": "冲刺",
-	}
 	for action: StringName in InputRemapService.REMAPPABLE_ACTIONS:
 		var label := Label.new()
-		label.text = labels.get(action, String(action))
+		label.text = tr("ui.settings.action.%s" % action)
 		label.add_theme_font_size_override(&"font_size", 20)
 		keybind_grid.add_child(label)
+		binding_labels[action] = label
 		var button := Button.new()
 		button.custom_minimum_size = Vector2(300, 40)
 		button.pressed.connect(_begin_rebind.bind(action))
@@ -74,7 +73,7 @@ func _begin_rebind(action: StringName) -> void:
 	awaiting_action = action
 	var button := binding_buttons.get(action) as Button
 	if button != null:
-		button.text = "请按键盘键或手柄按钮…"
+		button.text = tr("ui.settings.press_binding")
 
 
 func _input(event: InputEvent) -> void:
@@ -105,7 +104,13 @@ func _refresh_binding_labels() -> void:
 			if event is InputEventKey or event is InputEventJoypadButton:
 				parts.append(event.as_text())
 		var button := binding_buttons[action] as Button
-		button.text = " / ".join(parts) if not parts.is_empty() else "未绑定"
+		button.text = " / ".join(parts) if not parts.is_empty() else tr("ui.settings.unbound")
+
+
+func _refresh_action_labels() -> void:
+	for action: StringName in binding_labels:
+		var label := binding_labels[action] as Label
+		label.text = tr("ui.settings.action.%s" % action)
 
 
 func _on_apply_button_pressed() -> void:

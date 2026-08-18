@@ -73,6 +73,11 @@ func _ready() -> void:
 	_register_button_feedback(self)
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED and is_node_ready():
+		_retranslate_dynamic_ui()
+
+
 func _apply_skin_branding() -> void:
 	if Presentation.active_skin == null:
 		return
@@ -248,9 +253,9 @@ func _first_focusable(root: Node) -> Control:
 
 func _setup_aim_mode() -> void:
 	aim_mode_option.clear()
-	aim_mode_option.add_item("自动瞄准", AimMode.AUTO_TARGET)
-	aim_mode_option.add_item("手动瞄准", AimMode.MANUAL_MOUSE)
-	aim_mode_option.select(Global.meta_progress.aim_mode)
+	aim_mode_option.add_item(tr("ui.settings.auto_aim"), AimMode.AUTO_TARGET)
+	aim_mode_option.add_item(tr("ui.settings.manual_aim"), AimMode.MANUAL_MOUSE)
+	aim_mode_option.select(draft.aim_mode if AimMode.is_valid(draft.aim_mode) else Global.meta_progress.aim_mode)
 
 
 func _on_aim_mode_selected(index: int) -> void:
@@ -262,8 +267,8 @@ func _on_aim_mode_selected(index: int) -> void:
 
 func _setup_run_mode() -> void:
 	run_mode_option.clear()
-	run_mode_option.add_item("标准模式", RunMode.STANDARD)
-	run_mode_option.add_item("无尽模式", RunMode.ENDLESS)
+	run_mode_option.add_item(tr("ui.run_mode.standard"), RunMode.STANDARD)
+	run_mode_option.add_item(tr("ui.run_mode.endless"), RunMode.ENDLESS)
 	run_mode_option.select(draft.run_mode)
 
 
@@ -275,14 +280,14 @@ func _on_run_mode_selected(index: int) -> void:
 
 func _build_character_choices() -> void:
 	_clear_children(character_choices)
-	var random_button := _make_choice_button("？\n随机", null)
+	var random_button := _make_choice_button(tr("ui.selection.random"), null)
 	random_button.pressed.connect(choose_random_character)
 	character_choices.add_child(random_button)
 	for definition: CharacterDef in Content.catalog.get_characters():
 		var unlocked := definition.unlock_difficulty <= Global.meta_progress.highest_unlocked_difficulty
 		var label := Content.catalog.get_character_display_name(definition)
 		if not unlocked:
-			label = "🔒\n%s\n难度 %d 解锁" % [label, definition.unlock_difficulty]
+			label = tr("ui.character.locked") % [label, definition.unlock_difficulty]
 		var button := _make_choice_button(
 			label,
 			Presentation.resolve_texture(
@@ -312,7 +317,7 @@ func _update_character_details(definition: CharacterDef) -> void:
 	character_name.text = Content.catalog.get_character_display_name(definition)
 	character_traits.text = _character_traits_text(definition)
 	var stable_id := definition.get_stable_id(Content.catalog.pack_id)
-	character_record.text = "最高通关：难度 %d\n无尽纪录：第 %d 波" % [
+	character_record.text = tr("ui.character.record") % [
 		Global.meta_progress.highest_clear_for(stable_id),
 		Global.meta_progress.highest_endless_wave_any(stable_id),
 	]
@@ -323,13 +328,9 @@ func _update_character_details(definition: CharacterDef) -> void:
 
 func _character_traits_text(definition: CharacterDef) -> String:
 	var stats := definition.stats
-	return (
-		"[color=#9ed66f]+ 最大生命 %d[/color]\n"
-		+ "[color=#9ed66f]+ 基础伤害 %.1f[/color]\n"
-		+ "[color=#86cde8]+ 移动速度 %d[/color]\n"
-		+ "[color=#f4d35e]+ 幸运 %.1f[/color]\n"
-		+ "[color=#d4a5ff]+ 格挡 %.1f%%[/color]"
-	) % [stats.health, stats.damage, stats.speed, stats.luck, stats.block_chance]
+	return tr("ui.character.traits") % [
+		stats.health, stats.damage, stats.speed, stats.luck, stats.block_chance,
+	]
 
 
 func _allowed_weapons(character: CharacterDef) -> Array[WeaponDef]:
@@ -351,7 +352,7 @@ func _allowed_weapons(character: CharacterDef) -> Array[WeaponDef]:
 func _build_weapon_choices(character: CharacterDef) -> void:
 	_clear_children(weapon_choices)
 	_visible_weapon_ids.clear()
-	var random_button := _make_choice_button("？\n随机", null)
+	var random_button := _make_choice_button(tr("ui.selection.random"), null)
 	random_button.pressed.connect(choose_random_weapon)
 	weapon_choices.add_child(random_button)
 	for definition: WeaponDef in _allowed_weapons(character):
@@ -392,18 +393,12 @@ func _update_weapon_details(definition: WeaponDef) -> void:
 func _weapon_stats_text(item: ItemWeapon) -> String:
 	if item == null or item.stats == null:
 		return ""
-	var type_name := "近战" if item.type == ItemWeapon.WeaponType.MELEE else "远程"
+	var type_name := tr("ui.weapon.type.melee") if item.type == ItemWeapon.WeaponType.MELEE else tr("ui.weapon.type.ranged")
 	var tags := Content.catalog.get_tags_for_item(item)
-	var tag_text := " / ".join(tags.map(func(tag: StringName): return String(tag).get_slice("/", 1)))
-	return (
-		"[color=#f4d35e]%s · I 阶[/color]\n\n"
-		+ "伤害  [color=#9ed66f]%.1f[/color]\n"
-		+ "攻速  [color=#9ed66f]%.2f 秒[/color]\n"
-		+ "暴击  [color=#9ed66f]%.0f%% × %.1f[/color]\n"
-		+ "射程  [color=#9ed66f]%.0f[/color]\n"
-		+ "击退  [color=#86cde8]%.1f[/color]\n"
-		+ "标签  [color=#d4a5ff]%s[/color]"
-	) % [
+	var tag_text := " / ".join(tags.map(
+		func(tag: StringName): return Content.catalog.get_tag_display_name(tag)
+	))
+	return tr("ui.weapon.stats") % [
 		type_name, item.stats.damage, item.stats.cooldown,
 		item.stats.crit_chance * 100.0, item.stats.crit_damage,
 		item.stats.max_range, item.stats.knockback, tag_text,
@@ -433,9 +428,9 @@ func _build_difficulty_choices() -> void:
 	for definition: DifficultyDef in Content.catalog.get_difficulties():
 		var level := definition.level
 		var cleared := Global.meta_progress.highest_clear_for(draft.character_id) >= level
-		var label := "难度 %d%s" % [level, "  ✓" if cleared else ""]
+		var label := tr("ui.difficulty.choice") % [level, "  ✓" if cleared else ""]
 		if level > unlocked:
-			label = "🔒 难度 %d" % level
+			label = tr("ui.difficulty.locked") % level
 		var button := Button.new()
 		button.custom_minimum_size = Vector2(250, 82)
 		button.text = label
@@ -452,26 +447,17 @@ func _build_difficulty_choices() -> void:
 func _preview_difficulty(definition: DifficultyDef, locked: bool) -> void:
 	if definition == null:
 		return
-	var lock_line := "[color=#e46d58]尚未解锁[/color]\n\n" if locked else "[color=#9ed66f]点击即进入第一波[/color]\n\n"
-	difficulty_rules.text = lock_line + (
-		"敌人生命  [color=#f4d35e]× %.2f[/color]\n"
-		+ "敌人伤害  [color=#f4d35e]× %.2f[/color]\n"
-		+ "敌人速度  [color=#f4d35e]× %.2f[/color]\n"
-		+ "生成密度  [color=#f4d35e]× %.2f[/color]\n\n"
-		+ "精英生命  [color=#e46d58]× %.2f[/color]\n"
-		+ "商店价格  [color=#e46d58]× %.2f[/color]\n"
-		+ "材料掉落  [color=#86cde8]× %.2f[/color]\n\n"
-		+ "第 10 / 15 波：精英\n第 20 波：终局 Boss"
-	) % [
+	var lock_line := tr("ui.difficulty.preview.locked") if locked else tr("ui.difficulty.preview.ready")
+	difficulty_rules.text = lock_line + tr("ui.difficulty.rules") % [
 		definition.health_multiplier, definition.damage_multiplier,
 		definition.speed_multiplier, definition.spawn_density_multiplier,
 		definition.elite_health_multiplier, definition.shop_price_multiplier,
 		definition.material_drop_multiplier,
 	]
 	if draft.run_mode == RunMode.ENDLESS:
-		difficulty_rules.text += "\n\n[color=#d4a5ff]无尽模式：20 波后继续，每 5 波一轮。[/color]"
+		difficulty_rules.text += tr("ui.difficulty.endless_summary")
 	else:
-		difficulty_rules.text += "\n\n[color=#9ed66f]标准模式：击败第 20 波 Boss 后结算。[/color]"
+		difficulty_rules.text += tr("ui.difficulty.standard_summary")
 
 
 func _make_choice_button(label: String, icon_texture: Texture2D) -> Button:
@@ -480,7 +466,10 @@ func _make_choice_button(label: String, icon_texture: Texture2D) -> Button:
 	button.text = label
 	button.icon = icon_texture
 	button.expand_icon = true
-	button.add_theme_constant_override("icon_max_width", 76)
+	button.clip_text = true
+	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	button.add_theme_font_size_override(&"font_size", 18)
+	button.add_theme_constant_override("icon_max_width", 48)
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.focus_mode = Control.FOCUS_ALL
 	return button
@@ -488,35 +477,37 @@ func _make_choice_button(label: String, icon_texture: Texture2D) -> Button:
 
 func _refresh_profiles() -> void:
 	_clear_children(profile_choices)
-	repair_notice_label.text = "\n".join(Global.meta_progress.repair_notices)
+	repair_notice_label.text = "\n".join(Global.meta_progress.repair_notices.map(
+		func(notice: String): return _localized_repair_notice(notice)
+	))
 	repair_notice_label.visible = not Global.meta_progress.repair_notices.is_empty()
 	var active_id := Global.active_profile_id()
 	var summaries := Global.profile_summaries()
 	for slot in range(1, ProfileStore.MAX_PROFILES + 1):
 		var summary: Dictionary = summaries[slot - 1] if slot <= summaries.size() else {
-			"id": slot, "name": "档案 %d" % slot, "exists": false, "has_checkpoint": false,
+			"id": slot, "name": tr("ui.profile.default_name") % slot, "exists": false, "has_checkpoint": false,
 		}
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 12)
 		var select_button := Button.new()
 		select_button.custom_minimum_size = Vector2(720, 92)
 		select_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var state := "可继续" if bool(summary.get("has_checkpoint", false)) else ("已有进度" if bool(summary.get("exists", false)) else "空档案")
+		var state := tr("ui.profile.state.continue") if bool(summary.get("has_checkpoint", false)) else (tr("ui.profile.state.progress") if bool(summary.get("exists", false)) else tr("ui.profile.state.empty"))
 		var endless_high := int(summary.get("highest_endless_wave", 0))
 		if endless_high > 0:
-			state += " · 无尽 %d 波" % endless_high
-		select_button.text = "%s%s\n%s" % ["● " if slot == active_id else "", str(summary.get("name", "档案 %d" % slot)), state]
+			state += tr("ui.profile.state.endless") % endless_high
+		select_button.text = "%s%s\n%s" % ["● " if slot == active_id else "", str(summary.get("name", tr("ui.profile.default_name") % slot)), state]
 		select_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		select_button.pressed.connect(_select_profile.bind(slot))
 		row.add_child(select_button)
 		var rename_button := Button.new()
 		rename_button.custom_minimum_size = Vector2(130, 92)
-		rename_button.text = "重命名"
+		rename_button.text = tr("ui.profile.rename")
 		rename_button.pressed.connect(_request_rename_profile.bind(slot, str(summary.get("name", ""))))
 		row.add_child(rename_button)
 		var delete_button := Button.new()
 		delete_button.custom_minimum_size = Vector2(130, 92)
-		delete_button.text = "删除"
+		delete_button.text = tr("ui.profile.delete")
 		delete_button.disabled = not bool(summary.get("exists", false))
 		delete_button.pressed.connect(_request_delete_profile.bind(slot))
 		row.add_child(delete_button)
@@ -524,10 +515,10 @@ func _refresh_profiles() -> void:
 	_register_button_feedback(profile_choices)
 
 	var active_summary: Dictionary = summaries[active_id - 1] if active_id <= summaries.size() else {}
-	var profile_name := str(active_summary.get("name", "档案 %d" % active_id))
+	var profile_name := str(active_summary.get("name", tr("ui.profile.default_name") % active_id))
 	profile_button.text = "%s  ›" % profile_name
 	var has_checkpoint := bool(active_summary.get("has_checkpoint", false))
-	primary_button.text = "继续" if has_checkpoint else "开始"
+	primary_button.text = tr("ui.title.continue") if has_checkpoint else tr("ui.title.start")
 	new_game_button.visible = has_checkpoint
 
 
@@ -544,28 +535,20 @@ func _select_profile(profile_id: int) -> void:
 
 func _setup_profile_dialogs() -> void:
 	_new_game_dialog = ConfirmationDialog.new()
-	_new_game_dialog.title = "覆盖当前检查点？"
-	_new_game_dialog.dialog_text = "新游戏会覆盖当前未结束单局的波次检查点。局外解锁不会丢失。"
-	_new_game_dialog.ok_button_text = "开始新游戏"
 	_new_game_dialog.confirmed.connect(_begin_confirmed_new_game)
 	add_child(_new_game_dialog)
 
 	_delete_dialog = ConfirmationDialog.new()
-	_delete_dialog.title = "删除档案？"
-	_delete_dialog.dialog_text = "该档案的解锁、图鉴和检查点都会删除，此操作不可撤销。"
-	_delete_dialog.ok_button_text = "确认删除"
 	_delete_dialog.confirmed.connect(_confirm_delete_profile)
 	add_child(_delete_dialog)
 
 	_rename_dialog = ConfirmationDialog.new()
-	_rename_dialog.title = "重命名档案"
-	_rename_dialog.ok_button_text = "保存"
 	_rename_input = LineEdit.new()
 	_rename_input.max_length = 24
-	_rename_input.placeholder_text = "输入档案名称"
 	_rename_dialog.add_child(_rename_input)
 	_rename_dialog.confirmed.connect(_confirm_rename_profile)
 	add_child(_rename_dialog)
+	_update_profile_dialog_text()
 
 
 func _request_delete_profile(profile_id: int) -> void:
@@ -631,9 +614,51 @@ func _on_quit_pressed() -> void:
 
 func _on_input_device_changed(_device: int) -> void:
 	if is_instance_valid(device_hint):
-		device_hint.text = "%s 确认  ·  %s 返回" % [
+		device_hint.text = tr("ui.frontend.device_hint") % [
 			InputDevices.confirm_prompt(), InputDevices.back_prompt()
 		]
+
+
+func _update_profile_dialog_text() -> void:
+	if not is_instance_valid(_new_game_dialog):
+		return
+	_new_game_dialog.title = tr("ui.profile.new_game.title")
+	_new_game_dialog.dialog_text = tr("ui.profile.new_game.body")
+	_new_game_dialog.ok_button_text = tr("ui.profile.new_game.confirm")
+	_delete_dialog.title = tr("ui.profile.delete.title")
+	_delete_dialog.dialog_text = tr("ui.profile.delete.body")
+	_delete_dialog.ok_button_text = tr("ui.profile.delete.confirm")
+	_rename_dialog.title = tr("ui.profile.rename.title")
+	_rename_dialog.ok_button_text = tr("ui.profile.rename.confirm")
+	_rename_input.placeholder_text = tr("ui.profile.rename.placeholder")
+
+
+func _localized_repair_notice(notice: String) -> String:
+	match notice:
+		"Recovered legacy profile from backup during v3 migration.":
+			return tr("ui.profile.repair.migration_backup")
+		"Recovered profile from backup after corrupted primary save.":
+			return tr("ui.profile.repair.backup")
+		_:
+			return tr(notice) if notice.begins_with("ui.") else notice
+
+
+func _retranslate_dynamic_ui() -> void:
+	_setup_aim_mode()
+	_setup_run_mode()
+	_update_profile_dialog_text()
+	_on_input_device_changed(InputDevices.active_device)
+	_build_character_choices()
+	var character := Content.catalog.get_character(draft.character_id)
+	if character != null:
+		_update_character_details(character)
+		_build_weapon_choices(character)
+	var weapon := Content.catalog.get_weapon(draft.weapon_id)
+	if weapon != null:
+		_update_weapon_details(weapon)
+		_update_final_overview()
+		_build_difficulty_choices()
+	_refresh_profiles()
 
 
 func _make_prerun_seed() -> int:
@@ -669,7 +694,11 @@ func _emit_hover_cue() -> void:
 func _animate_button(button: BaseButton, active: bool) -> void:
 	if not is_instance_valid(button) or button.disabled:
 		return
-	button.pivot_offset = button.size * 0.5
 	var tween := button.create_tween()
 	tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.tween_property(button, "scale", Vector2.ONE * (1.025 if active else 1.0), 0.08)
+	tween.tween_property(
+		button,
+		"self_modulate",
+		Color(1.0, 0.96, 0.82, 1.0) if active else Color.WHITE,
+		0.08
+	)

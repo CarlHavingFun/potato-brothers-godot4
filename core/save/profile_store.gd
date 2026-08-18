@@ -42,6 +42,9 @@ func profile_summary(slot: int) -> Dictionary:
 			"highest_endless_wave": 0,
 		}
 	var payload: Variant = document.get("payload", {})
+	var checkpoint: RunState
+	if payload is Dictionary and payload.get("run_state", null) is Dictionary:
+		checkpoint = RunState.from_dict(payload.get("run_state", {}))
 	var highest_endless_wave := 0
 	if payload is Dictionary:
 		var meta: Variant = payload.get("meta_progress", {})
@@ -52,9 +55,9 @@ func profile_summary(slot: int) -> Dictionary:
 					highest_endless_wave = maxi(highest_endless_wave, int(value))
 	return {
 		"id": slot,
-		"name": str(document.get("profile_name", _default_name(slot))),
+		"name": _display_profile_name(str(document.get("profile_name", "")), slot),
 		"exists": true,
-		"has_checkpoint": payload is Dictionary and payload.has("run_state"),
+		"has_checkpoint": checkpoint != null and checkpoint.is_resumable_checkpoint(),
 		"updated_unix": int(document.get("updated_unix", 0)),
 		"highest_endless_wave": highest_endless_wave,
 	}
@@ -87,7 +90,7 @@ func save_profile(slot: int, payload: Dictionary) -> Error:
 	var document := {
 		"save_version": SAVE_VERSION,
 		"profile_id": slot,
-		"profile_name": str(existing.get("profile_name", _default_name(slot))),
+		"profile_name": str(existing.get("profile_name", "")),
 		"updated_unix": int(Time.get_unix_time_from_system()),
 		"payload": _migrate_payload(payload),
 	}
@@ -146,7 +149,7 @@ func _load_or_migrate_document(slot: int) -> Dictionary:
 	var migrated := {
 		"save_version": SAVE_VERSION,
 		"profile_id": slot,
-		"profile_name": str(legacy.get("profile_name", _default_name(slot))),
+		"profile_name": str(legacy.get("profile_name", "")),
 		"updated_unix": int(legacy.get("updated_unix", Time.get_unix_time_from_system())),
 		"payload": _migrate_payload(legacy.get("payload", {}) as Dictionary),
 	}
@@ -278,7 +281,16 @@ func _read_document_direct_version(path: String, expected_version: int) -> Dicti
 
 
 func _default_name(slot: int) -> String:
-	return "档案 %d" % slot
+	var key := "ui.profile.default_name"
+	var translated := TranslationServer.translate(key)
+	return ("Profile %d" if translated == key else translated) % slot
+
+
+func _display_profile_name(stored_name: String, slot: int) -> String:
+	var clean_name := stored_name.strip_edges()
+	if clean_name.is_empty() or clean_name in ["档案 %d" % slot, "Profile %d" % slot]:
+		return _default_name(slot)
+	return clean_name
 
 
 func _is_valid_slot(slot: int) -> bool:

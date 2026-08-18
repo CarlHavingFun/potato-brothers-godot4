@@ -53,6 +53,15 @@ func try_transition(next_phase: int) -> bool:
 	return true
 
 
+func is_resumable_checkpoint() -> bool:
+	return (
+		not character_id.is_empty()
+		and not starting_weapon_id.is_empty()
+		and phase in [RunPhase.COMBAT, RunPhase.UPGRADE, RunPhase.CHEST, RunPhase.SHOP]
+		and wave >= 1
+	)
+
+
 func to_dict() -> Dictionary:
 	return {
 		"character_id": String(character_id),

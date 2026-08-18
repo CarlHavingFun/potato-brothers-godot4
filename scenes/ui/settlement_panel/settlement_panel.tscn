@@ -32,14 +32,14 @@ alignment = 1
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 78
-text = "VICTORY"
+text = "ui.settlement.victory"
 horizontal_alignment = 1
 
 [node name="DetailsLabel" type="Label" parent="Center/Content"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 28
-text = "Run details"
+text = "ui.settlement.no_data"
 horizontal_alignment = 1
 
 [node name="RetryButton" type="Button" parent="Center/Content"]

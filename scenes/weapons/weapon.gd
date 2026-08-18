@@ -9,8 +9,8 @@ class_name Weapon
 var data: ItemWeapon
 var is_attacking := false
 var atk_start_pos: Vector2
-var targets: Array[Enemy]
-var closest_target: Enemy
+var targets: Array[Node2D]
+var closest_target: Node2D
 var weapon_spread: float
 var aim_resolver := AimResolver.new()
 var pending_pierce := 0
@@ -169,22 +169,29 @@ func update_closest_target() -> void:
 	closest_target = get_closest_target()
 
 
-func get_closest_target() -> Enemy:
+func get_closest_target() -> Node2D:
 	if targets.size() == 0:
 		return null
 	
-	var closest_enemy := targets[0]
-	var closest_distance := global_position.distance_to(closest_enemy.global_position)
+	var closest := targets[0]
+	var closest_priority := _target_priority(closest)
+	var closest_distance := global_position.distance_to(closest.global_position)
 	
 	for i in range(1, targets.size()):
-		var target: Enemy = targets[i]
+		var target: Node2D = targets[i]
+		var priority := _target_priority(target)
 		var distance := global_position.distance_to(target.global_position)
 		
-		if distance < closest_distance:
-			closest_enemy = target
+		if priority < closest_priority or (priority == closest_priority and distance < closest_distance):
+			closest = target
+			closest_priority = priority
 			closest_distance = distance
 	
-	return closest_enemy
+	return closest
+
+
+func _target_priority(target: Node2D) -> int:
+	return 0 if target is Enemy else 1
 
 
 func prune_targets() -> void:
@@ -205,6 +212,15 @@ func resolve_enemy_target(area: Area2D) -> Enemy:
 	return null
 
 
+func resolve_attack_target(area: Area2D) -> Node2D:
+	var current: Node = area
+	while current != null:
+		if current is Enemy or current is EcologyTree:
+			return current as Node2D
+		current = current.get_parent()
+	return null
+
+
 func can_use_weapon() -> bool:
 	return cooldown_timer.is_stopped() and aim_resolver.can_fire(
 		Global.aim_mode, closest_target != null and is_instance_valid(closest_target)
@@ -221,13 +237,13 @@ func apply_tier_outline() -> void:
 
 
 func _on_range_area_area_entered(area: Area2D) -> void:
-	var target := resolve_enemy_target(area)
+	var target := resolve_attack_target(area)
 	if target != null and not target in targets:
 		targets.push_back(target)
 
 
 func _on_range_area_area_exited(area: Area2D) -> void:
-	var target := resolve_enemy_target(area)
+	var target := resolve_attack_target(area)
 	if target != null:
 		targets.erase(target)
 	if targets.size() == 0:

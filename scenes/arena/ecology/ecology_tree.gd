@@ -6,6 +6,7 @@ signal harvested(world_position: Vector2, pickup_kind: int)
 @export var max_health := 3.0
 var current_health := 3.0
 var pickup_kind := 0
+var _harvested := false
 
 
 func _ready() -> void:
@@ -13,7 +14,7 @@ func _ready() -> void:
 
 
 func _on_hurtbox_damaged(hitbox: HitboxComponent) -> void:
-	if hitbox == null or current_health <= 0.0:
+	if hitbox == null or current_health <= 0.0 or _harvested:
 		return
 	current_health -= maxf(1.0, hitbox.damage)
 	var trunk := $Trunk as Polygon2D
@@ -21,5 +22,6 @@ func _on_hurtbox_damaged(hitbox: HitboxComponent) -> void:
 	var tween := create_tween()
 	tween.tween_property(trunk, "modulate", Color.WHITE, 0.1)
 	if current_health <= 0.0:
+		_harvested = true
 		harvested.emit(global_position, pickup_kind)
-		queue_free()
+		call_deferred("queue_free")

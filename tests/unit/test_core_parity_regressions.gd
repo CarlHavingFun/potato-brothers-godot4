@@ -56,6 +56,7 @@ func test_service_random_streams_continue_after_checkpoint_restore() -> void:
 	Global.begin_run(44017, null, 50)
 	Global.current_run.character_id = &"test:character"
 	Global.current_run.starting_weapon_id = &"test:weapon"
+	Global.current_run.phase = RunPhase.COMBAT
 	Global.shop_service.rng.randi()
 	Global.reward_service.rng.randi()
 	Global.combat_resolver.rng.randi()

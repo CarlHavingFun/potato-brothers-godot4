@@ -22,10 +22,10 @@ func test_shop_card_shows_failure_reason_build_tags_and_merge_preview() -> void:
 	card.configure_slot(0, false)
 	card.shop_item = pistol.tiers[0]
 
-	assert_str(card.item_description.text).contains("ranged")
-	assert_str(card.item_description.text).contains("合成")
+	assert_str(card.item_description.text).contains(Content.catalog.get_tag_display_name(&"ranged"))
+	assert_str(card.item_description.text).contains(tr("ui.shop.merge_preview") % 2)
 	card.call("_on_buy_buttom_pressed")
-	assert_str(card.status_label.text).contains("材料不足")
+	assert_str(card.status_label.text).is_equal(tr("ui.shop.failure.materials"))
 
 
 func test_shop_slot_lock_has_visible_independent_feedback() -> void:
@@ -36,4 +36,4 @@ func test_shop_slot_lock_has_visible_independent_feedback() -> void:
 	card.configure_slot(2, true)
 
 	assert_bool(card.lock_button.button_pressed).is_true()
-	assert_str(card.status_label.text).contains("已锁定")
+	assert_str(card.status_label.text).is_equal(tr("ui.shop.slot_locked"))

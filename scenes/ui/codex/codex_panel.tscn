@@ -37,20 +37,20 @@ theme_override_constants/separation = 24
 [node name="BackButton" type="Button" parent="SafeArea/Layout/Header"]
 custom_minimum_size = Vector2(120, 56)
 layout_mode = 2
-text = "返回"
+text = "ui.common.back"
 
 [node name="Title" type="Label" parent="SafeArea/Layout/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 48
-text = "GOBRO 图鉴"
+text = "ui.codex.title"
 
 [node name="DiscoveredLabel" type="Label" parent="SafeArea/Layout/Header"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.45, 0.9, 0.8, 1)
 theme_override_font_sizes/font_size = 24
-text = "已发现 0 / 0"
+text = "ui.codex.discovered_empty"
 vertical_alignment = 1
 
 [node name="CategoryButtons" type="HBoxContainer" parent="SafeArea/Layout"]
@@ -62,25 +62,25 @@ theme_override_constants/separation = 12
 custom_minimum_size = Vector2(240, 60)
 layout_mode = 2
 toggle_mode = true
-text = "人物"
+text = "ui.codex.characters"
 
 [node name="Weapons" type="Button" parent="SafeArea/Layout/CategoryButtons"]
 custom_minimum_size = Vector2(240, 60)
 layout_mode = 2
 toggle_mode = true
-text = "武器"
+text = "ui.codex.weapons"
 
 [node name="Passives" type="Button" parent="SafeArea/Layout/CategoryButtons"]
 custom_minimum_size = Vector2(240, 60)
 layout_mode = 2
 toggle_mode = true
-text = "道具"
+text = "ui.codex.items"
 
 [node name="Enemies" type="Button" parent="SafeArea/Layout/CategoryButtons"]
 custom_minimum_size = Vector2(240, 60)
 layout_mode = 2
 toggle_mode = true
-text = "敌人"
+text = "ui.codex.enemies"
 
 [node name="Scroll" type="ScrollContainer" parent="SafeArea/Layout"]
 layout_mode = 2

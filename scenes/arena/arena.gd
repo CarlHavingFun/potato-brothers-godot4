@@ -396,8 +396,6 @@ func _repair_checkpoint_content(checkpoint: RunState, starter: WeaponDef) -> Run
 					maxi(1, int(raw_passives[raw_id]))
 				)
 	repaired.inventory = sanitized_inventory
-	if repaired.phase == RunPhase.SELECTION:
-		repaired.phase = RunPhase.COMBAT
 	return repaired
 
 

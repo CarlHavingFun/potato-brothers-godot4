@@ -67,7 +67,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(260, 64)
 layout_mode = 2
 focus_mode = 2
-text = "刷新"
+text = "ui.shop.refresh"
 
 [node name="StatusLabel" type="Label" parent="MarginContainer/HBoxContainer/VBoxContainer/RefreshRow"]
 unique_name_in_owner = true

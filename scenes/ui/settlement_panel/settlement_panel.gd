@@ -14,7 +14,7 @@ func show_result(run_state: RunState, victory: bool) -> void:
 	result_key = "victory" if victory else "death"
 	result_label.text = tr("ui.settlement.victory") if victory else tr("ui.settlement.death")
 	if run_state == null:
-		details_label.text = "No run data"
+		details_label.text = tr("ui.settlement.no_data")
 		return
 	if run_state.run_mode == RunMode.ENDLESS:
 		details_label.text = tr("ui.settlement.endless_details") % [

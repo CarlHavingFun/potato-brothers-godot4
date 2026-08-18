@@ -93,7 +93,7 @@ layout_mode = 2
 [node name="KeybindLabel" type="Label" parent="Center/Content"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "按键重映射"
+text = "ui.settings.remap"
 
 [node name="KeybindGrid" type="GridContainer" parent="Center/Content"]
 unique_name_in_owner = true

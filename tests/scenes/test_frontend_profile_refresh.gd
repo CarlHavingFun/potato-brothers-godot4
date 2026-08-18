@@ -51,7 +51,7 @@ func test_profile_page_displays_persisted_save_repair_notice() -> void:
 	assert_object(notice).is_not_null()
 	if notice != null:
 		assert_bool(notice.visible).is_true()
-		assert_str(notice.text.to_lower()).contains("backup")
+		assert_str(notice.text).is_equal(tr("ui.profile.repair.backup"))
 
 
 func _disabled_character_count(choices: Node) -> int:

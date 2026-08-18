@@ -118,6 +118,22 @@ func test_frontend_branding_is_resolved_from_the_selected_skin_manifest() -> voi
 	assert_object(frontend.get_node("Background").texture).is_same(Presentation.active_skin.background)
 
 
+func test_button_feedback_keeps_visual_and_click_rect_stationary() -> void:
+	var frontend: Control = auto_free(load(FRONTEND_SCENE).instantiate())
+	add_child(frontend)
+	await await_idle_frame()
+	var button := frontend.get_node("Pages/TitlePage/SafeArea/Layout/Menu/PrimaryButton") as Button
+	var position_before := button.position
+	var size_before := button.size
+
+	frontend.call("_animate_button", button, true)
+	await get_tree().create_timer(0.12).timeout
+
+	assert_vector(button.scale).is_equal(Vector2.ONE)
+	assert_vector(button.position).is_equal(position_before)
+	assert_vector(button.size).is_equal(size_before)
+
+
 func _first_allowed_weapon_id(character: CharacterDef) -> StringName:
 	if not character.starter_weapon_ids.is_empty():
 		return character.starter_weapon_ids[0]

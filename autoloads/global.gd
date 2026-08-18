@@ -173,7 +173,7 @@ func begin_selected_run(seed_value: int = 0) -> bool:
 
 
 func resume_run_state(checkpoint: RunState) -> bool:
-	if checkpoint == null or checkpoint.character_id.is_empty() or checkpoint.starting_weapon_id.is_empty():
+	if checkpoint == null or not checkpoint.is_resumable_checkpoint():
 		return false
 	current_run = RunState.from_dict(checkpoint.to_dict())
 	run_director = RunDirector.new(current_run)
@@ -230,6 +230,8 @@ func load_progress() -> bool:
 	meta_progress = MetaProgress.from_dict(meta_data if meta_data is Dictionary else {})
 	var run_data: Variant = payload.get("run_state", null)
 	restored_run = RunState.from_dict(run_data) if run_data is Dictionary else null
+	if restored_run != null and not restored_run.is_resumable_checkpoint():
+		restored_run = null
 	_combat_checkpoint = (
 		RunState.from_dict(restored_run.to_dict())
 		if restored_run != null and restored_run.phase == RunPhase.COMBAT
@@ -449,7 +451,7 @@ func apply_meta_settings() -> void:
 
 
 func _apply_windowed_geometry() -> void:
-	if DisplayServer.get_name() == "headless" or meta_progress.fullscreen:
+	if DisplayServer.get_name() == "headless" or meta_progress.fullscreen or "--wid" in OS.get_cmdline_args():
 		return
 	var parts := meta_progress.resolution.split("x")
 	if parts.size() == 2:

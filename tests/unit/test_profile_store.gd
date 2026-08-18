@@ -19,7 +19,9 @@ func test_profile_store_exposes_three_isolated_slots() -> void:
 	var profiles: Array[Dictionary] = store.list_profiles()
 
 	assert_int(profiles.size()).is_equal(3)
-	assert_str(profiles[0].get("name", "")).is_equal("档案 1")
+	assert_str(profiles[0].get("name", "")).is_equal(
+		TranslationServer.translate("ui.profile.default_name") % 1
+	)
 	assert_bool(profiles[0].get("exists", true)).is_false()
 	assert_int(store.save_profile(1, {"materials": 15})).is_equal(OK)
 	assert_int(store.save_profile(2, {"materials": 99})).is_equal(OK)
@@ -147,6 +149,28 @@ func test_profile_save_provider_switches_active_slot_without_cross_contamination
 	assert_int(int(provider.load_slot().get("slot", 0))).is_equal(1)
 	assert_bool(provider.set_active_profile(4)).is_false()
 	assert_int(provider.active_profile_id).is_equal(1)
+
+
+func test_profile_summary_only_offers_continue_for_a_resumable_checkpoint() -> void:
+	var store := ProfileStore.new(TEST_ROOT, LEGACY_PATH)
+	store.save_profile(1, {
+		"run_state": {
+			"phase": RunPhase.SELECTION,
+			"character_id": "",
+			"starting_weapon_id": "",
+		}
+	})
+	assert_bool(store.profile_summary(1).get("has_checkpoint", true)).is_false()
+
+	store.save_profile(1, {
+		"run_state": {
+			"phase": RunPhase.COMBAT,
+			"wave": 3,
+			"character_id": "core:character/brawler",
+			"starting_weapon_id": "core:weapon/punch",
+		}
+	})
+	assert_bool(store.profile_summary(1).get("has_checkpoint", false)).is_true()
 
 
 func _cleanup_files() -> void:

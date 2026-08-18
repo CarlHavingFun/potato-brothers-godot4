@@ -258,6 +258,12 @@ func get_tags_for_item(item: ItemBase) -> Array[StringName]:
 	return definition.tags.duplicate() if definition != null else []
 
 
+func get_tag_display_name(tag: StringName) -> String:
+	var raw := String(tag)
+	var key := StringName("tag.%s" % raw.replace("/", "."))
+	return Global.translate_text(key, raw.replace("_", " ").capitalize())
+
+
 func _index_definitions(
 	definitions: Array,
 	bucket: Dictionary,
