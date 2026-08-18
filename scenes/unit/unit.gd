@@ -25,6 +25,7 @@ func _ready() -> void:
 	if stats != null:
 		stats = stats.duplicate(true)
 	health_component.setup(stats)
+	refresh_presentation_settings()
 
 
 func configure_presentation(category: StringName, presentation_id: StringName) -> void:
@@ -99,63 +100,105 @@ func kill_credit_source(fallback: Object) -> Object:
 	return _last_damage_source if is_instance_valid(_last_damage_source) else fallback
 
 
-func set_flash_material() -> void:
+func set_flash_material(reduce_flashes_override: Variant = null) -> void:
+	var reduce_flashes := (
+		bool(reduce_flashes_override)
+		if reduce_flashes_override is bool
+		else GameplayCuePresenter.runtime_bool(&"reduce_flashes", false)
+	)
+	if reduce_flashes:
+		sprite.material = null
+		flash_timer.stop()
+		return
 	sprite.material = Global.FLASH_MATERIAL
 	flash_timer.start()
 
 
-func _on_hurtbox_component_on_damaged(hitbox: HitboxComponent) -> void:
-	if health_component.current_health <= 0:
+func refresh_presentation_settings() -> void:
+	var health_bar := get_node_or_null("HealthBar") as Control
+	if health_bar == null:
 		return
-	
-	var block_chance := stats.block_chance / 100.0
-	var received_damage := hitbox.damage
+	var is_player_unit := self is Player
+	var is_boss_unit := (
+		self is Enemy
+		and (self as Enemy).definition != null
+		and &"boss" in (self as Enemy).definition.tags
+	)
+	health_bar.visible = health_bar_visible_for(
+		is_player_unit,
+		is_boss_unit,
+		GameplayCuePresenter.runtime_bool(&"show_player_health_bar", true),
+		GameplayCuePresenter.runtime_bool(&"show_boss_health_bar", true)
+	)
+
+
+static func health_bar_visible_for(
+	is_player_unit: bool,
+	is_boss_unit: bool,
+	show_player_health_bar: bool,
+	show_boss_health_bar: bool
+) -> bool:
+	if is_player_unit:
+		return show_player_health_bar
+	if is_boss_unit:
+		return show_boss_health_bar
+	return true
+
+
+func _on_hurtbox_component_on_damaged(hitbox: HitboxComponent) -> void:
+	if hitbox == null or health_component.current_health <= 0:
+		return
+
+	var request := HitRequest.from_hitbox(hitbox, self)
+	request.dodge_chance = stats.block_chance / 100.0
+	request.damage_multiplier = incoming_damage_multiplier()
 	if self is Player and Global.current_run != null:
-		block_chance = Global.combat_resolver.dodge_chance(Global.current_run.player_stats)
-		received_damage = Global.combat_resolver.damage_after_armor(
-			hitbox.damage,
-			Global.current_run.player_stats.get_stat(StatId.ARMOR)
+		request.dodge_chance = Global.combat_resolver.dodge_chance(
+			Global.current_run.player_stats
 		)
-	var blocked := Global.get_chance_sucess(block_chance)
-	if blocked:
+		request.armor = Global.current_run.player_stats.get_stat(StatId.ARMOR)
+	var hit_result := HitResolver.new(Global.combat_resolver).resolve(request)
+	if hit_result.dodged:
 		if self is Player:
 			Global.dispatch_gameplay_event(
 				GameplayEvent.Type.DODGED, {"incoming_damage": hitbox.damage}, [], self, hitbox.source
 			)
 		Global.on_create_block_text.emit(self)
 		return
-	received_damage *= incoming_damage_multiplier()
+	if not hit_result.landed:
+		return
+
 	var effect_result: EffectResult
 	if self is Player:
 		effect_result = Global.dispatch_gameplay_event(
-			GameplayEvent.Type.DAMAGED, {"damage": received_damage}, [], hitbox.source, self
+			GameplayEvent.Type.DAMAGED, {"damage": hit_result.damage}, [], hitbox.source, self
 		)
 	else:
-		var gameplay_source := hitbox.gameplay_source if is_instance_valid(hitbox.gameplay_source) else hitbox.source
 		effect_result = Global.dispatch_gameplay_event(
 			GameplayEvent.Type.CRITICAL_HIT if hitbox.critical else GameplayEvent.Type.HIT,
-			{"damage": received_damage}, hitbox.gameplay_tags, gameplay_source, self
+			{"damage": hit_result.damage}, hitbox.gameplay_tags, hit_result.gameplay_source, self
 		)
-	received_damage += effect_result.extra_damage
-	record_damage_source(
-		hitbox.gameplay_source if is_instance_valid(hitbox.gameplay_source) else hitbox.source
-	)
+	hit_result.apply_extra_damage(effect_result.extra_damage)
+	record_damage_source(hit_result.gameplay_source)
 	if hitbox.critical:
 		GameplayCues.emit_cue(&"hit.critical", {
-			"damage": received_damage,
+			"damage": hit_result.damage,
 			"world_position": global_position,
 		})
 	else:
 		GameplayCues.emit_cue(&"hit.normal", {
-			"damage": received_damage,
+			"damage": hit_result.damage,
 			"world_position": global_position,
 		})
 	presentation_controller.set_semantic_state(&"hit")
-	
+
 	set_flash_material()
-	health_component.take_damage(received_damage)
-	hitbox.display_damage = received_damage
+	var health_before := health_component.current_health
+	health_component.take_damage(hit_result.damage)
+	hit_result.record_health_change(health_before, health_component.current_health)
+	hitbox.display_damage = hit_result.damage
 	Global.on_create_damage_text.emit(self, hitbox)
+	hitbox.confirm_hit(hit_result)
 
 
 func incoming_damage_multiplier() -> float:

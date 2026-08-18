@@ -108,6 +108,11 @@ func spawn_effect_projectiles(commands: Array[Dictionary]) -> void:
 		weapon_behavior.call("spawn_effect_projectiles", commands)
 
 
+func on_hit_confirmed(result: HitResult) -> void:
+	if weapon_behavior != null:
+		weapon_behavior.on_hit_confirmed(result)
+
+
 func rotate_to_target() -> void:
 	if is_attacking:
 		rotation = get_custom_rotation_to_target()
@@ -222,7 +227,7 @@ func resolve_attack_target(area: Area2D) -> Node2D:
 
 
 func can_use_weapon() -> bool:
-	return cooldown_timer.is_stopped() and aim_resolver.can_fire(
+	return not is_attacking and cooldown_timer.is_stopped() and aim_resolver.can_fire(
 		Global.aim_mode, closest_target != null and is_instance_valid(closest_target)
 	)
 

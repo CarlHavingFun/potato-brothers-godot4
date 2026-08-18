@@ -144,3 +144,8 @@ screen_shake_cues = {
 rumble_cues = {
 &"hit.critical": {"duration": 0.1, "weak": 0.25, "strong": 0.5}
 }
+feedback_profiles = {
+&"hit.normal": {"audio_pitch_max": 1.04, "audio_pitch_min": 0.96, "hit_stop_scale": 0.42, "hit_stop_seconds": 0.008, "minimum_interval_seconds": 0.035, "priority": 10},
+&"hit.critical": {"audio_pitch_max": 1.02, "audio_pitch_min": 0.93, "damage_text_scale": 1.35, "hit_stop_scale": 0.14, "hit_stop_seconds": 0.032, "minimum_interval_seconds": 0.025, "priority": 40},
+&"player.damaged": {"hit_stop_scale": 0.18, "hit_stop_seconds": 0.026, "minimum_interval_seconds": 0.05, "priority": 80, "shake_strength": 10.0}
+}

@@ -16,7 +16,14 @@ func _ready() -> void:
 func _on_hurtbox_damaged(hitbox: HitboxComponent) -> void:
 	if hitbox == null or current_health <= 0.0 or _harvested:
 		return
-	current_health -= maxf(1.0, hitbox.damage)
+	var request := HitRequest.from_hitbox(hitbox, self)
+	request.raw_damage = maxf(1.0, request.raw_damage)
+	var result := HitResolver.new(Global.combat_resolver).resolve(request)
+	if not result.landed:
+		return
+	var health_before := current_health
+	current_health = maxf(0.0, current_health - result.damage)
+	result.record_health_change(health_before, current_health)
 	var trunk := $Trunk as Polygon2D
 	trunk.modulate = Color(1.35, 1.35, 1.35, 1.0)
 	var tween := create_tween()
@@ -25,3 +32,4 @@ func _on_hurtbox_damaged(hitbox: HitboxComponent) -> void:
 		_harvested = true
 		harvested.emit(global_position, pickup_kind)
 		call_deferred("queue_free")
+	hitbox.confirm_hit(result)

@@ -25,6 +25,7 @@ const ASSET_CATEGORIES := [
 @export var particle_cues: Dictionary = {}
 @export var screen_shake_cues: Dictionary = {}
 @export var rumble_cues: Dictionary = {}
+@export var feedback_profiles: Dictionary = {}
 
 
 func validate() -> PackedStringArray:
@@ -70,6 +71,7 @@ func cue_definition(cue_id: StringName) -> Dictionary:
 		"particle": str(particle_cues.get(cue_id, particle_cues.get(String(cue_id), ""))),
 		"screen_shake": screen_shake_cues.get(cue_id, screen_shake_cues.get(String(cue_id), {})),
 		"rumble": rumble_cues.get(cue_id, rumble_cues.get(String(cue_id), {})),
+		"feedback": feedback_profiles.get(cue_id, feedback_profiles.get(String(cue_id), {})),
 	}
 
 

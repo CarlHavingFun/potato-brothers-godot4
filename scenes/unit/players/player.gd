@@ -21,9 +21,17 @@ var is_dashing := false
 var dash_charges := 1
 var enemy_slow_multiplier := 1.0
 var enemy_slow_remaining := 0.0
+var directional_visual: DirectionalSpriteVisual
 
 func _ready() -> void:
 	super._ready()
+	directional_visual = get_node_or_null("Visuals/DirectionalSpriteVisual") as DirectionalSpriteVisual
+	if directional_visual != null:
+		sprite.visible = false
+		health_component.on_unit_hit.connect(_on_directional_visual_hit)
+		health_component.on_unit_died.connect(_on_directional_visual_died)
+		flash_timer.timeout.connect(_on_directional_visual_flash_timeout)
+		Global.run_phase_changed.connect(_on_directional_visual_run_phase_changed)
 	if Global.current_run != null:
 		max_dash_charges = Global.current_run.dash_charges
 		dash_cooldown *= Global.current_run.dash_cooldown_multiplier
@@ -34,7 +42,7 @@ func _ready() -> void:
 			configure_presentation(
 				&"character", character.get_presentation_id(Content.catalog.pack_id)
 			)
-	presentation_controller.set_semantic_state(&"idle")
+	_set_visual_semantic_state(&"idle")
 	dash_timer.wait_time = dash_duration
 	dash_invulnerability_timer.wait_time = dash_invulnerability_duration
 	dash_cooldown_timer.wait_time = dash_cooldown
@@ -84,6 +92,9 @@ func add_weapon(data: ItemWeapon) -> void:
 
 
 func update_animations() -> void:
+	if directional_visual != null:
+		directional_visual.update_motion(move_dir)
+		return
 	if move_dir.length() > 0:
 		presentation_controller.set_semantic_state(&"move")
 	else:
@@ -91,6 +102,12 @@ func update_animations() -> void:
 
 
 func update_rotation() -> void:
+	if directional_visual != null:
+		if move_dir != Vector2.ZERO:
+			directional_visual.set_facing(
+				DirectionalSpriteVisual.direction_from_vector(move_dir)
+			)
+		return
 	if move_dir == Vector2.ZERO:
 		return
 	
@@ -118,7 +135,7 @@ func start_dash() -> void:
 		self
 	)
 	GameplayCues.emit_cue(&"player.dash", {"world_position": global_position})
-	presentation_controller.set_semantic_state(&"dash")
+	_set_visual_semantic_state(&"dash")
 
 
 func can_dash() -> bool:
@@ -129,6 +146,8 @@ func can_dash() -> bool:
 
 
 func is_facing_right() -> bool:
+	if directional_visual != null:
+		return directional_visual.is_facing_right()
 	return visuals.scale.x == -0.5
 
 
@@ -141,7 +160,7 @@ func _on_dash_timer_timeout() -> void:
 	is_dashing = false
 	visuals.modulate.a = 1.0
 	move_dir = Vector2.ZERO
-	presentation_controller.set_semantic_state(&"idle")
+	_set_visual_semantic_state(&"idle")
 
 
 func _on_dash_invulnerability_timer_timeout() -> void:
@@ -162,3 +181,46 @@ func _on_hp_regen_timer_timeout() -> void:
 			heal = Global.combat_resolver.recovery_amount(Global.current_run.player_stats)
 		health_component.heal(heal)
 		Global.on_create_heal_text.emit(self, heal)
+
+
+func _set_visual_semantic_state(state: StringName) -> void:
+	if directional_visual != null:
+		directional_visual.set_semantic_state(state)
+	else:
+		presentation_controller.set_semantic_state(state)
+
+
+func _on_directional_visual_hit() -> void:
+	if directional_visual != null:
+		directional_visual.material = Global.FLASH_MATERIAL
+		flash_timer.start()
+		directional_visual.trigger_action(&"hit")
+
+
+func _on_directional_visual_flash_timeout() -> void:
+	if directional_visual != null:
+		directional_visual.material = null
+
+
+func _on_directional_visual_died() -> void:
+	if directional_visual == null:
+		return
+	var death_visual := directional_visual
+	death_visual.material = null
+	death_visual.trigger_action(&"death")
+	var survivor_parent := get_parent()
+	if survivor_parent == null:
+		return
+	var duration := maxf(0.1, death_visual.animation_duration(&"death"))
+	death_visual.reparent(survivor_parent, true)
+	get_tree().create_timer(duration).timeout.connect(death_visual.queue_free)
+	directional_visual = null
+
+
+func _on_directional_visual_run_phase_changed(phase: int) -> void:
+	if directional_visual == null:
+		return
+	if phase == RunPhase.VICTORY:
+		directional_visual.trigger_action(&"victory")
+	elif phase == RunPhase.DEATH:
+		directional_visual.trigger_action(&"death")

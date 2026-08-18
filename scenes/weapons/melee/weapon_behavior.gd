@@ -8,6 +8,12 @@ var critical := false
 func execute_attack() -> void:
 	pass
 
+
+func on_hit_confirmed(result: HitResult) -> void:
+	if result == null or not result.landed or result.damage <= 0.0:
+		return
+	apply_life_steal()
+
 func get_damage() -> float:
 	critical = false
 	var scaling_stat_id := get_scaling_stat_id()
@@ -27,7 +33,11 @@ func apply_life_steal() -> void:
 	var steal_chance := Global.combat_resolver.life_steal_chance(
 		weapon.data.stats.life_steal, Global.current_run.player_stats
 	)
-	var can_steal := Global.get_chance_sucess(steal_chance)
+	var can_steal := (
+		Global.combat_resolver.roll_chance(steal_chance)
+		if Global.combat_resolver != null
+		else Global.get_chance_sucess(steal_chance)
+	)
 	if can_steal and is_instance_valid(Global.player):
 		Global.player.health_component.heal(1.0)
 		Global.on_create_heal_text.emit(Global.player, 1.0)
