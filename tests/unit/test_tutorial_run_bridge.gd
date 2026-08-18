@@ -21,6 +21,7 @@ func test_begin_run_maps_tutorial_stats_and_resets_previous_run() -> void:
 	source.life_steal = 3.0
 	source.damage = 12.0
 	source.speed = 325
+	source.move_speed_percent = 25.0
 	source.luck = 7.0
 	source.block_chance = 8.0
 	source.harvesting = 4.0
@@ -35,7 +36,7 @@ func test_begin_run_maps_tutorial_stats_and_resets_previous_run() -> void:
 	assert_float(Global.current_run.player_stats.get_stat(StatId.MAX_HEALTH)).is_equal(20.0)
 	assert_float(Global.current_run.player_stats.get_stat(StatId.RECOVERY)).is_equal(1.5)
 	assert_float(Global.current_run.player_stats.get_stat(StatId.DODGE)).is_equal(8.0)
-	assert_float(Global.current_run.player_stats.get_stat(StatId.MOVE_SPEED)).is_equal(325.0)
+	assert_float(Global.current_run.player_stats.get_stat(StatId.MOVE_SPEED)).is_equal(25.0)
 
 
 func test_legacy_coins_property_forwards_to_authoritative_run_state() -> void:
@@ -61,6 +62,18 @@ func test_global_material_collection_consumes_the_banked_material_bonus_once() -
 	assert_int(Global.current_run.materials).is_equal(16)
 	assert_int(Global.current_run.experience).is_equal(6)
 	assert_int(Global.current_run.material_bag).is_equal(2)
+
+
+func test_wave_end_harvesting_grants_materials_experience_and_grows() -> void:
+	Global.begin_run(12, null, 10)
+	Global.current_run.wave = 1
+	Global.current_run.player_stats.set_stat(StatId.HARVESTING, 8.0)
+
+	Global.get_harvesting_coins()
+
+	assert_int(Global.current_run.materials).is_equal(18)
+	assert_int(Global.current_run.experience).is_equal(8)
+	assert_float(Global.current_run.player_stats.get_stat(StatId.HARVESTING)).is_equal(9.0)
 
 
 func test_shop_purchase_uses_inventory_service_before_charging() -> void:
@@ -131,6 +144,47 @@ func test_catalog_selection_uses_the_same_namespaced_weapon_id_in_run_and_invent
 	assert_str(Global.current_run.inventory.weapon_at(0).get("weapon_id", "")).is_equal(
 		Global.current_run.starting_weapon_id
 	)
+
+
+func test_begin_selected_run_applies_character_rules_before_combat_scene_setup() -> void:
+	var character := Content.catalog.get_character(&"character/glass_cannon")
+	var weapon := Content.catalog.get_weapon(&"weapon/pistol")
+	assert_bool(Global.select_character(character)).is_true()
+	assert_bool(Global.select_starting_weapon(weapon)).is_true()
+
+	assert_bool(Global.begin_selected_run(102)).is_true()
+
+	assert_bool(Global.current_run.character_rule_applied).is_true()
+	assert_str(Global.current_run.character_rule_id).is_equal(String(character.rules.rule_id))
+	assert_float(Global.current_run.player_stats.get_stat(StatId.ATTACK_SPEED)).is_equal(200.0)
+	assert_int(Global.current_run.inventory.weapon_slot_limit).is_equal(1)
+	assert_int(Global.current_run.inventory.weapon_count()).is_equal(1)
+	var coffee := Content.catalog.get_passive(&"passive/coffee")
+	assert_bool(Global.apply_passive_item(coffee.item)).is_true()
+	assert_float(Global.current_run.player_stats.get_stat(StatId.DAMAGE)).is_equal(-4.0)
+	assert_float(Global.current_run.player_stats.get_stat(StatId.ATTACK_SPEED)).is_equal(210.0)
+
+
+func test_resume_run_state_executes_safe_v3_to_v4_stat_migration() -> void:
+	var legacy_checkpoint := RunState.from_dict({
+		"character_id": "core:character/well_rounded",
+		"starting_weapon_id": "core:weapon/pistol",
+		"phase": RunPhase.COMBAT,
+		"wave": 5,
+		"player_stats": {"damage": 19.0, "range": 10.0},
+		"inventory": {
+			"weapons": [{"weapon_id": "core:weapon/pistol", "tier": 1}],
+		},
+	})
+
+	assert_bool(Global.resume_run_state(legacy_checkpoint)).is_true()
+
+	assert_bool(Global.current_run.requires_stat_rebuild(
+		Content.catalog.balance_pack.stat_rules.rules_version,
+		Content.catalog.balance_pack.balance_pack_version
+	)).is_false()
+	assert_float(Global.current_run.player_stats.get_stat(StatId.DAMAGE)).is_equal(19.0)
+	assert_float(Global.current_run.player_stats.get_stat(StatId.RANGE)).is_equal(10.0)
 
 
 func test_catalog_shop_purchase_and_combine_keep_the_weapon_family_id() -> void:
@@ -251,7 +305,7 @@ func test_content_passive_and_upgrade_apply_all_sixteen_stat_ids() -> void:
 	assert_float(Global.current_run.player_stats.get_stat(StatId.MELEE_DAMAGE)).is_equal(2.0)
 
 
-func test_wave_enemy_selection_is_seeded_and_priority_enemy_spawns_only_once() -> void:
+func test_difficulty_one_wave_ten_selection_is_seeded_without_forced_elite() -> void:
 	var first: Spawner = auto_free(Spawner.new())
 	var second: Spawner = auto_free(Spawner.new())
 	var boss_wave := Content.catalog.get_wave(&"wave/10")
@@ -268,4 +322,5 @@ func test_wave_enemy_selection_is_seeded_and_priority_enemy_spawns_only_once() -
 		second_ids.append(String(second_enemy.get_stable_id(Content.catalog.pack_id)))
 
 	assert_array(first_ids).is_equal(second_ids)
-	assert_int(first_ids.count("core:enemy/iron_maw")).is_equal(1)
+	assert_int(first_ids.count("core:enemy/iron_maw")).is_zero()
+	assert_int(first_ids.count("core:enemy/volt_stalker")).is_zero()

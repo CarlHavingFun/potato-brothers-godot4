@@ -23,7 +23,9 @@ func load_manifest(path: String) -> int:
 	if not ResourceLoader.exists(path):
 		notices.append("skin manifest not found: %s" % path)
 		return ERR_FILE_NOT_FOUND
-	var candidate := ResourceLoader.load(path, "SkinPackDef", ResourceLoader.CACHE_MODE_REPLACE)
+	# Validate the attached script after loading; exported binary resources do
+	# not advertise script class names as native ResourceLoader type hints.
+	var candidate := ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REPLACE)
 	if not candidate is SkinPackDef:
 		notices.append("skin manifest is not a SkinPackDef: %s" % path)
 		return ERR_INVALID_DATA
@@ -31,7 +33,10 @@ func load_manifest(path: String) -> int:
 	if not errors.is_empty():
 		notices.append_array(errors)
 		return ERR_INVALID_DATA
-	active_skin = candidate
+	# ResourceLoader may update `candidate` in place when any tooling reloads the
+	# same manifest with CACHE_MODE_REPLACE. The running presentation must own a
+	# deep copy so a background validation/import cannot change the active skin.
+	active_skin = (candidate as SkinPackDef).duplicate(true) as SkinPackDef
 	manifest_path = path
 	_register_translations(active_skin)
 	skin_loaded.emit(active_skin.skin_id)
@@ -108,6 +113,12 @@ func resolve_animation_map(category: StringName, presentation_id: StringName) ->
 
 
 func _register_translations(skin: SkinPackDef) -> void:
+	# Only the resolver mounted as the active presentation service may change
+	# process-wide visible copy. Validators and comparison tests use detached
+	# resolver instances and must not leak their skin into the live UI.
+	if not is_inside_tree():
+		return
+	LocalizedTextService.configure_skin_paths(skin.translation_paths)
 	for path: String in skin.translation_paths:
 		if ResourceLoader.exists(path):
 			var translation := load(path) as Translation

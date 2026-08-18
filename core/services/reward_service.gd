@@ -111,7 +111,15 @@ func experience_required_for_level(level: int) -> int:
 func add_experience(run_state: RunState, amount: int) -> int:
 	if run_state == null or amount <= 0:
 		return 0
-	run_state.experience += amount
+	var scaled_experience := (
+		float(amount) * run_state.experience_gain_multiplier
+		+ run_state.experience_gain_remainder
+	)
+	var whole_experience := maxi(0, floori(scaled_experience))
+	run_state.experience_gain_remainder = clampf(
+		scaled_experience - whole_experience, 0.0, 0.999999
+	)
+	run_state.experience += whole_experience
 	var levels_gained := 0
 	var required := experience_required_for_level(run_state.level)
 	while run_state.experience >= required:
@@ -173,6 +181,8 @@ func try_claim_item(run_state: RunState, item: ItemBase, content_catalog: Conten
 		return InventoryService.INVALID_REQUEST
 	var result := InventoryService.INVALID_REQUEST
 	if item is ItemWeapon:
+		if not _weapon_allowed_for_run(run_state, item as ItemWeapon, content_catalog):
+			return InventoryService.INVALID_REQUEST
 		result = InventoryService.try_purchase_weapon(
 			run_state,
 			content_catalog.get_item_stable_id(item),
@@ -195,7 +205,9 @@ func try_claim_item(run_state: RunState, item: ItemBase, content_catalog: Conten
 func recycle_item(run_state: RunState, item: ItemBase) -> int:
 	if run_state == null or item == null or run_state.queued_rewards <= 0:
 		return 0
-	var materials := maxi(1, floori(item.item_cost * 0.5))
+	var materials := maxi(1, floori(
+		item.item_cost * 0.5 * run_state.recycle_value_multiplier
+	))
 	run_state.materials += materials
 	_consume_reward(run_state)
 	return materials
@@ -229,13 +241,22 @@ func select_reward(
 	for item: ItemBase in pool:
 		if (
 			item != null
+			and (not item is ItemWeapon or _weapon_allowed_for_run(
+				active_run, item as ItemWeapon, Content.catalog
+			))
 			and int(item.item_tier) >= minimum_tier
 			and int(item.item_tier) <= maximum_tier
 		):
 			available.append(item)
 	if available.is_empty() and minimum_tier > Global.UpgradeTier.COMMON:
 		for item: ItemBase in pool:
-			if item != null and int(item.item_tier) <= maximum_tier:
+			if (
+				item != null
+				and (not item is ItemWeapon or _weapon_allowed_for_run(
+					active_run, item as ItemWeapon, Content.catalog
+				))
+				and int(item.item_tier) <= maximum_tier
+			):
 				available.append(item)
 	if available.is_empty():
 		return null
@@ -270,3 +291,17 @@ func _consume_reward(run_state: RunState) -> void:
 		return
 	var next_floor: int = _next_reward_floor(run_state)
 	run_state.queued_reward_floors.erase(next_floor)
+
+
+func _weapon_allowed_for_run(
+	run_state: RunState,
+	item: ItemWeapon,
+	content_catalog: ContentCatalog
+) -> bool:
+	if run_state == null or item == null:
+		return true
+	if run_state.allowed_weapon_tags.is_empty() and run_state.forbidden_weapon_tags.is_empty():
+		return true
+	if content_catalog == null:
+		return false
+	return run_state.allows_weapon_tags(content_catalog.get_tags_for_item(item))

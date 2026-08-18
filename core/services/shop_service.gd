@@ -36,33 +36,40 @@ func select_offers(
 	config: Dictionary,
 	requested_count: int = 4,
 	content_catalog: ContentCatalog = null,
-	owned_tags: Array[StringName] = []
+	owned_tags: Array[StringName] = [],
+	run_state: RunState = null
 ) -> Array:
 	var result: Array = []
-	if requested_count <= 0 or item_pool.is_empty():
+	var available_pool: Array = item_pool.filter(
+		func(item: Variant):
+			return not item is ItemWeapon or _weapon_allowed_for_run(
+				run_state, item as ItemWeapon, content_catalog
+			)
+	)
+	if requested_count <= 0 or available_pool.is_empty():
 		return result
-	var target_count: int = mini(requested_count, item_pool.size())
+	var target_count: int = mini(requested_count, available_pool.size())
 	var probabilities: Array[float] = calculate_tier_probabilities(current_wave, luck, config)
 	var weapon_quota: int = mini(_minimum_weapon_offers(current_wave), target_count)
 	while result.size() < weapon_quota:
 		var weapon: Variant = _draw_offer(
-			item_pool, probabilities, result, content_catalog, owned_tags, true
+			available_pool, probabilities, result, content_catalog, owned_tags, true
 		)
 		if weapon == null:
 			break
 		result.append(weapon)
 	var attempts: int = 0
-	var max_attempts: int = maxi(16, item_pool.size() * 16)
+	var max_attempts: int = maxi(16, available_pool.size() * 16)
 	while result.size() < target_count and attempts < max_attempts:
 		attempts += 1
 		var candidate: Variant = _draw_offer(
-			item_pool, probabilities, result, content_catalog, owned_tags, false
+			available_pool, probabilities, result, content_catalog, owned_tags, false
 		)
 		if candidate == null:
 			continue
 		result.append(candidate)
 	if result.size() < target_count:
-		var remaining: Array = item_pool.filter(
+		var remaining: Array = available_pool.filter(
 			func(item: Variant): return item is ItemBase and not _contains_offer_family(
 				result, item as ItemBase, content_catalog
 			)
@@ -80,7 +87,7 @@ func select_offers(
 	# Small or third-party pools may expose fewer unique families than slots. In that
 	# case keep the old object-level uniqueness fallback rather than returning holes.
 	if result.size() < target_count:
-		var remaining_items: Array = item_pool.filter(
+		var remaining_items: Array = available_pool.filter(
 			func(item: Variant): return not result.has(item)
 		)
 		while result.size() < target_count and not remaining_items.is_empty():
@@ -93,6 +100,8 @@ func try_purchase(run_state: RunState, item: ItemBase, content_catalog: ContentC
 	if run_state == null or item == null or content_catalog == null:
 		return InventoryService.INVALID_REQUEST
 	if item is ItemWeapon:
+		if not _weapon_allowed_for_run(run_state, item as ItemWeapon, content_catalog):
+			return InventoryService.INVALID_REQUEST
 		return InventoryService.try_purchase_weapon(
 			run_state,
 			content_catalog.get_item_stable_id(item),
@@ -114,7 +123,12 @@ func purchase_price(run_state: RunState, item: ItemBase) -> int:
 	if item == null:
 		return 0
 	var difficulty := Content.catalog.get_difficulty(run_state.difficulty) if run_state != null else null
-	return difficulty.scale_shop_price(item.item_cost) if difficulty != null else item.item_cost
+	var base_price := (
+		difficulty.scale_shop_price(item.item_cost) if difficulty != null else item.item_cost
+	)
+	return maxi(0, ceili(base_price * (
+		run_state.shop_price_multiplier if run_state != null else 1.0
+	)))
 
 
 func refresh_price(current_wave: int, refresh_count: int) -> int:
@@ -157,6 +171,7 @@ func refresh_price_for_run(run_state: RunState, current_wave: int, unlocked_slot
 	var base_price := refresh_price_for_slots(current_wave, run_state.shop_refresh_count, unlocked_slots)
 	var difficulty := Content.catalog.get_difficulty(run_state.difficulty)
 	var result := difficulty.scale_shop_price(base_price) if difficulty != null else base_price
+	result = ceili(result * run_state.shop_price_multiplier)
 	if run_state.run_mode == RunMode.ENDLESS and current_wave > 20:
 		result = ceili(result * EndlessScalingDef.new().shop_price_multiplier(current_wave))
 	return result
@@ -437,6 +452,20 @@ func try_sell_item(
 
 func roll_chance(chance: float) -> bool:
 	return rng.randf() < clampf(chance, 0.0, 1.0)
+
+
+func _weapon_allowed_for_run(
+	run_state: RunState,
+	item: ItemWeapon,
+	content_catalog: ContentCatalog
+) -> bool:
+	if run_state == null or item == null:
+		return true
+	if run_state.allowed_weapon_tags.is_empty() and run_state.forbidden_weapon_tags.is_empty():
+		return true
+	if content_catalog == null:
+		return false
+	return run_state.allows_weapon_tags(content_catalog.get_tags_for_item(item))
 
 
 func _tier_chance(current_wave: int, tier_config: Dictionary, wave_offset: int) -> float:

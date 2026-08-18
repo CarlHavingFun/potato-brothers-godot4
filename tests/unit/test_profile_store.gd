@@ -20,7 +20,7 @@ func test_profile_store_exposes_three_isolated_slots() -> void:
 
 	assert_int(profiles.size()).is_equal(3)
 	assert_str(profiles[0].get("name", "")).is_equal(
-		TranslationServer.translate("ui.profile.default_name") % 1
+		LocalizedTextService.resolve(&"ui.profile.default_name", [1], "Profile %d")
 	)
 	assert_bool(profiles[0].get("exists", true)).is_false()
 	assert_int(store.save_profile(1, {"materials": 15})).is_equal(OK)
@@ -92,10 +92,10 @@ func test_legacy_v1_payload_migrates_to_slot_one_without_deleting_source() -> vo
 	)
 	assert_bool(FileAccess.file_exists(LEGACY_PATH)).is_true()
 	assert_bool(store.migrate_legacy_to_slot_one()).is_false()
-	assert_str(store.profile_path(1)).ends_with("save_v3.json")
+	assert_str(store.profile_path(1)).ends_with("save_v4.json")
 
 
-func test_v2_profile_is_migrated_to_v3_without_deleting_source() -> void:
+func test_v2_profile_is_migrated_to_v4_without_deleting_source() -> void:
 	var v2_path := "%s/1/save_v2.json" % TEST_ROOT
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(v2_path.get_base_dir()))
 	var file := FileAccess.open(v2_path, FileAccess.WRITE)
@@ -137,6 +137,38 @@ func test_v2_profile_is_migrated_to_v3_without_deleting_source() -> void:
 	assert_bool(FileAccess.file_exists(store.profile_path(1))).is_true()
 
 
+func test_v3_profile_migrates_to_v4_and_keeps_rebuild_source() -> void:
+	var v3_path := "%s/1/save_v3.json" % TEST_ROOT
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(v3_path.get_base_dir()))
+	var file := FileAccess.open(v3_path, FileAccess.WRITE)
+	file.store_string(JSON.stringify({
+		"save_version": 3,
+		"profile_id": 1,
+		"profile_name": "V3",
+		"payload": {
+			"run_state": {
+				"character_id": "core:character/well_rounded",
+				"starting_weapon_id": "core:weapon/pistol",
+				"player_stats": {"damage": 17.0},
+				"inventory": {},
+			},
+		},
+	}))
+	file.close()
+	var store := ProfileStore.new(TEST_ROOT, LEGACY_PATH)
+
+	var migrated := store.load_profile(1)
+	var run_data: Dictionary = migrated.get("run_state", {})
+
+	assert_bool(FileAccess.file_exists(v3_path)).is_true()
+	assert_bool(FileAccess.file_exists(store.profile_path(1))).is_true()
+	assert_str(run_data.get("stat_rules_version", "")).is_equal(RunState.LEGACY_STAT_RULES_VERSION)
+	assert_str(run_data.get("balance_pack_version", "")).is_equal(RunState.LEGACY_BALANCE_PACK_VERSION)
+	assert_float(run_data.get("stat_rebuild_source", {}).get(
+		"legacy_player_stats", {}
+	).get("damage", 0.0)).is_equal(17.0)
+
+
 func test_profile_save_provider_switches_active_slot_without_cross_contamination() -> void:
 	var store := ProfileStore.new(TEST_ROOT, LEGACY_PATH)
 	var provider := ProfileSaveProvider.new(store, 1)
@@ -149,6 +181,127 @@ func test_profile_save_provider_switches_active_slot_without_cross_contamination
 	assert_int(int(provider.load_slot().get("slot", 0))).is_equal(1)
 	assert_bool(provider.set_active_profile(4)).is_false()
 	assert_int(provider.active_profile_id).is_equal(1)
+
+
+func test_active_profile_selection_survives_provider_recreation() -> void:
+	var store := ProfileStore.new(TEST_ROOT, LEGACY_PATH)
+	var provider := ProfileSaveProvider.new(store, 1)
+
+	assert_bool(provider.set_active_profile(3)).is_true()
+
+	var restored_provider := ProfileSaveProvider.new(ProfileStore.new(TEST_ROOT, LEGACY_PATH))
+	assert_int(restored_provider.active_profile_id).is_equal(3)
+	assert_int(store.load_active_profile_id()).is_equal(3)
+
+
+func test_first_profile_index_prefers_the_only_resumable_checkpoint() -> void:
+	var store := ProfileStore.new(TEST_ROOT, LEGACY_PATH)
+	store.save_profile(1, {
+		"meta_progress": MetaProgress.new().to_dict(),
+		"run_state": {"phase": RunPhase.SELECTION},
+	})
+	store.save_profile(2, {
+		"meta_progress": MetaProgress.new().to_dict(),
+		"run_state": {
+			"phase": RunPhase.COMBAT,
+			"wave": 4,
+			"character_id": "core:character/brawler",
+			"starting_weapon_id": "core:weapon/punch",
+		},
+	})
+
+	var provider := ProfileSaveProvider.new(ProfileStore.new(TEST_ROOT, LEGACY_PATH))
+
+	assert_int(provider.active_profile_id).is_equal(2)
+	assert_int(store.load_active_profile_id()).is_equal(2)
+
+
+func test_deleted_migrated_legacy_profile_does_not_reappear() -> void:
+	var legacy := LocalSaveProvider.new(LEGACY_PATH)
+	assert_int(legacy.save_slot({"meta_progress": {"highest_unlocked_difficulty": 3}})).is_equal(OK)
+	var store := ProfileStore.new(TEST_ROOT, LEGACY_PATH)
+
+	assert_bool(store.migrate_legacy_to_slot_one()).is_true()
+	assert_bool(store.profile_summary(1).get("exists", false)).is_true()
+	assert_int(store.delete_profile(1)).is_equal(OK)
+	var index := FileAccess.open(store.profile_index_path(), FileAccess.WRITE)
+	index.store_string("{broken")
+	index.close()
+
+	var restarted_store := ProfileStore.new(TEST_ROOT, LEGACY_PATH)
+	assert_int(restarted_store.load_active_profile_id()).is_between(1, 3)
+	assert_bool(restarted_store.migrate_legacy_to_slot_one()).is_false()
+	assert_bool(restarted_store.profile_summary(1).get("exists", true)).is_false()
+	assert_bool(FileAccess.file_exists(LEGACY_PATH)).is_true()
+	assert_bool(FileAccess.file_exists(restarted_store.legacy_migration_marker_path())).is_true()
+
+
+func test_first_profile_index_prefers_real_progress_over_a_newer_named_only_slot() -> void:
+	var store := ProfileStore.new(TEST_ROOT, LEGACY_PATH)
+	var progress := MetaProgress.new()
+	progress.highest_unlocked_difficulty = 2
+	assert_int(store.save_profile(1, {"meta_progress": progress.to_dict()})).is_equal(OK)
+	var progress_document := store.call("_read_document", store.profile_path(1)) as Dictionary
+	progress_document["updated_unix"] = 1
+	assert_int(store.call("_write_document", 1, progress_document)).is_equal(OK)
+	assert_int(store.rename_profile(2, "仅命名的新档案")).is_equal(OK)
+
+	var provider := ProfileSaveProvider.new(ProfileStore.new(TEST_ROOT, LEGACY_PATH))
+
+	assert_int(provider.active_profile_id).is_equal(1)
+
+
+func test_existing_index_migration_flag_is_promoted_to_durable_marker() -> void:
+	var store := ProfileStore.new(TEST_ROOT, LEGACY_PATH)
+	var legacy_index := {
+		"version": ProfileStore.PROFILE_INDEX_VERSION,
+		"active_profile_id": 2,
+		"legacy_migration_completed": true,
+	}
+	assert_int(store.call("_write_profile_index_document", legacy_index)).is_equal(OK)
+	assert_bool(FileAccess.file_exists(store.legacy_migration_marker_path())).is_false()
+
+	assert_bool(store.call("_legacy_migration_completed")).is_true()
+
+	assert_bool(FileAccess.file_exists(store.legacy_migration_marker_path())).is_true()
+
+
+func test_delete_from_old_index_flag_survives_loss_of_both_index_copies() -> void:
+	var legacy := LocalSaveProvider.new(LEGACY_PATH)
+	assert_int(legacy.save_slot({"meta_progress": {"highest_unlocked_difficulty": 3}})).is_equal(OK)
+	var store := ProfileStore.new(TEST_ROOT, LEGACY_PATH)
+	assert_int(store.save_profile(1, {"meta_progress": {"highest_unlocked_difficulty": 3}})).is_equal(OK)
+	var legacy_index := {
+		"version": ProfileStore.PROFILE_INDEX_VERSION,
+		"active_profile_id": 1,
+		"legacy_migration_completed": true,
+	}
+	assert_int(store.call("_write_profile_index_document", legacy_index)).is_equal(OK)
+	assert_bool(FileAccess.file_exists(store.legacy_migration_marker_path())).is_false()
+
+	assert_int(store.delete_profile(1)).is_equal(OK)
+	for path: String in [store.profile_index_path(), store.profile_index_path() + ".bak"]:
+		var broken := FileAccess.open(path, FileAccess.WRITE)
+		broken.store_string("{broken")
+		broken.close()
+
+	var restarted_store := ProfileStore.new(TEST_ROOT, LEGACY_PATH)
+	assert_bool(restarted_store.migrate_legacy_to_slot_one()).is_false()
+	assert_bool(restarted_store.profile_summary(1).get("exists", true)).is_false()
+
+
+func test_renamed_empty_profile_is_created_without_claiming_gameplay_progress() -> void:
+	var store := ProfileStore.new(TEST_ROOT, LEGACY_PATH)
+	assert_int(store.rename_profile(3, "测试档案")).is_equal(OK)
+
+	var renamed_summary := store.profile_summary(3)
+	assert_bool(renamed_summary.get("exists", false)).is_true()
+	assert_bool(renamed_summary.get("has_progress", true)).is_false()
+
+	var progressed := MetaProgress.new()
+	progressed.highest_unlocked_difficulty = 2
+	assert_int(store.save_profile(3, {"meta_progress": progressed.to_dict()})).is_equal(OK)
+	assert_bool(store.profile_summary(3).get("has_progress", false)).is_true()
 
 
 func test_profile_summary_only_offers_continue_for_a_resumable_checkpoint() -> void:
@@ -175,7 +328,7 @@ func test_profile_summary_only_offers_continue_for_a_resumable_checkpoint() -> v
 
 func _cleanup_files() -> void:
 	for slot in range(1, 4):
-		for version in [2, 3]:
+		for version in [2, 3, 4]:
 			for suffix in ["", ".tmp", ".bak"]:
 				var profile_path: String = "%s/%d/save_v%d.json%s" % [TEST_ROOT, slot, version, suffix]
 				if FileAccess.file_exists(profile_path):
@@ -184,3 +337,10 @@ func _cleanup_files() -> void:
 		var legacy_path: String = LEGACY_PATH + suffix
 		if FileAccess.file_exists(legacy_path):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(legacy_path))
+		var index_path: String = "%s/profile_index_v1.json%s" % [TEST_ROOT, suffix]
+		if FileAccess.file_exists(index_path):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(index_path))
+	for suffix in ["", ".tmp"]:
+		var migration_marker := "%s/legacy_migration_v1.completed%s" % [TEST_ROOT, suffix]
+		if FileAccess.file_exists(migration_marker):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(migration_marker))

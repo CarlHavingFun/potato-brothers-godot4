@@ -3,6 +3,7 @@ extends RefCounted
 
 
 var pack_id: StringName
+var balance_pack: BalancePackDef
 var _all: Dictionary = {}
 var _characters: Dictionary = {}
 var _weapons: Dictionary = {}
@@ -20,7 +21,7 @@ var _upgrade_defs_by_item: Dictionary = {}
 var _pack: ContentPackDef
 
 
-func register_pack(pack: ContentPackDef) -> int:
+func register_pack(pack: ContentPackDef, active_balance_pack: BalancePackDef = null) -> int:
 	if pack == null or pack.pack_id.is_empty():
 		return ERR_INVALID_DATA
 	if not _all.is_empty():
@@ -85,6 +86,7 @@ func register_pack(pack: ContentPackDef) -> int:
 		candidate_difficulties[difficulty.level] = difficulty
 
 	pack_id = pack.pack_id
+	balance_pack = active_balance_pack
 	_pack = pack
 	_all = candidate_all
 	_characters = candidate_characters

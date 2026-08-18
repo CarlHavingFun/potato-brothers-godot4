@@ -132,6 +132,83 @@ func validate_release_matrix(pack: ContentPackDef) -> PackedStringArray:
 	return errors
 
 
+func validate_balance_parity(
+	pack: ContentPackDef, balance_pack: BalancePackDef
+) -> PackedStringArray:
+	var errors := PackedStringArray()
+	if pack == null:
+		errors.append("balance content pack is required")
+		return errors
+	if balance_pack == null:
+		errors.append("active balance pack is required")
+		return errors
+	errors.append_array(balance_pack.validate_config())
+	if StatId.size() != 16:
+		errors.append("balance contract requires exactly 16 primary stats")
+	if balance_pack.manifest == null:
+		errors.append("balance parity manifest is required")
+		return errors
+	errors.append_array(balance_pack.manifest.validate())
+	_validate_balance_map(
+		balance_pack.manifest.character_ids,
+		balance_pack.character_values,
+		"character",
+		errors
+	)
+	_validate_balance_map(
+		balance_pack.manifest.weapon_ids,
+		balance_pack.weapon_values,
+		"weapon",
+		errors
+	)
+	_validate_balance_map(
+		balance_pack.manifest.passive_ids,
+		balance_pack.passive_values,
+		"passive",
+		errors
+	)
+	_validate_balance_map(
+		balance_pack.manifest.upgrade_ids,
+		balance_pack.upgrade_values,
+		"upgrade",
+		errors
+	)
+	var enemy_ids: Array[StringName] = []
+	enemy_ids.append_array(balance_pack.manifest.regular_enemy_ids)
+	enemy_ids.append_array(balance_pack.manifest.elite_enemy_ids)
+	enemy_ids.append_array(balance_pack.manifest.boss_enemy_ids)
+	_validate_balance_map(enemy_ids, balance_pack.enemy_values, "enemy", errors)
+	_validate_balance_map(
+		balance_pack.manifest.wave_ids,
+		balance_pack.wave_values,
+		"wave",
+		errors
+	)
+	return errors
+
+
+func balance_runtime_gaps(balance_pack: BalancePackDef) -> PackedStringArray:
+	var gaps := PackedStringArray()
+	if balance_pack == null:
+		return gaps
+	for raw_character_id: Variant in balance_pack.character_values:
+		var entry: Variant = balance_pack.character_values[raw_character_id]
+		if not entry is Dictionary:
+			continue
+		var contract: Variant = entry.get("rule_contract", {})
+		if not contract is Dictionary:
+			continue
+		var runtime_support: Variant = contract.get("runtime_support", {})
+		if not runtime_support is Dictionary:
+			continue
+		for raw_rule_id: Variant in runtime_support:
+			if not bool(runtime_support[raw_rule_id]):
+				gaps.append("%s:%s runtime_supported=false" % [
+					raw_character_id, raw_rule_id
+				])
+	return gaps
+
+
 func _validate_release_translation_names(pack: ContentPackDef, errors: PackedStringArray) -> void:
 	var translation_sources: Array[String] = []
 	for path: String in pack.translation_paths:
@@ -149,6 +226,14 @@ func _validate_release_translation_names(pack: ContentPackDef, errors: PackedStr
 				errors.append("missing release translation %s in source %d" % [
 					definition.display_name_key, source_index
 				])
+
+
+func _validate_balance_map(
+	ids: Array[StringName], values: Dictionary, label: String, errors: PackedStringArray
+) -> void:
+	for balance_id: StringName in ids:
+		if not values.has(String(balance_id)) and not values.has(balance_id):
+			errors.append("balance %s %s has no mapped values" % [label, balance_id])
 
 
 func _validate_metadata(pack: ContentPackDef, errors: PackedStringArray) -> void:

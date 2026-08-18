@@ -8,9 +8,13 @@ const UNIT_PROPERTY_TO_STAT_ID := {
 	"life_steal": StatId.LIFE_STEAL,
 	"damage": StatId.DAMAGE,
 	"block_chance": StatId.DODGE,
-	"speed": StatId.MOVE_SPEED,
+	"move_speed_percent": StatId.MOVE_SPEED,
 	"luck": StatId.LUCK,
 	"harvesting": StatId.HARVESTING,
+}
+
+const LEGACY_PROPERTY_ALIASES := {
+	"speed": StatId.MOVE_SPEED,
 }
 
 
@@ -32,7 +36,10 @@ static func apply_to_unit_stats(source: PlayerStats, target: UnitStats) -> bool:
 
 
 static func stat_id_for_property(property_name: String) -> int:
-	return int(UNIT_PROPERTY_TO_STAT_ID.get(property_name, -1))
+	return int(UNIT_PROPERTY_TO_STAT_ID.get(
+		property_name,
+		LEGACY_PROPERTY_ALIASES.get(property_name, -1)
+	))
 
 
 static func apply_stat_to_unit(source: PlayerStats, target: UnitStats, stat_id: int) -> bool:
@@ -45,8 +52,9 @@ static func apply_stat_to_unit(source: PlayerStats, target: UnitStats, stat_id: 
 	match property_name:
 		"health":
 			target.health = roundi(value)
-		"speed":
-			target.speed = roundi(value)
+		"move_speed_percent":
+			target.move_speed_percent = value
+			target.speed = roundi(StatCalculator.new().movement_speed(value))
 		_:
 			target.set(property_name, value)
 	return true

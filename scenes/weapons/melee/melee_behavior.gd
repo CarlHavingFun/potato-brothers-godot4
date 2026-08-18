@@ -45,12 +45,8 @@ func _execute_strike(pattern: AttackPatternDef) -> void:
 		pattern.projectile_modifiers() if pattern != null else {}
 	)
 	
-	var reach_multiplier := pattern.melee_reach_multiplier if pattern != null else 1.0
 	var active_multiplier := pattern.active_duration_multiplier if pattern != null else 1.0
-	var attack_pos := Vector2(
-		weapon.atk_start_pos.x + weapon.data.stats.max_range * reach_multiplier,
-		weapon.atk_start_pos.y
-	)
+	var attack_pos := _resolved_attack_position(pattern)
 	if pattern != null and pattern.kind in [AttackPatternDef.Kind.ARC, AttackPatternDef.Kind.ORBIT, AttackPatternDef.Kind.AREA]:
 		weapon.sprite.rotation = deg_to_rad(-pattern.swing_degrees * 0.5)
 		tween.tween_property(
@@ -65,3 +61,11 @@ func _execute_strike(pattern: AttackPatternDef) -> void:
 	hitbox.disable()
 	hitbox.repeat_interval = 0.0
 	weapon.sprite.rotation = 0.0
+
+
+func _resolved_attack_position(pattern: AttackPatternDef) -> Vector2:
+	var reach_multiplier := pattern.melee_reach_multiplier if pattern != null else 1.0
+	return Vector2(
+		weapon.atk_start_pos.x + weapon.resolved_attack_range() * reach_multiplier,
+		weapon.atk_start_pos.y
+	)

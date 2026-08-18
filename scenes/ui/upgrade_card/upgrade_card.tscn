@@ -45,21 +45,22 @@ offset_left = 100.0
 offset_top = 10.0
 offset_right = 293.0
 offset_bottom = 48.6667
-text = "damage"
+text = "stat.damage"
 label_settings = SubResource("LabelSettings_w4p5w")
 vertical_alignment = 1
 
-[node name="Description" type="Label" parent="MarginContainer/Control"]
+[node name="Description" type="RichTextLabel" parent="MarginContainer/Control"]
 unique_name_in_owner = true
-modulate = Color(0.827451, 0.909804, 0.172549, 1)
 layout_mode = 0
 offset_left = 100.0
 offset_top = 56.0
 offset_right = 293.0
-offset_bottom = 94.6667
+offset_bottom = 108.0
+theme_override_font_sizes/normal_font_size = 28
+bbcode_enabled = true
 text = "+ 1"
-label_settings = SubResource("LabelSettings_w4p5w")
-vertical_alignment = 1
+fit_content = true
+scroll_active = false
 
 [node name="CustomButtom" parent="MarginContainer/Control" instance=ExtResource("4_oy0iu")]
 custom_minimum_size = Vector2(260, 0)

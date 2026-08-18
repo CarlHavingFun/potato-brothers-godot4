@@ -43,11 +43,7 @@ func create_projectile(
 	effect_modifiers: Dictionary = {}
 ) -> void:
 	var pattern := weapon.current_attack_pattern()
-	var rotations := (
-		pattern.volley_rotations(weapon.rotation, sequence_index)
-		if pattern != null
-		else PackedFloat32Array([weapon.rotation])
-	)
+	var rotations := _tier_volley_rotations(pattern, sequence_index)
 	var resolved_effect_modifiers := (
 		effect_modifiers
 		if not effect_modifiers.is_empty()
@@ -57,6 +53,28 @@ func create_projectile(
 		_create_projectile_at_rotation(
 			shot_rotation, resolved_effect_modifiers, sequence_damage_scale
 		)
+
+
+func _tier_volley_rotations(
+	pattern: AttackPatternDef, sequence_index: int
+) -> PackedFloat32Array:
+	var tier_projectile_count := weapon.data.stats.projectile_count
+	if tier_projectile_count <= 0:
+		return (
+			pattern.volley_rotations(weapon.rotation, sequence_index)
+			if pattern != null
+			else PackedFloat32Array([weapon.rotation])
+		)
+	var result := PackedFloat32Array()
+	var spread := pattern.spread_degrees if pattern != null else 0.0
+	for lane in tier_projectile_count:
+		var centered := float(lane) - float(tier_projectile_count - 1) * 0.5
+		result.append(
+			weapon.rotation
+			+ deg_to_rad(centered * spread)
+			+ float(maxi(0, sequence_index)) * 0.0075
+		)
+	return result
 
 
 func _create_projectile_at_rotation(

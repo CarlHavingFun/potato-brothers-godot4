@@ -88,7 +88,11 @@ func _process(delta: float) -> void:
 		and _player.global_position.distance_to(danger_center) <= danger_radius
 	):
 		_danger_damage_applied = true
-		_player.health_component.take_damage(3.0 + _wave * 0.35)
+		_player.receive_typed_damage(
+			3.0 + _wave * 0.35,
+			self,
+			[&"arena", &"hazard", &"danger_zone"] as Array[StringName]
+		)
 	queue_redraw()
 
 

@@ -76,7 +76,11 @@ static func try_sell_weapon(run_state: RunState, slot: int) -> int:
 	var weapon := run_state.inventory.weapon_at(slot)
 	if weapon.is_empty():
 		return INVALID_WEAPON_SLOT
-	var refund := floori(int(weapon.get("paid_price", 0)) * 0.75)
+	var refund := floori(
+		int(weapon.get("paid_price", 0))
+		* 0.75
+		* run_state.recycle_value_multiplier
+	)
 	run_state.inventory.remove_weapon(slot)
 	run_state.materials += refund
 	return OK

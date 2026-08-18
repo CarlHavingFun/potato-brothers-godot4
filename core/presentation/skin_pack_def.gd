@@ -36,6 +36,9 @@ func validate() -> PackedStringArray:
 		errors.append("unsupported skin_api_version: %d" % skin_api_version)
 	if product_name.strip_edges().is_empty():
 		errors.append("product_name is required")
+	for translation_path: String in translation_paths:
+		if translation_path.is_empty() or not ResourceLoader.exists(translation_path):
+			errors.append("missing skin translation catalog: %s" % translation_path)
 	for category: StringName in ASSET_CATEGORIES:
 		var fallback_path := str(fallback_asset_paths.get(category, ""))
 		if fallback_path.is_empty() or not ResourceLoader.exists(fallback_path):

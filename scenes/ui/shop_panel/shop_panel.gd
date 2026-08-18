@@ -111,7 +111,7 @@ func _update_refresh_text() -> void:
 	var unlocked_count := Global.current_run.shop_slots.filter(
 		func(slot: ShopSlotState): return not slot.locked
 	).size()
-	refresh_button.text = "%s (%s)" % [tr("ui.shop.refresh"), Global.shop_service.refresh_price_for_run(
+	refresh_button.text = "%s (%s)" % [LocalizedTextService.resolve(&"ui.shop.refresh"), Global.shop_service.refresh_price_for_run(
 		Global.current_run, current_wave, unlocked_count
 	)]
 
@@ -131,7 +131,7 @@ func _on_item_purchased(item: ItemBase, slot_index: int = -1) -> void:
 	Global.save_progress()
 
 
-func project_item(item: ItemBase) -> void:
+func project_item(item: ItemBase, apply_passive_effects := true) -> void:
 	var item_card := create_item_card()
 	
 	if item.item_type == ItemBase.ItemType.WEAPON:
@@ -144,7 +144,8 @@ func project_item(item: ItemBase) -> void:
 	elif item.item_type == ItemBase.ItemType.PASSIVE:
 		passives_container.add_child(item_card)
 		var passive := item as ItemPassive
-		Global.apply_passive_item(passive)
+		if apply_passive_effects:
+			Global.apply_passive_item(passive)
 	
 	item_card.item = item
 

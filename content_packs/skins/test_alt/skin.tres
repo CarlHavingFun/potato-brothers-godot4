@@ -12,7 +12,7 @@ product_name = "Alternate Test Shell"
 logo = ExtResource("2_logo")
 background = ExtResource("3_bg")
 font = ExtResource("4_font")
-translation_paths = PackedStringArray("res://content_packs/default/i18n/game.zh_CN.po", "res://content_packs/default/i18n/game.en.po")
+translation_paths = PackedStringArray("res://content_packs/skins/test_alt/i18n/skin.zh_CN.po", "res://content_packs/skins/test_alt/i18n/skin.en.po")
 accent_color = Color(0.82, 0.42, 0.92, 1)
 asset_tables = {
 &"character": {},
@@ -53,6 +53,7 @@ audio_cues = {
 &"hit.normal": "res://assets/audio/EnemyHit.wav",
 &"ui.confirm": "res://assets/audio/Punch.mp3",
 &"ui.hover": "res://assets/audio/UI Pop.mp3",
+&"ui.locked": "res://assets/audio/Punch.mp3",
 &"ui.purchase": "res://assets/audio/ShotgunFire.wav",
 &"weapon.fire": "res://assets/audio/Punch.mp3"
 }

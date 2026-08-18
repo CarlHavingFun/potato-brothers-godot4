@@ -15,3 +15,6 @@ class_name WeaponStats
 @export_range(0.1, 3.0) var back_duration := 0.15
 @export var projectile_scene: PackedScene
 @export var projectile_speed := 1600.0
+@export var scaling_coefficients: Dictionary = {}
+@export var is_engineering_structure := false
+@export_range(0, 16, 1) var projectile_count := 0

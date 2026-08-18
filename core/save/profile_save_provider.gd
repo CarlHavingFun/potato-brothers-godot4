@@ -6,9 +6,13 @@ var store: ProfileStore
 var active_profile_id: int = 1
 
 
-func _init(profile_store: ProfileStore = null, initial_profile_id: int = 1) -> void:
+func _init(profile_store: ProfileStore = null, initial_profile_id: int = 0) -> void:
 	store = profile_store if profile_store != null else ProfileStore.new()
-	active_profile_id = clampi(initial_profile_id, 1, ProfileStore.MAX_PROFILES)
+	active_profile_id = (
+		initial_profile_id
+		if initial_profile_id in range(1, ProfileStore.MAX_PROFILES + 1)
+		else store.load_active_profile_id()
+	)
 
 
 func load_slot() -> Dictionary:
@@ -29,6 +33,10 @@ func is_available() -> bool:
 
 func set_active_profile(profile_id: int) -> bool:
 	if profile_id not in range(1, ProfileStore.MAX_PROFILES + 1):
+		return false
+	if profile_id == active_profile_id:
+		return true
+	if store == null or store.save_active_profile_id(profile_id) != OK:
 		return false
 	active_profile_id = profile_id
 	return true

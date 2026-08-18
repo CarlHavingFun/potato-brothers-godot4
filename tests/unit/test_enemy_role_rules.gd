@@ -1,6 +1,10 @@
 extends GdUnitTestSuite
 
 
+func after_test() -> void:
+	Global.end_run()
+
+
 func test_role_profile_exposes_all_special_enemy_responsibilities() -> void:
 	var rules := EnemyRoleRules.new()
 	var tags: Array[StringName] = [
@@ -40,6 +44,71 @@ func test_enemy_role_actions_follow_windup_attack_recovery_semantics() -> void:
 	)
 	assert_int(Enemy.next_behavior_state(Enemy.BehaviorState.RECOVER)).is_equal(
 		Enemy.BehaviorState.APPROACH
+	)
+
+
+func test_enemy_hazard_uses_player_armor_and_damaged_effect_pipeline() -> void:
+	Global.begin_run(4041, null, 0)
+	Global.current_run.player_stats.set_stat(StatId.ARMOR, 15.0)
+	Global.current_run.player_stats.set_stat(StatId.DODGE, 0.0)
+	var damaged_effect := EffectDef.new()
+	damaged_effect.effect_id = &"effect/test/hazard_damaged_event"
+	damaged_effect.trigger_events = [GameplayEvent.Type.DAMAGED]
+	damaged_effect.operations = [EffectOperationDef.extra_damage(2.0)]
+	assert_bool(Global.gameplay_effects.register_effect(damaged_effect)).is_true()
+
+	var player: Player = auto_free(load(
+		"res://scenes/unit/players/player_well_rounded.tscn"
+	).instantiate() as Player) as Player
+	add_child(player)
+	Global.player = player
+	var enemy_definition: EnemyDef = Content.catalog.get_enemy(&"enemy/hazard_weaver")
+	assert_object(enemy_definition).is_not_null()
+	if enemy_definition == null:
+		return
+	var enemy: Enemy = auto_free(enemy_definition.scene.instantiate() as Enemy) as Enemy
+	enemy.definition = enemy_definition
+	add_child(enemy)
+	enemy.global_position = Vector2.ZERO
+	player.global_position = Vector2.ZERO
+	enemy.role_profile.hazard_damage = 10.0
+	enemy.role_profile.effect_radius = 100.0
+	var health_before := player.health_component.current_health
+
+	enemy._execute_role_action()
+
+	# 15 armor halves 10 raw damage; the DAMAGED effect then contributes 2.
+	assert_float(player.health_component.current_health).is_equal_approx(
+		health_before - 7.0,
+		0.001
+	)
+
+
+func test_charger_slam_uses_the_typed_player_damage_pipeline() -> void:
+	Global.begin_run(4042, null, 0)
+	Global.current_run.player_stats.set_stat(StatId.ARMOR, 15.0)
+	Global.current_run.player_stats.set_stat(StatId.DODGE, 0.0)
+	var player: Player = auto_free(load(
+		"res://scenes/unit/players/player_well_rounded.tscn"
+	).instantiate() as Player) as Player
+	add_child(player)
+	Global.player = player
+	var charger: Enemy = auto_free(load(
+		"res://scenes/unit/enemy/enemy_charger.tscn"
+	).instantiate() as Enemy) as Enemy
+	add_child(charger)
+	charger.global_position = Vector2.ZERO
+	player.global_position = Vector2.ZERO
+	var behavior := charger.get_node("ChargeBehavior") as ChargeBehavior
+	behavior.slam_target = Vector2.ZERO
+	var health_before := player.health_component.current_health
+	var raw_damage := charger.stats.damage * 1.2
+
+	behavior._execute_slam()
+
+	assert_float(player.health_component.current_health).is_equal_approx(
+		health_before - Global.combat_resolver.damage_after_armor(raw_damage, 15.0),
+		0.001
 	)
 
 

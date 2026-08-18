@@ -36,28 +36,34 @@ static func status_entries(statuses: Dictionary) -> Array[Dictionary]:
 
 
 static func boss_snapshot(enemies: Array) -> Dictionary:
-	var bosses: Array[Enemy] = []
-	for candidate: Variant in enemies:
-		if candidate is not Enemy:
-			continue
-		var enemy := candidate as Enemy
-		if not is_instance_valid(enemy) or enemy.definition == null or &"boss" not in enemy.definition.tags:
-			continue
-		bosses.append(enemy)
-	if bosses.is_empty():
-		return {}
+	var count := 0
 	var health := 0.0
 	var maximum := 0.0
 	var phase := &"base"
-	for boss: Enemy in bosses:
-		health += maxf(0.0, boss.health_component.current_health)
-		maximum += maxf(0.0, boss.health_component.max_health)
-		if boss is MouseDogBoss and (boss as MouseDogBoss).enraged:
+	for candidate: Variant in enemies:
+		# `is Enemy` itself raises when its left operand is a freed Object. Always
+		# validate the generic Variant before performing a type check or property read.
+		if typeof(candidate) != TYPE_OBJECT or not is_instance_valid(candidate):
+			continue
+		if candidate is not Enemy:
+			continue
+		var enemy := candidate as Enemy
+		if enemy.definition == null or &"boss" not in enemy.definition.tags:
+			continue
+		var health_component := enemy.health_component
+		if not is_instance_valid(health_component):
+			continue
+		count += 1
+		health += maxf(0.0, health_component.current_health)
+		maximum += maxf(0.0, health_component.max_health)
+		if enemy is MouseDogBoss and (enemy as MouseDogBoss).enraged:
 			phase = &"enraged"
-		elif boss is ScrapTitanBoss and (boss as ScrapTitanBoss).overdrive:
+		elif enemy is ScrapTitanBoss and (enemy as ScrapTitanBoss).overdrive:
 			phase = &"overdrive"
+	if count == 0:
+		return {}
 	return {
-		"count": bosses.size(),
+		"count": count,
 		"health": health,
 		"maximum_health": maximum,
 		"health_ratio": health / maximum if maximum > 0.0 else 0.0,

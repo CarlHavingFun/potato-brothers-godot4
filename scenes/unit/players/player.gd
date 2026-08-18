@@ -1,11 +1,14 @@
 extends Unit
 class_name Player
 
+const DEFAULT_ARENA_BOUNDS := preload("res://core/world/default_arena_bounds.tres")
+
 @export var dash_duration := 0.18
 @export var dash_invulnerability_duration := 0.12
 @export var dash_speed_multi := 3.4
 @export var dash_cooldown := 2.5
 @export var max_dash_charges := 1
+@export var arena_bounds: ArenaBoundsDef = DEFAULT_ARENA_BOUNDS
 
 @onready var dash_timer: Timer = $DashTimer
 @onready var dash_invulnerability_timer: Timer = $DashInvulnerabilityTimer
@@ -67,8 +70,7 @@ func _process(delta: float) -> void:
 	
 	velocity = current_velocity
 	move_and_slide()
-	position.x = clamp(position.x, -1000, 1000)
-	position.y = clamp(position.y, -500, 500)
+	constrain_to_arena()
 	
 	if can_dash():
 		start_dash()
@@ -80,6 +82,21 @@ func _process(delta: float) -> void:
 func apply_enemy_slow(multiplier: float, duration: float) -> void:
 	enemy_slow_multiplier = minf(enemy_slow_multiplier, clampf(multiplier, 0.4, 1.0))
 	enemy_slow_remaining = maxf(enemy_slow_remaining, maxf(0.0, duration))
+
+
+func constrain_to_arena() -> bool:
+	if arena_bounds == null:
+		return false
+	var before := global_position
+	var constrained := arena_bounds.clamp_player_position(before)
+	if constrained.is_equal_approx(before):
+		return false
+	if not is_equal_approx(constrained.x, before.x):
+		velocity.x = 0.0
+	if not is_equal_approx(constrained.y, before.y):
+		velocity.y = 0.0
+	global_position = constrained
+	return true
 
 
 func add_weapon(data: ItemWeapon) -> void:
@@ -143,6 +160,13 @@ func can_dash() -> bool:
 	dash_charges > 0 and\
 	Input.is_action_just_pressed("dash") and\
 	move_dir != Vector2.ZERO
+
+
+func is_damage_invulnerable() -> bool:
+	return (
+		dash_invulnerability_timer != null
+		and not dash_invulnerability_timer.is_stopped()
+	)
 
 
 func is_facing_right() -> bool:

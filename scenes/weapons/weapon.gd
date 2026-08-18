@@ -16,6 +16,7 @@ var aim_resolver := AimResolver.new()
 var pending_pierce := 0
 var pending_bounce := 0
 var presentation_controller: PresentationController
+var _last_resolved_attack_range := -INF
 
 func _ready() -> void:
 	presentation_controller = PresentationController.new()
@@ -25,6 +26,9 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	# Player stats can change while this weapon instance stays equipped. Keep the
+	# detection area in sync without rebuilding the weapon or its collision shape.
+	refresh_runtime_stats()
 	if not Global.is_combat_active(): return
 	
 	if not is_attacking:
@@ -54,10 +58,36 @@ func setup_weapon(data: ItemWeapon) -> void:
 		)
 	presentation_controller.set_semantic_state(&"idle")
 	collision.shape = collision.shape.duplicate()
-	collision.shape.radius = Global.combat_resolver.attack_range(
-		data.stats.max_range, Global.current_run.player_stats
-	) if Global.current_run != null and Global.combat_resolver != null else data.stats.max_range
+	refresh_runtime_stats()
 	apply_tier_outline()
+
+
+func resolved_attack_range() -> float:
+	if data == null or data.stats == null:
+		return 0.0
+	if Global.current_run != null and Global.combat_resolver != null:
+		return maxf(0.0, Global.combat_resolver.attack_range(
+			data.stats.max_range,
+			Global.current_run.player_stats
+		))
+	return maxf(0.0, data.stats.max_range)
+
+
+func refresh_runtime_stats() -> bool:
+	if collision == null or collision.shape == null:
+		return false
+	var circle := collision.shape as CircleShape2D
+	if circle == null:
+		return false
+	var next_range := resolved_attack_range()
+	if (
+		is_equal_approx(next_range, _last_resolved_attack_range)
+		and is_equal_approx(circle.radius, next_range)
+	):
+		return false
+	circle.radius = next_range
+	_last_resolved_attack_range = next_range
+	return true
 
 
 func use_weapon() -> void:

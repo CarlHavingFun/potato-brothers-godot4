@@ -12,8 +12,8 @@ product_name = "GOBRO Development"
 logo = ExtResource("2_logo")
 background = ExtResource("3_bg")
 font = ExtResource("4_font")
-translation_paths = PackedStringArray("res://content_packs/default/i18n/game.zh_CN.po", "res://content_packs/default/i18n/game.en.po")
-accent_color = Color(0.392, 0.835, 0.553, 1)
+translation_paths = PackedStringArray("res://content_packs/skins/dev_placeholder/i18n/skin.zh_CN.po", "res://content_packs/skins/dev_placeholder/i18n/skin.en.po")
+accent_color = Color(0.22, 0.68, 1, 1)
 asset_tables = {
 &"character": {
 &"character.almighty": "res://assets/sprites/Players/Player_1.png",
@@ -129,6 +129,7 @@ audio_cues = {
 &"hit.normal": "res://assets/audio/EnemyHit.wav",
 &"ui.confirm": "res://assets/audio/UI Pop.mp3",
 &"ui.hover": "res://assets/audio/UI Pop.mp3",
+&"ui.locked": "res://assets/audio/UI Pop.mp3",
 &"ui.purchase": "res://assets/audio/UI Pop.mp3",
 &"weapon.fire": "res://assets/audio/ShotgunFire.wav"
 }

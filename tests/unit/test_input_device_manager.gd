@@ -2,17 +2,27 @@ extends GdUnitTestSuite
 
 
 func test_device_manager_switches_prompts_between_keyboard_and_gamepad() -> void:
+	var original_locale := TranslationServer.get_locale()
+	TranslationServer.set_locale("en")
 	var manager := auto_free(InputDeviceManager.new()) as InputDeviceManager
 	add_child(manager)
 	manager.observe_event(InputEventKey.new())
 	assert_int(manager.active_device).is_equal(InputDeviceManager.Device.KEYBOARD_MOUSE)
 	assert_str(manager.confirm_prompt()).is_equal("Enter")
+	assert_str(manager.dash_prompt()).is_equal("Space")
 
 	var gamepad_event := InputEventJoypadButton.new()
 	gamepad_event.button_index = JOY_BUTTON_A
 	manager.observe_event(gamepad_event)
 	assert_int(manager.active_device).is_equal(InputDeviceManager.Device.GAMEPAD)
-	assert_str(manager.confirm_prompt()).is_equal("A")
+	assert_str(manager.confirm_prompt()).is_equal("A Button")
+
+	TranslationServer.set_locale("zh_CN")
+	assert_str(manager.confirm_prompt()).is_equal("A 键")
+	manager.observe_event(InputEventKey.new())
+	assert_str(manager.confirm_prompt()).is_equal("回车键")
+	assert_str(manager.dash_prompt()).is_equal("空格键")
+	TranslationServer.set_locale(original_locale)
 
 
 func test_disconnect_falls_back_to_keyboard_without_losing_navigation() -> void:
@@ -94,3 +104,27 @@ func test_input_remapping_supports_axes_defaults_and_transactional_deadzone() ->
 	assert_bool(default_pause.any(func(data: Dictionary): return int(data.get("physical_keycode", 0)) == KEY_ESCAPE)).is_true()
 	service.apply_actions(original)
 	service.set_gamepad_deadzone(original_deadzone)
+
+
+func test_mouse_binding_round_trips_as_a_localized_neutral_token() -> void:
+	var service := InputRemapService.new()
+	var mouse := InputEventMouseButton.new()
+	mouse.button_index = MOUSE_BUTTON_RIGHT
+	mouse.ctrl_pressed = true
+	var data := service.event_to_data(mouse)
+	var restored := service.events_from_data([data])
+	assert_int(restored.size()).is_equal(1)
+	assert_bool(restored[0] is InputEventMouseButton).is_true()
+	assert_int((restored[0] as InputEventMouseButton).button_index).is_equal(MOUSE_BUTTON_RIGHT)
+	assert_bool((restored[0] as InputEventMouseButton).ctrl_pressed).is_true()
+
+	var original_locale := TranslationServer.get_locale()
+	TranslationServer.set_locale("zh_CN")
+	assert_str(InputPromptFormatter.format_token(service.event_token(mouse))).is_equal(
+		"控制键 + 鼠标右键"
+	)
+	TranslationServer.set_locale("en")
+	assert_str(InputPromptFormatter.format_token(service.event_token(mouse))).is_equal(
+		"Control + Right Mouse Button"
+	)
+	TranslationServer.set_locale(original_locale)

@@ -41,6 +41,16 @@ func _update_visual() -> void:
 			])
 
 
+static func healing_amount_for_run(base_amount: float, run_state: RunState) -> float:
+	if run_state == null:
+		return maxf(0.0, base_amount)
+	return maxf(
+		0.0,
+		base_amount * run_state.pickup_healing_multiplier
+		+ run_state.consumable_healing_bonus
+	)
+
+
 func _on_body_entered(body: Node2D) -> void:
 	if not body is Player:
 		return
@@ -66,9 +76,7 @@ func _on_body_entered(body: Node2D) -> void:
 		)
 	else:
 		var player := body as Player
-		var healing := amount * (
-			Global.current_run.pickup_healing_multiplier if Global.current_run != null else 1.0
-		)
+		var healing := healing_amount_for_run(amount, Global.current_run)
 		player.health_component.heal(healing)
 		Global.on_create_heal_text.emit(player, healing)
 		Global.dispatch_gameplay_event(

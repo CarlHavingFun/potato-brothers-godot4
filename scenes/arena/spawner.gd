@@ -3,8 +3,12 @@ class_name Spawner
 
 signal on_wave_completed
 signal on_run_victory
+signal enemy_registry_changed(active_count: int)
 
-@export var spawn_area_size := Vector2(1000, 500)
+const DEFAULT_ARENA_BOUNDS := preload("res://core/world/default_arena_bounds.tres")
+const WAVE_RULES := preload("res://core/directors/core_wave_rules.gd")
+
+@export var arena_bounds: ArenaBoundsDef = DEFAULT_ARENA_BOUNDS
 
 @onready var spawn_timer: Timer = $SpawnTimer
 @onready var wave_timer: Timer = $WaveTimer
@@ -12,7 +16,10 @@ signal on_run_victory
 var wave_index := 1
 var current_wave_definition: WaveDef
 var current_wave_data: WaveData
-var spawned_enemies: Array[Enemy] = []
+var _spawned_enemies: Array[Enemy] = []
+var spawned_enemies: Array[Enemy]:
+	get:
+		return get_spawned_enemies()
 var rng := RandomNumberGenerator.new()
 var wave_director: WaveDirector
 var boss_spawned := false
@@ -50,7 +57,7 @@ func start_wave() -> void:
 	current_wave_definition = find_wave_definition()
 	current_wave_data = current_wave_definition.data if current_wave_definition != null else null
 	if current_wave_definition == null:
-		printerr("No valid wave.")
+		GameLog.error(&"wave", "wave_definition_missing", {"wave": wave_index})
 		spawn_timer.stop()
 		wave_timer.stop()
 		return
@@ -66,8 +73,15 @@ func start_wave() -> void:
 	expected_priority_spawns = wave_director.priority_spawn_limit(
 		current_wave_definition, difficulty_level
 	)
-	wave_timer.wait_time = current_wave_definition.duration
+	wave_timer.wait_time = WAVE_RULES.duration_for_wave(
+		wave_index, current_wave_definition.duration
+	)
 	wave_timer.start()
+	GameLog.info(&"wave", "wave_started", {
+		"wave": wave_index,
+		"duration_seconds": wave_timer.wait_time,
+		"priority_spawn_limit": expected_priority_spawns,
+	})
 	
 	set_spawn_timer()
 
@@ -101,10 +115,7 @@ func set_spawn_timer() -> void:
 func get_random_spawn_position() -> Vector2:
 	var candidate := Vector2.ZERO
 	for attempt in 12:
-		candidate = Vector2(
-			rng.randf_range(-spawn_area_size.x, spawn_area_size.x),
-			rng.randf_range(-spawn_area_size.y, spawn_area_size.y)
-		)
+		candidate = arena_bounds.random_spawn_position(rng)
 		var arena := get_parent()
 		if not arena is Arena or arena.ecology.is_spawn_position_safe(candidate):
 			return candidate
@@ -112,6 +123,9 @@ func get_random_spawn_position() -> Vector2:
 
 
 func spawn_enemy() -> void:
+	if get_active_enemy_count() >= WAVE_RULES.MAX_ACTIVE_ENEMIES:
+		set_spawn_timer()
+		return
 	var enemy_definition := _get_random_enemy_definition()
 	# Preserve the synchronous rejection path: callers and timers rely on an
 	# invalid wave stopping immediately, before the spawn animation coroutine.
@@ -123,6 +137,8 @@ func spawn_enemy() -> void:
 
 
 func _spawn_enemy_definition(enemy_definition: EnemyDef, spawn_pos: Vector2) -> Enemy:
+	if get_active_enemy_count() >= WAVE_RULES.MAX_ACTIVE_ENEMIES:
+		return null
 	var enemy_scene: PackedScene
 	if enemy_definition != null:
 		enemy_scene = enemy_definition.scene
@@ -140,6 +156,12 @@ func _spawn_enemy_definition(enemy_definition: EnemyDef, spawn_pos: Vector2) -> 
 		spawn_anim.global_position = spawn_pos
 		await spawn_anim.anim_player.animation_finished
 		spawn_anim.queue_free()
+		if (
+			not is_instance_valid(wave_timer)
+			or wave_timer.is_stopped()
+			or get_active_enemy_count() >= WAVE_RULES.MAX_ACTIVE_ENEMIES
+		):
+			return null
 		
 		var enemy_instance := enemy_scene.instantiate() as Enemy
 		enemy_instance.definition = enemy_definition
@@ -158,9 +180,9 @@ func _spawn_enemy_definition(enemy_definition: EnemyDef, spawn_pos: Vector2) -> 
 				"speed": Global.product_settings.enemy_speed_scale,
 			}
 		)
-		enemy_instance.global_position = spawn_pos
+		enemy_instance.global_position = arena_bounds.clamp_spawn_position(spawn_pos)
 		get_parent().add_child(enemy_instance)
-		spawned_enemies.append(enemy_instance)
+		_register_enemy(enemy_instance)
 		return enemy_instance
 	return null
 
@@ -172,7 +194,9 @@ func _on_reinforcement_requested(source: Enemy) -> void:
 	if reinforcement == null:
 		return
 	var angle := rng.randf_range(0.0, TAU)
-	var position_near_source := source.global_position + Vector2.RIGHT.rotated(angle) * 90.0
+	var position_near_source := arena_bounds.clamp_spawn_position(
+		source.global_position + Vector2.RIGHT.rotated(angle) * 90.0
+	)
 	_spawn_enemy_definition(reinforcement, position_near_source)
 
 
@@ -219,6 +243,10 @@ static func build_enemy_stats_for_wave(
 	var completed_waves := maxi(0, wave - 1)
 	result.health = roundi(definition.health + definition.health_increase_per_wave * completed_waves)
 	result.damage = definition.damage + definition.damage_increase_per_wave * completed_waves
+	if difficulty_level == 5 and &"boss" in enemy_tags:
+		result.health = roundi(
+			result.health * WAVE_RULES.final_boss_base_health_multiplier(difficulty_level)
+		)
 	var difficulty := Content.catalog.get_difficulty(clampi(difficulty_level, 1, 5))
 	if difficulty != null:
 		result.health = (
@@ -249,12 +277,69 @@ static func build_enemy_stats_for_wave(
 
 
 func clear_enemies() -> void:
-	if spawned_enemies.size() > 0:
-		for enemy: Enemy in spawned_enemies:
-			if is_instance_valid(enemy):
-				enemy.destroy_enemy()
-	
-	spawned_enemies.clear()
+	var active_enemies: Array[Enemy] = []
+	active_enemies.assign(get_spawned_enemies())
+	_spawned_enemies.clear()
+	if not active_enemies.is_empty():
+		enemy_registry_changed.emit(0)
+	for enemy: Enemy in active_enemies:
+		if is_instance_valid(enemy):
+			enemy.destroy_enemy()
+
+
+func get_spawned_enemies() -> Array[Enemy]:
+	_prune_enemy_registry()
+	return _spawned_enemies
+
+
+func get_active_enemy_count() -> int:
+	_prune_enemy_registry()
+	return _spawned_enemies.size()
+
+
+func _register_enemy(enemy: Enemy) -> void:
+	if not is_instance_valid(enemy):
+		return
+	_spawned_enemies.append(enemy)
+	var instance_id := enemy.get_instance_id()
+	enemy.tree_exiting.connect(
+		_on_enemy_tree_exiting.bind(instance_id), CONNECT_ONE_SHOT
+	)
+	if is_instance_valid(enemy.health_component):
+		enemy.health_component.on_unit_died.connect(
+			_on_enemy_died.bind(instance_id), CONNECT_ONE_SHOT
+		)
+	enemy_registry_changed.emit(_spawned_enemies.size())
+
+
+func _on_enemy_died(instance_id: int) -> void:
+	_unregister_enemy(instance_id)
+
+
+func _on_enemy_tree_exiting(instance_id: int) -> void:
+	_unregister_enemy(instance_id)
+
+
+func _unregister_enemy(instance_id: int) -> void:
+	var changed := false
+	for index: int in range(_spawned_enemies.size() - 1, -1, -1):
+		var enemy: Enemy = _spawned_enemies[index]
+		if not is_instance_valid(enemy) or enemy.get_instance_id() == instance_id:
+			_spawned_enemies.remove_at(index)
+			changed = true
+	if changed:
+		enemy_registry_changed.emit(_spawned_enemies.size())
+
+
+func _prune_enemy_registry() -> void:
+	var changed := false
+	for index: int in range(_spawned_enemies.size() - 1, -1, -1):
+		var enemy: Enemy = _spawned_enemies[index]
+		if not is_instance_valid(enemy) or enemy.is_queued_for_deletion():
+			_spawned_enemies.remove_at(index)
+			changed = true
+	if changed:
+		enemy_registry_changed.emit(_spawned_enemies.size())
 
 
 func get_wave_text() -> String:
@@ -299,6 +384,7 @@ func complete_wave() -> bool:
 		current_wave_definition.endless_cycle if current_wave_definition != null else 0
 	)
 	if final_wave:
+		GameLog.info(&"wave", "standard_run_completed", {"wave": wave_index})
 		on_run_victory.emit()
 	else:
 		if Global.current_run.run_mode == RunMode.ENDLESS and wave_index == 20:
@@ -306,6 +392,10 @@ func complete_wave() -> bool:
 		if Global.current_run.run_mode == RunMode.ENDLESS:
 			Global.record_endless_progress()
 		Global.get_harvesting_coins()
+		GameLog.info(&"wave", "wave_completed", {
+			"wave": wave_index,
+			"next_phase": next_phase,
+		})
 		on_wave_completed.emit()
 	return true
 
@@ -317,11 +407,12 @@ func complete_boss_victory() -> bool:
 		return false
 	if priority_spawns_emitted < expected_priority_spawns:
 		return false
-	for enemy: Enemy in spawned_enemies:
+	for enemy: Enemy in get_spawned_enemies():
 		if (
 			is_instance_valid(enemy)
 			and enemy.definition != null
 			and &"boss" in enemy.definition.tags
+			and is_instance_valid(enemy.health_component)
 			and enemy.health_component.current_health > 0.0
 		):
 			return false

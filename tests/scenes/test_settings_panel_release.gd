@@ -34,7 +34,7 @@ func test_settings_panel_value_labels_follow_sliders() -> void:
 	assert_str(panel.value_labels[panel.enemy_health_slider].text).is_equal("135%")
 
 
-func test_borderless_mode_disables_resolution_and_tabs_wrap() -> void:
+func test_only_windowed_mode_enables_resolution_and_tabs_wrap() -> void:
 	var panel: SettingsPanel = auto_free(load(SETTINGS_SCENE).instantiate()) as SettingsPanel
 	add_child(panel)
 	await await_idle_frame()
@@ -42,6 +42,12 @@ func test_borderless_mode_disables_resolution_and_tabs_wrap() -> void:
 	panel.display_mode_option.select(SettingsPanel.DISPLAY_MODE_BORDERLESS)
 	panel.call("_on_display_mode_selected", SettingsPanel.DISPLAY_MODE_BORDERLESS)
 	assert_bool(panel.resolution_option.disabled).is_true()
+	panel.display_mode_option.select(SettingsPanel.DISPLAY_MODE_EXCLUSIVE)
+	panel.call("_on_display_mode_selected", SettingsPanel.DISPLAY_MODE_EXCLUSIVE)
+	assert_bool(panel.resolution_option.disabled).is_true()
+	panel.display_mode_option.select(SettingsPanel.DISPLAY_MODE_WINDOWED)
+	panel.call("_on_display_mode_selected", SettingsPanel.DISPLAY_MODE_WINDOWED)
+	assert_bool(panel.resolution_option.disabled).is_false()
 	panel.call("_select_tab", 0)
 	panel.call("_switch_tab_relative", -1)
 	assert_int(panel.active_tab).is_equal(4)

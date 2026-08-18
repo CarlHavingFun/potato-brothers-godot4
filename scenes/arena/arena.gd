@@ -4,6 +4,7 @@ class_name Arena
 const MAX_EFFECT_ENTITIES_PER_KIND := 6
 const RUN_HUD_FORMATTER := preload("res://core/presentation/run_hud_formatter.gd")
 const EFFECT_PROJECTILE_SCENE := preload("res://scenes/projectiles/projectile_pistol.tscn")
+const WAVE_RULES := preload("res://core/directors/core_wave_rules.gd")
 
 signal frontend_requested
 
@@ -22,6 +23,8 @@ signal frontend_requested
 @onready var health_hud_label: Label = %HealthHudLabel
 @onready var experience_hud_label: Label = %ExperienceHudLabel
 @onready var material_bag_label: Label = %MaterialBagLabel
+@onready var health_hud_bar: ProgressBar = %HealthHudBar
+@onready var experience_hud_bar: ProgressBar = %ExperienceHudBar
 
 @onready var spawner: Spawner = $Spawner
 @onready var ecology: ArenaEcology = %ArenaEcology
@@ -42,9 +45,16 @@ signal frontend_requested
 
 var gold_list: Array[Coins]
 var effect_entities: Array[EffectAlly] = []
+var gameplay_notices := GameplayNoticeBus.new()
+var notice_label: Label
+var _last_hud_run_id := 0
+var _last_hud_materials := -1
+var _last_hud_material_bag := -1
+var _material_bag_explained := false
 
 func _ready() -> void:
 	_apply_skin_presentation()
+	_setup_notice_hud()
 	add_to_group(GameplayEffectExecutor.ARENA_GROUP)
 	Global.on_create_block_text.connect(_on_create_block_text)
 	Global.on_create_damage_text.connect(_on_create_damage_text)
@@ -76,18 +86,34 @@ func _start_music() -> void:
 func _process(delta: float) -> void:
 	if not Global.is_combat_active(): return
 	Global.current_run.elapsed_seconds += delta
-	wave_index_label.text = spawner.get_wave_text()
-	wave_time_label.text = spawner.get_wave_timer_text()
+	var hud := HudState.capture(
+		Global.current_run,
+		Global.player,
+		spawner.wave_timer.time_left,
+		Global.reward_service.experience_required_for_level(Global.current_run.level)
+	)
+	wave_index_label.text = LocalizedTextService.resolve(
+		&"ui.hud.wave.endless" if hud.endless else &"ui.hud.wave.standard",
+		[hud.wave]
+	)
+	wave_time_label.text = str(hud.seconds_remaining)
+	_track_material_notices(hud)
 	_refresh_runtime_hud()
 
 
 func _refresh_runtime_hud() -> void:
 	_refresh_player_vitals()
 	var current := spawner.current_wave_definition
-	encounter_label.text = tr(RUN_HUD_FORMATTER.encounter_key(current)) if current != null else ""
+	encounter_label.text = (
+		LocalizedTextService.resolve(RUN_HUD_FORMATTER.encounter_key(current))
+		if current != null
+		else ""
+	)
 	var next_wave := Content.catalog.get_wave(StringName("wave/%02d" % (spawner.wave_index + 1)))
 	if next_wave != null:
-		next_wave_label.text = tr("ui.hud.next_wave") % tr(RUN_HUD_FORMATTER.encounter_key(next_wave))
+		next_wave_label.text = LocalizedTextService.resolve(&"ui.hud.next_wave", [
+			LocalizedTextService.resolve(RUN_HUD_FORMATTER.encounter_key(next_wave)),
+		])
 	else:
 		next_wave_label.text = ""
 	_refresh_player_status()
@@ -102,16 +128,26 @@ func _refresh_player_vitals() -> void:
 		health_hud_label.text = ""
 		experience_hud_label.text = ""
 		material_bag_label.text = ""
+		health_hud_bar.value = 0.0
+		experience_hud_bar.value = 0.0
 		return
 	var health := Global.player.health_component
-	health_hud_label.text = tr("ui.hud.health") % [
+	health_hud_label.text = LocalizedTextService.resolve(&"ui.hud.health", [
 		roundi(health.current_health), roundi(health.max_health),
-	]
+	])
+	health_hud_bar.max_value = maxf(1.0, health.max_health)
+	health_hud_bar.value = clampf(health.current_health, 0.0, health_hud_bar.max_value)
 	var required := Global.reward_service.experience_required_for_level(Global.current_run.level)
-	experience_hud_label.text = tr("ui.hud.experience") % [
+	experience_hud_label.text = LocalizedTextService.resolve(&"ui.hud.experience", [
 		Global.current_run.level, Global.current_run.experience, required,
-	]
-	material_bag_label.text = tr("ui.hud.material_bag") % Global.current_run.material_bag
+	])
+	experience_hud_bar.max_value = maxi(1, required)
+	experience_hud_bar.value = clampi(
+		Global.current_run.experience, 0, int(experience_hud_bar.max_value)
+	)
+	material_bag_label.text = LocalizedTextService.resolve(
+		&"ui.hud.material_bag", [Global.current_run.material_bag]
+	)
 
 
 func _refresh_player_status() -> void:
@@ -121,7 +157,10 @@ func _refresh_player_status() -> void:
 	var parts: Array[String] = []
 	for entry: Dictionary in RUN_HUD_FORMATTER.status_entries(Global.player.active_effect_statuses):
 		var status_id := str(entry.get("status_id", ""))
-		parts.append("%s ×%d" % [tr("status.%s" % status_id), int(entry.get("stacks", 1))])
+		parts.append("%s ×%d" % [
+			LocalizedTextService.resolve(StringName("status.%s" % status_id)),
+			int(entry.get("stacks", 1)),
+		])
 	player_status_label.text = "  ".join(parts)
 
 
@@ -137,12 +176,66 @@ func _refresh_boss_status() -> void:
 		boss_status_label.text = ""
 		return
 	var phase_key := "ui.hud.boss_phase.%s" % str(snapshot.get("phase", "base"))
-	boss_status_label.text = tr("ui.hud.boss_status") % [
+	boss_status_label.text = LocalizedTextService.resolve(&"ui.hud.boss_status", [
 		int(snapshot.get("count", 1)),
-		tr(phase_key),
+		LocalizedTextService.resolve(StringName(phase_key)),
 		roundi(float(snapshot.get("health", 0.0))),
 		roundi(float(snapshot.get("maximum_health", 0.0))),
-	]
+	])
+
+
+func _setup_notice_hud() -> void:
+	notice_label = Label.new()
+	notice_label.name = "GameplayNoticeLabel"
+	notice_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	notice_label.position = Vector2(-360.0, 132.0)
+	notice_label.size = Vector2(720.0, 46.0)
+	notice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	notice_label.add_theme_font_size_override(&"font_size", 24)
+	notice_label.add_theme_color_override(&"font_color", Color(1.0, 0.84, 0.34))
+	notice_label.add_theme_color_override(&"font_outline_color", Color(0.04, 0.06, 0.05, 0.95))
+	notice_label.add_theme_constant_override(&"outline_size", 6)
+	notice_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	notice_label.modulate.a = 0.0
+	$GameUI.add_child(notice_label)
+	gameplay_notices.notice_emitted.connect(_on_gameplay_notice)
+
+
+func _track_material_notices(hud: HudState) -> void:
+	var run_id := Global.current_run.get_instance_id() if Global.current_run != null else 0
+	if run_id != _last_hud_run_id:
+		_last_hud_run_id = run_id
+		_last_hud_materials = hud.materials
+		_last_hud_material_bag = hud.material_bag
+		_material_bag_explained = false
+		return
+	if _last_hud_materials < 0 or _last_hud_material_bag < 0:
+		_last_hud_materials = hud.materials
+		_last_hud_material_bag = hud.material_bag
+		return
+	var material_gain := hud.materials - _last_hud_materials
+	var bag_delta := hud.material_bag - _last_hud_material_bag
+	if bag_delta > 0:
+		gameplay_notices.materials_banked(bag_delta, not _material_bag_explained)
+		_material_bag_explained = true
+	elif material_gain > 0:
+		gameplay_notices.material_pickup(material_gain, maxi(0, -bag_delta))
+	_last_hud_materials = hud.materials
+	_last_hud_material_bag = hud.material_bag
+
+
+func _on_gameplay_notice(text_id: StringName, args: Array, priority: int) -> void:
+	if not is_instance_valid(notice_label):
+		return
+	notice_label.text = LocalizedTextService.resolve(text_id, args)
+	notice_label.add_theme_color_override(
+		&"font_color",
+		Color(1.0, 0.84, 0.34) if priority == GameplayNoticeBus.Priority.IMPORTANT else Color.WHITE
+	)
+	notice_label.modulate.a = 1.0
+	var tween := notice_label.create_tween()
+	tween.tween_interval(1.35)
+	tween.tween_property(notice_label, "modulate:a", 0.0, 0.35)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -183,6 +276,7 @@ func start_new_wave() -> void:
 		if Global.current_run.run_mode == RunMode.ENDLESS and spawner.wave_index > 20
 		else 0
 	)
+	_apply_wave_start_character_rules()
 	Global.enter_phase(RunPhase.COMBAT)
 	Global.save_combat_checkpoint()
 	Global.dispatch_gameplay_event(GameplayEvent.Type.WAVE_STARTED, {"wave": spawner.wave_index})
@@ -199,7 +293,17 @@ func clean_arena() -> void:
 				uncollected_value += maxi(0, gold.value)
 				gold.queue_free()
 		if Global.current_run != null and Global.reward_service != null:
-			Global.reward_service.bank_materials(Global.current_run, uncollected_value)
+			var banked := Global.reward_service.bank_materials(
+				Global.current_run, uncollected_value
+			)
+			if banked > 0:
+				gameplay_notices.materials_banked(banked, not _material_bag_explained)
+				_material_bag_explained = true
+				# The wave has already left COMBAT, so `_process` cannot observe this
+				# transition until the next wave. Advance the baseline now to prevent
+				# a delayed duplicate notice on that next combat frame.
+				_last_hud_materials = Global.current_run.materials
+				_last_hud_material_bag = Global.current_run.material_bag
 	
 	gold_list.clear()
 	for entity: EffectAlly in effect_entities:
@@ -280,6 +384,14 @@ func _on_effect_ally_projectile_requested(
 
 
 func spawn_coins(enemy: Enemy) -> void:
+	if enemy == null or enemy.stats == null or enemy.stats.gold_drop <= 0:
+		return
+	if Global.current_run != null and not WAVE_RULES.should_drop_material(
+		Global.current_run.random_seed,
+		Global.current_run.wave,
+		Global.current_run.kill_count
+	):
+		return
 	var random_angle := randf_range(0, TAU)
 	var offset := Vector2.RIGHT.rotated(random_angle) * 35 
 	var spawn_pos := enemy.global_position + offset
@@ -294,7 +406,7 @@ func spawn_coins(enemy: Enemy) -> void:
 
 func _on_create_block_text(unit: Node2D) -> void:
 	var text := create_floating_text(unit)
-	text.setup("Blocked!", blocked_color)
+	text.setup(LocalizedTextService.resolve(&"ui.combat.blocked"), blocked_color)
 
 
 func _on_create_damage_text(unit: Node2D, hitbox: HitboxComponent) -> void:
@@ -380,7 +492,9 @@ func _show_shop() -> void:
 
 
 func _on_reward_panel_reward_claimed(item: ItemBase) -> void:
-	shop_panel.project_item(item)
+	# RewardPanel already applies a passive after the inventory claim succeeds.
+	# Project it into the inventory UI without applying its stats a second time.
+	shop_panel.project_item(item, false)
 
 
 func _on_reward_panel_reward_finished(next_phase: int) -> void:
@@ -455,12 +569,16 @@ func launch_run(request: RunLaunchRequest) -> bool:
 func resume_checkpoint(checkpoint: RunState) -> bool:
 	if checkpoint == null or is_instance_valid(Global.player):
 		return false
-	var character := Content.catalog.get_character(checkpoint.character_id)
-	var starter := Content.catalog.get_weapon(checkpoint.starting_weapon_id)
-	if character == null or starter == null:
+	var sanitizer := CheckpointContentSanitizer.new()
+	var repaired := sanitizer.sanitize(checkpoint, Content.catalog)
+	_append_checkpoint_repair_notices(sanitizer.repair_notice_keys)
+	if repaired == null or not repaired.is_resumable_checkpoint():
 		return false
-	var repaired := _repair_checkpoint_content(checkpoint, starter)
 	if repaired.phase in [RunPhase.VICTORY, RunPhase.DEATH]:
+		return false
+	var character := Content.catalog.get_character(repaired.character_id)
+	var starter := Content.catalog.get_weapon(repaired.starting_weapon_id)
+	if character == null or starter == null:
 		return false
 	_reset_runtime_run()
 	if not Global.select_character(character) or not Global.select_starting_weapon(starter):
@@ -475,6 +593,10 @@ func resume_checkpoint(checkpoint: RunState) -> bool:
 	add_child(player)
 	player.health_component.on_unit_died.connect(_on_player_died, CONNECT_ONE_SHOT)
 	_restore_inventory_visuals(repaired)
+	if not sanitizer.repair_notice_keys.is_empty():
+		# Persist both the sanitized checkpoint and its user-facing, localized
+		# repair summary. No content IDs are placed in profile UI notices.
+		Global.save_progress(true)
 	spawner.wave_index = repaired.wave
 	Global.current_run.wave = repaired.wave
 	title_panel.hide()
@@ -500,38 +622,11 @@ func resume_checkpoint(checkpoint: RunState) -> bool:
 	return true
 
 
-func _repair_checkpoint_content(checkpoint: RunState, starter: WeaponDef) -> RunState:
-	var repaired := RunState.from_dict(checkpoint.to_dict())
-	var sanitized_inventory := InventoryState.new()
-	var inventory_data := repaired.inventory.to_dict()
-	var raw_weapons: Variant = inventory_data.get("weapons", [])
-	if raw_weapons is Array:
-		for entry: Variant in raw_weapons:
-			if not entry is Dictionary:
-				continue
-			var weapon_id := StringName(str(entry.get("weapon_id", "")))
-			var definition := Content.catalog.get_weapon(weapon_id)
-			var tier := int(entry.get("tier", 0))
-			if definition == null or Content.catalog.get_weapon_tier(definition.get_stable_id(Content.catalog.pack_id), tier) == null:
-				continue
-			sanitized_inventory.add_weapon(
-				definition.get_stable_id(Content.catalog.pack_id),
-				tier,
-				int(entry.get("paid_price", 0))
-			)
-	if sanitized_inventory.weapon_count() == 0:
-		sanitized_inventory.add_weapon(starter.get_stable_id(Content.catalog.pack_id), 1, starter.tiers[0].item_cost)
-	var raw_passives: Variant = inventory_data.get("passives", {})
-	if raw_passives is Dictionary:
-		for raw_id: Variant in raw_passives:
-			var passive := Content.catalog.get_passive(StringName(str(raw_id)))
-			if passive != null:
-				sanitized_inventory.add_passive(
-					passive.get_stable_id(Content.catalog.pack_id),
-					maxi(1, int(raw_passives[raw_id]))
-				)
-	repaired.inventory = sanitized_inventory
-	return repaired
+func _append_checkpoint_repair_notices(notice_keys: Array[StringName]) -> void:
+	for notice_key: StringName in notice_keys:
+		var serialized := String(notice_key)
+		if serialized not in Global.meta_progress.repair_notices:
+			Global.meta_progress.repair_notices.append(serialized)
 
 
 func _restore_inventory_visuals(checkpoint: RunState) -> void:
@@ -568,8 +663,6 @@ func _begin_selected_combat(
 		return false
 	Global.current_run.difficulty = clampi(level, 1, 5)
 	Global.current_run.run_mode = run_mode if RunMode.is_valid(run_mode) else RunMode.STANDARD
-	if Global.main_character_selected != null and Global.main_character_selected.rules != null:
-		Global.main_character_selected.rules.apply_to_run(Global.current_run)
 	var player := Global.get_selected_player()
 	if player == null:
 		Global.end_run()
@@ -586,12 +679,22 @@ func _begin_selected_combat(
 	
 	Global.current_run.wave = spawner.wave_index
 	Global.current_run.highest_wave_reached = spawner.wave_index
+	_apply_wave_start_character_rules()
 	Global.enter_phase(RunPhase.COMBAT)
 	Global.save_combat_checkpoint()
 	Global.dispatch_gameplay_event(GameplayEvent.Type.WAVE_STARTED, {"wave": spawner.wave_index})
 	ecology.setup_wave(spawner.wave_index, Global.current_run.random_seed, player)
 	spawner.start_wave()
 	return true
+
+
+func _apply_wave_start_character_rules() -> int:
+	if Global.current_run == null:
+		return 0
+	var removed := Global.current_run.apply_wave_start_character_rules()
+	if removed > 0:
+		Global.materials_changed.emit(Global.current_run.materials)
+	return removed
 
 
 func _is_starter_weapon_allowed(character: CharacterDef, weapon: WeaponDef) -> bool:
@@ -628,6 +731,15 @@ func finish_run(victory: bool) -> void:
 		if is_instance_valid(spawner.wave_timer):
 			spawner.wave_timer.stop()
 		spawner.clear_enemies()
+	GameLog.info(&"run", "run_finished", {
+		"victory": victory,
+		"run_mode": Global.current_run.run_mode,
+		"difficulty": Global.current_run.difficulty,
+		"highest_wave": Global.current_run.highest_wave_reached,
+		"kills": Global.current_run.kill_count,
+		"boss_kills": Global.current_run.boss_kill_count,
+		"elapsed_seconds": snappedf(Global.current_run.elapsed_seconds, 0.1),
+	})
 	Global.record_run_summary(victory)
 	if Global.current_run.run_mode == RunMode.ENDLESS:
 		Global.record_endless_progress()

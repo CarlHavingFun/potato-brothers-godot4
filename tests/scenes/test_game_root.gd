@@ -102,7 +102,8 @@ func test_character_core_rule_is_applied_once_before_player_spawn() -> void:
 
 	assert_bool(Global.current_run.character_rule_applied).is_true()
 	assert_str(String(Global.current_run.character_rule_id)).is_equal("character_rule/scrap_broker")
-	assert_int(Global.current_run.materials).is_equal(Global.STARTING_MATERIALS + 25)
+	assert_int(Global.current_run.materials).is_zero()
+	assert_bool(Global.current_run.materials_reset_on_wave_start).is_true()
 	assert_array(Global.current_run.shop_bias_tags).contains([&"economy", &"luck"])
 	root.call("return_to_frontend")
 
@@ -302,6 +303,43 @@ func test_new_wave_checkpoint_precedes_wave_started_effects_and_rng() -> void:
 	assert_float(Global.current_run.player_stats.get_stat(StatId.DAMAGE)).is_equal(before_damage + 7.0)
 	assert_float(saved.player_stats.get_stat(StatId.DAMAGE)).is_equal(before_damage)
 	assert_int(int(saved.rng_states.get("effects", 0))).is_equal(before_effect_rng)
+	root.call("return_to_frontend")
+
+
+func test_passive_chest_reward_applies_stats_exactly_once_through_arena_signal_chain() -> void:
+	var root: Node = auto_free(load(GAME_ROOT_SCENE).instantiate())
+	add_child(root)
+	await await_idle_frame()
+	await await_idle_frame()
+	var character := Content.catalog.get_character(&"character/well_rounded")
+	var weapon := Content.catalog.get_weapon(character.starter_weapon_ids[0])
+	var request := RunLaunchRequest.new()
+	request.profile_id = 1
+	request.character_id = character.get_stable_id(Content.catalog.pack_id)
+	request.weapon_id = weapon.get_stable_id(Content.catalog.pack_id)
+	request.difficulty = 1
+	request.random_seed = 614
+	assert_bool(root.call("launch_run", request)).is_true()
+	var passive := Content.catalog.get_passive(&"passive/coffee")
+	assert_object(passive).is_not_null()
+	if passive == null:
+		root.call("return_to_frontend")
+		return
+	Global.current_run.queued_rewards = 1
+	assert_bool(Global.enter_phase(RunPhase.UPGRADE)).is_true()
+	assert_bool(Global.enter_phase(RunPhase.CHEST)).is_true()
+	var attack_speed_before := Global.current_run.player_stats.get_stat(StatId.ATTACK_SPEED)
+	var expected_delta := float(passive.stat_modifiers.get("attack_speed", 0.0))
+	var reward_panel := root.get_node("Arena/GameUI/RewardPanel") as RewardPanel
+	reward_panel.reward_item = passive.item
+
+	reward_panel.call("_on_claim_button_pressed")
+
+	var stable_id := passive.get_stable_id(Content.catalog.pack_id)
+	assert_int(Global.current_run.inventory.passive_count(stable_id)).is_equal(1)
+	assert_float(Global.current_run.player_stats.get_stat(StatId.ATTACK_SPEED)).is_equal(
+		attack_speed_before + expected_delta
+	)
 	root.call("return_to_frontend")
 
 

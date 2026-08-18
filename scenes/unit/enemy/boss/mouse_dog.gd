@@ -151,7 +151,11 @@ func _execute_slam() -> void:
 	presentation_controller.set_semantic_state(&"attack")
 	if is_instance_valid(Global.player) \
 	and global_position.distance_to(Global.player.global_position) <= slam_radius:
-		Global.player.health_component.take_damage(stats.damage * (1.35 if enraged else 1.1))
+		Global.player.receive_typed_damage(
+			stats.damage * (1.35 if enraged else 1.1),
+			self,
+			[&"enemy", &"boss", &"attack/slam"] as Array[StringName]
+		)
 	GameplayCues.emit_cue(&"boss.slam", {
 		"presentation_id": definition.get_presentation_id(Content.catalog.pack_id) if definition != null else &"enemy.mouse_dog",
 		"world_position": global_position,

@@ -7,6 +7,10 @@ const TITAN_SCRIPT_PATH := "res://scenes/unit/enemy/boss/scrap_titan.gd"
 const TITAN_SCENE_PATH := "res://scenes/unit/enemy/boss/scrap_titan.tscn"
 
 
+func after_test() -> void:
+	Global.end_run()
+
+
 func test_mouse_dog_has_a_dedicated_component_scene() -> void:
 	assert_bool(ResourceLoader.exists(BOSS_SCRIPT_PATH)).is_true()
 	assert_bool(ResourceLoader.exists(BOSS_SCENE_PATH)).is_true()
@@ -121,4 +125,49 @@ func test_scrap_titan_rotates_radial_aimed_and_ground_pulse_attacks() -> void:
 	)
 	assert_int(ScrapTitanBoss.attack_kind_for(2, true)).is_equal(
 		ScrapTitanBoss.AttackKind.GROUND_PULSE
+	)
+
+
+func test_boss_slam_and_ground_pulse_use_the_typed_player_damage_pipeline() -> void:
+	Global.begin_run(912, null, 0)
+	Global.current_run.player_stats.set_stat(StatId.ARMOR, 15.0)
+	Global.current_run.player_stats.set_stat(StatId.DODGE, 0.0)
+	var player: Player = auto_free(load(
+		"res://scenes/unit/players/player_well_rounded.tscn"
+	).instantiate() as Player) as Player
+	add_child(player)
+	Global.player = player
+	player.global_position = Vector2.ZERO
+
+	var mouse_dog: MouseDogBoss = auto_free(load(
+		BOSS_SCENE_PATH
+	).instantiate() as MouseDogBoss) as MouseDogBoss
+	mouse_dog.definition = Content.catalog.get_enemy(&"enemy/mouse_dog")
+	add_child(mouse_dog)
+	mouse_dog.global_position = Vector2.ZERO
+	mouse_dog.slam_target = Vector2.ZERO
+	var mouse_health_before := player.health_component.current_health
+	var mouse_raw_damage := mouse_dog.stats.damage * 1.1
+	mouse_dog._execute_slam()
+	assert_float(player.health_component.current_health).is_equal_approx(
+		mouse_health_before - Global.combat_resolver.damage_after_armor(
+			mouse_raw_damage, 15.0
+		),
+		0.001
+	)
+
+	var titan: ScrapTitanBoss = auto_free(load(
+		TITAN_SCENE_PATH
+	).instantiate() as ScrapTitanBoss) as ScrapTitanBoss
+	titan.definition = Content.catalog.get_enemy(&"enemy/scrap_titan")
+	add_child(titan)
+	titan.global_position = Vector2.ZERO
+	var titan_health_before := player.health_component.current_health
+	var titan_raw_damage := titan.stats.damage * 1.15
+	titan._emit_ground_pulse()
+	assert_float(player.health_component.current_health).is_equal_approx(
+		titan_health_before - Global.combat_resolver.damage_after_armor(
+			titan_raw_damage, 15.0
+		),
+		0.001
 	)

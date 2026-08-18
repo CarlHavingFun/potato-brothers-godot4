@@ -155,7 +155,11 @@ func _emit_aimed_volley() -> void:
 func _emit_ground_pulse() -> void:
 	if is_instance_valid(Global.player) \
 	and global_position.distance_to(Global.player.global_position) <= ground_pulse_radius:
-		Global.player.health_component.take_damage(stats.damage * (1.4 if overdrive else 1.15))
+		Global.player.receive_typed_damage(
+			stats.damage * (1.4 if overdrive else 1.15),
+			self,
+			[&"enemy", &"boss", &"attack/ground_pulse"] as Array[StringName]
+		)
 	GameplayCues.emit_cue(&"boss.ground_pulse", {
 		"radius": ground_pulse_radius,
 		"world_position": global_position,

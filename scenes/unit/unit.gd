@@ -86,9 +86,37 @@ func effect_speed_multiplier() -> float:
 func apply_effect_damage(amount: float, source: Object = null) -> void:
 	if amount <= 0.0 or health_component.current_health <= 0.0:
 		return
+	if self is Player:
+		receive_typed_damage(
+			amount,
+			source,
+			[&"effect"] as Array[StringName]
+		)
+		return
 	record_damage_source(source)
 	set_flash_material()
 	health_component.take_damage(amount)
+
+
+func receive_typed_damage(
+	amount: float,
+	source: Object = null,
+	gameplay_tags: Array[StringName] = []
+) -> void:
+	if amount <= 0.0 or health_component.current_health <= 0.0:
+		return
+	var source_node := source as Node2D if is_instance_valid(source) else null
+	var scripted_hit := HitboxComponent.new()
+	scripted_hit.setup(
+		amount,
+		false,
+		0.0,
+		source_node,
+		source,
+		gameplay_tags
+	)
+	_on_hurtbox_component_on_damaged(scripted_hit)
+	scripted_hit.free()
 
 
 func record_damage_source(source: Object) -> void:
@@ -146,7 +174,7 @@ static func health_bar_visible_for(
 
 
 func _on_hurtbox_component_on_damaged(hitbox: HitboxComponent) -> void:
-	if hitbox == null or health_component.current_health <= 0:
+	if hitbox == null or health_component.current_health <= 0 or is_damage_invulnerable():
 		return
 
 	var request := HitRequest.from_hitbox(hitbox, self)
@@ -154,7 +182,8 @@ func _on_hurtbox_component_on_damaged(hitbox: HitboxComponent) -> void:
 	request.damage_multiplier = incoming_damage_multiplier()
 	if self is Player and Global.current_run != null:
 		request.dodge_chance = Global.combat_resolver.dodge_chance(
-			Global.current_run.player_stats
+			Global.current_run.player_stats,
+			Global.current_run.dodge_cap_override
 		)
 		request.armor = Global.current_run.player_stats.get_stat(StatId.ARMOR)
 	var hit_result := HitResolver.new(Global.combat_resolver).resolve(request)
@@ -203,6 +232,10 @@ func _on_hurtbox_component_on_damaged(hitbox: HitboxComponent) -> void:
 
 func incoming_damage_multiplier() -> float:
 	return 1.0
+
+
+func is_damage_invulnerable() -> bool:
+	return false
 
 
 func _on_flash_timer_timeout() -> void:

@@ -63,6 +63,14 @@ func events_equivalent(first: InputEvent, second: InputEvent) -> bool:
 		var second_motion := second as InputEventJoypadMotion
 		return first_motion.axis == second_motion.axis \
 			and signf(first_motion.axis_value) == signf(second_motion.axis_value)
+	if first is InputEventMouseButton and second is InputEventMouseButton:
+		var first_mouse := first as InputEventMouseButton
+		var second_mouse := second as InputEventMouseButton
+		return first_mouse.button_index == second_mouse.button_index \
+			and first_mouse.alt_pressed == second_mouse.alt_pressed \
+			and first_mouse.shift_pressed == second_mouse.shift_pressed \
+			and first_mouse.ctrl_pressed == second_mouse.ctrl_pressed \
+			and first_mouse.meta_pressed == second_mouse.meta_pressed
 	return false
 
 
@@ -134,14 +142,228 @@ func gamepad_deadzone() -> float:
 
 
 func binding_text(action: StringName, gamepad: bool) -> String:
+	return InputPromptFormatter.format_binding_tokens(binding_tokens(action, gamepad))
+
+
+func binding_tokens(action: StringName, gamepad: bool) -> Array[Dictionary]:
 	if not InputMap.has_action(action):
-		return ""
-	var parts: Array[String] = []
+		return []
+	var result: Array[Dictionary] = []
 	for event: InputEvent in InputMap.action_get_events(action):
 		if gamepad != (event is InputEventJoypadButton or event is InputEventJoypadMotion):
 			continue
-		parts.append(_event_text(event))
-	return " / ".join(parts)
+		result.append(event_token(event))
+	return result
+
+
+static func event_token(event: InputEvent) -> Dictionary:
+	if event is InputEventKey:
+		return key_token(event as InputEventKey)
+	if event is InputEventJoypadButton:
+		return joy_button_token((event as InputEventJoypadButton).button_index)
+	if event is InputEventJoypadMotion:
+		var motion := event as InputEventJoypadMotion
+		return joy_axis_token(motion.axis, motion.axis_value)
+	if event is InputEventMouseButton:
+		var mouse := event as InputEventMouseButton
+		var token := mouse_button_token(mouse.button_index)
+		token["modifier_ids"] = _modifier_ids(mouse)
+		return token
+	return {"text_id": &"input.unknown", "args": [], "modifier_ids": []}
+
+
+static func key_token(event: InputEventKey) -> Dictionary:
+	var keycode := event.physical_keycode if event.physical_keycode != KEY_NONE else event.keycode
+	var text_id := &"input.key.code"
+	var args: Array = [int(keycode)]
+	match keycode:
+		KEY_ENTER:
+			text_id = &"input.key.enter"
+			args = []
+		KEY_KP_ENTER:
+			text_id = &"input.key.keypad_enter"
+			args = []
+		KEY_ESCAPE:
+			text_id = &"input.key.escape"
+			args = []
+		KEY_SPACE:
+			text_id = &"input.key.space"
+			args = []
+		KEY_TAB:
+			text_id = &"input.key.tab"
+			args = []
+		KEY_BACKSPACE:
+			text_id = &"input.key.backspace"
+			args = []
+		KEY_DELETE:
+			text_id = &"input.key.delete"
+			args = []
+		KEY_INSERT:
+			text_id = &"input.key.insert"
+			args = []
+		KEY_HOME:
+			text_id = &"input.key.home"
+			args = []
+		KEY_END:
+			text_id = &"input.key.end"
+			args = []
+		KEY_PAGEUP:
+			text_id = &"input.key.page_up"
+			args = []
+		KEY_PAGEDOWN:
+			text_id = &"input.key.page_down"
+			args = []
+		KEY_LEFT:
+			text_id = &"input.key.left"
+			args = []
+		KEY_RIGHT:
+			text_id = &"input.key.right"
+			args = []
+		KEY_UP:
+			text_id = &"input.key.up"
+			args = []
+		KEY_DOWN:
+			text_id = &"input.key.down"
+			args = []
+		KEY_SHIFT:
+			text_id = &"input.key.shift"
+			args = []
+		KEY_CTRL:
+			text_id = &"input.key.control"
+			args = []
+		KEY_ALT:
+			text_id = &"input.key.alt"
+			args = []
+		KEY_META:
+			text_id = &"input.key.meta"
+			args = []
+		_:
+			var code := int(keycode)
+			if code >= int(KEY_F1) and code <= int(KEY_F35):
+				text_id = &"input.key.function"
+				args = [code - int(KEY_F1) + 1]
+			elif code >= 33 and code <= 126:
+				text_id = &"input.key.glyph"
+				args = [String.chr(code)]
+	return {
+		"text_id": text_id,
+		"args": args,
+		"modifier_ids": _modifier_ids(event, keycode),
+	}
+
+
+static func joy_button_token(button: JoyButton) -> Dictionary:
+	var text_id := &"input.button.numbered"
+	var args: Array = [int(button) + 1]
+	match button:
+		JOY_BUTTON_A, JOY_BUTTON_B, JOY_BUTTON_X, JOY_BUTTON_Y:
+			text_id = &"input.button.face"
+			var face_glyphs: Array[String] = ["A", "B", "X", "Y"]
+			args = [face_glyphs[int(button)]]
+		JOY_BUTTON_BACK:
+			text_id = &"input.button.back"
+			args = []
+		JOY_BUTTON_GUIDE:
+			text_id = &"input.button.guide"
+			args = []
+		JOY_BUTTON_START:
+			text_id = &"input.button.start"
+			args = []
+		JOY_BUTTON_LEFT_STICK:
+			text_id = &"input.button.left_stick"
+			args = []
+		JOY_BUTTON_RIGHT_STICK:
+			text_id = &"input.button.right_stick"
+			args = []
+		JOY_BUTTON_LEFT_SHOULDER:
+			text_id = &"input.button.left_shoulder"
+			args = []
+		JOY_BUTTON_RIGHT_SHOULDER:
+			text_id = &"input.button.right_shoulder"
+			args = []
+		JOY_BUTTON_DPAD_UP:
+			text_id = &"input.button.dpad_up"
+			args = []
+		JOY_BUTTON_DPAD_DOWN:
+			text_id = &"input.button.dpad_down"
+			args = []
+		JOY_BUTTON_DPAD_LEFT:
+			text_id = &"input.button.dpad_left"
+			args = []
+		JOY_BUTTON_DPAD_RIGHT:
+			text_id = &"input.button.dpad_right"
+			args = []
+	return {"text_id": text_id, "args": args, "modifier_ids": []}
+
+
+static func joy_axis_token(axis: JoyAxis, value: float) -> Dictionary:
+	var axis_ids: Array[StringName] = [
+		&"input.axis.left_x", &"input.axis.left_y",
+		&"input.axis.right_x", &"input.axis.right_y",
+		&"input.axis.trigger_left", &"input.axis.trigger_right",
+	]
+	var axis_id := (
+		axis_ids[int(axis)]
+		if int(axis) >= 0 and int(axis) < axis_ids.size()
+		else &"input.axis.numbered"
+	)
+	return {
+		"text_id": &"input.axis.binding",
+		"args": [int(axis) + 1] if axis_id == &"input.axis.numbered" else [],
+		"axis_id": axis_id,
+		"direction_id": &"input.axis.negative" if value < 0.0 else &"input.axis.positive",
+		"modifier_ids": [],
+	}
+
+
+static func mouse_button_token(button: MouseButton) -> Dictionary:
+	var text_id := &"input.mouse.numbered"
+	var args: Array = [int(button)]
+	match button:
+		MOUSE_BUTTON_LEFT:
+			text_id = &"input.mouse.left"
+			args = []
+		MOUSE_BUTTON_RIGHT:
+			text_id = &"input.mouse.right"
+			args = []
+		MOUSE_BUTTON_MIDDLE:
+			text_id = &"input.mouse.middle"
+			args = []
+		MOUSE_BUTTON_WHEEL_UP:
+			text_id = &"input.mouse.wheel_up"
+			args = []
+		MOUSE_BUTTON_WHEEL_DOWN:
+			text_id = &"input.mouse.wheel_down"
+			args = []
+		MOUSE_BUTTON_WHEEL_LEFT:
+			text_id = &"input.mouse.wheel_left"
+			args = []
+		MOUSE_BUTTON_WHEEL_RIGHT:
+			text_id = &"input.mouse.wheel_right"
+			args = []
+		MOUSE_BUTTON_XBUTTON1:
+			text_id = &"input.mouse.extra_1"
+			args = []
+		MOUSE_BUTTON_XBUTTON2:
+			text_id = &"input.mouse.extra_2"
+			args = []
+	return {"text_id": text_id, "args": args, "modifier_ids": []}
+
+
+static func _modifier_ids(
+	event: InputEventWithModifiers,
+	keycode: Key = KEY_NONE
+) -> Array[StringName]:
+	var result: Array[StringName] = []
+	if event.ctrl_pressed and keycode != KEY_CTRL:
+		result.append(&"input.key.control")
+	if event.alt_pressed and keycode != KEY_ALT:
+		result.append(&"input.key.alt")
+	if event.shift_pressed and keycode != KEY_SHIFT:
+		result.append(&"input.key.shift")
+	if event.meta_pressed and keycode != KEY_META:
+		result.append(&"input.key.meta")
+	return result
 
 
 func event_to_data(event: InputEvent) -> Dictionary:
@@ -161,6 +383,16 @@ func event_to_data(event: InputEvent) -> Dictionary:
 	if event is InputEventJoypadMotion:
 		var motion := event as InputEventJoypadMotion
 		return {"type": "joy_axis", "axis": motion.axis, "axis_value": motion.axis_value}
+	if event is InputEventMouseButton:
+		var mouse := event as InputEventMouseButton
+		return {
+			"type": "mouse_button",
+			"button_index": mouse.button_index,
+			"alt": mouse.alt_pressed,
+			"shift": mouse.shift_pressed,
+			"ctrl": mouse.ctrl_pressed,
+			"meta": mouse.meta_pressed,
+		}
 	return {}
 
 
@@ -189,6 +421,14 @@ func events_from_data(raw_events: Array) -> Array[InputEvent]:
 				motion.axis = int(data.get("axis", 0)) as JoyAxis
 				motion.axis_value = clampf(float(data.get("axis_value", 0.0)), -1.0, 1.0)
 				result.append(motion)
+			"mouse_button":
+				var mouse := InputEventMouseButton.new()
+				mouse.button_index = int(data.get("button_index", MOUSE_BUTTON_LEFT)) as MouseButton
+				mouse.alt_pressed = bool(data.get("alt", false))
+				mouse.shift_pressed = bool(data.get("shift", false))
+				mouse.ctrl_pressed = bool(data.get("ctrl", false))
+				mouse.meta_pressed = bool(data.get("meta", false))
+				result.append(mouse)
 	return result
 
 
@@ -221,24 +461,22 @@ func _normalized_copy(event: InputEvent) -> InputEvent:
 	elif copy is InputEventJoypadMotion:
 		var motion := copy as InputEventJoypadMotion
 		motion.axis_value = -1.0 if motion.axis_value < 0.0 else 1.0
+	elif copy is InputEventMouseButton:
+		(copy as InputEventMouseButton).pressed = false
 	return copy
 
 
 func _is_supported_event(event: InputEvent) -> bool:
-	return event is InputEventKey or event is InputEventJoypadButton or event is InputEventJoypadMotion
+	return (
+		event is InputEventKey
+		or event is InputEventMouseButton
+		or event is InputEventJoypadButton
+		or event is InputEventJoypadMotion
+	)
 
 
 func _effective_keycode(event: InputEventKey) -> Key:
 	return event.physical_keycode if event.physical_keycode != KEY_NONE else event.keycode
-
-
-func _event_text(event: InputEvent) -> String:
-	if event is InputEventJoypadMotion:
-		var motion := event as InputEventJoypadMotion
-		var axis_names: Array[String] = ["Left X", "Left Y", "Right X", "Right Y", "Trigger L", "Trigger R"]
-		var axis_name: String = axis_names[motion.axis] if motion.axis >= 0 and motion.axis < axis_names.size() else "Axis %d" % motion.axis
-		return "%s %s" % [axis_name, "-" if motion.axis_value < 0.0 else "+"]
-	return event.as_text()
 
 
 func _key_data(keycode: Key) -> Dictionary:

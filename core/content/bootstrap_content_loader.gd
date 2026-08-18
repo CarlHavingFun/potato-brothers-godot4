@@ -10,7 +10,9 @@ const OPTIONAL_CHARACTER_PATHS: Array[String] = [
 
 
 var catalog := ContentCatalog.new()
+var active_balance_pack: BalancePackDef
 var last_errors := PackedStringArray()
+var _translation_paths: Array[String] = []
 
 
 func _init() -> void:
@@ -23,58 +25,97 @@ func _init() -> void:
 		push_error("Default content pack failed to load: %s" % "\n".join(last_errors))
 
 
+func _ready() -> void:
+	_apply_registered_translations()
+
+
 func load_manifest(manifest_path: String, source_root := "") -> int:
 	last_errors.clear()
 	if not ResourceLoader.exists(manifest_path):
 		last_errors.append("content manifest not found: %s" % manifest_path)
 		return ERR_FILE_NOT_FOUND
 
-	var resource := ResourceLoader.load(manifest_path, "ContentPackDef", ResourceLoader.CACHE_MODE_REPLACE)
+	# Exported .tres files are remapped to binary resources. A class_name string
+	# is not a native runtime type hint, so validate the script type after load.
+	var resource := ResourceLoader.load(manifest_path, "", ResourceLoader.CACHE_MODE_REPLACE)
 	if not resource is ContentPackDef:
 		last_errors.append("content manifest is not a ContentPackDef: %s" % manifest_path)
 		return ERR_INVALID_DATA
 
-	var runtime_pack := resource as ContentPackDef
+	# Runtime catalogs must not keep ResourceLoader's cached manifest objects.
+	# Tests, import tools, and optional pack validation may reload a manifest with
+	# CACHE_MODE_REPLACE; sharing those instances would silently revert the live
+	# balance overlay midway through a run. Own a deep runtime copy instead.
+	var runtime_pack := (resource as ContentPackDef).duplicate(true) as ContentPackDef
 	if manifest_path == DEFAULT_MANIFEST_PATH:
 		runtime_pack = _with_optional_characters(runtime_pack)
 
 	var validator := ContentValidator.new()
 	last_errors = validator.validate_pack(runtime_pack, source_root)
+	var candidate_balance_pack: BalancePackDef
+	if manifest_path == DEFAULT_MANIFEST_PATH:
+		candidate_balance_pack = BalanceProfileRegistry.load_active(runtime_pack)
+		last_errors.append_array(
+			validator.validate_balance_parity(runtime_pack, candidate_balance_pack)
+		)
 	if not last_errors.is_empty():
 		return ERR_INVALID_DATA
 
 	var candidate_catalog := ContentCatalog.new()
-	var result := candidate_catalog.register_pack(runtime_pack)
+	var result := candidate_catalog.register_pack(runtime_pack, candidate_balance_pack)
 	if result != OK:
 		last_errors.append("content catalog registration failed: %s" % error_string(result))
 		return result
 	catalog = candidate_catalog
+	active_balance_pack = candidate_balance_pack
 	_register_translations(runtime_pack)
 	return OK
 
 
-func _with_optional_characters(source: ContentPackDef) -> ContentPackDef:
+func _with_optional_characters(
+	source: ContentPackDef,
+	optional_paths: Array[String] = OPTIONAL_CHARACTER_PATHS
+) -> ContentPackDef:
 	var result := source.duplicate(false) as ContentPackDef
 	result.characters = source.characters.duplicate()
 	var known_ids := {}
 	for character: CharacterDef in result.characters:
 		if character != null:
 			known_ids[character.content_id] = true
-	for path: String in OPTIONAL_CHARACTER_PATHS:
+	for path: String in optional_paths:
 		if not ResourceLoader.exists(path):
 			continue
-		var character := ResourceLoader.load(
-			path, "CharacterDef", ResourceLoader.CACHE_MODE_REPLACE
+		var cached_character := ResourceLoader.load(
+			path, "", ResourceLoader.CACHE_MODE_REPLACE
 		) as CharacterDef
-		if character == null or character.content_id.is_empty() or known_ids.has(character.content_id):
+		if (
+			cached_character == null
+			or cached_character.content_id.is_empty()
+			or known_ids.has(cached_character.content_id)
+		):
 			continue
+		# Optional resources are reloaded with CACHE_MODE_REPLACE by import tools.
+		# Never expose that cached instance to the active runtime catalog: a later
+		# reload of the same path mutates the cached object in place.
+		var character := cached_character.duplicate(true) as CharacterDef
 		result.characters.append(character)
 		known_ids[character.content_id] = true
 	return result
 
 
 func _register_translations(pack: ContentPackDef) -> void:
-	for translation_path: String in pack.translation_paths:
+	_translation_paths.assign(pack.translation_paths)
+	# The autoload performs its initial manifest load from `_init`, before it is
+	# inside the tree. Defer the process-wide registration to `_ready`; detached
+	# validation/import loaders never reach that callback and cannot clobber it.
+	if not is_inside_tree():
+		return
+	_apply_registered_translations()
+
+
+func _apply_registered_translations() -> void:
+	LocalizedTextService.configure_core_paths(_translation_paths)
+	for translation_path: String in _translation_paths:
 		if not ResourceLoader.exists(translation_path):
 			push_warning("Content translation not found: %s" % translation_path)
 			continue

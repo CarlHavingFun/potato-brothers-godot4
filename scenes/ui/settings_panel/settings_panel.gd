@@ -176,7 +176,7 @@ func _build_controls_page() -> void:
 	var help := Label.new()
 	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	help.add_theme_font_size_override(&"font_size", 17)
-	_register_text(help, &"ui.settings.remap_help", "Select a binding, then press a key, controller button, or move a stick.")
+	_register_text(help, &"ui.settings.remap_help", "Select a binding, then press a key, mouse button, controller button, or move a stick.")
 	controls_content.add_child(help)
 	keybind_grid = GridContainer.new()
 	keybind_grid.name = "KeybindGrid"
@@ -326,8 +326,7 @@ func _set_control_text(control: Control, value: String) -> void:
 
 
 func _text(key: StringName, fallback: String) -> String:
-	var translated := tr(String(key))
-	return fallback if translated == String(key) else translated
+	return LocalizedTextService.resolve(key, [], fallback)
 
 
 func _refresh_translations() -> void:
@@ -572,7 +571,7 @@ func _begin_rebind(action: StringName, gamepad: bool) -> void:
 	awaiting_gamepad = gamepad
 	status_label.text = _text(
 		&"ui.settings.press_gamepad_binding" if gamepad else &"ui.settings.press_keyboard_binding",
-		"Press a controller input…" if gamepad else "Press a key…"
+		"Press a controller input…" if gamepad else "Press a key or mouse button…"
 	)
 	var button := gamepad_binding_buttons.get(action) as Button if gamepad else keyboard_binding_buttons.get(action) as Button
 	if button != null:
@@ -630,7 +629,9 @@ func _event_matches_capture_device(event: InputEvent) -> bool:
 		if event is InputEventJoypadMotion:
 			return absf((event as InputEventJoypadMotion).axis_value) >= 0.65
 		return false
-	return event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo
+	if event is InputEventKey:
+		return (event as InputEventKey).pressed and not (event as InputEventKey).echo
+	return event is InputEventMouseButton and (event as InputEventMouseButton).pressed
 
 
 func _is_capture_cancel(event: InputEvent) -> bool:
@@ -698,8 +699,12 @@ func _refresh_binding_labels() -> void:
 	if not _built:
 		return
 	for action: StringName in InputRemapService.REMAPPABLE_ACTIONS:
-		var keyboard_text := remap_service.binding_text(action, false)
-		var gamepad_text := remap_service.binding_text(action, true)
+		var keyboard_text := InputPromptFormatter.format_binding_tokens(
+			remap_service.binding_tokens(action, false)
+		)
+		var gamepad_text := InputPromptFormatter.format_binding_tokens(
+			remap_service.binding_tokens(action, true)
+		)
 		var keyboard_button := keyboard_binding_buttons.get(action) as Button
 		var gamepad_button := gamepad_binding_buttons.get(action) as Button
 		if keyboard_button != null:
@@ -751,7 +756,9 @@ func _on_display_mode_selected(index: int) -> void:
 	if display_mode_option == null or display_mode_option.item_count == 0:
 		return
 	var safe_index := clampi(index, 0, display_mode_option.item_count - 1)
-	resolution_option.disabled = display_mode_option.get_item_id(safe_index) == DISPLAY_MODE_BORDERLESS
+	resolution_option.disabled = (
+		display_mode_option.get_item_id(safe_index) != DISPLAY_MODE_WINDOWED
+	)
 
 
 func _select_option_id(option: OptionButton, item_id: int) -> void:

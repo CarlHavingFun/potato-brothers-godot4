@@ -50,4 +50,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: potato-brothers-${{ matrix.platform }}
-          path: dist/potato-brothers-phase1/
+          path: dist/gobro-core-parity/

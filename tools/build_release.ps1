@@ -26,6 +26,7 @@ $consoleBinary = Join-Path (Split-Path -Parent $GodotBinary) (([System.IO.Path]:
 if (-not $GodotBinary.EndsWith("_console.exe", [System.StringComparison]::OrdinalIgnoreCase) -and (Test-Path -LiteralPath $consoleBinary)) {
 	$GodotBinary = $consoleBinary
 }
+$godotVersion = (& $GodotBinary --version | Select-Object -First 1).Trim()
 
 function Assert-ChildPath([string]$Path, [string]$Parent) {
 	$fullPath = [System.IO.Path]::GetFullPath($Path)
@@ -57,6 +58,114 @@ function Remove-UnselectedSkinDirectories([string]$SkinRoot, [string]$SelectedSk
 function Invoke-Godot([string[]]$Arguments) {
 	& $GodotBinary @Arguments
 	if ($LASTEXITCODE -ne 0) { throw "Godot failed with exit code ${LASTEXITCODE}: $($Arguments -join ' ')" }
+}
+
+function Assert-WindowsX64Executable([string]$ExecutablePath) {
+	if (-not (Test-Path -LiteralPath $ExecutablePath -PathType Leaf)) {
+		throw "Windows executable is missing: $ExecutablePath"
+	}
+	$stream = [System.IO.File]::OpenRead($ExecutablePath)
+	try {
+		$reader = [System.IO.BinaryReader]::new($stream)
+		try {
+			if ($reader.ReadUInt16() -ne 0x5A4D) { throw "Windows executable has no MZ header: $ExecutablePath" }
+			$stream.Position = 0x3C
+			$peOffset = $reader.ReadUInt32()
+			if ($peOffset -gt ($stream.Length - 6)) { throw "Windows executable has an invalid PE offset: $ExecutablePath" }
+			$stream.Position = $peOffset
+			if ($reader.ReadUInt32() -ne 0x00004550) { throw "Windows executable has no PE header: $ExecutablePath" }
+			if ($reader.ReadUInt16() -ne 0x8664) { throw "Windows executable is not x86_64: $ExecutablePath" }
+		} finally {
+			$reader.Dispose()
+		}
+	} finally {
+		$stream.Dispose()
+	}
+}
+
+function Assert-WindowsReleaseDirectory([string]$PlatformDirectory) {
+	$requiredFiles = @("GOBRO.exe", "GOBRO.pck", "default_content.pck", "PLAYTEST.md", "THIRD_PARTY.md")
+	$actualFiles = @(Get-ChildItem -LiteralPath $PlatformDirectory -File -Recurse | ForEach-Object {
+		$_.FullName.Substring($PlatformDirectory.Length + 1).Replace('\', '/')
+	})
+	$unexpected = @($actualFiles | Where-Object { $requiredFiles -notcontains $_ })
+	$missing = @($requiredFiles | Where-Object { $actualFiles -notcontains $_ })
+	if ($unexpected.Count -gt 0) { throw "Unexpected files in Windows package: $($unexpected -join ', ')" }
+	if ($missing.Count -gt 0) { throw "Required files missing from Windows package: $($missing -join ', ')" }
+	$directories = @(Get-ChildItem -LiteralPath $PlatformDirectory -Directory -Recurse)
+	if ($directories.Count -gt 0) { throw "Windows package must not contain source directories: $($directories.FullName -join ', ')" }
+	foreach ($fileName in $requiredFiles) {
+		$file = Get-Item -LiteralPath (Join-Path $PlatformDirectory $fileName)
+		if ($file.Length -le 0) { throw "Windows package contains an empty file: $fileName" }
+	}
+	Assert-WindowsX64Executable (Join-Path $PlatformDirectory "GOBRO.exe")
+}
+
+function Assert-WindowsReleaseArchive([string]$ArchivePath) {
+	Add-Type -AssemblyName System.IO.Compression
+	Add-Type -AssemblyName System.IO.Compression.FileSystem
+	$requiredFiles = @("GOBRO.exe", "GOBRO.pck", "default_content.pck", "PLAYTEST.md", "THIRD_PARTY.md")
+	$archive = [System.IO.Compression.ZipFile]::OpenRead($ArchivePath)
+	try {
+		$actualFiles = @($archive.Entries | Where-Object { -not [string]::IsNullOrEmpty($_.Name) } | ForEach-Object {
+			$_.FullName.Replace('\', '/') -replace '^\./', ''
+		})
+		$unexpected = @($actualFiles | Where-Object { $requiredFiles -notcontains $_ })
+		$missing = @($requiredFiles | Where-Object { $actualFiles -notcontains $_ })
+		if ($unexpected.Count -gt 0) { throw "Unexpected files in Windows archive: $($unexpected -join ', ')" }
+		if ($missing.Count -gt 0) { throw "Required files missing from Windows archive: $($missing -join ', ')" }
+		if (@($actualFiles | Select-Object -Unique).Count -ne $actualFiles.Count) { throw "Windows archive contains duplicate file names." }
+	} finally {
+		$archive.Dispose()
+	}
+}
+
+function Invoke-WindowsReleaseSmoke([string]$PlatformDirectory) {
+	$tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
+	$smokeRoot = Join-Path $tempRoot ("GOBRO-release-smoke-" + [Guid]::NewGuid().ToString("N"))
+	Assert-ChildPath $smokeRoot $tempRoot
+	$smokePackage = Join-Path $smokeRoot "package"
+	$isolatedAppData = Join-Path $smokeRoot "isolated-appdata"
+	$isolatedLocalAppData = Join-Path $smokeRoot "isolated-localappdata"
+	$smokeLog = Join-Path $smokeRoot "exported-windows.log"
+	New-Item -ItemType Directory -Force -Path $smokePackage, $isolatedAppData, $isolatedLocalAppData | Out-Null
+	Get-ChildItem -LiteralPath $PlatformDirectory | ForEach-Object {
+		Copy-Item -LiteralPath $_.FullName -Destination $smokePackage -Recurse -Force
+	}
+
+	$previousAppData = $env:APPDATA
+	$previousLocalAppData = $env:LOCALAPPDATA
+	try {
+		$env:APPDATA = $isolatedAppData
+		$env:LOCALAPPDATA = $isolatedLocalAppData
+		$smokeExecutable = Join-Path $smokePackage "GOBRO.exe"
+		$smokeProcess = Start-Process `
+			-FilePath $smokeExecutable `
+			-WorkingDirectory $smokePackage `
+			-ArgumentList @("--headless", "--quit-after", "5", "--verbose", "--log-file", $smokeLog) `
+			-WindowStyle Hidden `
+			-PassThru
+		if (-not $smokeProcess.WaitForExit(30000)) {
+			$smokeProcess.Kill()
+			$smokeProcess.WaitForExit()
+			throw "Exported Windows smoke test did not exit within 30 seconds."
+		}
+		if ($smokeProcess.ExitCode -ne 0) { throw "Exported Windows smoke test failed with exit code $($smokeProcess.ExitCode)." }
+		if (-not (Test-Path -LiteralPath $smokeLog -PathType Leaf)) { throw "Exported Windows smoke test did not produce a log." }
+		$runtimeLogs = @($smokeLog)
+		$gameLog = Join-Path $isolatedAppData "Godot\app_userdata\GOBRO\logs\latest.log"
+		if (Test-Path -LiteralPath $gameLog -PathType Leaf) { $runtimeLogs += $gameLog }
+		$smokeErrors = @($runtimeLogs | ForEach-Object {
+			Get-Content -LiteralPath $_ | Where-Object { $_ -match "SCRIPT ERROR|ERROR:|ObjectDB instances were leaked|resources still in use|Default content pack failed"
+			}
+		})
+		if ($smokeErrors.Count -gt 0) { throw "Exported Windows smoke test logged errors: $($smokeErrors -join [Environment]::NewLine)" }
+		Write-Output "WINDOWS_RELEASE_SMOKE passed: external package, isolated user data, clean exit"
+	} finally {
+		$env:APPDATA = $previousAppData
+		$env:LOCALAPPDATA = $previousLocalAppData
+		if (Test-Path -LiteralPath $smokeRoot) { Remove-Item -LiteralPath $smokeRoot -Recurse -Force }
+	}
 }
 
 if (-not $SkinManifest.StartsWith("res://content_packs/skins/", [System.StringComparison]::Ordinal) -or -not $SkinManifest.EndsWith("/skin.tres", [System.StringComparison]::Ordinal)) {
@@ -176,16 +285,14 @@ foreach ($platform in $Platforms) {
 		Copy-Item -LiteralPath (Join-Path $projectRoot "docs\PHASE_ONE_PLAYTEST.md") -Destination (Join-Path $platformDir "PLAYTEST.md") -Force
 		Copy-Item -LiteralPath (Join-Path $projectRoot "docs\THIRD_PARTY.md") -Destination (Join-Path $platformDir "THIRD_PARTY.md") -Force
 		if ($platform -eq "Windows") {
+			Assert-WindowsReleaseDirectory $platformDir
 			if ($env:OS -eq "Windows_NT") {
-				$smokeLog = Join-Path $stagingRoot "exported_windows.log"
-				$smokeProcess = Start-Process -FilePath $exportPath -ArgumentList @("--headless", "--quit", "--verbose", "--log-file", $smokeLog) -WindowStyle Hidden -Wait -PassThru
-				if ($smokeProcess.ExitCode -ne 0) { throw "Exported Windows smoke test failed with exit code $($smokeProcess.ExitCode)" }
-				$smokeErrors = @(Get-Content -LiteralPath $smokeLog | Where-Object { $_ -match "SCRIPT ERROR|ERROR:|ObjectDB instances were leaked|resources still in use" })
-				if ($smokeErrors.Count -gt 0) { throw "Exported Windows smoke test logged errors: $($smokeErrors -join [Environment]::NewLine)" }
+				Invoke-WindowsReleaseSmoke $platformDir
 			}
 			$releaseArchive = Join-Path $distRoot "GOBRO-core-parity-Windows-x86_64.zip"
 			tar -a -cf $releaseArchive -C $platformDir .
 			if ($LASTEXITCODE -ne 0) { throw "Windows archive creation failed" }
+			Assert-WindowsReleaseArchive $releaseArchive
 		} else {
 			$releaseArchive = Join-Path $distRoot "GOBRO-core-parity-Linux-x86_64.tar.gz"
 			tar -czf $releaseArchive -C $platformDir .
@@ -207,7 +314,7 @@ $manifest = [ordered]@{
 	product = "GOBRO"
 	phase = 1
 	version = "0.1.0-playtest"
-	godot = "4.7.1"
+	godot = $godotVersion
 	commit = $commit
 	created_utc = [DateTime]::UtcNow.ToString("o")
 	content_pack = "core"

@@ -93,8 +93,9 @@ func _on_player_selected(character: CharacterDef, card: SelectionCard = null) ->
 	player_icon.texture = Presentation.resolve_texture(
 		&"character", character.get_presentation_id(Content.catalog.pack_id), player.icon
 	)
-	player_name.text = Content.catalog.get_character_display_name(character)
-	player_description.text = "[code]Health: [color=green]%s[/color]\nDamage: [color=green]%s[/color]\nSpeed: [color=green]%s[/color]\nLuck: [color=green]%s[/color]\nBlock Chance: [color=green]%s%%[/color][/code]" % [player.health, player.damage, player.speed, player.luck, player.block_chance]
+	player_name.text = ItemDescriptionFormatter.character_display_name(character)
+	player_title.text = LocalizedTextService.resolve(&"ui.selection.character_type")
+	player_description.text = FrontendViewModel.character_traits(character)
 
 
 func _on_weapon_selected(weapon: WeaponDef, card: SelectionCard = null) -> void:

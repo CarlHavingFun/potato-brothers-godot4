@@ -66,7 +66,7 @@ layout_mode = 0
 offset_left = 118.0
 offset_right = 158.0
 offset_bottom = 19.3333
-text = "item name"
+text = "ui.item.unnamed"
 label_settings = SubResource("LabelSettings_6673v")
 
 [node name="ItemType" type="Label" parent="MarginContainer/Control"]
@@ -76,7 +76,7 @@ offset_left = 118.0
 offset_top = 39.0
 offset_right = 158.0
 offset_bottom = 58.3333
-text = "item type"
+text = "ui.item.type"
 label_settings = SubResource("LabelSettings_6673v")
 
 [node name="LockButton" type="Button" parent="MarginContainer/Control"]
@@ -112,7 +112,7 @@ theme_override_font_sizes/mono_font_size = 24
 theme_override_font_sizes/normal_font_size = 24
 theme_override_font_sizes/bold_font_size = 24
 bbcode_enabled = true
-text = "description"
+text = "ui.item.no_description"
 
 [node name="StatusLabel" type="Label" parent="MarginContainer/Control"]
 unique_name_in_owner = true

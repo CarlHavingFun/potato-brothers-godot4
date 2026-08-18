@@ -77,8 +77,10 @@ func test_run_state_round_trip_preserves_core_progress() -> void:
 	original.level = 4
 	original.experience = 17
 	original.materials = 83
+	original.player_health_ratio = 0.42
 	original.player_stats.set_stat(StatId.RANGED_DAMAGE, 11.0)
 	original.inventory.add_passive(&"coffee", 2)
+	original.record_applied_upgrade(&"core:upgrade/ranged_damage/common", StatId.RANGED_DAMAGE, 2.0)
 	assert_bool(original.try_transition(RunPhase.COMBAT)).is_true()
 
 	var restored := RunState.from_dict(original.to_dict())
@@ -89,6 +91,8 @@ func test_run_state_round_trip_preserves_core_progress() -> void:
 	assert_int(restored.level).is_equal(4)
 	assert_int(restored.experience).is_equal(17)
 	assert_int(restored.materials).is_equal(83)
+	assert_float(restored.player_health_ratio).is_equal_approx(0.42, 0.001)
 	assert_int(restored.phase).is_equal(RunPhase.COMBAT)
 	assert_float(restored.player_stats.get_stat(StatId.RANGED_DAMAGE)).is_equal(11.0)
 	assert_int(restored.inventory.passive_count(&"coffee")).is_equal(2)
+	assert_int(restored.applied_upgrades.size()).is_equal(1)

@@ -299,6 +299,14 @@ text = "ui.profile.repair.title"
 horizontal_alignment = 1
 autowrap_mode = 2
 
+[node name="ProfileStatus" type="Label" parent="Pages/ProfilePage/Content"]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.4, 0.34, 1)
+theme_override_font_sizes/font_size = 20
+horizontal_alignment = 1
+autowrap_mode = 2
+
 [node name="CharacterPage" type="Control" parent="Pages"]
 visible = false
 layout_mode = 1
@@ -313,36 +321,66 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 54.0
-offset_top = 32.0
-offset_right = -54.0
-offset_bottom = -44.0
+offset_left = 32.0
+offset_top = 20.0
+offset_right = -32.0
+offset_bottom = -50.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 20
+theme_override_constants/separation = 0
 
-[node name="Header" type="HBoxContainer" parent="Pages/CharacterPage/Content"]
+[node name="Header" type="Control" parent="Pages/CharacterPage/Content"]
+custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
-theme_override_constants/separation = 20
 
 [node name="BackButton" type="Button" parent="Pages/CharacterPage/Content/Header"]
-custom_minimum_size = Vector2(120, 58)
-layout_mode = 2
+custom_minimum_size = Vector2(92, 44)
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_top = -22.0
+offset_right = 92.0
+offset_bottom = 22.0
+grow_vertical = 2
+focus_neighbor_left = NodePath("../../Body/OptionsCard/Options/AimMode")
+focus_neighbor_top = NodePath("../../Body/OptionsCard/Options/AimMode")
+focus_neighbor_right = NodePath("../../Body/OptionsCard/Options/AimMode")
+focus_neighbor_bottom = NodePath("../../Body/OptionsCard/Options/AimMode")
+theme_override_font_sizes/font_size = 20
 text = "ui.common.back"
 
 [node name="Title" type="Label" parent="Pages/CharacterPage/Content/Header"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 46
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -30.0
+offset_right = 300.0
+offset_bottom = 30.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 40
 text = "ui.character.title"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="HeaderGap" type="Control" parent="Pages/CharacterPage/Content"]
+custom_minimum_size = Vector2(0, 69)
+layout_mode = 2
+mouse_filter = 2
 
 [node name="Body" type="HBoxContainer" parent="Pages/CharacterPage/Content"]
-custom_minimum_size = Vector2(0, 520)
+custom_minimum_size = Vector2(0, 333)
 layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 24
+theme_override_constants/separation = 16
+alignment = 1
 
 [node name="CharacterCard" type="Panel" parent="Pages/CharacterPage/Content/Body"]
-custom_minimum_size = Vector2(720, 0)
+custom_minimum_size = Vector2(510, 333)
 layout_mode = 2
 
 [node name="Info" type="VBoxContainer" parent="Pages/CharacterPage/Content/Body/CharacterCard"]
@@ -350,84 +388,169 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 28.0
-offset_top = 22.0
-offset_right = -28.0
-offset_bottom = -22.0
+offset_left = 16.0
+offset_top = 14.0
+offset_right = -16.0
+offset_bottom = -14.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 14
+theme_override_constants/separation = 10
 
-[node name="Icon" type="TextureRect" parent="Pages/CharacterPage/Content/Body/CharacterCard/Info"]
+[node name="Name" type="Label" parent="Pages/CharacterPage/Content/Body/CharacterCard/Info"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "ui.character.choose"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Details" type="HBoxContainer" parent="Pages/CharacterPage/Content/Body/CharacterCard/Info"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="Icon" type="TextureRect" parent="Pages/CharacterPage/Content/Body/CharacterCard/Info/Details"]
 custom_minimum_size = Vector2(220, 220)
 layout_mode = 2
-size_flags_horizontal = 4
+size_flags_vertical = 4
 expand_mode = 3
 stretch_mode = 5
 
-[node name="Name" type="Label" parent="Pages/CharacterPage/Content/Body/CharacterCard/Info"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 38
-text = "ui.character.choose"
-horizontal_alignment = 1
-
-[node name="Traits" type="RichTextLabel" parent="Pages/CharacterPage/Content/Body/CharacterCard/Info"]
-layout_mode = 2
-size_flags_vertical = 3
-bbcode_enabled = true
-fit_content = true
-text = "ui.character.hint"
-
-[node name="OptionsCard" type="Panel" parent="Pages/CharacterPage/Content/Body"]
+[node name="Traits" type="RichTextLabel" parent="Pages/CharacterPage/Content/Body/CharacterCard/Info/Details"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_font_sizes/normal_font_size = 18
+bbcode_enabled = true
+text = "ui.character.hint"
+
+[node name="RecordCard" type="Panel" parent="Pages/CharacterPage/Content/Body"]
+custom_minimum_size = Vector2(240, 333)
+layout_mode = 2
+
+[node name="Record" type="VBoxContainer" parent="Pages/CharacterPage/Content/Body/RecordCard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 18.0
+offset_right = -16.0
+offset_bottom = -18.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="Pages/CharacterPage/Content/Body/RecordCard/Record"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "ui.character.records_title"
+horizontal_alignment = 1
+
+[node name="Divider" type="ColorRect" parent="Pages/CharacterPage/Content/Body/RecordCard/Record"]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+mouse_filter = 2
+color = Color(0.17, 0.48, 0.68, 0.72)
+
+[node name="Mark" type="Label" parent="Pages/CharacterPage/Content/Body/RecordCard/Record"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.33, 0.66, 0.84, 0.22)
+theme_override_font_sizes/font_size = 92
+text = "ui.character.record_mark"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Value" type="Label" parent="Pages/CharacterPage/Content/Body/RecordCard/Record"]
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.69, 0.82, 0.9, 1)
+theme_override_font_sizes/font_size = 20
+text = "ui.character.record_empty"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="OptionsCard" type="Panel" parent="Pages/CharacterPage/Content/Body"]
+custom_minimum_size = Vector2(214, 333)
+layout_mode = 2
 
 [node name="Options" type="VBoxContainer" parent="Pages/CharacterPage/Content/Body/OptionsCard"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 28.0
-offset_top = 28.0
-offset_right = -28.0
-offset_bottom = -28.0
+offset_left = 14.0
+offset_top = 18.0
+offset_right = -14.0
+offset_bottom = -18.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 18
+theme_override_constants/separation = 7
 
 [node name="Title" type="Label" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 32
+theme_override_font_sizes/font_size = 24
 text = "ui.character.run_options"
+horizontal_alignment = 1
 
 [node name="AimLabel" type="Label" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 17
 text = "ui.settings.aim"
 
 [node name="AimMode" type="OptionButton" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
-custom_minimum_size = Vector2(380, 64)
+custom_minimum_size = Vector2(180, 44)
 layout_mode = 2
 focus_mode = 2
+focus_neighbor_left = NodePath("../../../../Header/BackButton")
+focus_neighbor_top = NodePath("../../../../Header/BackButton")
+focus_neighbor_right = NodePath("../RunMode")
+focus_neighbor_bottom = NodePath("../RunMode")
+theme_override_font_sizes/font_size = 17
 
 [node name="RunModeLabel" type="Label" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 17
 text = "ui.character.run_mode"
 
 [node name="RunMode" type="OptionButton" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
-custom_minimum_size = Vector2(380, 64)
+custom_minimum_size = Vector2(180, 44)
 layout_mode = 2
 focus_mode = 2
+focus_neighbor_left = NodePath("../AimMode")
+focus_neighbor_top = NodePath("../AimMode")
+focus_neighbor_right = NodePath("../../../../Header/BackButton")
+focus_neighbor_bottom = NodePath("../../../../Header/BackButton")
+theme_override_font_sizes/font_size = 17
 
-[node name="Record" type="Label" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
+[node name="Hint" type="Label" parent="Pages/CharacterPage/Content/Body/OptionsCard/Options"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.75, 0.79, 0.59, 1)
-text = "ui.character.record_empty"
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.58, 0.71, 0.78, 1)
+theme_override_font_sizes/font_size = 16
+text = "ui.character.options_hint"
+vertical_alignment = 2
+autowrap_mode = 2
+
+[node name="GridGap" type="Control" parent="Pages/CharacterPage/Content"]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+mouse_filter = 2
 
 [node name="CharacterChoices" type="GridContainer" parent="Pages/CharacterPage/Content"]
+custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
-theme_override_constants/h_separation = 14
-theme_override_constants/v_separation = 14
-columns = 7
+size_flags_horizontal = 4
+theme_override_constants/h_separation = 7
+theme_override_constants/v_separation = 7
+columns = 13
+
+[node name="BottomSpacer" type="Control" parent="Pages/CharacterPage/Content"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
 
 [node name="WeaponPage" type="Control" parent="Pages"]
 visible = false

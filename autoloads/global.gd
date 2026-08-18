@@ -1,6 +1,8 @@
 extends Node
 
 const TUTORIAL_STATS_ADAPTER = preload("res://core/adapters/tutorial_stats_adapter.gd")
+const STAT_REBUILD_SERVICE = preload("res://core/balance/stat_rebuild_service.gd")
+const WINDOW_MODE_POLICY = preload("res://core/settings/window_mode_policy.gd")
 
 signal on_create_block_text(unit: Node2D)
 signal on_create_damage_text(unit: Node2D, hitbox: HitboxComponent)
@@ -146,10 +148,14 @@ func begin_run(seed_value: int = 0, source_stats: UnitStats = null, starting_mat
 	_combat_checkpoint = null
 	var player_stats: PlayerStats = TUTORIAL_STATS_ADAPTER.to_player_stats(source_stats)
 	current_run = RunState.new(seed_value, player_stats)
+	STAT_REBUILD_SERVICE.new().stamp_current_versions(
+		current_run,
+		Content.catalog.balance_pack if Content.catalog != null else null
+	)
 	run_director = RunDirector.new(current_run)
 	shop_service = ShopService.new(seed_value)
 	reward_service = RewardService.new(seed_value)
-	combat_resolver = CombatResolver.new(seed_value)
+	combat_resolver = CombatResolver.new(seed_value, _active_stat_rules())
 	gameplay_effects = GameplayEffectRuntime.new(seed_value)
 	current_run.materials = maxi(0, starting_materials)
 	player = null
@@ -162,7 +168,18 @@ func begin_run(seed_value: int = 0, source_stats: UnitStats = null, starting_mat
 func begin_selected_run(seed_value: int = 0) -> bool:
 	if main_player_selected == null or main_weapon_selected == null:
 		return false
+	if (
+		main_character_selected != null
+		and main_character_selected.rules != null
+		and main_weapon_definition_selected != null
+		and not main_character_selected.rules.allows_weapon(
+			main_weapon_definition_selected.tags
+		)
+	):
+		return false
 	begin_run(seed_value, main_player_selected, STARTING_MATERIALS)
+	if main_character_selected != null and main_character_selected.rules != null:
+		main_character_selected.rules.apply_to_run(current_run)
 	current_run.character_id = (
 		main_character_selected.get_stable_id(Content.catalog.pack_id)
 		if main_character_selected != null
@@ -186,6 +203,13 @@ func begin_selected_run(seed_value: int = 0) -> bool:
 	_register_definition_effects(main_character_selected)
 	_register_definition_effects(main_weapon_definition_selected)
 	dispatch_gameplay_event(GameplayEvent.Type.RUN_STARTED)
+	GameLog.info(&"run", "run_started", {
+		"profile_id": active_profile_id(),
+		"character_id": String(current_run.character_id),
+		"weapon_id": String(current_run.starting_weapon_id),
+		"difficulty": current_run.difficulty,
+		"run_mode": current_run.run_mode,
+	})
 	return true
 
 
@@ -193,10 +217,20 @@ func resume_run_state(checkpoint: RunState) -> bool:
 	if checkpoint == null or not checkpoint.is_resumable_checkpoint():
 		return false
 	current_run = RunState.from_dict(checkpoint.to_dict())
+	var restored_character := Content.catalog.get_character(current_run.character_id)
+	if restored_character != null and restored_character.rules != null:
+		restored_character.rules.hydrate_runtime_rules(current_run)
+	if not STAT_REBUILD_SERVICE.new().rebuild_if_required(
+		current_run,
+		Content.catalog,
+		Content.catalog.balance_pack if Content.catalog != null else null
+	):
+		current_run = null
+		return false
 	run_director = RunDirector.new(current_run)
 	shop_service = ShopService.new(current_run.random_seed)
 	reward_service = RewardService.new(current_run.random_seed)
-	combat_resolver = CombatResolver.new(current_run.random_seed)
+	combat_resolver = CombatResolver.new(current_run.random_seed, _active_stat_rules())
 	gameplay_effects = GameplayEffectRuntime.new(current_run.random_seed)
 	_restore_rng_states()
 	player = null
@@ -209,10 +243,23 @@ func resume_run_state(checkpoint: RunState) -> bool:
 	)
 	materials_changed.emit(current_run.materials)
 	run_phase_changed.emit(current_run.phase)
+	GameLog.info(&"run", "checkpoint_resumed", {
+		"profile_id": active_profile_id(),
+		"character_id": String(current_run.character_id),
+		"difficulty": current_run.difficulty,
+		"phase": current_run.phase,
+	})
 	return true
 
 
 func end_run() -> void:
+	if current_run != null:
+		GameLog.info(&"run", "run_state_cleared", {
+			"character_id": String(current_run.character_id),
+			"difficulty": current_run.difficulty,
+			"phase": current_run.phase,
+			"highest_wave": current_run.highest_wave_reached,
+		})
 	current_run = null
 	run_director = null
 	shop_service = null
@@ -281,11 +328,23 @@ func save_progress(include_run: bool = true) -> Error:
 				if snapshot.phase == RunPhase.COMBAT
 				else null
 			)
+		else:
+			GameLog.warning(&"save", "profile_save_failed", {
+				"profile_id": active_profile_id(),
+				"error": error_string(save_result),
+				"include_run": true,
+			})
 		return save_result
 	var save_result := save_provider.save_slot(payload)
 	if save_result == OK:
 		restored_run = null
 		_combat_checkpoint = null
+	else:
+		GameLog.warning(&"save", "profile_save_failed", {
+			"profile_id": active_profile_id(),
+			"error": error_string(save_result),
+			"include_run": false,
+		})
 	return save_result
 
 
@@ -304,6 +363,12 @@ func save_combat_checkpoint() -> Error:
 	if save_result == OK:
 		restored_run = RunState.from_dict(snapshot.to_dict())
 		_combat_checkpoint = RunState.from_dict(snapshot.to_dict())
+	else:
+		GameLog.warning(&"save", "combat_checkpoint_failed", {
+			"profile_id": active_profile_id(),
+			"error": error_string(save_result),
+			"phase": current_run.phase,
+		})
 	return save_result
 
 
@@ -340,8 +405,17 @@ func switch_profile(profile_id: int) -> bool:
 	var provider := save_provider as ProfileSaveProvider
 	if provider == null or profile_id not in range(1, ProfileStore.MAX_PROFILES + 1):
 		return false
+	if profile_id == provider.active_profile_id:
+		return true
 	if current_run != null:
-		save_progress(true)
+		var save_result := save_progress(true)
+		if save_result != OK:
+			GameLog.warning(&"save", "profile_switch_aborted", {
+				"profile_id": provider.active_profile_id,
+				"target_profile_id": profile_id,
+				"error": error_string(save_result),
+			})
+			return false
 	if not provider.set_active_profile(profile_id):
 		return false
 	end_run()
@@ -542,15 +616,31 @@ func _apply_display_settings() -> void:
 		if product_settings.vsync_enabled
 		else DisplayServer.VSYNC_DISABLED
 	)
-	match product_settings.display_mode:
-		DisplayMode.WINDOWED:
-			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-			_apply_windowed_geometry()
-			call_deferred("_apply_windowed_geometry")
-		DisplayMode.EXCLUSIVE_FULLSCREEN:
-			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
-		_:
-			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+	var contract: Dictionary = WINDOW_MODE_POLICY.native_contract(
+		product_settings.display_mode
+	)
+	var target_mode := int(contract.mode)
+	# Fullscreen and borderless flags are independent in Godot. On Windows the
+	# borderless flag can survive a mode transition, so enter windowed mode before
+	# restoring normal decorations and an adjustable sizing frame.
+	if target_mode == DisplayServer.WINDOW_MODE_WINDOWED:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	DisplayServer.window_set_flag(
+		DisplayServer.WINDOW_FLAG_EXTEND_TO_TITLE,
+		bool(contract.extend_to_title)
+	)
+	DisplayServer.window_set_flag(
+		DisplayServer.WINDOW_FLAG_RESIZE_DISABLED,
+		bool(contract.resize_disabled)
+	)
+	DisplayServer.window_set_flag(
+		DisplayServer.WINDOW_FLAG_BORDERLESS,
+		bool(contract.borderless)
+	)
+	DisplayServer.window_set_mode(target_mode)
+	if product_settings.display_mode == DisplayMode.WINDOWED:
+		_apply_windowed_geometry()
+		call_deferred("_apply_windowed_geometry")
 
 
 func _apply_windowed_geometry() -> void:
@@ -616,11 +706,7 @@ func _handle_focus_regained() -> void:
 
 
 func translate_text(key: StringName, english_fallback: String) -> String:
-	var translated := TranslationServer.translate(String(key))
-	if translated == String(key):
-		push_warning("Missing translation key '%s'; using English fallback." % key)
-		return english_fallback
-	return translated
+	return LocalizedTextService.resolve(key, [], english_fallback)
 
 
 func _set_bus_linear_volume(bus_name: StringName, linear_value: float) -> void:
@@ -746,7 +832,10 @@ func apply_stat_change(unit_property: String, amount: float) -> bool:
 	if current_run == null:
 		return false
 	var stat_id: int = TUTORIAL_STATS_ADAPTER.stat_id_for_property(unit_property)
-	if not StatId.is_valid(stat_id) or not current_run.player_stats.add_stat(stat_id, amount):
+	var adjusted_amount := amount * _character_stat_gain_multiplier(stat_id)
+	if not StatId.is_valid(stat_id) or not current_run.player_stats.add_stat(
+		stat_id, adjusted_amount
+	):
 		push_warning("Unsupported tutorial stat '%s'; migration mapping is required." % unit_property)
 		return false
 	if is_instance_valid(player) and player.stats != null:
@@ -771,7 +860,10 @@ func apply_passive_item(item: ItemPassive) -> bool:
 		if not StatId.is_valid(stat_id):
 			push_warning("Unsupported passive stat '%s'." % stat_key)
 			continue
-		var amount := float(definition.stat_modifiers[stat_key])
+		var amount := (
+			float(definition.stat_modifiers[stat_key])
+			* _character_stat_gain_multiplier(stat_id)
+		)
 		current_run.player_stats.add_stat(stat_id, amount)
 		_sync_runtime_stat(stat_id)
 		applied = true
@@ -801,7 +893,11 @@ func dispatch_gameplay_event(
 		for raw_stat_id: Variant in result.stat_changes:
 			var stat_id := int(raw_stat_id)
 			if StatId.is_valid(stat_id):
-				current_run.player_stats.add_stat(stat_id, float(result.stat_changes[raw_stat_id]))
+				current_run.player_stats.add_stat(
+					stat_id,
+					float(result.stat_changes[raw_stat_id])
+					* _character_stat_gain_multiplier(stat_id)
+				)
 				_sync_runtime_stat(stat_id)
 	if result.healing > 0.0 and is_instance_valid(player):
 		player.health_component.heal(result.healing)
@@ -853,7 +949,13 @@ func apply_upgrade_item(item: ItemUpgrade) -> bool:
 	if definition == null or not StatId.is_valid(definition.stat_id):
 		item.apply_upgrade()
 		return true
-	current_run.player_stats.add_stat(definition.stat_id, definition.value)
+	var applied_value := definition.value * _character_stat_gain_multiplier(definition.stat_id)
+	current_run.player_stats.add_stat(definition.stat_id, applied_value)
+	current_run.record_applied_upgrade(
+		definition.get_stable_id(Content.catalog.pack_id),
+		definition.stat_id,
+		applied_value
+	)
 	_sync_runtime_stat(definition.stat_id)
 	return true
 
@@ -861,6 +963,18 @@ func apply_upgrade_item(item: ItemUpgrade) -> bool:
 func _sync_runtime_stat(stat_id: int) -> void:
 	if is_instance_valid(player) and player.stats != null:
 		TUTORIAL_STATS_ADAPTER.apply_stat_to_unit(current_run.player_stats, player.stats, stat_id)
+
+
+func _character_stat_gain_multiplier(stat_id: int) -> float:
+	if (
+		main_character_selected == null
+		or main_character_selected.rules == null
+		or not StatId.is_valid(stat_id)
+	):
+		return 1.0
+	return float(main_character_selected.rules.stat_modification_multipliers.get(
+		StatId.key(stat_id), 1.0
+	))
 
 
 func get_stat_value(unit_property: String) -> float:
@@ -889,7 +1003,26 @@ func _ensure_run() -> void:
 
 func get_harvesting_coins() -> void:
 	_ensure_combat_resolver()
-	add_materials(combat_resolver.harvesting_materials(current_run.player_stats))
+	var result := combat_resolver.harvesting_result(
+		current_run.player_stats,
+		current_run.wave,
+		current_run.run_mode == RunMode.ENDLESS
+	)
+	var materials_delta := int(result.get("materials_delta", 0))
+	var experience_delta := int(result.get("experience_delta", 0))
+	current_run.materials = maxi(0, current_run.materials + materials_delta)
+	if reward_service == null:
+		reward_service = RewardService.new(current_run.random_seed)
+	if experience_delta > 0:
+		reward_service.add_experience(current_run, experience_delta)
+	elif experience_delta < 0:
+		current_run.experience = maxi(0, current_run.experience + experience_delta)
+	current_run.player_stats.set_stat(
+		StatId.HARVESTING,
+		float(result.get("next_harvesting", 0.0))
+	)
+	_sync_runtime_stat(StatId.HARVESTING)
+	materials_changed.emit(current_run.materials)
 
 
 func get_selected_player() -> Player:
@@ -935,7 +1068,13 @@ func get_chance_sucess(chance: float) -> bool:
 func _ensure_combat_resolver() -> void:
 	_ensure_run()
 	if combat_resolver == null:
-		combat_resolver = CombatResolver.new(current_run.random_seed)
+		combat_resolver = CombatResolver.new(current_run.random_seed, _active_stat_rules())
+
+
+func _active_stat_rules() -> StatRulesDef:
+	if Content.catalog != null and Content.catalog.balance_pack != null:
+		return Content.catalog.balance_pack.stat_rules
+	return null
 
 func get_tier_style(tier: UpgradeTier) -> StyleBoxFlat:
 	match tier:
@@ -973,7 +1112,8 @@ func select_items_for_offer(
 		config,
 		requested_count,
 		Content.catalog,
-		_owned_build_tags()
+		_owned_build_tags(),
+		current_run
 	)
 
 

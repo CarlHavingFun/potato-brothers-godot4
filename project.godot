@@ -15,8 +15,13 @@ run/main_scene="res://scenes/game_root/game_root.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
+[balance]
+
+active_profile="baseline_parity_1_1_15_4"
+
 [autoload]
 
+GameLog="*res://core/logging/game_log.gd"
 Content="*res://core/content/bootstrap_content_loader.gd"
 Presentation="*res://core/presentation/skin_resolver.gd"
 GameplayCues="*res://core/presentation/gameplay_cue_bus.gd"
@@ -31,6 +36,12 @@ MCPGameInput="*res://addons/godot_mcp/services/game_input.gd"
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/stretch/mode="canvas_items"
+
+[debug]
+
+file_logging/enable_file_logging=false
+file_logging/enable_file_logging.pc=false
+file_logging/max_log_files=1
 
 [editor_plugins]
 

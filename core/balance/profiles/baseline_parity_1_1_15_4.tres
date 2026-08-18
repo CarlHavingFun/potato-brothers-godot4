@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="BalancePackDef" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://core/balance/balance_pack_def.gd" id="1_balance"]
+[ext_resource type="Script" path="res://core/balance/stat_rules_def.gd" id="2_rules"]
+
+[sub_resource type="Resource" id="StatRules_baseline"]
+script = ExtResource("2_rules")
+
+[resource]
+script = ExtResource("1_balance")
+balance_pack_id = &"baseline_parity_1_1_15_4"
+balance_pack_version = "1.1.15.4-baseline.1"
+stat_rules = SubResource("StatRules_baseline")

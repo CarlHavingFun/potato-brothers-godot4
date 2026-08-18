@@ -2,13 +2,10 @@ class_name WaveDirector
 extends RefCounted
 
 
+const WAVE_RULES := preload("res://core/directors/core_wave_rules.gd")
 const STREAM_OFFSET := 0x57415645
 const SCHEDULE_OFFSET := 0x454E434F
 const ELITE_IDS: Array[StringName] = [&"enemy/iron_maw", &"enemy/volt_stalker"]
-const ELITE_WINDOWS: Array[Vector2i] = [Vector2i(9, 11), Vector2i(14, 16)]
-const HORDE_WINDOWS: Array[Vector2i] = [
-	Vector2i(5, 8), Vector2i(11, 14), Vector2i(16, 18),
-]
 
 var catalog: ContentCatalog
 var rng := RandomNumberGenerator.new()
@@ -68,26 +65,19 @@ func encounter_schedule(difficulty_level: int) -> Dictionary:
 	if _schedule_cache.has(normalized_level):
 		return (_schedule_cache[normalized_level] as Dictionary).duplicate(true)
 	var schedule: Dictionary = {20: &"boss"}
-	if normalized_level == 1:
-		schedule[10] = &"elite"
-		schedule[15] = &"elite"
-	else:
+	var event_windows: Array[Vector2i] = WAVE_RULES.special_event_windows(normalized_level)
+	if not event_windows.is_empty():
 		var schedule_rng := RandomNumberGenerator.new()
 		schedule_rng.seed = (
 			_run_seed ^ SCHEDULE_OFFSET ^ (normalized_level * 1_000_033)
 		)
-		for window: Vector2i in ELITE_WINDOWS:
-			schedule[schedule_rng.randi_range(window.x, window.y)] = &"elite"
-		var difficulty := DifficultyDef.for_level(normalized_level)
-		var horde_count := difficulty.horde_events_per_run() if difficulty != null else 0
-		for window_index: int in mini(horde_count, HORDE_WINDOWS.size()):
-			var window := HORDE_WINDOWS[window_index]
-			var available: Array[int] = []
-			for candidate_wave: int in range(window.x, window.y + 1):
-				if not schedule.has(candidate_wave):
-					available.append(candidate_wave)
-			if not available.is_empty():
-				schedule[available[schedule_rng.randi_range(0, available.size() - 1)]] = &"horde"
+		for window_index in event_windows.size():
+			var window: Vector2i = event_windows[window_index]
+			var event_wave := schedule_rng.randi_range(window.x, window.y)
+			var event_kind: StringName = WAVE_RULES.special_event_kind(
+				window_index, schedule_rng.randf()
+			)
+			schedule[event_wave] = event_kind
 	_schedule_cache[normalized_level] = schedule.duplicate(true)
 	return schedule
 

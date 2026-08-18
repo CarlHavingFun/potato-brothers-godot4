@@ -41,15 +41,45 @@ func on_joy_connection_changed(device_id: int, connected: bool) -> void:
 
 
 func confirm_prompt() -> String:
-	return "A" if active_device == Device.GAMEPAD else "Enter"
+	return InputPromptFormatter.format_token(confirm_prompt_token())
+
+
+func confirm_prompt_token() -> Dictionary:
+	return (
+		InputRemapService.joy_button_token(JOY_BUTTON_A)
+		if active_device == Device.GAMEPAD
+		else InputRemapService.key_token(_key_event(KEY_ENTER))
+	)
 
 
 func back_prompt() -> String:
-	return "B" if active_device == Device.GAMEPAD else "Esc"
+	return InputPromptFormatter.format_token(back_prompt_token())
+
+
+func back_prompt_token() -> Dictionary:
+	return (
+		InputRemapService.joy_button_token(JOY_BUTTON_B)
+		if active_device == Device.GAMEPAD
+		else InputRemapService.key_token(_key_event(KEY_ESCAPE))
+	)
 
 
 func dash_prompt() -> String:
-	return "X" if active_device == Device.GAMEPAD else "Space"
+	return InputPromptFormatter.format_token(dash_prompt_token())
+
+
+func dash_prompt_token() -> Dictionary:
+	return (
+		InputRemapService.joy_button_token(JOY_BUTTON_X)
+		if active_device == Device.GAMEPAD
+		else InputRemapService.key_token(_key_event(KEY_SPACE))
+	)
+
+
+func _key_event(keycode: Key) -> InputEventKey:
+	var event := InputEventKey.new()
+	event.physical_keycode = keycode
+	return event
 
 
 func _set_active_device(value: int) -> void:

@@ -7,12 +7,14 @@ const CONTENT_CATALOG_SCRIPT := "res://core/content/content_catalog.gd"
 const CONTENT_VALIDATOR_SCRIPT := "res://core/content/content_validator.gd"
 const BOOTSTRAP_LOADER_SCRIPT := "res://core/content/bootstrap_content_loader.gd"
 const TEST_PACK_PATH := "user://tests/content_pack/pack.tres"
+const TEST_OPTIONAL_CHARACTER_PATH := "user://tests/content_pack/optional_character.tres"
 const DEFAULT_PACK_PATH := "res://content_packs/default/pack.tres"
 
 
 func after_test() -> void:
-	if FileAccess.file_exists(TEST_PACK_PATH):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PACK_PATH))
+	for path: String in [TEST_PACK_PATH, TEST_OPTIONAL_CHARACTER_PATH]:
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 const DEFINITION_SCRIPTS := [
 	"res://core/content/character_def.gd",
 	"res://core/content/weapon_def.gd",
@@ -158,6 +160,45 @@ func test_bootstrap_loads_a_valid_manifest_before_game_content_is_used() -> void
 	)
 
 
+func test_optional_character_isolated_from_same_path_cache_replacement() -> void:
+	DirAccess.make_dir_recursive_absolute(
+		ProjectSettings.globalize_path(TEST_OPTIONAL_CHARACTER_PATH.get_base_dir())
+	)
+	var first := CharacterDef.new()
+	first.content_id = &"character/cache_isolation"
+	first.unlock_difficulty = 2
+	first.starter_weapon_ids = [&"weapon/pistol"]
+	assert_int(ResourceSaver.save(first, TEST_OPTIONAL_CHARACTER_PATH)).is_equal(OK)
+
+	var source := ContentPackDef.new()
+	source.pack_id = &"core"
+	var optional_paths: Array[String] = [TEST_OPTIONAL_CHARACTER_PATH]
+	var loader: BootstrapContentLoader = auto_free(BootstrapContentLoader.new())
+	var runtime_pack := loader._with_optional_characters(source, optional_paths)
+	var runtime_catalog := ContentCatalog.new()
+	assert_int(runtime_catalog.register_pack(runtime_pack)).is_equal(OK)
+	var active := runtime_catalog.get_character(&"character/cache_isolation")
+	assert_object(active).is_not_null()
+	assert_int(active.unlock_difficulty).is_equal(2)
+	assert_array(active.starter_weapon_ids).contains_exactly([&"weapon/pistol"])
+
+	var replacement := CharacterDef.new()
+	replacement.content_id = &"character/cache_isolation"
+	replacement.unlock_difficulty = 5
+	replacement.starter_weapon_ids = [&"weapon/knife"]
+	assert_int(ResourceSaver.save(replacement, TEST_OPTIONAL_CHARACTER_PATH)).is_equal(OK)
+	var reloaded := ResourceLoader.load(
+		TEST_OPTIONAL_CHARACTER_PATH,
+		"CharacterDef",
+		ResourceLoader.CACHE_MODE_REPLACE
+	) as CharacterDef
+
+	assert_int(reloaded.unlock_difficulty).is_equal(5)
+	assert_array(reloaded.starter_weapon_ids).contains_exactly([&"weapon/knife"])
+	assert_int(active.unlock_difficulty).is_equal(2)
+	assert_array(active.starter_weapon_ids).contains_exactly([&"weapon/pistol"])
+
+
 func test_default_content_pack_registers_the_core_parity_content_targets() -> void:
 	assert_bool(ResourceLoader.exists(DEFAULT_PACK_PATH)).is_true()
 	if not ResourceLoader.exists(DEFAULT_PACK_PATH):
@@ -249,7 +290,7 @@ func test_catalog_exposes_wave_and_difficulty_definitions() -> void:
 	var waves := Content.catalog.get_waves()
 	assert_int(waves.size()).is_equal(20)
 	assert_array(waves.map(func(wave: WaveDef): return int(wave.duration))).is_equal(
-		[30, 35, 40, 45, 50, 55, 60, 65, 70, 60, 70, 70, 75, 75, 65, 80, 80, 85, 85, 90]
+		[20, 25, 30, 35, 40, 45, 50, 55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 90]
 	)
 	assert_float(Content.catalog.get_difficulty(5).health_multiplier).is_equal(1.70)
 	assert_float(Content.catalog.get_difficulty(5).spawn_density_multiplier).is_equal(1.40)

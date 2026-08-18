@@ -250,6 +250,49 @@ func test_range_burst_spawns_followup_shots_after_an_interval() -> void:
 	assert_bool(after_interval > immediate).is_true()
 
 
+func test_equipped_weapon_refreshes_detection_radius_after_range_stat_changes() -> void:
+	Global.begin_run(741, null, 0)
+	var definition: WeaponDef = Content.catalog.get_weapon(&"weapon/pistol")
+	var holder: Node2D = auto_free(Node2D.new()) as Node2D
+	var weapon: Weapon = auto_free(definition.tiers[0].scene.instantiate() as Weapon) as Weapon
+	add_child(holder)
+	holder.add_child(weapon)
+	weapon.setup_weapon(definition.tiers[0])
+	var circle := weapon.collision.shape as CircleShape2D
+	var initial_range := weapon.resolved_attack_range()
+
+	assert_object(circle).is_not_null()
+	assert_float(circle.radius).is_equal_approx(initial_range, 0.001)
+	Global.current_run.player_stats.add_stat(StatId.RANGE, 47.0)
+	await get_tree().process_frame
+
+	assert_float(weapon.resolved_attack_range()).is_equal_approx(initial_range + 47.0, 0.001)
+	assert_float(circle.radius).is_equal_approx(initial_range + 47.0, 0.001)
+
+
+func test_melee_reach_contract_uses_resolved_runtime_attack_range() -> void:
+	Global.begin_run(742, null, 0)
+	var definition: WeaponDef = Content.catalog.get_weapon(&"weapon/sword")
+	var holder: Node2D = auto_free(Node2D.new()) as Node2D
+	var weapon: Weapon = auto_free(definition.tiers[0].scene.instantiate() as Weapon) as Weapon
+	add_child(holder)
+	holder.add_child(weapon)
+	weapon.setup_weapon(definition.tiers[0])
+	var behavior := weapon.weapon_behavior as MeleeBehavior
+	var pattern := weapon.current_attack_pattern()
+	var base_position := behavior._resolved_attack_position(pattern)
+
+	Global.current_run.player_stats.add_stat(StatId.RANGE, 63.0)
+	var resolved_position := behavior._resolved_attack_position(pattern)
+	var multiplier := pattern.melee_reach_multiplier if pattern != null else 1.0
+
+	assert_float(resolved_position.x).is_equal_approx(
+		weapon.atk_start_pos.x + weapon.resolved_attack_range() * multiplier,
+		0.001
+	)
+	assert_float(resolved_position.x - base_position.x).is_equal_approx(63.0 * multiplier, 0.001)
+
+
 func test_charged_range_attack_waits_before_spawning_its_projectile() -> void:
 	Global.begin_run(75, null, 0)
 	var definition: WeaponDef = Content.catalog.get_weapon(&"weapon/railbow")

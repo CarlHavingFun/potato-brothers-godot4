@@ -12,28 +12,34 @@ var result_key := ""
 
 func show_result(run_state: RunState, victory: bool) -> void:
 	result_key = "victory" if victory else "death"
-	result_label.text = tr("ui.settlement.victory") if victory else tr("ui.settlement.death")
+	result_label.text = (
+		LocalizedTextService.resolve(&"ui.settlement.victory")
+		if victory
+		else LocalizedTextService.resolve(&"ui.settlement.death")
+	)
 	if run_state == null:
-		details_label.text = tr("ui.settlement.no_data")
+		details_label.text = LocalizedTextService.resolve(&"ui.settlement.no_data")
 		return
+	var character := Content.catalog.get_character(run_state.character_id)
+	var character_name := ItemDescriptionFormatter.character_display_name(character)
 	if run_state.run_mode == RunMode.ENDLESS:
-		details_label.text = tr("ui.settlement.endless_details") % [
-			String(run_state.character_id),
+		details_label.text = LocalizedTextService.resolve(&"ui.settlement.endless_details", [
+			character_name,
 			run_state.difficulty,
 			maxi(run_state.wave, run_state.highest_wave_reached),
 			run_state.kill_count,
 			run_state.boss_kill_count,
 			run_state.materials,
 			_format_time(run_state.elapsed_seconds),
-		]
+		])
 	else:
-		details_label.text = tr("ui.settlement.standard_details") % [
-			String(run_state.character_id),
+		details_label.text = LocalizedTextService.resolve(&"ui.settlement.standard_details", [
+			character_name,
 			run_state.difficulty,
 			run_state.wave,
 			run_state.materials,
 			_format_time(run_state.elapsed_seconds),
-		]
+		])
 
 
 func _format_time(seconds: float) -> String:

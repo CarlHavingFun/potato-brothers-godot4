@@ -96,7 +96,7 @@ offset_left = 128.0
 offset_top = 5.0
 offset_right = 168.0
 offset_bottom = 24.3333
-text = "Player name"
+text = "ui.selection.character_placeholder"
 label_settings = SubResource("LabelSettings_dh0xd")
 
 [node name="PlayerTitle" type="Label" parent="MarginContainer/VBoxContainer/Control/Panel/MarginContainer/Control"]
@@ -107,7 +107,7 @@ offset_left = 128.0
 offset_top = 52.0
 offset_right = 168.0
 offset_bottom = 71.3333
-text = "Player"
+text = "ui.selection.character_type"
 label_settings = SubResource("LabelSettings_dh0xd")
 
 [node name="PlayerDescription" type="RichTextLabel" parent="MarginContainer/VBoxContainer/Control/Panel/MarginContainer/Control"]
@@ -130,7 +130,7 @@ theme_override_font_sizes/mono_font_size = 24
 theme_override_font_sizes/normal_font_size = 24
 theme_override_font_sizes/bold_font_size = 24
 bbcode_enabled = true
-text = "Description"
+text = "ui.item.no_description"
 
 [node name="ContinueButtom" parent="MarginContainer/VBoxContainer/Control" instance=ExtResource("4_58qwm")]
 layout_mode = 1
@@ -145,7 +145,7 @@ offset_right = 0.0
 offset_bottom = 66.0
 grow_horizontal = 0
 grow_vertical = 1
-text = "continue"
+text = "ui.common.continue"
 
 [node name="Items" type="Control" parent="MarginContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 400)

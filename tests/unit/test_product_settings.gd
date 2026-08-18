@@ -2,6 +2,7 @@ extends GdUnitTestSuite
 
 
 const TEST_ROOT := "user://tests/settings_store"
+const WINDOW_MODE_POLICY_PATH := "res://core/settings/window_mode_policy.gd"
 
 
 func before_test() -> void:
@@ -37,6 +38,33 @@ func test_defaults_match_product_baseline() -> void:
 	assert_bool(settings.reduce_flashes).is_false()
 	assert_bool(settings.high_contrast_projectiles).is_false()
 	assert_float(settings.gamepad_deadzone).is_equal(0.25)
+
+
+func test_window_modes_have_distinct_native_window_contracts() -> void:
+	assert_bool(ResourceLoader.exists(WINDOW_MODE_POLICY_PATH)).is_true()
+	if not ResourceLoader.exists(WINDOW_MODE_POLICY_PATH):
+		return
+	var policy: Script = load(WINDOW_MODE_POLICY_PATH)
+
+	var windowed: Dictionary = policy.call("native_contract", DisplayMode.WINDOWED)
+	assert_int(windowed.mode).is_equal(DisplayServer.WINDOW_MODE_WINDOWED)
+	assert_bool(windowed.borderless).is_false()
+	assert_bool(windowed.resize_disabled).is_false()
+	assert_bool(windowed.extend_to_title).is_false()
+
+	var borderless: Dictionary = policy.call(
+		"native_contract", DisplayMode.BORDERLESS_FULLSCREEN
+	)
+	assert_int(borderless.mode).is_equal(DisplayServer.WINDOW_MODE_FULLSCREEN)
+	assert_bool(borderless.borderless).is_true()
+
+	var exclusive: Dictionary = policy.call(
+		"native_contract", DisplayMode.EXCLUSIVE_FULLSCREEN
+	)
+	assert_int(exclusive.mode).is_equal(
+		DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
+	)
+	assert_bool(exclusive.borderless).is_false()
 
 
 func test_round_trip_clamps_invalid_values_and_normalizes_resolution() -> void:

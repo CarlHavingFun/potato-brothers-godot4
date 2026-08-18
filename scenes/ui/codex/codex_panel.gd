@@ -55,7 +55,9 @@ func show_category(index: int) -> void:
 		if discovered:
 			discovered_count += 1
 		grid.add_child(_make_entry(definition, discovered))
-	discovered_label.text = tr("ui.codex.discovered") % [discovered_count, definitions.size()]
+	discovered_label.text = LocalizedTextService.resolve(
+		&"ui.codex.discovered", [discovered_count, definitions.size()]
+	)
 	for button_index in category_buttons.get_child_count():
 		var button := category_buttons.get_child(button_index) as Button
 		button.set_pressed_no_signal(button_index == current_category)
@@ -97,9 +99,16 @@ func _make_entry(definition: ContentDef, discovered: bool) -> PanelContainer:
 	var tag_label := Label.new()
 	tag_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tag_label.add_theme_color_override(&"font_color", Color(0.55, 0.78, 0.74))
-	tag_label.text = " · ".join(Array(definition.tags).map(
-		func(tag: StringName): return Content.catalog.get_tag_display_name(tag)
-	)) if discovered else tr("ui.codex.undiscovered")
+	var tag_names: Array[String] = []
+	for tag: StringName in definition.tags:
+		tag_names.append(LocalizedTextService.resolve(StringName(
+			"tag.%s" % String(tag).replace("/", ".")
+		)))
+	tag_label.text = (
+		" · ".join(tag_names)
+		if discovered
+		else LocalizedTextService.resolve(&"ui.codex.undiscovered")
+	)
 	column.add_child(tag_label)
 	return card
 
@@ -121,12 +130,14 @@ func _definition_icon(definition: ContentDef) -> Texture2D:
 
 func _definition_name(definition: ContentDef) -> String:
 	if definition is CharacterDef:
-		return Content.catalog.get_character_display_name(definition as CharacterDef)
+		return ItemDescriptionFormatter.character_display_name(definition as CharacterDef)
 	if definition is WeaponDef:
-		return Content.catalog.get_item_display_name((definition as WeaponDef).tiers[0])
+		return ItemDescriptionFormatter.item_display_name((definition as WeaponDef).tiers[0])
 	if definition is PassiveItemDef:
-		return Content.catalog.get_item_display_name((definition as PassiveItemDef).item)
-	return Global.translate_text(definition.display_name_key, String(definition.content_id).get_file().capitalize())
+		return ItemDescriptionFormatter.item_display_name((definition as PassiveItemDef).item)
+	return ItemDescriptionFormatter.definition_display_name(
+		definition, String(definition.content_id).get_file().capitalize()
+	)
 
 
 func _clear_grid() -> void:

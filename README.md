@@ -31,21 +31,34 @@ read-only references. The game must not depend on their paths at runtime.
 Run the headless GdUnit4 suite from PowerShell:
 
 ```powershell
-.\tools\run_tests.ps1 -GodotBinary D:\path\to\Godot_v4.7.1-stable_win64_console.exe
+.\tools\run_tests.ps1 -GodotBinary D:\path\to\Godot_v4.7-stable_win64_console.exe
 ```
 
 Build the restricted content pack, run all acceptance gates, export Windows,
 Linux, and macOS, and assemble the internal playtest archives with:
 
 ```powershell
-.\tools\build_release.ps1 -GodotBinary D:\path\to\Godot_v4.7.1-stable_win64_console.exe
+.\tools\build_release.ps1 -GodotBinary D:\path\to\Godot_v4.7-stable_win64_console.exe
 ```
+
+For a Windows playtest build, use the one-command entry point:
+
+```powershell
+.\tools\build_windows_release.ps1 `
+  -GodotBinary C:\path\to\Godot_v4.7-stable_win64_console.exe
+```
+
+On the first run it downloads the matching official Godot template archive,
+verifies its pinned SHA-256, and installs only the Windows x86_64 templates.
+Later runs reuse the installed templates. The portable directory and zip are
+written under `dist/gobro-core-parity/`; the exported executable is smoke-tested
+from a temporary directory with isolated user data before the build succeeds.
 
 Choose the presentation shell at build time without changing gameplay IDs:
 
 ```powershell
 .\tools\build_release.ps1 `
-  -GodotBinary D:\path\to\Godot_v4.7.1-stable_win64_console.exe `
+  -GodotBinary D:\path\to\Godot_v4.7-stable_win64_console.exe `
   -SkinManifest res://content_packs/skins/dev_placeholder/skin.tres
 ```
 

@@ -263,6 +263,6 @@ func _cleanup_files() -> void:
 				DirAccess.remove_absolute(ProjectSettings.globalize_path(target))
 	for slot: int in range(1, ProfileStore.MAX_PROFILES + 1):
 		for suffix: String in ["", ".tmp", ".bak"]:
-			var profile_path := "%s/%d/save_v3.json%s" % [TEST_PROFILE_ROOT, slot, suffix]
+			var profile_path := "%s/%d/save_v4.json%s" % [TEST_PROFILE_ROOT, slot, suffix]
 			if FileAccess.file_exists(profile_path):
 				DirAccess.remove_absolute(ProjectSettings.globalize_path(profile_path))

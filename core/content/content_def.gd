@@ -4,6 +4,7 @@ extends Resource
 
 @export var content_id: StringName
 @export var presentation_id: StringName
+@export var balance_id: StringName
 @export var display_name_key: StringName
 @export var description_key: StringName
 @export var icon: Texture2D
@@ -23,5 +24,12 @@ func get_stable_id(pack_id: StringName) -> StringName:
 func get_presentation_id(pack_id: StringName = &"") -> StringName:
 	if not presentation_id.is_empty():
 		return presentation_id
+	var stable_id := get_stable_id(pack_id)
+	return stable_id if not stable_id.is_empty() else content_id
+
+
+func get_balance_id(pack_id: StringName = &"") -> StringName:
+	if not balance_id.is_empty():
+		return balance_id
 	var stable_id := get_stable_id(pack_id)
 	return stable_id if not stable_id.is_empty() else content_id

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ArenaBoundsDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/world/arena_bounds_def.gd" id="1_bounds"]
+
+[resource]
+script = ExtResource("1_bounds")
+playable_rect = Rect2(-1000, -500, 2000, 1000)
+visual_padding = Vector2(280, 160)
+spawn_margin = Vector2(80, 80)
+player_radius = 34.0

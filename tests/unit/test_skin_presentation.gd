@@ -3,6 +3,12 @@ extends GdUnitTestSuite
 
 const DEV_SKIN := "res://content_packs/skins/dev_placeholder/skin.tres"
 const ALT_SKIN := "res://content_packs/skins/test_alt/skin.tres"
+const TEST_SKIN := "user://tests/skin_presentation/cache_isolation_skin.tres"
+
+
+func after_test() -> void:
+	if FileAccess.file_exists(TEST_SKIN):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_SKIN))
 
 
 func test_two_skin_manifests_resolve_content_and_missing_assets_with_fallbacks() -> void:
@@ -30,6 +36,37 @@ func test_two_skin_manifests_resolve_content_and_missing_assets_with_fallbacks()
 			var category := _category_for(definition)
 			var table: Dictionary = dev.active_skin.asset_tables.get(category, {})
 			assert_bool(table.has(definition.presentation_id)).is_true()
+
+
+func test_active_skin_isolated_from_same_path_cache_replacement() -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(TEST_SKIN.get_base_dir()))
+	var first := (load(DEV_SKIN) as SkinPackDef).duplicate(true) as SkinPackDef
+	first.skin_id = &"cache_isolation"
+	first.product_name = "Runtime Original"
+	first.accent_color = Color(0.1, 0.2, 0.3, 1.0)
+	assert_int(ResourceSaver.save(first, TEST_SKIN)).is_equal(OK)
+
+	var resolver: SkinResolver = auto_free(SkinResolver.new())
+	assert_int(resolver.load_manifest(TEST_SKIN)).is_equal(OK)
+	assert_str(resolver.active_skin.product_name).is_equal("Runtime Original")
+	assert_int(resolver.active_skin.get_instance_id()).is_not_equal(first.get_instance_id())
+
+	var replacement := first.duplicate(true) as SkinPackDef
+	replacement.product_name = "Replacement"
+	replacement.accent_color = Color(0.9, 0.8, 0.7, 1.0)
+	assert_int(ResourceSaver.save(replacement, TEST_SKIN)).is_equal(OK)
+	var reloaded := ResourceLoader.load(
+		TEST_SKIN,
+		"SkinPackDef",
+		ResourceLoader.CACHE_MODE_REPLACE
+	) as SkinPackDef
+
+	assert_str(reloaded.product_name).is_equal("Replacement")
+	assert_bool(reloaded.accent_color.is_equal_approx(Color(0.9, 0.8, 0.7, 1.0))).is_true()
+	assert_str(resolver.active_skin.product_name).is_equal("Runtime Original")
+	assert_bool(
+		resolver.active_skin.accent_color.is_equal_approx(Color(0.1, 0.2, 0.3, 1.0))
+	).is_true()
 
 
 func test_gameplay_cue_bus_only_emits_semantic_cues() -> void:

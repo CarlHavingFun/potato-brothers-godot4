@@ -1,6 +1,10 @@
 extends GdUnitTestSuite
 
 
+func after_test() -> void:
+	Global.end_run()
+
+
 func test_ecology_layout_is_deterministic_and_contains_trees_and_consumables() -> void:
 	var first: ArenaEcology = auto_free(ArenaEcology.new()) as ArenaEcology
 	var second: ArenaEcology = auto_free(ArenaEcology.new()) as ArenaEcology
@@ -40,7 +44,33 @@ func test_high_difficulty_mutator_makes_danger_zones_faster_and_larger() -> void
 
 	assert_bool(pressured.effective_danger_interval < normal.effective_danger_interval).is_true()
 	assert_bool(pressured.danger_radius > normal.danger_radius).is_true()
-	Global.end_run()
+
+
+func test_danger_zone_uses_the_typed_player_damage_pipeline() -> void:
+	Global.begin_run(915, null, 0)
+	Global.current_run.phase = RunPhase.COMBAT
+	Global.current_run.player_stats.set_stat(StatId.ARMOR, 15.0)
+	Global.current_run.player_stats.set_stat(StatId.DODGE, 0.0)
+	var player: Player = auto_free(load(
+		"res://scenes/unit/players/player_well_rounded.tscn"
+	).instantiate() as Player) as Player
+	add_child(player)
+	Global.player = player
+	var ecology: ArenaEcology = auto_free(ArenaEcology.new()) as ArenaEcology
+	add_child(ecology)
+	ecology.setup_wave(6, 915, player)
+	ecology.danger_center = player.global_position
+	ecology._danger_cycle = 0
+	ecology._elapsed = ecology.danger_warning_seconds + 0.01
+	var health_before := player.health_component.current_health
+	var raw_damage := 3.0 + 6.0 * 0.35
+
+	ecology._process(0.0)
+
+	assert_float(player.health_component.current_health).is_equal_approx(
+		health_before - Global.combat_resolver.damage_after_armor(raw_damage, 15.0),
+		0.001
+	)
 
 
 func test_tree_harvest_defers_pickup_creation_until_physics_flush_is_safe() -> void:

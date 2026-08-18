@@ -1,12 +1,13 @@
-# Potato Brothers Phase 1 playtest
+# GOBRO Windows playtest
 
 This is an internal playtest build. It is not a public or commercial release.
 
 ## Included
 
-- 6 characters and 11 four-tier weapon families
-- 20 passive items and 64 stat upgrade cards
-- 10 waves, 5 difficulties, 7 normal/special enemy families, and MouseDog
+- 12 characters and 24 four-tier weapon families
+- 60 passive items and 16 stat families
+- 20 standard waves, deterministic endless mode, and 5 difficulties
+- 18 normal/special enemy roles, 2 elites, and 2 final bosses
 - upgrades, reward chests, shop, inventory, combining, selling, victory/death,
   unlocks, settings, Simplified Chinese, and English
 
@@ -22,7 +23,7 @@ character, weapon, and unlocked difficulty.
 - Dash: Space
 - Pause: Escape
 - Toggle fullscreen/windowed: F11 or Alt+Enter
-- Menu route: Settings -> disable Fullscreen -> Apply
+- Menu route: Settings -> Display -> Windowed -> Apply
 
 ## Feedback checkpoint
 

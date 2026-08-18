@@ -29,7 +29,7 @@ func _on_refresh_button_pressed() -> void:
 		return
 	var result := Global.reward_service.try_refresh_upgrades(Global.current_run, current_wave)
 	if result != InventoryService.OK:
-		status_label.text = tr("ui.upgrade.refresh_insufficient")
+		status_label.text = LocalizedTextService.resolve(&"ui.upgrade.refresh_insufficient")
 		return
 	Global.materials_changed.emit(Global.current_run.materials)
 	load_upgrades(current_wave)
@@ -39,7 +39,7 @@ func _on_refresh_button_pressed() -> void:
 func _update_refresh_feedback() -> void:
 	if Global.current_run == null:
 		return
-	refresh_button.text = tr("ui.upgrade.refresh") % Global.reward_service.upgrade_refresh_price(
-		Global.current_run, current_wave
-	)
-	status_label.text = tr("ui.upgrade.refresh_hint")
+	refresh_button.text = LocalizedTextService.resolve(&"ui.upgrade.refresh", [
+		Global.reward_service.upgrade_refresh_price(Global.current_run, current_wave)
+	])
+	status_label.text = LocalizedTextService.resolve(&"ui.upgrade.refresh_hint")

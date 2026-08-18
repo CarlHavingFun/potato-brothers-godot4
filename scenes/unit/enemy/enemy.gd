@@ -203,7 +203,7 @@ func _execute_role_action() -> void:
 	var player_distance := global_position.distance_to(Global.player.global_position)
 	if player_distance <= role_profile.effect_radius:
 		if role_profile.hazard_damage > 0.0:
-			Global.player.health_component.take_damage(role_profile.hazard_damage)
+			_damage_player_with_hazard(role_profile.hazard_damage)
 		if role_profile.material_steal > 0:
 			Global.try_spend_materials(role_profile.material_steal)
 		if role_profile.slow_multiplier < 1.0:
@@ -214,6 +214,16 @@ func _execute_role_action() -> void:
 	if role_profile.ambush_distance > 0.0 and is_instance_valid(Global.player):
 		var side := -1.0 if global_position.x > Global.player.global_position.x else 1.0
 		global_position = Global.player.global_position + Vector2(side * role_profile.ambush_distance, -80.0)
+
+
+func _damage_player_with_hazard(amount: float) -> void:
+	if amount <= 0.0 or not is_instance_valid(Global.player):
+		return
+	Global.player.receive_typed_damage(
+		amount,
+		self,
+		[&"enemy", &"hazard"] as Array[StringName]
+	)
 
 
 static func next_behavior_state(current_state: int) -> int:

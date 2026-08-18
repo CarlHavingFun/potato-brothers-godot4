@@ -17,8 +17,14 @@ func on_hit_confirmed(result: HitResult) -> void:
 func get_damage() -> float:
 	critical = false
 	var scaling_stat_id := get_scaling_stat_id()
-	var damage := Global.combat_resolver.weapon_damage(
-		weapon.data.stats.damage, Global.current_run.player_stats, scaling_stat_id
+	var configured_coefficients: Dictionary = weapon.data.stats.scaling_coefficients
+	var damage := Global.combat_resolver.weapon_damage_with_coefficients(
+		weapon.data.stats.damage,
+		Global.current_run.player_stats,
+		configured_coefficients if not configured_coefficients.is_empty() else {
+			scaling_stat_id: 1.0,
+		},
+		weapon.data.stats.is_engineering_structure
 	)
 	var crit_chance := Global.combat_resolver.critical_chance(
 		weapon.data.stats.crit_chance, Global.current_run.player_stats
@@ -30,17 +36,13 @@ func get_damage() -> float:
 
 
 func apply_life_steal() -> void:
-	var steal_chance := Global.combat_resolver.life_steal_chance(
+	var can_steal := Global.combat_resolver != null and Global.combat_resolver.try_life_steal(
 		weapon.data.stats.life_steal, Global.current_run.player_stats
 	)
-	var can_steal := (
-		Global.combat_resolver.roll_chance(steal_chance)
-		if Global.combat_resolver != null
-		else Global.get_chance_sucess(steal_chance)
-	)
 	if can_steal and is_instance_valid(Global.player):
-		Global.player.health_component.heal(1.0)
-		Global.on_create_heal_text.emit(Global.player, 1.0)
+		var heal_amount := Global.combat_resolver.stat_rules.life_steal_heal_amount
+		Global.player.health_component.heal(heal_amount)
+		Global.on_create_heal_text.emit(Global.player, heal_amount)
 
 
 func get_scaling_stat_id() -> int:

@@ -10,10 +10,13 @@ func test_chinese_and_english_product_translations_are_registered() -> void:
 	TranslationServer.set_locale(original_locale)
 
 
-func test_missing_translation_uses_explicit_english_fallback() -> void:
+func test_missing_translation_never_leaks_english_fallback_into_chinese() -> void:
+	var original_locale := TranslationServer.get_locale()
+	TranslationServer.set_locale("zh_CN")
 	assert_str(Global.translate_text(&"ui.missing.test_key", "English fallback")).is_equal(
-		"English fallback"
+		LocalizedTextService.DEFAULT_ZH_MISSING_TEXT
 	)
+	TranslationServer.set_locale(original_locale)
 
 
 func test_settings_panel_exposes_all_release_product_controls() -> void:

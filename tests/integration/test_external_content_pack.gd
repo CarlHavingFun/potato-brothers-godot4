@@ -16,6 +16,9 @@ func after_test() -> void:
 
 
 func test_catalog_loads_manifest_that_exists_only_inside_external_pck() -> void:
+	var original_locale := TranslationServer.get_locale()
+	TranslationServer.set_locale("zh_CN")
+	var live_copy_before := LocalizedTextService.resolve(&"ui.title.start")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(TEMP_ROOT))
 	var pack := ContentPackDef.new()
 	pack.pack_id = &"integration_fixture"
@@ -37,7 +40,9 @@ func test_catalog_loads_manifest_that_exists_only_inside_external_pck() -> void:
 	var loader := BootstrapContentLoader.new()
 	assert_int(loader.mount_and_load(ProjectSettings.globalize_path(PACK_PATH), VIRTUAL_MANIFEST)).is_equal(OK)
 	assert_object(loader.catalog.get_character(&"character/external")).is_not_null()
+	assert_str(LocalizedTextService.resolve(&"ui.title.start")).is_equal(live_copy_before)
 	loader.free()
+	TranslationServer.set_locale(original_locale)
 
 
 func test_generated_default_pck_contains_only_restricted_content_files() -> void:

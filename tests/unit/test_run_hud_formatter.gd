@@ -39,3 +39,15 @@ func test_status_entries_are_stable_and_preserve_stack_and_duration() -> void:
 	assert_str(str(entries[0].status_id)).is_equal("burn")
 	assert_int(int(entries[0].stacks)).is_equal(3)
 	assert_float(float(entries[0].remaining)).is_equal(2.25)
+
+
+func test_boss_snapshot_ignores_freed_instances_before_type_checks() -> void:
+	var freed_enemy := Enemy.new()
+	var candidates: Array = [freed_enemy]
+	freed_enemy.free()
+
+	var snapshot: Dictionary
+	for _frame: int in range(10_000):
+		snapshot = RUN_HUD_FORMATTER.boss_snapshot(candidates)
+
+	assert_dict(snapshot).is_empty()

@@ -44,7 +44,11 @@ func _damage_after_armor(raw_damage: float, armor: float) -> float:
 		return combat_resolver.damage_after_armor(raw_damage, armor)
 	if armor >= 0.0:
 		return raw_damage * ARMOR_HALF_DAMAGE_POINT / (ARMOR_HALF_DAMAGE_POINT + armor)
-	return raw_damage * (1.0 + absf(armor) / ARMOR_HALF_DAMAGE_POINT)
+	return raw_damage * (
+		ARMOR_HALF_DAMAGE_POINT - 2.0 * armor
+	) / (
+		ARMOR_HALF_DAMAGE_POINT - armor
+	)
 
 
 func _roll_chance(chance: float) -> bool:

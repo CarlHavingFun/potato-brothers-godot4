@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3 uid="uid://bjhraywhhpn3h"]
+[gd_scene load_steps=24 format=3 uid="uid://bjhraywhhpn3h"]
 
 [ext_resource type="Script" uid="uid://fylssyuoxjey" path="res://scenes/arena/arena.gd" id="1_asdgj"]
 [ext_resource type="Script" uid="uid://xik4iqa2n4lo" path="res://scenes/arena/camera_2d.gd" id="4_aj7ud"]
@@ -14,6 +14,8 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/settlement_panel/settlement_panel.tscn" id="23_settlement"]
 [ext_resource type="PackedScene" path="res://scenes/ui/settings_panel/settings_panel.tscn" id="24_settings"]
 [ext_resource type="Script" path="res://scenes/arena/ecology/arena_ecology.gd" id="25_ecology"]
+[ext_resource type="Resource" path="res://core/world/default_arena_bounds.tres" id="26_bounds"]
+[ext_resource type="Script" path="res://core/world/arena_bounds_controller.gd" id="27_bounds_controller"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_6w4xk"]
 font_size = 64
@@ -38,7 +40,7 @@ hp_color = Color(0, 0.627451, 0.482353, 1)
 scale = Vector2(2, 2)
 
 [node name="GrassBG" type="Sprite2D" parent="."]
-scale = Vector2(2, 2)
+scale = Vector2(2.6, 2.6)
 
 [node name="ArenaEcology" type="Node2D" parent="."]
 unique_name_in_owner = true
@@ -48,6 +50,8 @@ script = ExtResource("25_ecology")
 [node name="WorldBoundaries" type="StaticBody2D" parent="."]
 collision_layer = 128
 collision_mask = 3
+script = ExtResource("27_bounds_controller")
+arena_bounds = ExtResource("26_bounds")
 
 [node name="Top" type="CollisionShape2D" parent="WorldBoundaries"]
 position = Vector2(0, -550)
@@ -67,10 +71,12 @@ shape = SubResource("RectangleShape2D_vertical")
 
 [node name="Camera2D" type="Camera2D" parent="."]
 script = ExtResource("4_aj7ud")
+arena_bounds = ExtResource("26_bounds")
 
 [node name="Spawner" type="Node2D" parent="."]
 z_index = 2
 script = ExtResource("7_6w4xk")
+arena_bounds = ExtResource("26_bounds")
 
 [node name="SpawnTimer" type="Timer" parent="Spawner"]
 one_shot = true
@@ -80,16 +86,32 @@ one_shot = true
 
 [node name="GameUI" type="CanvasLayer" parent="."]
 
-[node name="CoinsBag" parent="GameUI" instance=ExtResource("15_rhjlh")]
+[node name="ResourceHud" type="VBoxContainer" parent="GameUI"]
+offset_left = 28.0
+offset_top = 24.0
+offset_right = 420.0
+offset_bottom = 132.0
+mouse_filter = 2
+theme_override_constants/separation = -10
+
+[node name="CoinsBag" parent="GameUI/ResourceHud" instance=ExtResource("15_rhjlh")]
 unique_name_in_owner = true
+layout_mode = 2
 
 [node name="PlayerVitals" type="VBoxContainer" parent="GameUI"]
-offset_left = 28.0
-offset_top = 102.0
-offset_right = 430.0
-offset_bottom = 190.0
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -310.0
+offset_top = -150.0
+offset_right = 310.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 0
 mouse_filter = 2
-theme_override_constants/separation = 1
+theme_override_constants/separation = 3
 
 [node name="HealthHudLabel" type="Label" parent="GameUI/PlayerVitals"]
 unique_name_in_owner = true
@@ -98,6 +120,14 @@ theme_override_colors/font_color = Color(1, 0.42, 0.4, 1)
 theme_override_colors/font_outline_color = Color(0.04, 0.06, 0.05, 0.95)
 theme_override_constants/outline_size = 6
 theme_override_font_sizes/font_size = 22
+horizontal_alignment = 1
+
+[node name="HealthHudBar" type="ProgressBar" parent="GameUI/PlayerVitals"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(620, 18)
+layout_mode = 2
+mouse_filter = 2
+show_percentage = false
 
 [node name="ExperienceHudLabel" type="Label" parent="GameUI/PlayerVitals"]
 unique_name_in_owner = true
@@ -106,8 +136,16 @@ theme_override_colors/font_color = Color(0.48, 0.94, 0.56, 1)
 theme_override_colors/font_outline_color = Color(0.04, 0.06, 0.05, 0.95)
 theme_override_constants/outline_size = 6
 theme_override_font_sizes/font_size = 20
+horizontal_alignment = 1
 
-[node name="MaterialBagLabel" type="Label" parent="GameUI/PlayerVitals"]
+[node name="ExperienceHudBar" type="ProgressBar" parent="GameUI/PlayerVitals"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(620, 12)
+layout_mode = 2
+mouse_filter = 2
+show_percentage = false
+
+[node name="MaterialBagLabel" type="Label" parent="GameUI/ResourceHud"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.82, 0.32, 1)
@@ -125,7 +163,7 @@ offset_top = 20.0
 offset_right = 27.5
 offset_bottom = 39.3333
 grow_horizontal = 2
-text = "Wave 1"
+text = ""
 label_settings = SubResource("LabelSettings_6w4xk")
 
 [node name="WaveTimeLabel" type="Label" parent="GameUI"]

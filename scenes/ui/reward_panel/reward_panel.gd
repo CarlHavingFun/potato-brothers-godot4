@@ -30,9 +30,11 @@ func load_reward(current_wave: int) -> bool:
 		definition.get_presentation_id(Content.catalog.pack_id) if definition != null else stable_id,
 		reward_item.item_icon
 	)
-	item_name.text = Content.catalog.get_item_display_name(reward_item)
-	item_description.text = reward_item.get_description()
-	status_label.text = tr("ui.reward.choose")
+	item_name.text = ItemDescriptionFormatter.item_display_name(reward_item)
+	item_description.text = ItemDescriptionFormatter.format_item(
+		reward_item, Global.current_run.player_stats
+	)
+	status_label.text = LocalizedTextService.resolve(&"ui.reward.choose")
 	return true
 
 
@@ -50,9 +52,9 @@ func _on_claim_button_pressed() -> void:
 func _on_recycle_button_pressed() -> void:
 	var recycled := Global.recycle_reward_item(reward_item)
 	if recycled <= 0:
-		status_label.text = tr("ui.reward.recycle_failed")
+		status_label.text = LocalizedTextService.resolve(&"ui.reward.recycle_failed")
 		return
-	status_label.text = tr("ui.reward.recycled") % recycled
+	status_label.text = LocalizedTextService.resolve(&"ui.reward.recycled", [recycled])
 	_finish_current_reward()
 
 
@@ -64,8 +66,8 @@ func _finish_current_reward() -> void:
 func _result_message(result: int) -> String:
 	match result:
 		InventoryService.NO_WEAPON_SLOT:
-			return tr("ui.reward.weapon_slots_full")
+			return LocalizedTextService.resolve(&"ui.reward.weapon_slots_full")
 		InventoryService.MAX_PASSIVE_STACK:
-			return tr("ui.reward.stack_full")
+			return LocalizedTextService.resolve(&"ui.reward.stack_full")
 		_:
-			return tr("ui.reward.claim_failed")
+			return LocalizedTextService.resolve(&"ui.reward.claim_failed")
