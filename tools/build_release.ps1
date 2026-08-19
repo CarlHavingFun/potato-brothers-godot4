@@ -3,7 +3,7 @@ param(
 	[string]$GodotBinary = $env:GODOT_BIN,
 	[ValidateSet("Windows", "Linux", "macOS")]
 	[string[]]$Platforms = @("Windows", "Linux", "macOS"),
-	[string]$SkinManifest = "res://content_packs/skins/dev_placeholder/skin.tres",
+	[string]$SkinManifest = "res://content_packs/skins/lets_gooooo/skin.tres",
 	[switch]$SkipAcceptance
 )
 
@@ -12,8 +12,22 @@ $projectRoot = (Resolve-Path (Split-Path -Parent $PSScriptRoot)).Path
 $buildRoot = Join-Path $projectRoot "builds"
 $stagingRoot = Join-Path $buildRoot "release_staging"
 $stagingProject = Join-Path $stagingRoot "core_project"
-$distRoot = Join-Path $projectRoot "dist\gobro-core-parity"
+$distRoot = Join-Path $projectRoot "dist\lets-gooooo"
 $contentPack = Join-Path $buildRoot "content\default_content.pck"
+$FormalSkinManifest = "res://content_packs/skins/lets_gooooo/skin.tres"
+$FormalGlobalFontResource = "res://assets/font/Bake Soda.otf"
+$DefaultContentReadyMarker = "MECHANICS_CONTENT_READY weapons=24 passives=60 upgrades=64 presentation_icons=0"
+$GodotFailureOutputPattern = "SCRIPT ERROR|ERROR:|Unicode parsing error|ObjectDB instances were leaked|resources still in use"
+$RuntimeFailureOutputPattern = "$GodotFailureOutputPattern|Default content pack failed"
+$ApprovedSkinArtExtensions = @(".png", ".svg")
+$ForbiddenSkinArtifactTokens = @(
+	"/identity/", "/review/", "/source/", "/candidate/", "/candidates/",
+	"/prompt/", "/prompts/", "/raw/", "/frames/", "/qa/", "/exports/",
+	"/curated/", ".prompt.", ".qa.", "contact-sheet", ".ds_store",
+	".jpg", ".jpeg", ".psd", ".psb", ".ase", ".aseprite", ".kra",
+	".xcf", ".blend", ".zip", ".7z", ".rar", ".tar", ".gz", ".mp4",
+	".webm", ".mov", ".avi", ".mkv", ".gif"
+)
 
 if ([string]::IsNullOrWhiteSpace($GodotBinary)) {
 	$godotCommand = Get-Command godot -ErrorAction SilentlyContinue
@@ -55,9 +69,141 @@ function Remove-UnselectedSkinDirectories([string]$SkinRoot, [string]$SelectedSk
 	}
 }
 
+function Assert-FormalSkinAssetManifest([string]$AssetManifestPath, [string]$SkinDirectory) {
+	if (-not (Test-Path -LiteralPath $AssetManifestPath -PathType Leaf)) {
+		throw "Asset manifest is required for the formal release skin: $AssetManifestPath"
+	}
+	try {
+		$manifest = Get-Content -LiteralPath $AssetManifestPath -Raw | ConvertFrom-Json
+	} catch {
+		throw "Formal skin asset manifest is not valid JSON: $AssetManifestPath`n$($_.Exception.Message)"
+	}
+	if ($null -eq $manifest -or $manifest.skin_id -ne "lets_gooooo" -or $null -eq $manifest.assets) {
+		throw "Formal skin asset manifest has an invalid identity or assets list: $AssetManifestPath"
+	}
+
+	$skinDirectoryFull = [System.IO.Path]::GetFullPath($SkinDirectory)
+	$skinResourceRoot = "res://content_packs/skins/lets_gooooo/assets/"
+	$approvedPaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+	foreach ($asset in @($manifest.assets)) {
+		$resourcePath = [string]$asset.path
+		if ([string]::IsNullOrWhiteSpace($resourcePath) -or -not $resourcePath.StartsWith($skinResourceRoot, [System.StringComparison]::Ordinal)) {
+			throw "Formal skin asset path is outside the shipping assets root: $resourcePath"
+		}
+		if (-not $approvedPaths.Add($resourcePath)) {
+			throw "Formal skin asset manifest contains a duplicate path: $resourcePath"
+		}
+		$extension = [System.IO.Path]::GetExtension($resourcePath).ToLowerInvariant()
+		if ($ApprovedSkinArtExtensions -notcontains $extension) {
+			throw "Formal skin asset uses a non-shipping extension: $resourcePath"
+		}
+		if ($asset.shipping_allowed -ne $true -or [string]$asset.approval.status -ne "approved" -or [string]$asset.rights.status -ne "cleared") {
+			throw "Formal skin asset is not approved, rights-cleared, and shipping_allowed=true: $resourcePath"
+		}
+		$relativePath = $resourcePath.Substring(6).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+		$sourcePath = Join-Path $projectRoot $relativePath
+		Assert-ChildPath $sourcePath $skinDirectoryFull
+		if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+			throw "Approved formal skin asset is missing: $resourcePath"
+		}
+	}
+	if ($approvedPaths.Count -eq 0) {
+		throw "Formal skin asset manifest must approve at least one shipping asset."
+	}
+
+	Get-ChildItem -LiteralPath $skinDirectoryFull -File -Recurse | ForEach-Object {
+		$relativePath = $_.FullName.Substring($skinDirectoryFull.Length + 1).Replace('\', '/')
+		$lowered = "/" + $relativePath.ToLowerInvariant()
+		foreach ($token in $ForbiddenSkinArtifactTokens) {
+			if ($lowered.Contains($token)) {
+				throw "Forbidden source/review artifact found in formal skin: $relativePath"
+			}
+		}
+	}
+
+	$shippingArtRoot = Join-Path $skinDirectoryFull "assets"
+	Get-ChildItem -LiteralPath $shippingArtRoot -File -Recurse | Where-Object {
+		$ApprovedSkinArtExtensions -contains $_.Extension.ToLowerInvariant()
+	} | ForEach-Object {
+		$projectRelative = $_.FullName.Substring($projectRoot.Length + 1).Replace('\', '/')
+		$resourcePath = "res://$projectRelative"
+		if (-not $approvedPaths.Contains($resourcePath)) {
+			throw "Shipping skin art is missing from asset_manifest.json: $resourcePath"
+		}
+	}
+}
+
+function Set-StagingBootstrapFontConfiguration([string]$ProjectText) {
+	$fontSettingPattern = '(?m)^theme/custom_font="[^"]*"\r?$'
+	if (-not [regex]::IsMatch($ProjectText, $fontSettingPattern)) {
+		throw "Staged project has no gui/theme/custom_font setting."
+	}
+	# A newly copied staging project has no .godot/imported directory yet. Do
+	# not ask ThemeDB to resolve the source project's UID until the first import
+	# has produced the fontdata file in this isolated project.
+	return $ProjectText -replace $fontSettingPattern, 'theme/custom_font=""'
+}
+
+function Set-FormalGlobalFontConfiguration([string]$ProjectText, [string]$StagedProjectRoot) {
+	if (-not $FormalGlobalFontResource.StartsWith("res://", [System.StringComparison]::Ordinal)) {
+		throw "Formal global font must be a res:// resource: $FormalGlobalFontResource"
+	}
+	$fontRelativePath = $FormalGlobalFontResource.Substring(6).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+	$fontPath = Join-Path $StagedProjectRoot $fontRelativePath
+	Assert-ChildPath $fontPath $StagedProjectRoot
+	if (-not (Test-Path -LiteralPath $fontPath -PathType Leaf)) {
+		throw "Formal global font is missing from the staged project: $FormalGlobalFontResource"
+	}
+	$fontImportPath = "$fontPath.import"
+	if (-not (Test-Path -LiteralPath $fontImportPath -PathType Leaf)) {
+		throw "Formal global font import metadata is missing: $fontImportPath"
+	}
+	$fontImportText = Get-Content -LiteralPath $fontImportPath -Raw
+	$fontUidMatch = [regex]::Match($fontImportText, '(?m)^uid="(?<uid>uid://[^"]+)"\r?$')
+	if (-not $fontUidMatch.Success) {
+		throw "Formal global font import metadata has no UID: $fontImportPath"
+	}
+	$fontDataMatch = [regex]::Match(
+		$fontImportText,
+		'(?m)^path="(?<path>res://[^"]+\.fontdata)"\r?$'
+	)
+	if (-not $fontDataMatch.Success) {
+		throw "Formal global font import metadata has no fontdata destination: $fontImportPath"
+	}
+	$fontDataResource = $fontDataMatch.Groups["path"].Value
+	$fontDataRelativePath = $fontDataResource.Substring(6).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+	$fontDataPath = Join-Path $StagedProjectRoot $fontDataRelativePath
+	Assert-ChildPath $fontDataPath $StagedProjectRoot
+	if (-not (Test-Path -LiteralPath $fontDataPath -PathType Leaf)) {
+		throw "Formal global font imported data is missing: $fontDataPath"
+	}
+	$fontSettingPattern = '(?m)^theme/custom_font="[^"]*"\r?$'
+	if (-not [regex]::IsMatch($ProjectText, $fontSettingPattern)) {
+		throw "Staged project has no gui/theme/custom_font setting."
+	}
+	$fontUid = $fontUidMatch.Groups["uid"].Value
+	return $ProjectText -replace $fontSettingPattern, ('theme/custom_font="' + $fontUid + '"')
+}
+
 function Invoke-Godot([string[]]$Arguments) {
-	& $GodotBinary @Arguments
-	if ($LASTEXITCODE -ne 0) { throw "Godot failed with exit code ${LASTEXITCODE}: $($Arguments -join ' ')" }
+	$previousErrorActionPreference = $ErrorActionPreference
+	$ErrorActionPreference = "Continue"
+	try {
+		$output = @(& $GodotBinary @Arguments 2>&1)
+		$exitCode = $LASTEXITCODE
+	} finally {
+		$ErrorActionPreference = $previousErrorActionPreference
+	}
+	$output | ForEach-Object { Write-Output $_ }
+	$errorLines = @($output | ForEach-Object { $_.ToString() } | Where-Object {
+		$_ -match $GodotFailureOutputPattern
+	})
+	if ($exitCode -ne 0) {
+		throw "Godot failed with exit code ${exitCode}: $($Arguments -join ' ')"
+	}
+	if ($errorLines.Count -gt 0) {
+		throw "Godot logged errors while running $($Arguments -join ' '):$([Environment]::NewLine)$($errorLines -join [Environment]::NewLine)"
+	}
 }
 
 function Assert-WindowsX64Executable([string]$ExecutablePath) {
@@ -84,7 +230,7 @@ function Assert-WindowsX64Executable([string]$ExecutablePath) {
 }
 
 function Assert-WindowsReleaseDirectory([string]$PlatformDirectory) {
-	$requiredFiles = @("GOBRO.exe", "GOBRO.pck", "default_content.pck", "PLAYTEST.md", "THIRD_PARTY.md")
+	$requiredFiles = @("LETS_GOOOOO.exe", "LETS_GOOOOO.pck", "default_content.pck", "PLAYTEST.md", "THIRD_PARTY.md")
 	$actualFiles = @(Get-ChildItem -LiteralPath $PlatformDirectory -File -Recurse | ForEach-Object {
 		$_.FullName.Substring($PlatformDirectory.Length + 1).Replace('\', '/')
 	})
@@ -98,13 +244,13 @@ function Assert-WindowsReleaseDirectory([string]$PlatformDirectory) {
 		$file = Get-Item -LiteralPath (Join-Path $PlatformDirectory $fileName)
 		if ($file.Length -le 0) { throw "Windows package contains an empty file: $fileName" }
 	}
-	Assert-WindowsX64Executable (Join-Path $PlatformDirectory "GOBRO.exe")
+	Assert-WindowsX64Executable (Join-Path $PlatformDirectory "LETS_GOOOOO.exe")
 }
 
 function Assert-WindowsReleaseArchive([string]$ArchivePath) {
 	Add-Type -AssemblyName System.IO.Compression
 	Add-Type -AssemblyName System.IO.Compression.FileSystem
-	$requiredFiles = @("GOBRO.exe", "GOBRO.pck", "default_content.pck", "PLAYTEST.md", "THIRD_PARTY.md")
+	$requiredFiles = @("LETS_GOOOOO.exe", "LETS_GOOOOO.pck", "default_content.pck", "PLAYTEST.md", "THIRD_PARTY.md")
 	$archive = [System.IO.Compression.ZipFile]::OpenRead($ArchivePath)
 	try {
 		$actualFiles = @($archive.Entries | Where-Object { -not [string]::IsNullOrEmpty($_.Name) } | ForEach-Object {
@@ -122,12 +268,14 @@ function Assert-WindowsReleaseArchive([string]$ArchivePath) {
 
 function Invoke-WindowsReleaseSmoke([string]$PlatformDirectory) {
 	$tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
-	$smokeRoot = Join-Path $tempRoot ("GOBRO-release-smoke-" + [Guid]::NewGuid().ToString("N"))
+	$smokeRoot = Join-Path $tempRoot ("LETS-GOOOOO-release-smoke-" + [Guid]::NewGuid().ToString("N"))
 	Assert-ChildPath $smokeRoot $tempRoot
 	$smokePackage = Join-Path $smokeRoot "package"
 	$isolatedAppData = Join-Path $smokeRoot "isolated-appdata"
 	$isolatedLocalAppData = Join-Path $smokeRoot "isolated-localappdata"
 	$smokeLog = Join-Path $smokeRoot "exported-windows.log"
+	$smokeStdout = Join-Path $smokeRoot "exported-windows.stdout.log"
+	$smokeStderr = Join-Path $smokeRoot "exported-windows.stderr.log"
 	New-Item -ItemType Directory -Force -Path $smokePackage, $isolatedAppData, $isolatedLocalAppData | Out-Null
 	Get-ChildItem -LiteralPath $PlatformDirectory | ForEach-Object {
 		Copy-Item -LiteralPath $_.FullName -Destination $smokePackage -Recurse -Force
@@ -138,12 +286,14 @@ function Invoke-WindowsReleaseSmoke([string]$PlatformDirectory) {
 	try {
 		$env:APPDATA = $isolatedAppData
 		$env:LOCALAPPDATA = $isolatedLocalAppData
-		$smokeExecutable = Join-Path $smokePackage "GOBRO.exe"
+		$smokeExecutable = Join-Path $smokePackage "LETS_GOOOOO.exe"
 		$smokeProcess = Start-Process `
 			-FilePath $smokeExecutable `
 			-WorkingDirectory $smokePackage `
 			-ArgumentList @("--headless", "--quit-after", "5", "--verbose", "--log-file", $smokeLog) `
 			-WindowStyle Hidden `
+			-RedirectStandardOutput $smokeStdout `
+			-RedirectStandardError $smokeStderr `
 			-PassThru
 		if (-not $smokeProcess.WaitForExit(30000)) {
 			$smokeProcess.Kill()
@@ -152,14 +302,25 @@ function Invoke-WindowsReleaseSmoke([string]$PlatformDirectory) {
 		}
 		if ($smokeProcess.ExitCode -ne 0) { throw "Exported Windows smoke test failed with exit code $($smokeProcess.ExitCode)." }
 		if (-not (Test-Path -LiteralPath $smokeLog -PathType Leaf)) { throw "Exported Windows smoke test did not produce a log." }
-		$runtimeLogs = @($smokeLog)
+		$runtimeLogs = @($smokeLog, $smokeStdout, $smokeStderr) | Where-Object {
+			Test-Path -LiteralPath $_ -PathType Leaf
+		}
+		# Keep the legacy user-data directory while the visible product name
+		# changes, so existing profiles remain available after the skin swap.
 		$gameLog = Join-Path $isolatedAppData "Godot\app_userdata\GOBRO\logs\latest.log"
 		if (Test-Path -LiteralPath $gameLog -PathType Leaf) { $runtimeLogs += $gameLog }
 		$smokeErrors = @($runtimeLogs | ForEach-Object {
-			Get-Content -LiteralPath $_ | Where-Object { $_ -match "SCRIPT ERROR|ERROR:|ObjectDB instances were leaked|resources still in use|Default content pack failed"
+			Get-Content -LiteralPath $_ | Where-Object { $_ -match $RuntimeFailureOutputPattern
 			}
 		})
 		if ($smokeErrors.Count -gt 0) { throw "Exported Windows smoke test logged errors: $($smokeErrors -join [Environment]::NewLine)" }
+		$runtimeText = ($runtimeLogs | ForEach-Object { Get-Content -LiteralPath $_ -Raw }) -join [Environment]::NewLine
+		if ($runtimeText.IndexOf($FormalGlobalFontResource, [System.StringComparison]::Ordinal) -lt 0) {
+			throw "Exported runtime did not load the formal global font: $FormalGlobalFontResource"
+		}
+		if ($runtimeText.IndexOf($DefaultContentReadyMarker, [System.StringComparison]::Ordinal) -lt 0) {
+			throw "Exported runtime did not deserialize the presentation-neutral default mechanics contract."
+		}
 		Write-Output "WINDOWS_RELEASE_SMOKE passed: external package, isolated user data, clean exit"
 	} finally {
 		$env:APPDATA = $previousAppData
@@ -168,8 +329,8 @@ function Invoke-WindowsReleaseSmoke([string]$PlatformDirectory) {
 	}
 }
 
-if (-not $SkinManifest.StartsWith("res://content_packs/skins/", [System.StringComparison]::Ordinal) -or -not $SkinManifest.EndsWith("/skin.tres", [System.StringComparison]::Ordinal)) {
-	throw "SkinManifest must identify one skin under res://content_packs/skins/<id>/skin.tres."
+if (-not $SkinManifest.Equals($FormalSkinManifest, [System.StringComparison]::Ordinal)) {
+	throw "Release builds require the formal skin manifest: $FormalSkinManifest"
 }
 $skinRelativePath = $SkinManifest.Substring(6).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
 $selectedSkinSource = Join-Path $projectRoot $skinRelativePath
@@ -179,6 +340,14 @@ if (-not (Test-Path -LiteralPath $selectedSkinSource -PathType Leaf)) {
 	throw "Selected skin manifest is missing: $selectedSkinSource"
 }
 $selectedSkinName = Split-Path -Leaf (Split-Path -Parent $selectedSkinSource)
+$selectedSkinAssetManifest = Join-Path (Split-Path -Parent $selectedSkinSource) "asset_manifest.json"
+$selectedSkinAssetManifestResource = "res://content_packs/skins/$selectedSkinName/asset_manifest.json"
+Assert-FormalSkinAssetManifest $selectedSkinAssetManifest (Split-Path -Parent $selectedSkinSource)
+Invoke-Godot @(
+	"--headless", "--path", $projectRoot,
+	"--script", "res://tools/assets/validate_skin_assets.gd", "--",
+	"--skin-root", "res://content_packs/skins/$selectedSkinName"
+)
 
 Reset-GeneratedDirectory $stagingRoot $buildRoot
 if (-not $SkipAcceptance) {
@@ -192,8 +361,8 @@ Reset-GeneratedDirectory $distRoot (Join-Path $projectRoot "dist")
 
 $releaseEntries = @(
 	"assets", "autoloads", "content_packs", "core", "effects", "resources",
-	"scenes", "shaders", "styles", "default_bus_layout.tres", "icon.svg",
-	"icon.svg.import", "project.godot", "export_presets.cfg"
+	"scenes", "shaders", "styles", "default_bus_layout.tres", "project.godot",
+	"export_presets.cfg"
 )
 New-Item -ItemType Directory -Force -Path $stagingProject | Out-Null
 foreach ($entry in $releaseEntries) {
@@ -214,16 +383,23 @@ $projectText = Get-Content -LiteralPath $stagedProjectFile -Raw
 $projectText = $projectText -replace '(?m)^MCPGameInspector=.*\r?\n', ''
 $projectText = $projectText -replace '(?m)^MCPGameInput=.*\r?\n', ''
 $projectText = $projectText -replace '(?m)^enabled=PackedStringArray\(.*\)$', 'enabled=PackedStringArray()'
-$projectText = $projectText -replace '(?m)^theme/custom_font=.*\r?\n', ''
+$projectText = Set-StagingBootstrapFontConfiguration $projectText
 $projectText = $projectText -replace '(?m)^skin_manifest="[^"]*"$', ('skin_manifest="' + $SkinManifest + '"')
 [System.IO.File]::WriteAllText($stagedProjectFile, $projectText, [System.Text.UTF8Encoding]::new($false))
 
-Invoke-Godot @("--headless", "--editor", "--path", $stagingProject, "--import", "--quit")
+$initialStagingImportArguments = @("--headless", "--editor", "--path", $stagingProject, "--import", "--quit")
+Invoke-Godot $initialStagingImportArguments
+
+$projectText = Get-Content -LiteralPath $stagedProjectFile -Raw
+$projectText = Set-FormalGlobalFontConfiguration $projectText $stagingProject
+[System.IO.File]::WriteAllText($stagedProjectFile, $projectText, [System.Text.UTF8Encoding]::new($false))
+$verifiedStagingImportArguments = @("--headless", "--editor", "--path", $stagingProject, "--import", "--quit")
+Invoke-Godot $verifiedStagingImportArguments
 
 $platformConfig = @{
-	Windows = @{ Preset = "Windows Desktop"; Folder = "windows"; File = "GOBRO.exe" }
-	Linux   = @{ Preset = "Linux"; Folder = "linux"; File = "GOBRO.x86_64" }
-	macOS   = @{ Preset = "macOS"; Folder = "macos"; File = "GOBRO.zip" }
+	Windows = @{ Preset = "Windows Desktop"; Folder = "windows"; File = "LETS_GOOOOO.exe" }
+	Linux   = @{ Preset = "Linux"; Folder = "linux"; File = "LETS_GOOOOO.x86_64" }
+	macOS   = @{ Preset = "macOS"; Folder = "macos"; File = "LETS_GOOOOO.zip" }
 }
 $inspectorSource = Join-Path $projectRoot "tools\release_inspector"
 $inspectorProject = Join-Path $stagingRoot "inspector_project"
@@ -274,13 +450,23 @@ foreach ($platform in $Platforms) {
 				} finally { $noticeStream.Dispose() }
 			}
 		} finally { $archive.Dispose() }
-		Invoke-Godot @("--headless", "--path", $inspectorProject, "--script", $inspectorScript, "--", $macCorePck, "--skin-manifest", $SkinManifest)
-		$releaseArchive = Join-Path $distRoot "GOBRO-core-parity-macOS-universal.zip"
+		Invoke-Godot @(
+			"--headless", "--path", $inspectorProject, "--script", $inspectorScript,
+			"--", $macCorePck,
+			"--skin-manifest", $SkinManifest,
+			"--asset-manifest", $selectedSkinAssetManifestResource
+		)
+		$releaseArchive = Join-Path $distRoot "LETS-GOOOOO-macOS-universal.zip"
 		Copy-Item -LiteralPath $exportPath -Destination $releaseArchive -Force
 	} else {
 		$corePck = [System.IO.Path]::ChangeExtension($exportPath, ".pck")
 		if (-not (Test-Path -LiteralPath $corePck)) { throw "Core PCK was not generated: $corePck" }
-		Invoke-Godot @("--headless", "--path", $inspectorProject, "--script", $inspectorScript, "--", $corePck, "--skin-manifest", $SkinManifest)
+		Invoke-Godot @(
+			"--headless", "--path", $inspectorProject, "--script", $inspectorScript,
+			"--", $corePck,
+			"--skin-manifest", $SkinManifest,
+			"--asset-manifest", $selectedSkinAssetManifestResource
+		)
 		Copy-Item -LiteralPath $contentPack -Destination (Join-Path $platformDir "default_content.pck") -Force
 		Copy-Item -LiteralPath (Join-Path $projectRoot "docs\PHASE_ONE_PLAYTEST.md") -Destination (Join-Path $platformDir "PLAYTEST.md") -Force
 		Copy-Item -LiteralPath (Join-Path $projectRoot "docs\THIRD_PARTY.md") -Destination (Join-Path $platformDir "THIRD_PARTY.md") -Force
@@ -289,12 +475,12 @@ foreach ($platform in $Platforms) {
 			if ($env:OS -eq "Windows_NT") {
 				Invoke-WindowsReleaseSmoke $platformDir
 			}
-			$releaseArchive = Join-Path $distRoot "GOBRO-core-parity-Windows-x86_64.zip"
+			$releaseArchive = Join-Path $distRoot "LETS-GOOOOO-Windows-x86_64.zip"
 			tar -a -cf $releaseArchive -C $platformDir .
 			if ($LASTEXITCODE -ne 0) { throw "Windows archive creation failed" }
 			Assert-WindowsReleaseArchive $releaseArchive
 		} else {
-			$releaseArchive = Join-Path $distRoot "GOBRO-core-parity-Linux-x86_64.tar.gz"
+			$releaseArchive = Join-Path $distRoot "LETS-GOOOOO-Linux-x86_64.tar.gz"
 			tar -czf $releaseArchive -C $platformDir .
 			if ($LASTEXITCODE -ne 0) { throw "Linux archive creation failed" }
 		}
@@ -311,7 +497,7 @@ Get-ChildItem -LiteralPath $distRoot -File -Recurse | Where-Object Name -ne "rel
 	}
 }
 $manifest = [ordered]@{
-	product = "GOBRO"
+	product = "LET'S GOOOOO"
 	phase = 1
 	version = "0.1.0-playtest"
 	godot = $godotVersion

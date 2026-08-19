@@ -1,6 +1,9 @@
 extends Node2D
 class_name Projectile
 
+
+const PIXEL_ART_PROJECTILE_SCALE := 0.125
+
 @export var hitbox: HitboxComponent
 
 var velocity: Vector2
@@ -23,6 +26,8 @@ var _base_sprite_scale := Vector2.ONE
 var _base_sprite_modulate := Color.WHITE
 var _base_sprite_z_index := 0
 var _presentation_baseline_captured := false
+var _temporary_speed_scale := 1.0
+var _temporary_speed_remaining := 0.0
 
 
 func _ready() -> void:
@@ -31,6 +36,10 @@ func _ready() -> void:
 	refresh_presentation_settings()
 
 func _process(delta: float) -> void:
+	if _temporary_speed_remaining > 0.0:
+		_temporary_speed_remaining = maxf(0.0, _temporary_speed_remaining - delta)
+		if is_zero_approx(_temporary_speed_remaining):
+			_temporary_speed_scale = 1.0
 	_update_homing(delta)
 	if runtime_motion == &"boomerang":
 		_motion_elapsed += delta
@@ -45,7 +54,20 @@ func _process(delta: float) -> void:
 				_return_target.global_position
 			) * velocity.length()
 			rotation = velocity.angle()
-	position += velocity * delta
+	position += velocity * delta * _temporary_speed_scale
+
+
+func apply_temporary_speed_multiplier(multiplier: float, duration: float) -> void:
+	_temporary_speed_scale = minf(_temporary_speed_scale, clampf(multiplier, 0.1, 1.0))
+	_temporary_speed_remaining = maxf(_temporary_speed_remaining, maxf(0.0, duration))
+
+
+func temporary_speed_multiplier() -> float:
+	return _temporary_speed_scale
+
+
+func is_enemy_projectile() -> bool:
+	return _is_enemy_projectile()
 
 
 func configure_homing(target: Node2D, turn_speed: float = 7.0) -> void:
@@ -102,6 +124,16 @@ func set_projectile(
 		projectile_sprite.texture = Presentation.resolve_texture(
 			&"projectile", presentation_id
 		)
+		projectile_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		if projectile_sprite.texture != null and maxf(
+			projectile_sprite.texture.get_width(),
+			projectile_sprite.texture.get_height()
+		) >= 128.0:
+			projectile_sprite.scale = Vector2.ONE * PIXEL_ART_PROJECTILE_SCALE
+		# _ready() captures the mechanical sprite before the skin texture is
+		# selected. Re-capture after replacing it so accessibility contrast can
+		# always restore the actual skinned size and colour.
+		_presentation_baseline_captured = false
 	refresh_presentation_settings()
 	if hitbox:
 		hitbox.setup(

@@ -7,6 +7,9 @@ const DEFAULT_PROFILE_ID := "baseline_parity_1_1_15_4"
 const REFERENCE_WEAPON_BASELINE := preload(
 	"res://core/balance/data/reference_weapon_baseline.gd"
 )
+const REFERENCE_WEAPON_IDENTITY_OVERLAY := preload(
+	"res://core/balance/data/reference_weapon_identity_overlay.gd"
+)
 const REFERENCE_PASSIVE_BASELINE := preload(
 	"res://core/balance/data/reference_passive_baseline.gd"
 )
@@ -41,6 +44,7 @@ static func load_active(pack: ContentPackDef = null) -> BalancePackDef:
 		# temporary base values. Keeping the overlay here makes a later product
 		# balance swap independent from scenes and presentation packs.
 		result.merge_weapon_values(REFERENCE_WEAPON_BASELINE.values())
+		result.merge_weapon_tier_overrides(REFERENCE_WEAPON_IDENTITY_OVERLAY.values())
 		result.merge_passive_values(REFERENCE_PASSIVE_BASELINE.values())
 		result.merge_enemy_values(REFERENCE_ENEMY_BASELINE.values())
 		result.apply_to_content(pack)

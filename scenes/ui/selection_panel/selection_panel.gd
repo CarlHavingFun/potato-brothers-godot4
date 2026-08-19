@@ -34,8 +34,8 @@ func load_players() -> void:
 		card.button_group = player_button_group
 		card.pressed.connect(_on_player_selected.bind(character, card))
 		player_container.add_child(card)
-		card.set_icon(Presentation.resolve_texture(
-			&"character", character.get_presentation_id(Content.catalog.pack_id), character.stats.icon
+		card.set_icon(Presentation.resolve_content_texture(
+			character, character.stats.icon, &"icon", Content.catalog.pack_id
 		))
 
 
@@ -52,8 +52,8 @@ func load_weapons() -> void:
 		card.button_group = weapon_button_group
 		card.pressed.connect(_on_weapon_selected.bind(definition, card))
 		weapon_container.add_child(card)
-		card.icon = Presentation.resolve_texture(
-			&"weapon", definition.get_presentation_id(Content.catalog.pack_id), weapon.item_icon
+		card.icon = Presentation.resolve_content_texture(
+			definition, weapon.item_icon, &"icon", Content.catalog.pack_id
 		)
 
 
@@ -90,8 +90,8 @@ func _on_player_selected(character: CharacterDef, card: SelectionCard = null) ->
 	var player := character.stats
 	show_player_info(true)
 	
-	player_icon.texture = Presentation.resolve_texture(
-		&"character", character.get_presentation_id(Content.catalog.pack_id), player.icon
+	player_icon.texture = Presentation.resolve_content_texture(
+		character, player.icon, &"icon", Content.catalog.pack_id
 	)
 	player_name.text = ItemDescriptionFormatter.character_display_name(character)
 	player_title.text = LocalizedTextService.resolve(&"ui.selection.character_type")

@@ -38,15 +38,12 @@ func configure_slot(index: int, locked: bool) -> void:
 
 func _set_shop_item(value: ItemBase) -> void:
 	shop_item = value
-	var definition: WeaponDef = (
-		Content.catalog.get_weapon(Content.catalog.get_item_stable_id(value))
-		if value is ItemWeapon
-		else null
-	)
-	item_icon.texture = Presentation.resolve_texture(
-		&"weapon" if value is ItemWeapon else &"pickup",
-		definition.get_presentation_id(Content.catalog.pack_id) if definition != null else Content.catalog.get_item_stable_id(value),
-		value.item_icon
+	var definition := Content.catalog.get_item_definition(value)
+	item_icon.texture = Presentation.resolve_content_texture(
+		definition,
+		value.item_icon,
+		&"icon",
+		Content.catalog.pack_id
 	)
 	item_name.text = ItemDescriptionFormatter.item_display_name(value)
 	item_type.text = ItemDescriptionFormatter.item_type_display_name(value.item_type)

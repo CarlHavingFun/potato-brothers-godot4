@@ -2,10 +2,40 @@ class_name SkinPackDef
 extends Resource
 
 
-const CURRENT_API_VERSION := 1
-const ASSET_CATEGORIES := [
-	&"character", &"weapon", &"projectile", &"enemy", &"pickup", &"scene",
+const CURRENT_API_VERSION := 2
+const LEGACY_API_VERSION := 1
+const ASSET_CATEGORIES: Array[StringName] = [
+	&"character",
+	&"enemy",
+	&"weapon/icon",
+	&"weapon/world",
+	&"projectile/world",
+	&"passive/icon",
+	&"upgrade/icon",
+	&"pickup/world",
+	&"prop/world",
+	&"ally/world",
+	&"scene/background",
+	&"scene/floor",
+	&"ui/logo",
+	&"ui/app_icon",
+	&"ui/fallback",
 ]
+const DEFAULT_VARIANTS := {
+	&"weapon": &"world",
+	&"projectile": &"world",
+	&"passive": &"icon",
+	&"upgrade": &"icon",
+	&"pickup": &"world",
+	&"prop": &"world",
+	&"ally": &"world",
+	&"scene": &"background",
+	&"ui": &"fallback",
+}
+const LEGACY_CATEGORY_ALIASES := {
+	&"passive": &"pickup",
+	&"upgrade": &"pickup",
+}
 
 @export var skin_id: StringName
 @export var skin_version := "0.1.0"
@@ -34,6 +64,7 @@ func validate() -> PackedStringArray:
 		errors.append("skin_id is required")
 	if skin_api_version != CURRENT_API_VERSION:
 		errors.append("unsupported skin_api_version: %d" % skin_api_version)
+		return errors
 	if product_name.strip_edges().is_empty():
 		errors.append("product_name is required")
 	for translation_path: String in translation_paths:
@@ -56,16 +87,67 @@ func validate() -> PackedStringArray:
 	return errors
 
 
-func asset_path(category: StringName, presentation_id: StringName) -> String:
-	var table: Variant = asset_tables.get(category, {})
-	if table is Dictionary:
-		var exact := str(table.get(presentation_id, table.get(String(presentation_id), "")))
-		if not exact.is_empty() and ResourceLoader.exists(exact):
+func asset_path(
+	category: StringName,
+	presentation_id: StringName,
+	variant: StringName = &""
+) -> String:
+	var qualified := qualified_category(category, variant)
+	var exact := _exact_asset_path(qualified, presentation_id)
+	if not exact.is_empty():
+		return exact
+
+	# V1 manifests stored every visual form in one flat category. Keep those
+	# tables readable for migration and tooling, while validate() deliberately
+	# rejects them as release manifests.
+	var legacy := legacy_category(qualified)
+	if legacy != qualified:
+		exact = _exact_asset_path(legacy, presentation_id)
+		if not exact.is_empty():
 			return exact
-	var fallback_path := str(
+
+	var fallback_path := _fallback_path(qualified)
+	if not fallback_path.is_empty():
+		return fallback_path
+	if legacy != qualified:
+		fallback_path = _fallback_path(legacy)
+		if not fallback_path.is_empty():
+			return fallback_path
+	if String(qualified).begins_with("ui/") and qualified != &"ui/fallback":
+		fallback_path = _fallback_path(&"ui/fallback")
+	return fallback_path
+
+
+static func qualified_category(category: StringName, variant: StringName = &"") -> StringName:
+	var raw_category := String(category).strip_edges()
+	if raw_category.is_empty() or raw_category.contains("/"):
+		return StringName(raw_category)
+	var resolved_variant := variant
+	if resolved_variant.is_empty():
+		resolved_variant = StringName(str(DEFAULT_VARIANTS.get(category, "")))
+	if resolved_variant.is_empty():
+		return StringName(raw_category)
+	return StringName("%s/%s" % [raw_category, String(resolved_variant).strip_edges()])
+
+
+static func legacy_category(category: StringName) -> StringName:
+	var base := String(category).get_slice("/", 0)
+	return StringName(str(LEGACY_CATEGORY_ALIASES.get(StringName(base), base)))
+
+
+func _exact_asset_path(category: StringName, presentation_id: StringName) -> String:
+	var table: Variant = asset_tables.get(category, asset_tables.get(String(category), {}))
+	if table is not Dictionary:
+		return ""
+	var exact := str(table.get(presentation_id, table.get(String(presentation_id), "")))
+	return exact if not exact.is_empty() and ResourceLoader.exists(exact) else ""
+
+
+func _fallback_path(category: StringName) -> String:
+	var path := str(
 		fallback_asset_paths.get(category, fallback_asset_paths.get(String(category), ""))
 	)
-	return fallback_path if ResourceLoader.exists(fallback_path) else ""
+	return path if not path.is_empty() and ResourceLoader.exists(path) else ""
 
 
 func cue_definition(cue_id: StringName) -> Dictionary:

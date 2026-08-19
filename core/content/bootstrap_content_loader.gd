@@ -4,6 +4,12 @@ extends Node
 
 const DEFAULT_MANIFEST_PATH := "res://content_packs/default/pack.tres"
 const DEFAULT_PACK_FILENAME := "default_content.pck"
+const EXPECTED_DEFAULT_WEAPON_COUNT := 24
+const EXPECTED_DEFAULT_PASSIVE_COUNT := 60
+const EXPECTED_DEFAULT_UPGRADE_COUNT := 64
+const DEFAULT_CONTENT_READY_MARKER := (
+	"MECHANICS_CONTENT_READY weapons=24 passives=60 upgrades=64 presentation_icons=0"
+)
 const OPTIONAL_CHARACTER_PATHS: Array[String] = [
 	"res://content_packs/default/assets/sprites/players/niko_v3/character_niko_v3.tres",
 ]
@@ -54,6 +60,7 @@ func load_manifest(manifest_path: String, source_root := "") -> int:
 	last_errors = validator.validate_pack(runtime_pack, source_root)
 	var candidate_balance_pack: BalancePackDef
 	if manifest_path == DEFAULT_MANIFEST_PATH:
+		last_errors.append_array(_validate_default_mechanics_contract(runtime_pack))
 		candidate_balance_pack = BalanceProfileRegistry.load_active(runtime_pack)
 		last_errors.append_array(
 			validator.validate_balance_parity(runtime_pack, candidate_balance_pack)
@@ -69,7 +76,50 @@ func load_manifest(manifest_path: String, source_root := "") -> int:
 	catalog = candidate_catalog
 	active_balance_pack = candidate_balance_pack
 	_register_translations(runtime_pack)
+	if manifest_path == DEFAULT_MANIFEST_PATH:
+		print(DEFAULT_CONTENT_READY_MARKER)
 	return OK
+
+
+func _validate_default_mechanics_contract(pack: ContentPackDef) -> PackedStringArray:
+	var errors := PackedStringArray()
+	if pack.weapons.size() != EXPECTED_DEFAULT_WEAPON_COUNT:
+		errors.append(
+			"default mechanics must contain %d weapons" % EXPECTED_DEFAULT_WEAPON_COUNT
+		)
+	if pack.passives.size() != EXPECTED_DEFAULT_PASSIVE_COUNT:
+		errors.append(
+			"default mechanics must contain %d passives" % EXPECTED_DEFAULT_PASSIVE_COUNT
+		)
+	if pack.upgrades.size() != EXPECTED_DEFAULT_UPGRADE_COUNT:
+		errors.append(
+			"default mechanics must contain %d upgrades" % EXPECTED_DEFAULT_UPGRADE_COUNT
+		)
+	for definition: WeaponDef in pack.weapons:
+		if definition == null:
+			continue
+		if definition.tiers.size() != 4:
+			errors.append(
+				"default weapon %s must contain four tiers" % definition.content_id
+			)
+		for item: ItemWeapon in definition.tiers:
+			if item != null and item.item_icon != null:
+				errors.append(
+					"default weapon %s embeds presentation art" % definition.content_id
+				)
+	for definition: PassiveItemDef in pack.passives:
+		if definition != null and definition.item != null \
+				and definition.item.item_icon != null:
+			errors.append(
+				"default passive %s embeds presentation art" % definition.content_id
+			)
+	for definition: UpgradeDef in pack.upgrades:
+		if definition != null and definition.item != null \
+				and definition.item.item_icon != null:
+			errors.append(
+				"default upgrade %s embeds presentation art" % definition.content_id
+			)
+	return errors
 
 
 func _with_optional_characters(

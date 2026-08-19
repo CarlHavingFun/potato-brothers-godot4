@@ -5,4 +5,4 @@ class_name EnemySpawnEffect
 
 
 func _ready() -> void:
-	texture = Presentation.resolve_texture(&"scene", &"scene.enemy.spawn")
+	texture = Presentation.resolve_texture(&"scene", &"scene.enemy.spawn", null, &"background")

@@ -114,17 +114,11 @@ func _make_entry(definition: ContentDef, discovered: bool) -> PanelContainer:
 
 
 func _definition_icon(definition: ContentDef) -> Texture2D:
-	var category := &"pickup"
-	if definition is CharacterDef:
-		category = &"character"
-	elif definition is WeaponDef:
-		category = &"weapon"
-	elif definition is EnemyDef:
-		category = &"enemy"
-	return Presentation.resolve_texture(
-		category,
-		definition.get_presentation_id(Content.catalog.pack_id),
-		definition.icon
+	return Presentation.resolve_content_texture(
+		definition,
+		definition.icon,
+		&"icon",
+		Content.catalog.pack_id
 	)
 
 

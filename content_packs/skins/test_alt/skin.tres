@@ -8,6 +8,8 @@
 [resource]
 script = ExtResource("1_skin")
 skin_id = &"test_alt"
+skin_version = "0.2.0"
+skin_api_version = 2
 product_name = "Alternate Test Shell"
 logo = ExtResource("2_logo")
 background = ExtResource("3_bg")
@@ -17,29 +19,48 @@ accent_color = Color(0.82, 0.42, 0.92, 1)
 asset_tables = {
 &"character": {},
 &"enemy": {},
-&"pickup": {
+&"pickup/world": {
 &"pickup.chest": "res://assets/sprites/Gold/gold_4.png",
 &"pickup.heal": "res://assets/sprites/Gold/gold_2.png",
 &"pickup.material": "res://assets/sprites/Gold/gold_4.png",
 &"pickup.shadow": "res://assets/sprites/shadow.png"
 },
-&"projectile": {
+&"projectile/world": {
 &"projectile.enemy": "res://assets/sprites/Projectiles/Projectile_1.png"
 },
-&"scene": {
+&"scene/background": {
 &"scene.arena.background": "res://assets/sprites/Map.png",
-&"scene.arena.floor": "res://assets/sprites/BG.png",
 &"scene.enemy.spawn": "res://assets/sprites/Gold/gold_3.png"
 },
-&"weapon": {}
+&"scene/floor": {
+&"scene.arena.floor": "res://assets/sprites/BG.png"
+},
+&"passive/icon": {},
+&"upgrade/icon": {},
+&"prop/world": {},
+&"ally/world": {},
+&"ui/logo": {&"ui.logo": "res://assets/sprites/Spawn_mark.png"},
+&"ui/app_icon": {&"ui.app_icon": "res://assets/sprites/Spawn_mark.png"},
+&"ui/fallback": {},
+&"weapon/icon": {},
+&"weapon/world": {}
 }
 fallback_asset_paths = {
 &"character": "res://assets/sprites/Spawn_mark.png",
 &"enemy": "res://assets/sprites/Enemies/Enemy_5.png",
-&"pickup": "res://assets/sprites/Gold/gold_4.png",
-&"projectile": "res://assets/sprites/Projectiles/Projectile_5.png",
-&"scene": "res://assets/sprites/BG.png",
-&"weapon": "res://assets/sprites/Weapons/Range/WeaponLaser.png"
+&"weapon/icon": "res://assets/sprites/Weapons/Range/WeaponLaser.png",
+&"weapon/world": "res://assets/sprites/Weapons/Range/WeaponLaser.png",
+&"projectile/world": "res://assets/sprites/Projectiles/Projectile_5.png",
+&"passive/icon": "res://assets/sprites/Gold/gold_4.png",
+&"upgrade/icon": "res://assets/sprites/Gold/gold_3.png",
+&"pickup/world": "res://assets/sprites/Gold/gold_4.png",
+&"prop/world": "res://assets/sprites/Spawn_mark.png",
+&"ally/world": "res://assets/sprites/Weapons/Range/WeaponLaser.png",
+&"scene/background": "res://assets/sprites/BG.png",
+&"scene/floor": "res://assets/sprites/BG.png",
+&"ui/logo": "res://assets/sprites/Spawn_mark.png",
+&"ui/app_icon": "res://assets/sprites/Spawn_mark.png",
+&"ui/fallback": "res://assets/sprites/Spawn_mark.png"
 }
 animation_maps = {
 &"character": {&"default": {&"dash": &"idle", &"death": &"die", &"hit": &"move", &"idle": &"move", &"move": &"idle", &"spawn": &"move"}},

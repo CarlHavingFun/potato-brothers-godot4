@@ -133,6 +133,12 @@ func test_frontend_branding_is_resolved_from_the_selected_skin_manifest() -> voi
 			&"ui.title.name", [], Presentation.active_skin.product_name
 		)
 	)
+	assert_str(frontend.get_node("Pages/TitlePage/SafeArea/Layout/Logo/Tagline").text).is_equal(
+		LocalizedTextService.resolve(&"ui.frontend.subtitle")
+	)
+	assert_str(frontend.get_node("Pages/TitlePage/SafeArea/Layout/Version").text).is_equal(
+		LocalizedTextService.resolve(&"ui.frontend.build")
+	)
 	assert_object(frontend.get_node("Background").texture).is_same(Presentation.active_skin.background)
 
 
@@ -425,6 +431,83 @@ func test_character_page_fits_1280x720_and_1920x1080_without_clipping() -> void:
 				else:
 					assert_float(button.size.x).is_between(88.0, 96.0)
 					assert_float(button.size.y).is_between(80.0, 88.0)
+
+
+func test_weapon_page_fits_all_choices_at_1280x720_and_1920x1080() -> void:
+	for viewport_size: Vector2i in [Vector2i(1280, 720), Vector2i(1920, 1080)]:
+		var frontend_data: Array = await _spawn_frontend_in_viewport(viewport_size)
+		var frontend := frontend_data[1] as FrontendShell
+		frontend.begin_new_run(1, viewport_size.y, AimMode.AUTO_TARGET)
+		await await_idle_frame()
+		var character: CharacterDef = Content.catalog.get_characters()[0]
+		assert_bool(frontend.choose_character(
+			character.get_stable_id(Content.catalog.pack_id)
+		)).is_true()
+		await await_idle_frame()
+		await await_idle_frame()
+
+		var header := frontend.get_node("Pages/WeaponPage/Content/Header") as Control
+		var body := frontend.get_node("Pages/WeaponPage/Content/Body") as Control
+		var choices := frontend.weapon_choices
+		assert_int(choices.get_child_count()).is_equal(25)
+		_assert_rect_inside_viewport(header.get_global_rect(), viewport_size)
+		_assert_rect_inside_viewport(body.get_global_rect(), viewport_size)
+		_assert_rect_inside_viewport(choices.get_global_rect(), viewport_size)
+		for child: Node in choices.get_children():
+			var button := child as Button
+			if button == null:
+				continue
+			_assert_rect_inside_viewport(button.get_global_rect(), viewport_size)
+			if button.icon != null:
+				assert_int(button.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
+				assert_int(button.get_theme_constant(&"icon_max_width")).is_greater_equal(
+					52 if viewport_size.x <= 1280 else 64
+				)
+
+
+func test_weapon_stats_dpad_scrolls_and_cancel_returns_to_originating_card() -> void:
+	var frontend_data: Array = await _spawn_frontend_in_viewport(Vector2i(1280, 720))
+	var viewport := frontend_data[0] as SubViewport
+	var frontend := frontend_data[1] as FrontendShell
+	frontend.begin_new_run(1, 0x57A75, AimMode.AUTO_TARGET)
+	await await_idle_frame()
+	var character: CharacterDef = Content.catalog.get_characters()[0]
+	assert_bool(frontend.choose_character(
+		character.get_stable_id(Content.catalog.pack_id)
+	)).is_true()
+	await await_idle_frame()
+	await await_idle_frame()
+
+	var choices := frontend.weapon_choices
+	var weapon_button := choices.get_child(1) as Button
+	var stats := frontend.weapon_stats
+	var scroll_bar := stats.get_v_scroll_bar()
+	assert_int(choices.get_child_count()).is_equal(25)
+	assert_object(weapon_button).is_not_null()
+	assert_object(stats).is_not_null()
+	assert_int(stats.focus_mode).is_equal(Control.FOCUS_ALL)
+	assert_bool(scroll_bar.max_value > scroll_bar.page).is_true()
+
+	var back_button := frontend.weapon_back_button
+	assert_object(viewport.gui_get_focus_owner()).is_same(back_button)
+	await _send_ui_action(viewport, &"ui_down")
+	assert_object(viewport.gui_get_focus_owner()).is_same(choices.get_child(0))
+	await _send_ui_action(viewport, &"ui_right")
+	assert_object(viewport.gui_get_focus_owner()).is_same(weapon_button)
+	await _send_ui_action(viewport, &"ui_up")
+	assert_object(viewport.gui_get_focus_owner()).is_same(stats)
+
+	var initial_scroll := scroll_bar.value
+	await _send_ui_action(viewport, &"ui_down")
+	assert_float(scroll_bar.value).is_greater(initial_scroll)
+	var scrolled_value := scroll_bar.value
+	await _send_ui_action(viewport, &"ui_up")
+	assert_float(scroll_bar.value).is_less(scrolled_value)
+
+	await _send_ui_action(viewport, &"ui_cancel")
+	assert_int(frontend.current_step).is_equal(SelectionStep.Value.WEAPON)
+	assert_object(viewport.gui_get_focus_owner()).is_same(weapon_button)
+	assert_int(choices.get_child_count()).is_equal(25)
 
 
 func _first_allowed_weapon_id(character: CharacterDef) -> StringName:

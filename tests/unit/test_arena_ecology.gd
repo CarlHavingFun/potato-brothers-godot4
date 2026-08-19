@@ -19,6 +19,22 @@ func test_ecology_layout_is_deterministic_and_contains_trees_and_consumables() -
 	assert_int(first.pickup_kinds.size()).is_greater_equal(1)
 	assert_bool(first.pickup_kinds.has(ArenaEcology.PickupKind.HEAL)).is_true()
 	assert_array(_tree_drop_kinds(first)).is_equal(_tree_drop_kinds(second))
+	assert_array(_tree_presentation_ids(first)).contains_exactly(
+		_tree_presentation_ids(second)
+	)
+	assert_bool(_tree_presentation_ids(first).has(&"prop.supply_crate")).is_true()
+	assert_bool(_tree_presentation_ids(first).has(&"prop.weapon_rack")).is_true()
+
+
+func test_prop_art_selection_is_stable_and_does_not_consume_ecology_rng() -> void:
+	var ecology: ArenaEcology = auto_free(ArenaEcology.new())
+	ecology._rng.seed = 918273
+	var state_before := ecology._rng.state
+
+	assert_str(String(ecology._prop_presentation_id(0))).is_equal("prop.supply_crate")
+	assert_str(String(ecology._prop_presentation_id(1))).is_equal("prop.weapon_rack")
+	assert_str(String(ecology._prop_presentation_id(2))).is_equal("prop.supply_crate")
+	assert_int(ecology._rng.state).is_equal(state_before)
 
 
 func test_spawn_safe_zone_and_dynamic_danger_rules_are_explicit() -> void:
@@ -112,4 +128,12 @@ func _tree_drop_kinds(ecology: ArenaEcology) -> Array[int]:
 	for child: Node in ecology.get_children():
 		if child is EcologyTree:
 			result.append((child as EcologyTree).pickup_kind)
+	return result
+
+
+func _tree_presentation_ids(ecology: ArenaEcology) -> Array[StringName]:
+	var result: Array[StringName] = []
+	for child: Node in ecology.get_children():
+		if child is EcologyTree:
+			result.append((child as EcologyTree).presentation_id)
 	return result

@@ -1,6 +1,5 @@
 [gd_resource type="Resource" script_class="ItemWeapon" load_steps=6 format=3 uid="uid://ubr7hbifp57w"]
 
-[ext_resource type="Texture2D" uid="uid://cmlrktiwatuhw" path="res://assets/sprites/Weapons/Icons/weapon_mace_icon.png" id="1_67wgy"]
 [ext_resource type="Script" uid="uid://dt7tu5wgsfk5f" path="res://resources/items/weapons/item_weapon.gd" id="1_cde2y"]
 [ext_resource type="PackedScene" uid="uid://1omn2lihtkl3" path="res://scenes/weapons/melee/weapon_mace.tscn" id="2_f4dys"]
 [ext_resource type="Resource" uid="uid://bsofskutm4xkh" path="res://resources/items/weapons/melee/mace/stats_mace_1.tres" id="3_f4dys"]
@@ -13,7 +12,6 @@ scene = ExtResource("2_f4dys")
 stats = ExtResource("3_f4dys")
 upgrade_to = ExtResource("5_g1wcp")
 item_name = "Mace  I"
-item_icon = ExtResource("1_67wgy")
 item_tier = 0
 item_type = 0
 item_cost = 18

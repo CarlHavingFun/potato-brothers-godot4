@@ -105,6 +105,7 @@ func validate_release_matrix(pack: ContentPackDef) -> PackedStringArray:
 				errors.append("%s tier %d requires a mechanical scene" % [weapon.content_id, tier_index + 1])
 			elif tier_index < weapon.tiers.size() - 1 and tier.upgrade_to != weapon.tiers[tier_index + 1]:
 				errors.append("%s tier %d has a broken upgrade chain" % [weapon.content_id, tier_index + 1])
+	_validate_release_weapon_roster(pack, errors)
 	for passive: PassiveItemDef in pack.passives:
 		if passive != null and passive.item == null:
 			errors.append("%s requires an item definition" % passive.content_id)
@@ -130,6 +131,42 @@ func validate_release_matrix(pack: ContentPackDef) -> PackedStringArray:
 			])
 	_validate_release_translation_names(pack, errors)
 	return errors
+
+
+func _validate_release_weapon_roster(
+	pack: ContentPackDef, errors: PackedStringArray
+) -> void:
+	var expected_groups := {&"firearm": 11, &"close_quarters": 8, &"tactical": 5}
+	var actual_groups := {&"firearm": 0, &"close_quarters": 0, &"tactical": 0}
+	for weapon: WeaponDef in pack.weapons:
+		if weapon == null:
+			continue
+		var matching_groups := 0
+		for group_tag: StringName in expected_groups:
+			if group_tag in weapon.tags:
+				actual_groups[group_tag] += 1
+				matching_groups += 1
+		if matching_groups != 1:
+			errors.append("%s requires exactly one primary weapon roster tag" % weapon.content_id)
+		for retired_tag: StringName in [&"engineering", &"building", &"summon"]:
+			if retired_tag in weapon.tags:
+				errors.append("%s uses retired weapon tag %s" % [weapon.content_id, retired_tag])
+		for effect: EffectDef in weapon.effects:
+			if effect == null:
+				continue
+			for operation: EffectOperationDef in effect.operations:
+				if operation != null and operation.kind in [
+					EffectOperationDef.Kind.SUMMON,
+					EffectOperationDef.Kind.BUILD,
+				]:
+					errors.append(
+						"%s must move engineering allies from weapons to passives" % weapon.content_id
+					)
+	for group_tag: StringName in expected_groups:
+		if actual_groups[group_tag] != expected_groups[group_tag]:
+			errors.append("weapon tag %s requires %d entries, got %d" % [
+			group_tag, expected_groups[group_tag], actual_groups[group_tag]
+		])
 
 
 func validate_balance_parity(

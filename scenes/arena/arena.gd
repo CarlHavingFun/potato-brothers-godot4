@@ -68,11 +68,13 @@ func _ready() -> void:
 
 func _apply_skin_presentation() -> void:
 	background.texture = Presentation.resolve_texture(
-		&"scene", &"scene.arena.background", background.texture
+		&"scene", &"scene.arena.background", background.texture, &"background"
 	)
 	floor_background.texture = Presentation.resolve_texture(
-		&"scene", &"scene.arena.floor", floor_background.texture
+		&"scene", &"scene.arena.floor", floor_background.texture, &"floor"
 	)
+	background.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	floor_background.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	music_player.stream = Presentation.resolve_music(&"combat")
 
 

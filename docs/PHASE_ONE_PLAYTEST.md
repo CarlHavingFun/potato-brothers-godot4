@@ -1,4 +1,4 @@
-# GOBRO Windows playtest
+# LET'S GOOOOO Windows playtest
 
 This is an internal playtest build. It is not a public or commercial release.
 

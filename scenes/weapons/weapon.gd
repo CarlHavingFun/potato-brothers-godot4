@@ -17,15 +17,29 @@ var pending_pierce := 0
 var pending_bounce := 0
 var presentation_controller: PresentationController
 var _last_resolved_attack_range := -INF
+var _consecutive_recoil_shots := 0
+var _recoil_recovery_remaining := 0.0
+var _scene_sprite_offset := Vector2.ZERO
+var _scene_muzzle_position := Vector2.ZERO
+var _has_muzzle_fallback := false
 
 func _ready() -> void:
 	presentation_controller = PresentationController.new()
 	presentation_controller.name = "PresentationController"
 	add_child(presentation_controller)
 	atk_start_pos = sprite.position
+	_scene_sprite_offset = sprite.offset
+	var muzzle := get_node_or_null("%Muzzle") as Marker2D
+	if muzzle != null:
+		_scene_muzzle_position = muzzle.position
+		_has_muzzle_fallback = true
+	var resolver := get_node_or_null("/root/Presentation") as SkinResolver
+	if resolver != null and not resolver.skin_loaded.is_connected(_on_skin_loaded):
+		resolver.skin_loaded.connect(_on_skin_loaded)
 
 
 func _process(delta: float) -> void:
+	_update_recoil_recovery(delta)
 	# Player stats can change while this weapon instance stays equipped. Keep the
 	# detection area in sync without rebuilding the weapon or its collision shape.
 	refresh_runtime_stats()
@@ -50,16 +64,78 @@ func setup_weapon(data: ItemWeapon) -> void:
 	self.data = data
 	var definition := Content.catalog.get_weapon(Content.catalog.get_item_stable_id(data))
 	if definition != null:
+		var presentation_id := definition.get_presentation_id(Content.catalog.pack_id)
 		presentation_controller.configure(
 			sprite,
 			&"weapon",
-			definition.get_presentation_id(Content.catalog.pack_id),
+			presentation_id,
 			sprite.texture
 		)
+		apply_presentation_anchors(presentation_id)
 	presentation_controller.set_semantic_state(&"idle")
 	collision.shape = collision.shape.duplicate()
 	refresh_runtime_stats()
 	apply_tier_outline()
+
+
+## Applies optional logical-64 weapon anchors to the visual nodes. The Sprite2D
+## node remains at its scene-authored attachment point; its offset makes the
+## manifest pivot act as the grip. Muzzle/throw/placement markers are likewise
+## positioned relative to that pivot. Missing anchors restore scene defaults.
+func apply_presentation_anchors(
+	presentation_id: StringName,
+	resolver: SkinResolver = null
+) -> bool:
+	var active_resolver := resolver
+	if active_resolver == null:
+		active_resolver = get_node_or_null("/root/Presentation") as SkinResolver
+	var muzzle := get_node_or_null("%Muzzle") as Marker2D
+	if active_resolver == null:
+		_restore_scene_anchor_fallbacks(muzzle)
+		return false
+	var anchors := active_resolver.resolve_logical_anchors(
+		&"weapon", presentation_id, &"world"
+	)
+	var pivot_value: Variant = anchors.get(&"pivot", null)
+	if pivot_value is not Vector2 or sprite.texture == null:
+		_restore_scene_anchor_fallbacks(muzzle)
+		return false
+	var pivot := pivot_value as Vector2
+	var texture_scale := Vector2(sprite.texture.get_size()) / 64.0
+	sprite.offset = (Vector2(32.0, 32.0) - pivot) * texture_scale
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var origin_value: Variant = _attack_origin_anchor(anchors)
+	if muzzle != null and origin_value is Vector2:
+		muzzle.position = ((origin_value as Vector2) - pivot) * texture_scale
+	elif muzzle != null and _has_muzzle_fallback:
+		muzzle.position = _scene_muzzle_position
+	return true
+
+
+func _attack_origin_anchor(anchors: Dictionary) -> Variant:
+	var pattern := current_attack_pattern()
+	if pattern != null and pattern.kind == AttackPatternDef.Kind.THROWN:
+		return anchors.get(&"throw_origin", null)
+	if pattern != null and pattern.kind == AttackPatternDef.Kind.DEPLOYABLE:
+		return anchors.get(&"placement_origin", null)
+	return anchors.get(&"muzzle", null)
+
+
+func _restore_scene_anchor_fallbacks(muzzle: Marker2D) -> void:
+	sprite.offset = _scene_sprite_offset
+	if muzzle != null and _has_muzzle_fallback:
+		muzzle.position = _scene_muzzle_position
+
+
+func _on_skin_loaded(_skin_id: StringName) -> void:
+	if data == null:
+		return
+	var definition := Content.catalog.get_weapon(Content.catalog.get_item_stable_id(data))
+	if definition == null:
+		return
+	var presentation_id := definition.get_presentation_id(Content.catalog.pack_id)
+	presentation_controller.configure(sprite, &"weapon", presentation_id, sprite.texture)
+	apply_presentation_anchors(presentation_id)
 
 
 func resolved_attack_range() -> float:
@@ -196,8 +272,43 @@ func update_visuals() -> void:
 
 
 func calculate_spread() -> void:
-	weapon_spread = randf_range(-1 + data.stats.accuracy, 1 - data.stats.accuracy)
+	var pattern := current_attack_pattern()
+	var half_angle := spread_half_angle_radians(
+		data.stats.accuracy,
+		pattern,
+		_consecutive_recoil_shots
+	)
+	var roll := (
+		Global.combat_resolver.rng.randf_range(-half_angle, half_angle)
+		if Global.combat_resolver != null
+		else randf_range(-half_angle, half_angle)
+	)
+	weapon_spread = roll
 	rotation += weapon_spread
+	_consecutive_recoil_shots += 1
+	_recoil_recovery_remaining = (
+		maxf(0.05, pattern.recoil_recovery_seconds)
+		if pattern != null
+		else 0.55
+	)
+
+
+func _update_recoil_recovery(delta: float) -> void:
+	if _recoil_recovery_remaining <= 0.0:
+		return
+	_recoil_recovery_remaining = maxf(0.0, _recoil_recovery_remaining - delta)
+	if is_zero_approx(_recoil_recovery_remaining):
+		_consecutive_recoil_shots = 0
+
+
+static func spread_half_angle_radians(
+	accuracy: float,
+	pattern: AttackPatternDef,
+	consecutive_shots: int
+) -> float:
+	var base_spread := maxf(0.0, 1.0 - clampf(accuracy, 0.0, 1.0))
+	var ramp_degrees := pattern.recoil_ramp_degrees(consecutive_shots) if pattern != null else 0.0
+	return base_spread + deg_to_rad(ramp_degrees)
 
 
 func update_closest_target() -> void:

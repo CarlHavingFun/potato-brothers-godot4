@@ -6,6 +6,7 @@ const POSITIVE_COLOR := "#9ed66f"
 const NEGATIVE_COLOR := "#e46d58"
 const ACCENT_COLOR := "#f4d35e"
 const TAG_COLOR := "#d4a5ff"
+const FLAVOR_COLOR := "#8fa7ad"
 
 
 static func item_display_name(item: ItemBase) -> String:
@@ -111,6 +112,7 @@ static func format_weapon(item: ItemWeapon, player_stats: PlayerStats = null) ->
 		]
 	)]
 	_append_content_description(lines, definition)
+	_append_skin_flavor(lines, definition)
 	_append_effects(lines, definition)
 	_append_tags(lines, definition)
 	return "\n".join(lines)
@@ -134,6 +136,7 @@ static func format_passive(item: ItemPassive) -> String:
 		for modifier: Dictionary in modifiers:
 			lines.append(_stat_line(int(modifier.id), float(modifier.value)))
 		_append_content_description(lines, definition)
+		_append_skin_flavor(lines, definition)
 		_append_effects(lines, definition)
 		_append_tags(lines, definition)
 	if lines.is_empty():
@@ -168,6 +171,23 @@ static func _append_content_description(lines: Array[String], definition: Conten
 		and LocalizedTextService.has_message(definition.description_key)
 	):
 		lines.append(LocalizedTextService.resolve(definition.description_key))
+
+
+static func _append_skin_flavor(lines: Array[String], definition: ContentDef) -> void:
+	if definition == null:
+		return
+	var presentation_id := definition.get_presentation_id(Content.catalog.pack_id)
+	if presentation_id.is_empty():
+		return
+	var flavor_key := StringName("skin.%s.flavor" % String(presentation_id))
+	if not LocalizedTextService.has_message(flavor_key):
+		return
+	# Mechanics remain in the core catalog; the selected skin may append one
+	# clearly secondary line of theme copy without changing any gameplay data.
+	lines.append("[color=%s][i]%s[/i][/color]" % [
+		FLAVOR_COLOR,
+		LocalizedTextService.resolve(flavor_key),
+	])
 
 
 static func _append_effects(lines: Array[String], definition: ContentDef) -> void:

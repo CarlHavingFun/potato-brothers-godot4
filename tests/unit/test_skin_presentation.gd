@@ -3,7 +3,203 @@ extends GdUnitTestSuite
 
 const DEV_SKIN := "res://content_packs/skins/dev_placeholder/skin.tres"
 const ALT_SKIN := "res://content_packs/skins/test_alt/skin.tres"
+const FORMAL_SKIN := "res://content_packs/skins/lets_gooooo/skin.tres"
 const TEST_SKIN := "user://tests/skin_presentation/cache_isolation_skin.tres"
+
+
+func test_skin_v2_exposes_required_qualified_asset_categories() -> void:
+	assert_int(SkinPackDef.CURRENT_API_VERSION).is_equal(2)
+	for skin_path: String in [DEV_SKIN, ALT_SKIN, FORMAL_SKIN]:
+		var skin := load(skin_path) as SkinPackDef
+		assert_int(skin.skin_api_version).is_equal(2)
+		for category: StringName in SkinPackDef.ASSET_CATEGORIES:
+			assert_bool(skin.fallback_asset_paths.has(category)).override_failure_message(
+				"%s missing fallback %s" % [skin_path, category]
+			).is_true()
+
+
+func test_lets_gooooo_formal_skin_resolves_every_weapon_and_static_world_role() -> void:
+	var resolver: SkinResolver = auto_free(SkinResolver.new())
+	assert_int(resolver.load_manifest(FORMAL_SKIN)).is_equal(OK)
+	assert_str(String(resolver.active_skin.skin_id)).is_equal("lets_gooooo")
+	assert_str(resolver.active_skin.product_name).is_equal("LET'S GOOOOO")
+	assert_array(resolver.active_skin.validate()).is_empty()
+	for definition: WeaponDef in Content.catalog.get_weapons():
+		var presentation_id := definition.get_presentation_id(Content.catalog.pack_id)
+		for variant: StringName in [&"icon", &"world"]:
+			var path := resolver.resolve_path(&"weapon", presentation_id, variant)
+			assert_str(path).override_failure_message(
+				"%s missing %s art" % [presentation_id, variant]
+			).contains("/skins/lets_gooooo/assets/weapons/")
+	for requirement: Array in [
+		[&"pickup", &"pickup.material", &"world", "/assets/pickups/"],
+		[&"pickup", &"pickup.heal", &"world", "/assets/pickups/"],
+		[&"pickup", &"pickup.chest", &"world", "/assets/pickups/"],
+		[&"prop", &"prop.supply_crate", &"world", "/assets/props/"],
+		[&"prop", &"prop.weapon_rack", &"world", "/assets/props/"],
+		[&"ally", &"ally.turret", &"world", "/assets/allies/"],
+		[&"ally", &"ally.drone", &"world", "/assets/allies/"],
+		[&"scene", &"scene.arena.floor", &"floor", "/assets/scenes/"],
+		[&"ui", &"ui.logo", &"logo", "/assets/ui/"],
+	]:
+		assert_str(resolver.resolve_path(
+			requirement[0], requirement[1], requirement[2]
+		)).contains(requirement[3])
+	for projectile_id: StringName in [
+		&"projectile.enemy", &"weapon.pistol", &"weapon.revolver", &"weapon.smg",
+		&"weapon.carbine", &"weapon.shotgun", &"weapon.laser", &"weapon.railbow",
+	]:
+		assert_str(resolver.resolve_path(
+			&"projectile", projectile_id, &"world"
+		)).contains("/skins/lets_gooooo/assets/projectiles/")
+	assert_object(resolver.active_skin.theme).is_not_null()
+	assert_str(resolver.resolve_path(
+		&"scene", &"scene.arena.background", &"background"
+	)).contains("/assets/scenes/arena_floor.png")
+	assert_bool(resolver.resolve_path(
+		&"scene", &"scene.arena.background", &"background"
+	).contains("title_background")).is_false()
+
+
+func test_frontend_applies_skin_theme_and_restores_scene_fallback_for_theme_less_skin() -> void:
+	var original_skin: SkinPackDef = Presentation.active_skin
+	var frontend: FrontendShell = auto_free(load(
+		"res://scenes/ui/frontend/frontend_shell.tscn"
+	).instantiate() as FrontendShell)
+	add_child(frontend)
+	var formal_theme: Theme = (load(FORMAL_SKIN) as SkinPackDef).theme
+	assert_object(formal_theme).is_not_null()
+	assert_bool(frontend.theme.get_color(
+		&"font_hover_color", &"Button"
+	).is_equal_approx(formal_theme.get_color(
+		&"font_hover_color", &"Button"
+	))).is_true()
+
+	var fallback_theme: Theme = frontend._fallback_theme
+	var theme_less_skin := (load(DEV_SKIN) as SkinPackDef).duplicate(true) as SkinPackDef
+	theme_less_skin.theme = null
+	Presentation.active_skin = theme_less_skin
+	frontend._apply_skin_branding()
+	assert_bool(frontend.theme.get_color(
+		&"font_hover_color", &"Button"
+	).is_equal_approx(fallback_theme.get_color(
+		&"font_hover_color", &"Button"
+	))).is_true()
+	Presentation.active_skin = original_skin
+	frontend._apply_skin_branding()
+
+
+func test_lets_gooooo_formal_skin_has_exact_passive_and_upgrade_icons() -> void:
+	var skin := load(FORMAL_SKIN) as SkinPackDef
+	assert_object(skin).is_not_null()
+	if skin == null:
+		return
+	var passive_table: Dictionary = skin.asset_tables.get(&"passive/icon", {})
+	var upgrade_table: Dictionary = skin.asset_tables.get(&"upgrade/icon", {})
+	assert_int(passive_table.size()).is_equal(60)
+	assert_int(upgrade_table.size()).is_equal(64)
+	for definition: PassiveItemDef in Content.catalog.get_passives():
+		var presentation_id := definition.get_presentation_id(Content.catalog.pack_id)
+		assert_bool(passive_table.has(presentation_id)).override_failure_message(
+			"Missing exact passive icon: %s" % presentation_id
+		).is_true()
+		var path := str(passive_table.get(presentation_id, ""))
+		assert_bool(ResourceLoader.exists(path)).override_failure_message(path).is_true()
+	for definition: UpgradeDef in Content.catalog.get_upgrades():
+		var presentation_id := definition.get_presentation_id(Content.catalog.pack_id)
+		assert_bool(upgrade_table.has(presentation_id)).override_failure_message(
+			"Missing exact upgrade icon: %s" % presentation_id
+		).is_true()
+		assert_bool(ResourceLoader.exists(str(upgrade_table.get(presentation_id, "")))).is_true()
+
+
+func test_variant_resolution_distinguishes_weapon_icon_and_world_assets() -> void:
+	var skin := SkinPackDef.new()
+	skin.asset_tables = {
+		&"weapon/icon": {&"weapon.demo": "res://icon.svg"},
+		&"weapon/world": {
+			&"weapon.demo": "res://assets/sprites/Weapons/Range/WeaponPistol.png",
+		},
+	}
+	skin.fallback_asset_paths = {
+		&"weapon/icon": "res://icon.svg",
+		&"weapon/world": "res://assets/sprites/Weapons/Range/WeaponPistol.png",
+	}
+
+	assert_str(skin.asset_path(&"weapon", &"weapon.demo", &"icon")).is_equal(
+		"res://icon.svg"
+	)
+	assert_str(skin.asset_path(&"weapon", &"weapon.demo", &"world")).is_equal(
+		"res://assets/sprites/Weapons/Range/WeaponPistol.png"
+	)
+	# The legacy three-argument resolver defaults gameplay weapons to world art.
+	assert_str(skin.asset_path(&"weapon", &"weapon.demo")).is_equal(
+		"res://assets/sprites/Weapons/Range/WeaponPistol.png"
+	)
+
+
+func test_v1_tables_remain_readable_but_fail_formal_validation() -> void:
+	var legacy := SkinPackDef.new()
+	legacy.skin_id = &"legacy"
+	legacy.skin_api_version = SkinPackDef.LEGACY_API_VERSION
+	legacy.asset_tables = {
+		&"weapon": {&"weapon.demo": "res://icon.svg"},
+	}
+	legacy.fallback_asset_paths = {
+		&"weapon": "res://icon.svg",
+	}
+
+	assert_str(legacy.asset_path(&"weapon", &"weapon.demo", &"icon")).is_equal(
+		"res://icon.svg"
+	)
+	assert_array(legacy.validate()).contains(["unsupported skin_api_version: 1"])
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(TEST_SKIN.get_base_dir()))
+	assert_int(ResourceSaver.save(legacy, TEST_SKIN)).is_equal(OK)
+	var resolver: SkinResolver = auto_free(SkinResolver.new())
+	assert_int(resolver.load_manifest(TEST_SKIN)).is_equal(ERR_INVALID_DATA)
+	assert_object(resolver.active_skin).is_null()
+	assert_array(resolver.notices).contains(["unsupported skin_api_version: 1"])
+
+
+func test_content_texture_resolution_uses_presentation_id_not_stable_id() -> void:
+	var skin := SkinPackDef.new()
+	skin.asset_tables = {
+		&"passive/icon": {&"passive.demo": "res://icon.svg"},
+	}
+	skin.fallback_asset_paths = {
+		&"passive/icon": "res://assets/sprites/Gold/gold_1.png",
+	}
+	var resolver: SkinResolver = auto_free(SkinResolver.new())
+	resolver.active_skin = skin
+	var definition := PassiveItemDef.new()
+	definition.content_id = &"passive/demo"
+	definition.presentation_id = &"passive.demo"
+
+	var resolved := resolver.resolve_content_texture(
+		definition,
+		null,
+		&"icon",
+		&"core"
+	)
+	assert_object(resolved).is_not_null()
+	assert_str(resolved.resource_path).is_equal("res://icon.svg")
+
+
+func test_item_ui_surfaces_resolve_icons_from_content_definitions() -> void:
+	for path: String in [
+		"res://scenes/ui/item_card/item_card.gd",
+		"res://scenes/ui/shop_card/shop_card.gd",
+		"res://scenes/ui/reward_panel/reward_panel.gd",
+		"res://scenes/ui/upgrade_card/upgrade_card.gd",
+		"res://scenes/ui/codex/codex_panel.gd",
+	]:
+		assert_str(FileAccess.get_file_as_string(path)).override_failure_message(path).contains(
+			"resolve_content_texture"
+		)
+	var shop_source := FileAccess.get_file_as_string(
+		"res://scenes/ui/shop_card/shop_card.gd"
+	)
+	assert_str(shop_source).contains("Content.catalog.get_item_definition(value)")
 
 
 func after_test() -> void:
@@ -34,7 +230,10 @@ func test_two_skin_manifests_resolve_content_and_missing_assets_with_fallbacks()
 	]:
 		for definition: ContentDef in definitions:
 			var category := _category_for(definition)
-			var table: Dictionary = dev.active_skin.asset_tables.get(category, {})
+			var table_category := SkinPackDef.qualified_category(
+				category, &"icon" if definition is WeaponDef else &""
+			)
+			var table: Dictionary = dev.active_skin.asset_tables.get(table_category, {})
 			assert_bool(table.has(definition.presentation_id)).is_true()
 
 
@@ -107,7 +306,9 @@ func test_each_skin_controls_semantic_animation_mapping() -> void:
 
 
 func test_skin_choice_cannot_change_deterministic_gameplay_hash() -> void:
-	assert_str(_gameplay_hash_for_skin(DEV_SKIN)).is_equal(_gameplay_hash_for_skin(ALT_SKIN))
+	var expected := _gameplay_hash_for_skin(DEV_SKIN)
+	assert_str(expected).is_equal(_gameplay_hash_for_skin(ALT_SKIN))
+	assert_str(expected).is_equal(_gameplay_hash_for_skin(FORMAL_SKIN))
 
 
 func test_cue_presenter_resolves_audio_shake_and_rumble_without_touching_gameplay() -> void:
@@ -276,8 +477,10 @@ func _category_for(definition: ContentDef) -> StringName:
 		return &"weapon"
 	if definition is EnemyDef:
 		return &"enemy"
-	if definition is PassiveItemDef or definition is UpgradeDef:
-		return &"pickup"
+	if definition is PassiveItemDef:
+		return &"passive"
+	if definition is UpgradeDef:
+		return &"upgrade"
 	return &"scene"
 
 

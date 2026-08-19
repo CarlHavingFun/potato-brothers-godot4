@@ -8,6 +8,8 @@
 [resource]
 script = ExtResource("1_skin")
 skin_id = &"dev_placeholder"
+skin_version = "0.2.0"
+skin_api_version = 2
 product_name = "GOBRO Development"
 logo = ExtResource("2_logo")
 background = ExtResource("3_bg")
@@ -53,13 +55,13 @@ asset_tables = {
 &"enemy.war_drummer": "res://assets/sprites/Enemies/Enemy_4.png",
 &"enemy.xiami": "res://assets/sprites/Enemies/Enemy_2.png"
 },
-&"pickup": {
+&"pickup/world": {
 &"pickup.chest": "res://assets/sprites/Spawn_mark.png",
 &"pickup.heal": "res://assets/sprites/Gold/gold_4.png",
 &"pickup.material": "res://assets/sprites/Gold/gold_1.png",
 &"pickup.shadow": "res://assets/sprites/shadow.png"
 },
-&"projectile": {
+&"projectile/world": {
 &"projectile.enemy": "res://assets/sprites/Projectiles/Projectile_enemy.png",
 &"weapon.boomerang": "res://assets/sprites/Projectiles/Projectile_4.png",
 &"weapon.carbine": "res://assets/sprites/Projectiles/Projectile_2.png",
@@ -77,12 +79,47 @@ asset_tables = {
 &"weapon.turret_kit": "res://assets/sprites/Projectiles/Projectile_2.png",
 &"weapon.void_prism": "res://assets/sprites/Projectiles/Projectile_4.png"
 },
-&"scene": {
+&"scene/background": {
 &"scene.arena.background": "res://assets/sprites/BG.png",
-&"scene.arena.floor": "res://assets/sprites/Map.png",
 &"scene.enemy.spawn": "res://assets/sprites/Spawn_mark.png"
 },
-&"weapon": {
+&"scene/floor": {
+&"scene.arena.floor": "res://assets/sprites/Map.png"
+},
+&"passive/icon": {},
+&"upgrade/icon": {},
+&"prop/world": {},
+&"ally/world": {},
+&"ui/logo": {&"ui.logo": "res://icon.svg"},
+&"ui/app_icon": {&"ui.app_icon": "res://icon.svg"},
+&"ui/fallback": {},
+&"weapon/icon": {
+&"weapon.axe": "res://assets/sprites/Weapons/Melee/Weapon_axe.png",
+&"weapon.boomerang": "res://assets/sprites/Weapons/Range/WeaponRevolver.png",
+&"weapon.carbine": "res://assets/sprites/Weapons/Range/WeaponPistol.png",
+&"weapon.chainsaw": "res://assets/sprites/Weapons/Melee/Weapon_chainsaw.png",
+&"weapon.cleaver": "res://assets/sprites/Weapons/Melee/Weapon_axe.png",
+&"weapon.drone_beacon": "res://assets/sprites/Weapons/Range/WeaponLaser.png",
+&"weapon.ember_staff": "res://assets/sprites/Weapons/Melee/Weapon_wand.png",
+&"weapon.frost_orb": "res://assets/sprites/Weapons/Range/WeaponLaser.png",
+&"weapon.laser": "res://assets/sprites/Weapons/Range/WeaponLaser.png",
+&"weapon.mace": "res://assets/sprites/Weapons/Melee/Weapon_mace.png",
+&"weapon.needler": "res://assets/sprites/Weapons/Range/WeaponSMG.png",
+&"weapon.pistol": "res://assets/sprites/Weapons/Range/WeaponPistol.png",
+&"weapon.punch": "res://assets/sprites/Weapons/Melee/Weapon_Punch.png",
+&"weapon.railbow": "res://assets/sprites/Weapons/Range/WeaponLaser.png",
+&"weapon.revolver": "res://assets/sprites/Weapons/Range/WeaponRevolver.png",
+&"weapon.shotgun": "res://assets/sprites/Weapons/Range/WeaponShotgun.png",
+&"weapon.shrapnel_launcher": "res://assets/sprites/Weapons/Range/WeaponShotgun.png",
+&"weapon.smg": "res://assets/sprites/Weapons/Range/WeaponSMG.png",
+&"weapon.spear": "res://assets/sprites/Weapons/Melee/Weapon_sword.png",
+&"weapon.storm_coil": "res://assets/sprites/Weapons/Range/WeaponSMG.png",
+&"weapon.sword": "res://assets/sprites/Weapons/Melee/Weapon_sword.png",
+&"weapon.turret_kit": "res://assets/sprites/Weapons/Range/WeaponPistol.png",
+&"weapon.void_prism": "res://assets/sprites/Weapons/Range/WeaponRevolver.png",
+&"weapon.wand": "res://assets/sprites/Weapons/Melee/Weapon_wand.png"
+},
+&"weapon/world": {
 &"weapon.axe": "res://assets/sprites/Weapons/Melee/Weapon_axe.png",
 &"weapon.boomerang": "res://assets/sprites/Weapons/Range/WeaponRevolver.png",
 &"weapon.carbine": "res://assets/sprites/Weapons/Range/WeaponPistol.png",
@@ -112,10 +149,19 @@ asset_tables = {
 fallback_asset_paths = {
 &"character": "res://icon.svg",
 &"enemy": "res://assets/sprites/Enemies/Enemy_1.png",
-&"pickup": "res://assets/sprites/Gold/gold_1.png",
-&"projectile": "res://assets/sprites/Projectiles/Projectile_1.png",
-&"scene": "res://assets/ui/gobro_menu_background.png",
-&"weapon": "res://assets/sprites/Weapons/Melee/Weapon_Punch.png"
+&"weapon/icon": "res://assets/sprites/Weapons/Melee/Weapon_Punch.png",
+&"weapon/world": "res://assets/sprites/Weapons/Melee/Weapon_Punch.png",
+&"projectile/world": "res://assets/sprites/Projectiles/Projectile_1.png",
+&"passive/icon": "res://icon.svg",
+&"upgrade/icon": "res://icon.svg",
+&"pickup/world": "res://assets/sprites/Gold/gold_1.png",
+&"prop/world": "res://assets/sprites/Spawn_mark.png",
+&"ally/world": "res://assets/sprites/Weapons/Range/WeaponPistol.png",
+&"scene/background": "res://assets/ui/gobro_menu_background.png",
+&"scene/floor": "res://assets/sprites/Map.png",
+&"ui/logo": "res://icon.svg",
+&"ui/app_icon": "res://icon.svg",
+&"ui/fallback": "res://icon.svg"
 }
 animation_maps = {
 &"character": {&"default": {&"dash": &"move", &"death": &"die", &"hit": &"idle", &"idle": &"idle", &"move": &"move", &"spawn": &"idle"}},

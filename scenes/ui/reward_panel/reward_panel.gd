@@ -18,17 +18,12 @@ func load_reward(current_wave: int) -> bool:
 	reward_item = Global.reward_service.select_reward(Content.catalog.get_shop_items(), current_wave)
 	if reward_item == null:
 		return false
-	var category := &"weapon" if reward_item is ItemWeapon else &"pickup"
-	var stable_id := Content.catalog.get_item_stable_id(reward_item)
-	var definition: ContentDef = (
-		Content.catalog.get_weapon(stable_id)
-		if reward_item is ItemWeapon
-		else Content.catalog.get_passive(stable_id)
-	)
-	item_icon.texture = Presentation.resolve_texture(
-		category,
-		definition.get_presentation_id(Content.catalog.pack_id) if definition != null else stable_id,
-		reward_item.item_icon
+	var definition := Content.catalog.get_item_definition(reward_item)
+	item_icon.texture = Presentation.resolve_content_texture(
+		definition,
+		reward_item.item_icon,
+		&"icon",
+		Content.catalog.pack_id
 	)
 	item_name.text = ItemDescriptionFormatter.item_display_name(reward_item)
 	item_description.text = ItemDescriptionFormatter.format_item(

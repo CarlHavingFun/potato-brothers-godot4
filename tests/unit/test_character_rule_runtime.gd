@@ -124,7 +124,7 @@ func test_baseline_character_restrictions_have_real_nonempty_weapon_families() -
 		"character/brawler": "weapon/punch",
 		"character/bunny": "weapon/pistol",
 		"character/crazy": "weapon/spear",
-		"character/dash_raider": "weapon/void_prism",
+		"character/dash_raider": "weapon/chainsaw",
 	}
 	for raw_character_id: Variant in expected_allowed:
 		var character := catalog.get_character(StringName(str(raw_character_id)))
@@ -154,7 +154,7 @@ func test_baseline_character_restrictions_have_real_nonempty_weapon_families() -
 	assert_bool(knight.rules.apply_to_run(knight_run)).is_true()
 	assert_float(knight_run.player_stats.get_stat(StatId.LIFE_STEAL)).is_equal(-100.0)
 	assert_array(catalog.get_weapon(&"weapon/punch").tags).contains([&"burst"])
-	assert_array(catalog.get_weapon(&"weapon/void_prism").tags).contains([&"boomerang"])
+	assert_array(catalog.get_weapon(&"weapon/chainsaw").tags).contains([&"mobility"])
 
 
 func test_shop_and_reward_reject_weapons_forbidden_by_the_active_character() -> void:

@@ -23,6 +23,12 @@ func execute_attack() -> void:
 
 
 func _fire_sequence(pattern: AttackPatternDef) -> void:
+	if pattern != null and pattern.kind in [
+		AttackPatternDef.Kind.THROWN,
+		AttackPatternDef.Kind.DEPLOYABLE,
+	]:
+		_spawn_tactical_utility(pattern)
+		return
 	var shot_count := pattern.runtime_shot_count() if pattern != null else 1
 	var shot_interval := pattern.runtime_shot_interval() if pattern != null else 0.0
 	var sequence_damage_scale := 1.0 / float(shot_count) if (
@@ -43,6 +49,12 @@ func create_projectile(
 	effect_modifiers: Dictionary = {}
 ) -> void:
 	var pattern := weapon.current_attack_pattern()
+	if pattern != null and pattern.kind in [
+		AttackPatternDef.Kind.THROWN,
+		AttackPatternDef.Kind.DEPLOYABLE,
+	]:
+		_spawn_tactical_utility(pattern)
+		return
 	var rotations := _tier_volley_rotations(pattern, sequence_index)
 	var resolved_effect_modifiers := (
 		effect_modifiers
@@ -53,6 +65,68 @@ func create_projectile(
 		_create_projectile_at_rotation(
 			shot_rotation, resolved_effect_modifiers, sequence_damage_scale
 		)
+
+
+func _spawn_tactical_utility(pattern: AttackPatternDef) -> TacticalUtilityRuntime:
+	if pattern == null or weapon == null or weapon.data == null:
+		return null
+	var definition := Content.catalog.get_weapon(Content.catalog.get_item_stable_id(weapon.data))
+	var presentation_id := (
+		definition.get_presentation_id(Content.catalog.pack_id)
+		if definition != null
+		else &""
+	)
+	_prune_tactical_utility_limit(presentation_id, maxi(1, pattern.max_active))
+	var utility := TacticalUtilityRuntime.new()
+	get_tree().root.add_child(utility)
+	var origin := muzzle.global_position if muzzle != null else weapon.global_position
+	var target := _resolved_utility_target(origin)
+	var tags: Array[StringName] = []
+	if definition != null:
+		tags.assign(definition.tags)
+	utility.configure(
+		pattern,
+		origin,
+		target,
+		get_damage(),
+		weapon,
+		tags,
+		presentation_id,
+		critical
+	)
+	return utility
+
+
+func _resolved_utility_target(origin: Vector2) -> Vector2:
+	var maximum_distance := maxf(80.0, weapon.resolved_attack_range())
+	var direction := Vector2.RIGHT.rotated(weapon.rotation)
+	var desired := origin + direction * maximum_distance
+	if is_instance_valid(weapon.closest_target):
+		desired = weapon.closest_target.global_position
+	var offset := desired - origin
+	if offset.length() > maximum_distance:
+		offset = offset.normalized() * maximum_distance
+	return origin + offset
+
+
+func _prune_tactical_utility_limit(
+	presentation_id: StringName,
+	maximum_active: int
+) -> void:
+	var matching: Array[TacticalUtilityRuntime] = []
+	for candidate: Node in get_tree().get_nodes_in_group(&"tactical_utilities"):
+		if candidate is not TacticalUtilityRuntime:
+			continue
+		var utility := candidate as TacticalUtilityRuntime
+		if utility.gameplay_source != weapon or utility.presentation_id() != presentation_id:
+			continue
+		matching.append(utility)
+	matching.sort_custom(func(first: TacticalUtilityRuntime, second: TacticalUtilityRuntime) -> bool:
+		return first.get_instance_id() < second.get_instance_id()
+	)
+	while matching.size() >= maxi(1, maximum_active):
+		var oldest: TacticalUtilityRuntime = matching.pop_front()
+		oldest.retire_for_replacement()
 
 
 func _tier_volley_rotations(

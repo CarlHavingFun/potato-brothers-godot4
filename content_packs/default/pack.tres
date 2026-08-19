@@ -111,7 +111,8 @@
 script = ExtResource("3_7dayf")
 rule_id = &"character_rule/brawler"
 core_ability_id = &"ability/brawler"
-allowed_weapon_tags = Array[StringName]([&"melee"])
+allowed_weapon_tags = Array[StringName]([&"close_quarters"])
+shop_bias_tags = Array[StringName]([&"close_quarters", &"melee"])
 starting_stat_modifiers = {
 "melee_damage": 4.0,
 "range": -12.0
@@ -133,7 +134,8 @@ tags = Array[StringName]([&"melee", &"sustain"])
 script = ExtResource("3_7dayf")
 rule_id = &"character_rule/bunny"
 core_ability_id = &"ability/bunny"
-shop_bias_tags = Array[StringName]([&"rapid"])
+allowed_weapon_tags = Array[StringName]([&"firearm"])
+shop_bias_tags = Array[StringName]([&"firearm", &"rapid"])
 starting_stat_modifiers = {
 "attack_speed": 8.0
 }
@@ -142,7 +144,7 @@ starting_stat_modifiers = {
 script = ExtResource("1_u7nwy")
 scene = ExtResource("4_6vwox")
 stats = ExtResource("5_i7h65")
-starter_weapon_ids = Array[StringName]([&"core:weapon/laser", &"core:weapon/pistol", &"core:weapon/revolver", &"core:weapon/shotgun", &"core:weapon/smg", &"core:weapon/carbine", &"core:weapon/railbow", &"core:weapon/shrapnel_launcher", &"core:weapon/needler", &"core:weapon/boomerang"])
+starter_weapon_ids = Array[StringName]([&"core:weapon/laser", &"core:weapon/pistol", &"core:weapon/revolver", &"core:weapon/shotgun", &"core:weapon/smg", &"core:weapon/carbine", &"core:weapon/railbow", &"core:weapon/shrapnel_launcher", &"core:weapon/needler", &"core:weapon/boomerang", &"core:weapon/drone_beacon"])
 rules = SubResource("Resource_xvosd")
 content_id = &"character/bunny"
 presentation_id = &"character.bunny"
@@ -254,8 +256,8 @@ tags = Array[StringName]([&"balanced", &"power"])
 script = ExtResource("3_7dayf")
 rule_id = &"character_rule/ember_sage"
 core_ability_id = &"ability/ember_sage"
-allowed_weapon_tags = Array[StringName]([&"elemental"])
-shop_bias_tags = Array[StringName]([&"burn", &"slow", &"chain"])
+allowed_weapon_tags = Array[StringName]([&"tactical"])
+shop_bias_tags = Array[StringName]([&"tactical", &"burn", &"control", &"explosion"])
 starting_stat_modifiers = {
 "elemental_damage": 6.0
 }
@@ -276,7 +278,7 @@ metadata/_custom_type_script = "uid://dslkq61ggb3ft"
 script = ExtResource("1_u7nwy")
 scene = ExtResource("4_6vwox")
 stats = SubResource("Resource_kd0cg")
-starter_weapon_ids = Array[StringName]([&"core:weapon/ember_staff", &"core:weapon/frost_orb", &"core:weapon/storm_coil", &"core:weapon/void_prism"])
+starter_weapon_ids = Array[StringName]([&"core:weapon/ember_staff", &"core:weapon/frost_orb", &"core:weapon/storm_coil", &"core:weapon/void_prism", &"core:weapon/turret_kit"])
 rules = SubResource("Resource_yen46")
 content_id = &"character/ember_sage"
 presentation_id = &"character.ember_sage"
@@ -288,8 +290,8 @@ tags = Array[StringName]([&"elemental", &"burn"])
 script = ExtResource("3_7dayf")
 rule_id = &"character_rule/scrapwright"
 core_ability_id = &"ability/scrapwright"
-allowed_weapon_tags = Array[StringName]([&"engineering"])
-shop_bias_tags = Array[StringName]([&"building", &"summon"])
+allowed_weapon_tags = Array[StringName]([&"sidearm"])
+shop_bias_tags = Array[StringName]([&"sidearm", &"engineering", &"building", &"summon"])
 starting_stat_modifiers = {
 "engineering": 7.0
 }
@@ -313,7 +315,7 @@ metadata/_custom_type_script = "uid://dslkq61ggb3ft"
 script = ExtResource("1_u7nwy")
 scene = ExtResource("10_6bkrh")
 stats = SubResource("Resource_jnf61")
-starter_weapon_ids = Array[StringName]([&"core:weapon/turret_kit", &"core:weapon/drone_beacon"])
+starter_weapon_ids = Array[StringName]([&"core:weapon/wand", &"core:weapon/pistol", &"core:weapon/revolver", &"core:weapon/drone_beacon"])
 rules = SubResource("Resource_snn1j")
 content_id = &"character/scrapwright"
 presentation_id = &"character.scrapwright"
@@ -325,6 +327,8 @@ tags = Array[StringName]([&"engineering", &"building"])
 script = ExtResource("3_7dayf")
 rule_id = &"character_rule/dash_raider"
 core_ability_id = &"ability/dash_raider"
+allowed_weapon_tags = Array[StringName]([&"mobility"])
+shop_bias_tags = Array[StringName]([&"mobility", &"rapid"])
 starting_stat_modifiers = {
 "dodge": 8.0
 }
@@ -349,7 +353,7 @@ metadata/_custom_type_script = "uid://dslkq61ggb3ft"
 script = ExtResource("1_u7nwy")
 scene = ExtResource("6_4lw5p")
 stats = SubResource("Resource_vm1fs")
-starter_weapon_ids = Array[StringName]([&"core:weapon/pistol", &"core:weapon/axe"])
+starter_weapon_ids = Array[StringName]([&"core:weapon/chainsaw", &"core:weapon/punch", &"core:weapon/sword", &"core:weapon/boomerang"])
 unlock_difficulty = 2
 rules = SubResource("Resource_5nmvh")
 content_id = &"character/dash_raider"
@@ -4968,10 +4972,10 @@ presentation_id = &"wave.20"
 [sub_resource type="Resource" id="Resource_anmw5"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/axe"
-damage_multiplier = 1.12
-cooldown_multiplier = 0.88
-melee_reach_multiplier = 1.05
-swing_degrees = 125.0
+damage_multiplier = 1.2
+cooldown_multiplier = 1.08
+melee_reach_multiplier = 1.12
+swing_degrees = 145.0
 
 [sub_resource type="Resource" id="Resource_td7ea"]
 script = ExtResource("79_31san")
@@ -4981,16 +4985,17 @@ content_id = &"weapon/axe"
 presentation_id = &"weapon.axe"
 display_name_key = &"weapon.axe.name"
 description_key = &"weapon.axe.description"
-tags = Array[StringName]([&"melee", &"arc"])
+tags = Array[StringName]([&"close_quarters", &"melee", &"heavy", &"arc"])
 
 [sub_resource type="Resource" id="Resource_kidqk"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/chainsaw"
 kind = 2
+continuous_tick_interval = 0.08
 damage_multiplier = 0.72
-cooldown_multiplier = 0.892
-melee_reach_multiplier = 0.72
-active_duration_multiplier = 1.9
+cooldown_multiplier = 0.72
+melee_reach_multiplier = 0.78
+active_duration_multiplier = 1.4
 
 [sub_resource type="Resource" id="Resource_4sl44"]
 script = ExtResource("79_31san")
@@ -5000,36 +5005,15 @@ content_id = &"weapon/chainsaw"
 presentation_id = &"weapon.chainsaw"
 display_name_key = &"weapon.chainsaw.name"
 description_key = &"weapon.chainsaw.description"
-tags = Array[StringName]([&"melee", &"continuous"])
+tags = Array[StringName]([&"close_quarters", &"melee", &"rapid", &"continuous", &"mobility"])
 
 [sub_resource type="Resource" id="Resource_4nbga"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/mace"
-kind = 8
-damage_multiplier = 1.28
-cooldown_multiplier = 0.904
-swing_degrees = 75.0
-explosion_radius = 88.0
-
-[sub_resource type="Resource" id="Resource_wb143"]
-script = ExtResource("106_7dayf")
-kind = 1
-tag = &"explosion"
-
-[sub_resource type="Resource" id="Resource_cecpd"]
-script = ExtResource("107_2tpwy")
-kind = 6
-radius = 96.0
-scale = 0.55
-
-[sub_resource type="Resource" id="Resource_pssh2"]
-script = ExtResource("2_gxkai")
-effect_id = &"effect/weapon/mace"
-priority = 50
-max_stacks = 6
-trigger_events = Array[int]([4])
-conditions = Array[ExtResource("106_7dayf")]([SubResource("Resource_wb143")])
-operations = Array[ExtResource("107_2tpwy")]([SubResource("Resource_cecpd")])
+damage_multiplier = 1.35
+cooldown_multiplier = 1.12
+melee_reach_multiplier = 1.0
+swing_degrees = 72.0
 
 [sub_resource type="Resource" id="Resource_1lrpi"]
 script = ExtResource("79_31san")
@@ -5039,15 +5023,16 @@ content_id = &"weapon/mace"
 presentation_id = &"weapon.mace"
 display_name_key = &"weapon.mace.name"
 description_key = &"weapon.mace.description"
-tags = Array[StringName]([&"melee", &"area", &"explosion"])
-effects = Array[ExtResource("2_gxkai")]([SubResource("Resource_pssh2")])
+tags = Array[StringName]([&"close_quarters", &"melee", &"heavy", &"arc"])
 
 [sub_resource type="Resource" id="Resource_0h85p"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/punch"
 kind = 4
 burst_count = 2
-cooldown_multiplier = 0.916
+burst_interval = 0.07
+damage_multiplier = 0.72
+cooldown_multiplier = 0.78
 melee_reach_multiplier = 0.68
 active_duration_multiplier = 0.62
 
@@ -5059,14 +5044,15 @@ content_id = &"weapon/punch"
 presentation_id = &"weapon.punch"
 display_name_key = &"weapon.punch.name"
 description_key = &"weapon.punch.description"
-tags = Array[StringName]([&"melee", &"burst"])
+tags = Array[StringName]([&"close_quarters", &"melee", &"rapid", &"burst", &"mobility"])
 
 [sub_resource type="Resource" id="Resource_po4sn"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/sword"
-cooldown_multiplier = 0.928
-melee_reach_multiplier = 1.18
-swing_degrees = 82.0
+damage_multiplier = 0.9
+cooldown_multiplier = 0.72
+melee_reach_multiplier = 0.84
+swing_degrees = 95.0
 
 [sub_resource type="Resource" id="Resource_vy1yh"]
 script = ExtResource("79_31san")
@@ -5076,15 +5062,19 @@ content_id = &"weapon/sword"
 presentation_id = &"weapon.sword"
 display_name_key = &"weapon.sword.name"
 description_key = &"weapon.sword.description"
-tags = Array[StringName]([&"melee", &"arc"])
+tags = Array[StringName]([&"close_quarters", &"melee", &"critical", &"arc", &"mobility"])
 
 [sub_resource type="Resource" id="Resource_2o6gd"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/wand"
-kind = 9
-cooldown_multiplier = 0.94
-melee_reach_multiplier = 1.12
-swing_degrees = 220.0
+kind = 7
+beam_pulse_count = 2
+beam_pulse_interval = 0.06
+damage_multiplier = 0.72
+cooldown_multiplier = 1.08
+melee_reach_multiplier = 0.72
+status_id = &"shock"
+status_duration = 0.8
 
 [sub_resource type="Resource" id="Resource_deglr"]
 script = ExtResource("79_31san")
@@ -5094,15 +5084,17 @@ content_id = &"weapon/wand"
 presentation_id = &"weapon.wand"
 display_name_key = &"weapon.wand.name"
 description_key = &"weapon.wand.description"
-tags = Array[StringName]([&"melee", &"orbit"])
+tags = Array[StringName]([&"close_quarters", &"elemental", &"shock", &"chain", &"beam", &"sidearm"])
 
 [sub_resource type="Resource" id="Resource_i6ccc"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/laser"
-kind = 7
-pierce = 2
-cooldown_multiplier = 0.976
-projectile_speed_multiplier = 1.45
+kind = 5
+charge_duration = 0.3
+pierce = 3
+damage_multiplier = 1.32
+cooldown_multiplier = 1.18
+projectile_speed_multiplier = 1.55
 
 [sub_resource type="Resource" id="Resource_mgunj"]
 script = ExtResource("106_7dayf")
@@ -5131,14 +5123,17 @@ content_id = &"weapon/laser"
 presentation_id = &"weapon.laser"
 display_name_key = &"weapon.laser.name"
 description_key = &"weapon.laser.description"
-tags = Array[StringName]([&"ranged", &"beam", &"pierce"])
+tags = Array[StringName]([&"firearm", &"ranged", &"sniper", &"precise", &"charged", &"pierce"])
 effects = Array[ExtResource("2_gxkai")]([SubResource("Resource_oim7v")])
 
 [sub_resource type="Resource" id="Resource_bn0pn"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/pistol"
 kind = 4
-cooldown_multiplier = 0.988
+burst_count = 3
+burst_interval = 0.07
+damage_multiplier = 0.56
+cooldown_multiplier = 0.94
 projectile_speed_multiplier = 1.08
 
 [sub_resource type="Resource" id="Resource_qn5b5"]
@@ -5149,14 +5144,16 @@ content_id = &"weapon/pistol"
 presentation_id = &"weapon.pistol"
 display_name_key = &"weapon.pistol.name"
 description_key = &"weapon.pistol.description"
-tags = Array[StringName]([&"ranged", &"burst"])
+tags = Array[StringName]([&"firearm", &"ranged", &"sidearm", &"rapid", &"burst"])
 
 [sub_resource type="Resource" id="Resource_m8y56"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/revolver"
 kind = 5
 pierce = 1
-damage_multiplier = 1.22
+charge_duration = 0.12
+damage_multiplier = 1.28
+cooldown_multiplier = 1.05
 
 [sub_resource type="Resource" id="Resource_3viuu"]
 script = ExtResource("106_7dayf")
@@ -5185,17 +5182,18 @@ content_id = &"weapon/revolver"
 presentation_id = &"weapon.revolver"
 display_name_key = &"weapon.revolver.name"
 description_key = &"weapon.revolver.description"
-tags = Array[StringName]([&"ranged", &"charged", &"pierce"])
+tags = Array[StringName]([&"firearm", &"ranged", &"sidearm", &"critical", &"precise", &"charged", &"pierce"])
 effects = Array[ExtResource("2_gxkai")]([SubResource("Resource_f72e3")])
 
 [sub_resource type="Resource" id="Resource_hrbo4"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/shotgun"
-kind = 3
-projectile_count = 5
-spread_degrees = 8.0
-damage_multiplier = 0.58
-cooldown_multiplier = 1.012
+kind = 4
+burst_count = 3
+burst_interval = 0.09
+spread_degrees = 1.2
+damage_multiplier = 0.48
+cooldown_multiplier = 0.92
 
 [sub_resource type="Resource" id="Resource_bf0pf"]
 script = ExtResource("79_31san")
@@ -5205,15 +5203,16 @@ content_id = &"weapon/shotgun"
 presentation_id = &"weapon.shotgun"
 display_name_key = &"weapon.shotgun.name"
 description_key = &"weapon.shotgun.description"
-tags = Array[StringName]([&"ranged", &"scatter"])
+tags = Array[StringName]([&"firearm", &"ranged", &"rifle", &"rapid", &"burst"])
 
 [sub_resource type="Resource" id="Resource_oxj6p"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/smg"
-kind = 4
-burst_count = 3
-damage_multiplier = 0.78
-cooldown_multiplier = 1.024
+kind = 3
+projectile_count = 1
+spread_degrees = 4.5
+damage_multiplier = 0.82
+cooldown_multiplier = 0.72
 
 [sub_resource type="Resource" id="Resource_gamo0"]
 script = ExtResource("79_31san")
@@ -5223,15 +5222,16 @@ content_id = &"weapon/smg"
 presentation_id = &"weapon.smg"
 display_name_key = &"weapon.smg.name"
 description_key = &"weapon.smg.description"
-tags = Array[StringName]([&"ranged", &"burst"])
+tags = Array[StringName]([&"firearm", &"ranged", &"smg", &"rapid", &"scatter"])
 
 [sub_resource type="Resource" id="Resource_eogjq"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/spear"
 kind = 1
 pierce = 1
-cooldown_multiplier = 0.952
-melee_reach_multiplier = 1.62
+damage_multiplier = 1.08
+cooldown_multiplier = 1.04
+melee_reach_multiplier = 1.68
 
 [sub_resource type="Resource" id="Resource_l045h"]
 script = ExtResource("106_7dayf")
@@ -5365,7 +5365,7 @@ content_id = &"weapon/spear"
 presentation_id = &"weapon.spear"
 display_name_key = &"weapon.spear.name"
 description_key = &"weapon.spear.description"
-tags = Array[StringName]([&"melee", &"precise", &"thrust", &"pierce"])
+tags = Array[StringName]([&"close_quarters", &"melee", &"precise", &"thrust", &"pierce"])
 effects = Array[ExtResource("2_gxkai")]([SubResource("Resource_74gim")])
 
 [sub_resource type="Resource" id="Resource_6ix1m"]
@@ -5375,6 +5375,9 @@ damage_multiplier = 1.38
 cooldown_multiplier = 0.964
 melee_reach_multiplier = 0.92
 swing_degrees = 155.0
+status_id = &"bleed"
+status_duration = 3.0
+status_damage_scale = 0.18
 
 [sub_resource type="Resource" id="Resource_o1g14"]
 script = ExtResource("100_4lw5p")
@@ -5489,15 +5492,20 @@ content_id = &"weapon/cleaver"
 presentation_id = &"weapon.cleaver"
 display_name_key = &"weapon.cleaver.name"
 description_key = &"weapon.cleaver.description"
-tags = Array[StringName]([&"melee", &"heavy", &"arc"])
+tags = Array[StringName]([&"close_quarters", &"melee", &"sustain", &"bleed", &"arc"])
 
 [sub_resource type="Resource" id="Resource_gv36h"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/carbine"
 kind = 4
 burst_count = 2
+pierce_damage_retention = 0.82
 pierce = 1
-cooldown_multiplier = 1.036
+damage_multiplier = 1.08
+cooldown_multiplier = 1.04
+recoil_ramp_degrees_per_shot = 1.6
+recoil_ramp_cap_degrees = 7.0
+recoil_recovery_seconds = 0.65
 
 [sub_resource type="Resource" id="Resource_ho2rl"]
 script = ExtResource("106_7dayf")
@@ -5619,16 +5627,18 @@ content_id = &"weapon/carbine"
 presentation_id = &"weapon.carbine"
 display_name_key = &"weapon.carbine.name"
 description_key = &"weapon.carbine.description"
-tags = Array[StringName]([&"ranged", &"rapid", &"burst", &"pierce"])
+tags = Array[StringName]([&"firearm", &"ranged", &"rifle", &"burst", &"pierce"])
 effects = Array[ExtResource("2_gxkai")]([SubResource("Resource_f42im")])
 
 [sub_resource type="Resource" id="Resource_5mtye"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/railbow"
-kind = 5
-pierce = 3
-damage_multiplier = 1.35
-cooldown_multiplier = 1.048
+kind = 4
+burst_count = 2
+burst_interval = 0.11
+pierce = 1
+damage_multiplier = 0.92
+cooldown_multiplier = 0.98
 projectile_speed_multiplier = 1.25
 
 [sub_resource type="Resource" id="Resource_co365"]
@@ -5773,37 +5783,18 @@ content_id = &"weapon/railbow"
 presentation_id = &"weapon.railbow"
 display_name_key = &"weapon.railbow.name"
 description_key = &"weapon.railbow.description"
-tags = Array[StringName]([&"ranged", &"pierce", &"charged"])
+tags = Array[StringName]([&"firearm", &"ranged", &"rifle", &"precise", &"silenced", &"burst", &"pierce"])
 effects = Array[ExtResource("2_gxkai")]([SubResource("Resource_feism")])
 
 [sub_resource type="Resource" id="Resource_tyhhq"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/shrapnel_launcher"
-kind = 3
-projectile_count = 3
-spread_degrees = 11.0
-cooldown_multiplier = 1.06
-explosion_radius = 96.0
-
-[sub_resource type="Resource" id="Resource_eohlg"]
-script = ExtResource("106_7dayf")
-kind = 1
-tag = &"explosion"
-
-[sub_resource type="Resource" id="Resource_2upc7"]
-script = ExtResource("107_2tpwy")
-kind = 6
-radius = 96.0
-scale = 0.55
-
-[sub_resource type="Resource" id="Resource_bnyjn"]
-script = ExtResource("2_gxkai")
-effect_id = &"effect/weapon/shrapnel_launcher"
-priority = 50
-max_stacks = 6
-trigger_events = Array[int]([4])
-conditions = Array[ExtResource("106_7dayf")]([SubResource("Resource_eohlg")])
-operations = Array[ExtResource("107_2tpwy")]([SubResource("Resource_2upc7")])
+kind = 4
+burst_count = 2
+burst_interval = 0.12
+spread_degrees = 2.0
+damage_multiplier = 1.08
+cooldown_multiplier = 1.08
 
 [sub_resource type="Resource" id="Resource_vnowg"]
 script = ExtResource("100_4lw5p")
@@ -5915,16 +5906,16 @@ content_id = &"weapon/shrapnel_launcher"
 presentation_id = &"weapon.shrapnel_launcher"
 display_name_key = &"weapon.shrapnel_launcher.name"
 description_key = &"weapon.shrapnel_launcher.description"
-tags = Array[StringName]([&"ranged", &"explosion", &"scatter"])
-effects = Array[ExtResource("2_gxkai")]([SubResource("Resource_bnyjn")])
+tags = Array[StringName]([&"firearm", &"ranged", &"smg", &"heavy", &"burst"])
 
 [sub_resource type="Resource" id="Resource_fjhil"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/needler"
 kind = 4
 burst_count = 4
+burst_interval = 0.055
 damage_multiplier = 0.62
-cooldown_multiplier = 1.072
+cooldown_multiplier = 0.82
 status_id = &"mark"
 
 [sub_resource type="Resource" id="Resource_qg3rx"]
@@ -6043,15 +6034,17 @@ content_id = &"weapon/needler"
 presentation_id = &"weapon.needler"
 display_name_key = &"weapon.needler.name"
 description_key = &"weapon.needler.description"
-tags = Array[StringName]([&"ranged", &"rapid", &"burst", &"mark"])
+tags = Array[StringName]([&"firearm", &"ranged", &"smg", &"rapid", &"burst", &"mark"])
 
 [sub_resource type="Resource" id="Resource_ejm2t"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/boomerang"
-kind = 6
-bounce = 2
-cooldown_multiplier = 1.084
-projectile_speed_multiplier = 0.82
+kind = 3
+bounce = 1
+bounce_damage_retention = 0.72
+spread_degrees = 7.0
+cooldown_multiplier = 0.78
+projectile_speed_multiplier = 1.08
 
 [sub_resource type="Resource" id="Resource_k1bcv"]
 script = ExtResource("106_7dayf")
@@ -6186,38 +6179,23 @@ content_id = &"weapon/boomerang"
 presentation_id = &"weapon.boomerang"
 display_name_key = &"weapon.boomerang.name"
 description_key = &"weapon.boomerang.description"
-tags = Array[StringName]([&"ranged", &"bounce", &"boomerang"])
+tags = Array[StringName]([&"firearm", &"ranged", &"smg", &"rapid", &"mobility", &"scatter", &"bounce"])
 effects = Array[ExtResource("2_gxkai")]([SubResource("Resource_mmfq0")])
 
 [sub_resource type="Resource" id="Resource_ju76v"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/ember_staff"
-kind = 8
-cooldown_multiplier = 1.096
-explosion_radius = 72.0
+kind = 12
+cooldown_multiplier = 1.1
+utility_kind = &"molotov"
+travel_duration = 0.35
+zone_duration = 5.0
+zone_radius = 92.0
+zone_tick_interval = 0.5
+max_active = 2
 status_id = &"burn"
-
-[sub_resource type="Resource" id="Resource_2tme0"]
-script = ExtResource("106_7dayf")
-kind = 1
-tag = &"burn"
-
-[sub_resource type="Resource" id="Resource_kgjb2"]
-script = ExtResource("107_2tpwy")
-kind = 7
-amount = 2.0
-count = 1
-duration = 2.5
-status_id = &"burn"
-
-[sub_resource type="Resource" id="Resource_s6acl"]
-script = ExtResource("2_gxkai")
-effect_id = &"effect/weapon/ember_staff"
-priority = 50
-max_stacks = 6
-trigger_events = Array[int]([4])
-conditions = Array[ExtResource("106_7dayf")]([SubResource("Resource_2tme0")])
-operations = Array[ExtResource("107_2tpwy")]([SubResource("Resource_kgjb2")])
+status_duration = 2.0
+status_damage_scale = 0.22
 
 [sub_resource type="Resource" id="Resource_mqu8r"]
 script = ExtResource("100_4lw5p")
@@ -6284,9 +6262,10 @@ metadata/_custom_type_script = "uid://7nww4cvtvv64"
 
 [sub_resource type="Resource" id="Resource_6ysl4"]
 script = ExtResource("80_pqqbw")
-scene = ExtResource("121_3x0kq")
+type = 1
+scene = ExtResource("118_58u2q")
 stats = SubResource("Resource_jmijo")
-item_name = "Ember Staff"
+item_name = "Molotov"
 content_id = &"weapon/ember_staff"
 item_tier = 3
 item_cost = 345
@@ -6294,10 +6273,11 @@ metadata/_custom_type_script = "uid://dt7tu5wgsfk5f"
 
 [sub_resource type="Resource" id="Resource_hfrpm"]
 script = ExtResource("80_pqqbw")
-scene = ExtResource("121_3x0kq")
+type = 1
+scene = ExtResource("118_58u2q")
 stats = SubResource("Resource_6gtke")
 upgrade_to = SubResource("Resource_6ysl4")
-item_name = "Ember Staff"
+item_name = "Molotov"
 content_id = &"weapon/ember_staff"
 item_tier = 2
 item_cost = 165
@@ -6305,10 +6285,11 @@ metadata/_custom_type_script = "uid://dt7tu5wgsfk5f"
 
 [sub_resource type="Resource" id="Resource_bj2ly"]
 script = ExtResource("80_pqqbw")
-scene = ExtResource("121_3x0kq")
+type = 1
+scene = ExtResource("118_58u2q")
 stats = SubResource("Resource_qi80y")
 upgrade_to = SubResource("Resource_hfrpm")
-item_name = "Ember Staff"
+item_name = "Molotov"
 content_id = &"weapon/ember_staff"
 item_tier = 1
 item_cost = 75
@@ -6316,10 +6297,11 @@ metadata/_custom_type_script = "uid://dt7tu5wgsfk5f"
 
 [sub_resource type="Resource" id="Resource_yminb"]
 script = ExtResource("80_pqqbw")
-scene = ExtResource("121_3x0kq")
+type = 1
+scene = ExtResource("118_58u2q")
 stats = SubResource("Resource_mqu8r")
 upgrade_to = SubResource("Resource_bj2ly")
-item_name = "Ember Staff"
+item_name = "Molotov"
 content_id = &"weapon/ember_staff"
 item_cost = 35
 
@@ -6331,38 +6313,23 @@ content_id = &"weapon/ember_staff"
 presentation_id = &"weapon.ember_staff"
 display_name_key = &"weapon.ember_staff.name"
 description_key = &"weapon.ember_staff.description"
-tags = Array[StringName]([&"elemental", &"burn", &"area", &"explosion"])
-effects = Array[ExtResource("2_gxkai")]([SubResource("Resource_s6acl")])
+tags = Array[StringName]([&"tactical", &"ranged", &"thrown", &"elemental", &"burn", &"area"])
 
 [sub_resource type="Resource" id="Resource_lb58w"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/frost_orb"
-kind = 3
-projectile_count = 2
-spread_degrees = 6.0
-cooldown_multiplier = 1.108
+kind = 12
+damage_multiplier = 0.0
+cooldown_multiplier = 1.12
+utility_kind = &"smoke"
+travel_duration = 0.35
+zone_duration = 6.0
+zone_radius = 112.0
+zone_tick_interval = 0.25
+zone_speed_multiplier = 0.55
+max_active = 2
 status_id = &"slow"
-
-[sub_resource type="Resource" id="Resource_4wmb4"]
-script = ExtResource("106_7dayf")
-kind = 1
-tag = &"slow"
-
-[sub_resource type="Resource" id="Resource_udoir"]
-script = ExtResource("107_2tpwy")
-kind = 3
-count = 1
-duration = 1.5
-status_id = &"slow"
-
-[sub_resource type="Resource" id="Resource_jgife"]
-script = ExtResource("2_gxkai")
-effect_id = &"effect/weapon/frost_orb"
-priority = 50
-max_stacks = 6
-trigger_events = Array[int]([4])
-conditions = Array[ExtResource("106_7dayf")]([SubResource("Resource_4wmb4")])
-operations = Array[ExtResource("107_2tpwy")]([SubResource("Resource_udoir")])
+status_duration = 0.6
 
 [sub_resource type="Resource" id="Resource_f71py"]
 script = ExtResource("100_4lw5p")
@@ -6487,36 +6454,20 @@ content_id = &"weapon/frost_orb"
 presentation_id = &"weapon.frost_orb"
 display_name_key = &"weapon.frost_orb.name"
 description_key = &"weapon.frost_orb.description"
-tags = Array[StringName]([&"elemental", &"slow", &"scatter"])
-effects = Array[ExtResource("2_gxkai")]([SubResource("Resource_jgife")])
+tags = Array[StringName]([&"tactical", &"ranged", &"thrown", &"control", &"slow", &"area"])
 
 [sub_resource type="Resource" id="Resource_2pj8j"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/storm_coil"
-kind = 7
-bounce = 3
-cooldown_multiplier = 1.12
-status_id = &"shock"
-
-[sub_resource type="Resource" id="Resource_fad3x"]
-script = ExtResource("106_7dayf")
-kind = 1
-tag = &"chain"
-
-[sub_resource type="Resource" id="Resource_hc6j0"]
-script = ExtResource("107_2tpwy")
-kind = 8
-count = 2
-radius = 180.0
-
-[sub_resource type="Resource" id="Resource_8v7xf"]
-script = ExtResource("2_gxkai")
-effect_id = &"effect/weapon/storm_coil"
-priority = 50
-max_stacks = 6
-trigger_events = Array[int]([4])
-conditions = Array[ExtResource("106_7dayf")]([SubResource("Resource_fad3x")])
-operations = Array[ExtResource("107_2tpwy")]([SubResource("Resource_hc6j0")])
+kind = 12
+damage_multiplier = 0.18
+cooldown_multiplier = 1.06
+utility_kind = &"flash"
+travel_duration = 0.3
+zone_radius = 128.0
+interrupt_ranged = true
+status_id = &"blind"
+status_duration = 1.2
 
 [sub_resource type="Resource" id="Resource_dkv10"]
 script = ExtResource("100_4lw5p")
@@ -6634,36 +6585,18 @@ content_id = &"weapon/storm_coil"
 presentation_id = &"weapon.storm_coil"
 display_name_key = &"weapon.storm_coil.name"
 description_key = &"weapon.storm_coil.description"
-tags = Array[StringName]([&"elemental", &"chain", &"beam", &"bounce", &"shock"])
-effects = Array[ExtResource("2_gxkai")]([SubResource("Resource_8v7xf")])
+tags = Array[StringName]([&"tactical", &"ranged", &"thrown", &"control", &"blind"])
 
 [sub_resource type="Resource" id="Resource_7fqg4"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/void_prism"
-kind = 6
-pierce = 1
-bounce = 4
-damage_multiplier = 1.18
-cooldown_multiplier = 1.1320000000000001
-
-[sub_resource type="Resource" id="Resource_3vxah"]
-script = ExtResource("106_7dayf")
-kind = 1
-tag = &"bounce"
-
-[sub_resource type="Resource" id="Resource_30hry"]
-script = ExtResource("107_2tpwy")
-kind = 5
-count = 1
-
-[sub_resource type="Resource" id="Resource_k50rg"]
-script = ExtResource("2_gxkai")
-effect_id = &"effect/weapon/void_prism"
-priority = 50
-max_stacks = 6
-trigger_events = Array[int]([3])
-conditions = Array[ExtResource("106_7dayf")]([SubResource("Resource_3vxah")])
-operations = Array[ExtResource("107_2tpwy")]([SubResource("Resource_30hry")])
+kind = 12
+damage_multiplier = 1.28
+cooldown_multiplier = 1.14
+explosion_radius = 104.0
+explosion_damage_scale = 1.0
+utility_kind = &"he"
+travel_duration = 0.32
 
 [sub_resource type="Resource" id="Resource_nhyrt"]
 script = ExtResource("100_4lw5p")
@@ -6779,30 +6712,20 @@ content_id = &"weapon/void_prism"
 presentation_id = &"weapon.void_prism"
 display_name_key = &"weapon.void_prism.name"
 description_key = &"weapon.void_prism.description"
-tags = Array[StringName]([&"elemental", &"bounce", &"boomerang", &"pierce"])
-effects = Array[ExtResource("2_gxkai")]([SubResource("Resource_k50rg")])
+tags = Array[StringName]([&"tactical", &"ranged", &"thrown", &"explosion", &"area"])
 
 [sub_resource type="Resource" id="Resource_44pky"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/turret_kit"
-kind = 10
-cooldown_multiplier = 1.1440000000000001
-projectile_speed_multiplier = 0.9
-summon_count = 1
-
-[sub_resource type="Resource" id="Resource_axa56"]
-script = ExtResource("107_2tpwy")
-kind = 11
-count = 1
-content_id = &"building/scrap_turret"
-
-[sub_resource type="Resource" id="Resource_laeam"]
-script = ExtResource("2_gxkai")
-effect_id = &"effect/weapon/turret_kit"
-priority = 50
-max_stacks = 6
-trigger_events = Array[int]([1])
-operations = Array[ExtResource("107_2tpwy")]([SubResource("Resource_axa56")])
+kind = 13
+damage_multiplier = 1.6
+cooldown_multiplier = 1.18
+explosion_radius = 148.0
+explosion_damage_scale = 1.0
+utility_kind = &"c4"
+arming_delay = 1.8
+travel_duration = 0.0
+max_active = 1
 
 [sub_resource type="Resource" id="Resource_3s3hb"]
 script = ExtResource("100_4lw5p")
@@ -6904,30 +6827,16 @@ content_id = &"weapon/turret_kit"
 presentation_id = &"weapon.turret_kit"
 display_name_key = &"weapon.turret_kit.name"
 description_key = &"weapon.turret_kit.description"
-tags = Array[StringName]([&"engineering", &"building"])
-effects = Array[ExtResource("2_gxkai")]([SubResource("Resource_laeam")])
+tags = Array[StringName]([&"tactical", &"ranged", &"deployable", &"explosion", &"area"])
 
 [sub_resource type="Resource" id="Resource_x113m"]
 script = ExtResource("68_30mdi")
 pattern_id = &"attack/drone_beacon"
-kind = 11
-bounce = 1
-cooldown_multiplier = 1.1560000000000001
-summon_count = 2
-
-[sub_resource type="Resource" id="Resource_xh5ve"]
-script = ExtResource("107_2tpwy")
-kind = 10
-count = 1
-content_id = &"summon/scout_drone"
-
-[sub_resource type="Resource" id="Resource_gqxgq"]
-script = ExtResource("2_gxkai")
-effect_id = &"effect/weapon/drone_beacon"
-priority = 50
-max_stacks = 6
-trigger_events = Array[int]([1])
-operations = Array[ExtResource("107_2tpwy")]([SubResource("Resource_xh5ve")])
+kind = 5
+charge_duration = 0.08
+damage_multiplier = 1.08
+cooldown_multiplier = 0.96
+projectile_speed_multiplier = 1.3
 
 [sub_resource type="Resource" id="Resource_dln2r"]
 script = ExtResource("100_4lw5p")
@@ -7052,8 +6961,7 @@ content_id = &"weapon/drone_beacon"
 presentation_id = &"weapon.drone_beacon"
 display_name_key = &"weapon.drone_beacon.name"
 description_key = &"weapon.drone_beacon.description"
-tags = Array[StringName]([&"engineering", &"summon", &"bounce"])
-effects = Array[ExtResource("2_gxkai")]([SubResource("Resource_gqxgq")])
+tags = Array[StringName]([&"firearm", &"ranged", &"sidearm", &"precise", &"silenced", &"critical"])
 
 [resource]
 script = ExtResource("29_xa6el")

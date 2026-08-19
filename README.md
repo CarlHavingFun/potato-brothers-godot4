@@ -1,4 +1,4 @@
-# GOBRO · Godot 4
+# LET'S GOOOOO · Godot 4
 
 An independent Godot 4.7.1 project that combines the runnable Godot tutorial
 implementation with the broader gameplay systems and assets from the local
@@ -51,7 +51,7 @@ For a Windows playtest build, use the one-command entry point:
 On the first run it downloads the matching official Godot template archive,
 verifies its pinned SHA-256, and installs only the Windows x86_64 templates.
 Later runs reuse the installed templates. The portable directory and zip are
-written under `dist/gobro-core-parity/`; the exported executable is smoke-tested
+written under `dist/lets-gooooo/`; the exported executable is smoke-tested
 from a temporary directory with isolated user data before the build succeeds.
 
 Choose the presentation shell at build time without changing gameplay IDs:
@@ -59,7 +59,7 @@ Choose the presentation shell at build time without changing gameplay IDs:
 ```powershell
 .\tools\build_release.ps1 `
   -GodotBinary D:\path\to\Godot_v4.7-stable_win64_console.exe `
-  -SkinManifest res://content_packs/skins/dev_placeholder/skin.tres
+  -SkinManifest res://content_packs/skins/lets_gooooo/skin.tres
 ```
 
 Release output is written to the configured `dist` directory. The build uses a

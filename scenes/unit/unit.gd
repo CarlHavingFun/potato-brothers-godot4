@@ -61,10 +61,23 @@ func apply_effect_status(command: Dictionary, source: Object = null) -> void:
 	if status_id.is_empty() or status_id in status_immunities:
 		return
 	var existing := active_effect_statuses.get(status_id, {}) as Dictionary
+	var incoming_stacks := maxi(1, int(command.get("stacks", 1)))
+	var next_stacks := (
+		maxi(int(existing.get("stacks", 0)), incoming_stacks)
+		if bool(command.get("refresh_only", false))
+		else int(existing.get("stacks", 0)) + incoming_stacks
+	)
 	active_effect_statuses[status_id] = {
 		"remaining": maxf(float(existing.get("remaining", 0.0)), float(command.get("duration", 0.0))),
-		"stacks": mini(99, int(existing.get("stacks", 0)) + maxi(1, int(command.get("stacks", 1)))),
+		"stacks": mini(99, next_stacks),
 		"amount": maxf(float(existing.get("amount", 0.0)), float(command.get("amount", 0.0))),
+		"speed_multiplier": minf(
+			float(existing.get("speed_multiplier", 1.0)),
+			clampf(float(command.get("speed_multiplier", 1.0)), 0.1, 1.0)
+		),
+		"interrupt_ranged": bool(existing.get("interrupt_ranged", false)) or bool(
+			command.get("interrupt_ranged", false)
+		),
 		"tick_remaining": minf(float(existing.get("tick_remaining", 0.5)), 0.5),
 		"source": source if is_instance_valid(source) else existing.get("source"),
 	}
@@ -80,7 +93,25 @@ func status_source(status_id: StringName) -> Object:
 
 
 func effect_speed_multiplier() -> float:
-	return 0.7 if active_effect_statuses.has(&"slow") else 1.0
+	var multiplier := 1.0
+	for status_id: StringName in [&"slow", &"smoke", &"blind"]:
+		if not active_effect_statuses.has(status_id):
+			continue
+		var state := active_effect_statuses.get(status_id, {}) as Dictionary
+		var fallback := 0.7 if status_id == &"slow" else 0.75
+		multiplier = minf(
+			multiplier,
+			clampf(float(state.get("speed_multiplier", fallback)), 0.1, 1.0)
+		)
+	return multiplier
+
+
+func is_ranged_attack_interrupted() -> bool:
+	for raw_status_id: Variant in active_effect_statuses.keys():
+		var state := active_effect_statuses.get(raw_status_id, {}) as Dictionary
+		if bool(state.get("interrupt_ranged", false)):
+			return true
+	return active_effect_statuses.has(&"blind")
 
 
 func apply_effect_damage(amount: float, source: Object = null) -> void:
@@ -101,7 +132,8 @@ func apply_effect_damage(amount: float, source: Object = null) -> void:
 func receive_typed_damage(
 	amount: float,
 	source: Object = null,
-	gameplay_tags: Array[StringName] = []
+	gameplay_tags: Array[StringName] = [],
+	critical := false
 ) -> void:
 	if amount <= 0.0 or health_component.current_health <= 0.0:
 		return
@@ -109,7 +141,7 @@ func receive_typed_damage(
 	var scripted_hit := HitboxComponent.new()
 	scripted_hit.setup(
 		amount,
-		false,
+		critical,
 		0.0,
 		source_node,
 		source,

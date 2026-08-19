@@ -21,7 +21,9 @@ func _ready() -> void:
 		for frame_index: int in 4:
 			frames.add_frame(&"default", material_texture)
 		coin_sprite.sprite_frames = frames
+		coin_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	shadow.texture = Presentation.resolve_texture(&"pickup", &"pickup.shadow")
+	shadow.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
 func _process(delta: float) -> void:
 	if collected and target_screen_pos == Vector2.INF:

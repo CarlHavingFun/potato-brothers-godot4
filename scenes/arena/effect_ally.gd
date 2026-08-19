@@ -28,6 +28,7 @@ var lifetime_remaining := -1.0
 var _attack_remaining := 0.25
 var _orbit_phase := 0.0
 var _projectile_callback: Callable
+var _skin_visual: Sprite2D
 
 
 func setup(kind: StringName, id: StringName, target: Node2D, index: int) -> void:
@@ -50,7 +51,27 @@ func setup(kind: StringName, id: StringName, target: Node2D, index: int) -> void
 		attack_range = TURRET_ATTACK_RANGE + engineering * 3.0
 		attack_interval = maxf(0.28, TURRET_ATTACK_INTERVAL / (1.0 + engineering / 100.0))
 		lifetime_remaining = -1.0
+	_apply_skin_visual()
 	queue_redraw()
+
+
+func _apply_skin_visual() -> void:
+	if Presentation.active_skin == null:
+		return
+	var presentation_id := &"ally.drone" if entity_kind == &"summon" else &"ally.turret"
+	var table: Variant = Presentation.active_skin.asset_tables.get(&"ally/world", {})
+	if table is not Dictionary or not (table as Dictionary).has(presentation_id):
+		return
+	var texture := Presentation.resolve_texture(&"ally", presentation_id, null, &"world")
+	if texture == null:
+		return
+	if not is_instance_valid(_skin_visual):
+		_skin_visual = Sprite2D.new()
+		_skin_visual.name = "SkinVisual"
+		_skin_visual.scale = Vector2.ONE * 0.30
+		_skin_visual.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		add_child(_skin_visual)
+	_skin_visual.texture = texture
 
 
 func set_projectile_callback(callback: Callable) -> void:
@@ -118,6 +139,8 @@ func _nearest_enemy() -> Enemy:
 
 
 func _draw() -> void:
+	if is_instance_valid(_skin_visual) and _skin_visual.texture != null:
+		return
 	var color := Color("7dd3fc") if entity_kind == &"summon" else Color("f6c453")
 	if entity_kind == &"summon":
 		draw_circle(Vector2.ZERO, 16.0, color)

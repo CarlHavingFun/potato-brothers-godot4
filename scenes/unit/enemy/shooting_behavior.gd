@@ -39,6 +39,9 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if not Global.is_combat_active() or enemy == null:
 		return
+	if enemy.is_ranged_attack_interrupted():
+		_interrupt_attack()
+		return
 	_update_phase()
 	match shooting_state:
 		ShootingState.APPROACH:
@@ -65,7 +68,11 @@ func _process(delta: float) -> void:
 
 
 func shoot() -> void:
-	if enemy == null or not is_instance_valid(Global.player):
+	if (
+		enemy == null
+		or enemy.is_ranged_attack_interrupted()
+		or not is_instance_valid(Global.player)
+	):
 		return
 	_start_windup()
 
@@ -86,6 +93,9 @@ func _start_windup() -> void:
 
 
 func _start_attack() -> void:
+	if enemy.is_ranged_attack_interrupted():
+		_interrupt_attack()
+		return
 	shooting_state = ShootingState.ATTACK
 	state_remaining = 0.12
 	enemy.presentation_controller.set_semantic_state(&"attack")
@@ -157,8 +167,28 @@ func _can_fire() -> bool:
 	return (
 		projectile_scene != null
 		and get_tree() != null
+		and enemy != null
+		and not enemy.is_ranged_attack_interrupted()
 		and is_instance_valid(Global.player)
 	)
+
+
+func _interrupt_attack() -> void:
+	if enemy == null:
+		return
+	if shooting_state != ShootingState.APPROACH:
+		GameplayCues.emit_cue(&"enemy.ranged_interrupted", {
+			"presentation_id": enemy.definition.get_presentation_id(
+				Content.catalog.pack_id
+			) if enemy.definition != null else &"",
+			"world_position": enemy.global_position,
+		})
+	shooting_state = ShootingState.APPROACH
+	state_remaining = 0.0
+	current_cooldown = maxf(current_cooldown, cooldown * 0.5)
+	enemy.can_move = true
+	enemy.velocity = Vector2.ZERO
+	enemy.presentation_controller.set_semantic_state(&"move")
 
 
 func _update_phase() -> void:

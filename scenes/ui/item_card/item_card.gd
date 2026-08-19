@@ -10,10 +10,11 @@ signal on_item_card_selected(card: ItemCard)
 func _set_item(value: ItemBase) -> void:
 	item = value
 	var definition := Content.catalog.get_item_definition(item)
-	item_icon.texture = Presentation.resolve_texture(
-		&"weapon" if item is ItemWeapon else &"pickup",
-		definition.get_presentation_id(Content.catalog.pack_id) if definition != null else Content.catalog.get_item_stable_id(item),
-		item.item_icon
+	item_icon.texture = Presentation.resolve_content_texture(
+		definition,
+		item.item_icon,
+		&"icon",
+		Content.catalog.pack_id
 	)
 	
 	var style := Global.get_tier_style(item.item_tier)

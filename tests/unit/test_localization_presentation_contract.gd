@@ -7,6 +7,8 @@ const DEV_SKIN_ZH := "res://content_packs/skins/dev_placeholder/i18n/skin.zh_CN.
 const DEV_SKIN_EN := "res://content_packs/skins/dev_placeholder/i18n/skin.en.po"
 const ALT_SKIN_ZH := "res://content_packs/skins/test_alt/i18n/skin.zh_CN.po"
 const ALT_SKIN_EN := "res://content_packs/skins/test_alt/i18n/skin.en.po"
+const RELEASE_SKIN_ZH := "res://content_packs/skins/lets_gooooo/i18n/skin.zh_CN.po"
+const RELEASE_SKIN_EN := "res://content_packs/skins/lets_gooooo/i18n/skin.en.po"
 
 var _original_locale := ""
 
@@ -43,7 +45,7 @@ func test_runtime_catalogs_recover_from_the_actual_autoloads_before_ready() -> v
 	LocalizedTextService.configure_core_paths([])
 	LocalizedTextService.clear_skin_paths()
 	assert_str(LocalizedTextService.resolve(&"ui.title.start")).is_equal("开始游戏")
-	assert_str(LocalizedTextService.resolve(&"ui.title.name")).is_equal("GOBRO")
+	assert_str(LocalizedTextService.resolve(&"ui.title.name")).is_equal("LET'S GOOOOO")
 
 
 func test_active_skin_copy_overrides_core_copy_deterministically() -> void:
@@ -80,6 +82,46 @@ func test_core_catalogs_have_matching_keys_and_do_not_mix_languages() -> void:
 		assert_bool(_contains_han(en_message)).override_failure_message(
 			"English translation contains Han characters: %s = %s" % [key, en_message]
 		).is_false()
+
+
+func test_release_skin_catalogs_have_matching_keys_and_do_not_mix_languages() -> void:
+	var zh := load(RELEASE_SKIN_ZH) as Translation
+	var en := load(RELEASE_SKIN_EN) as Translation
+	assert_object(zh).is_not_null()
+	assert_object(en).is_not_null()
+	if zh == null or en == null:
+		return
+	var zh_keys := Array(zh.get_message_list())
+	var en_keys := Array(en.get_message_list())
+	zh_keys.sort()
+	en_keys.sort()
+	assert_array(zh_keys).contains_exactly(en_keys)
+	for raw_key: Variant in zh_keys:
+		var key := str(raw_key)
+		var zh_message := str(zh.get_message(key))
+		var en_message := str(en.get_message(key))
+		assert_bool(_contains_disallowed_latin(zh_message)).override_failure_message(
+			"Release skin Chinese copy contains untranslated Latin text: %s = %s" % [
+				key, zh_message,
+			]
+		).is_false()
+		assert_bool(_contains_han(en_message)).override_failure_message(
+			"Release skin English copy contains Han characters: %s = %s" % [key, en_message]
+		).is_false()
+
+
+func test_release_skin_replaces_every_visible_legacy_product_reference() -> void:
+	LocalizedTextService.configure_skin_paths([RELEASE_SKIN_ZH, RELEASE_SKIN_EN])
+	for locale: String in ["zh_CN", "en"]:
+		TranslationServer.set_locale(locale)
+		for key: StringName in [
+			&"ui.title.name", &"ui.frontend.build", &"ui.character.hint", &"ui.codex.title",
+		]:
+			var rendered := LocalizedTextService.resolve(key)
+			assert_str(rendered).override_failure_message(
+				"Legacy brand leaked through %s/%s" % [locale, key]
+			).not_contains("GOBRO")
+		assert_str(LocalizedTextService.resolve(&"ui.title.name")).is_equal("LET'S GOOOOO")
 
 
 func test_every_visible_content_name_exists_in_both_locales() -> void:
@@ -121,6 +163,23 @@ func test_item_formatter_uses_typed_modifiers_and_localized_actual_weapon_values
 		assert_str(weapon_text).not_contains("Damage")
 
 
+func test_release_skin_flavor_is_visible_but_core_mechanics_remain_authoritative() -> void:
+	LocalizedTextService.configure_skin_paths([RELEASE_SKIN_ZH, RELEASE_SKIN_EN])
+	TranslationServer.set_locale("zh_CN")
+	var ak := Content.catalog.get_weapon(&"weapon/carbine")
+	var coffee := Content.catalog.get_passive(&"passive/coffee")
+	assert_object(ak).is_not_null()
+	assert_object(coffee).is_not_null()
+	if ak != null:
+		var text := ItemDescriptionFormatter.format_weapon(ak.tiers[0])
+		assert_str(text).contains("第一发永远值得尊重")
+		assert_str(text).contains("伤害")
+	if coffee != null:
+		var text := ItemDescriptionFormatter.format_passive(coffee.item)
+		assert_str(text).contains("热身五分钟")
+		assert_str(text).contains("攻击速度")
+
+
 func test_character_traits_render_active_rule_contract_instead_of_legacy_five_stat_snapshot() -> void:
 	TranslationServer.set_locale("zh_CN")
 	var well_rounded := Content.catalog.get_character(&"character/well_rounded")
@@ -158,7 +217,7 @@ func test_character_traits_render_every_active_scalar_rule_with_explicit_units_a
 			"商店偏好：",
 		],
 		&"character/glass_cannon": ["[color=#e46d58]冲刺冷却 × 1.15[/color]"],
-		&"character/crazy": ["[color=#f4d35e]初始武器：长矛[/color]"],
+		&"character/crazy": ["[color=#f4d35e]初始武器：刺刀[/color]"],
 	}
 	_assert_character_trait_expectations(zh_expectations)
 
@@ -180,7 +239,7 @@ func test_character_traits_render_every_active_scalar_rule_with_explicit_units_a
 			"Shop favors: ",
 		],
 		&"character/glass_cannon": ["[color=#e46d58]Dash cooldown × 1.15[/color]"],
-		&"character/crazy": ["[color=#f4d35e]Starting weapon: Spear[/color]"],
+		&"character/crazy": ["[color=#f4d35e]Starting weapon: Bayonet[/color]"],
 	}
 	_assert_character_trait_expectations(en_expectations)
 
@@ -361,7 +420,12 @@ func _contains_disallowed_latin(value: String) -> bool:
 	var placeholders := RegEx.new()
 	placeholders.compile("(%[-+0-9.]*[a-zA-Z]|\\{[^}]+\\})")
 	cleaned = placeholders.sub(cleaned, "", true)
-	for allowed: String in ["GOBRO"]:
+	# Weapon model names are intentionally identical in both locales; all prose
+	# remains translated. Keep this allowlist narrow so English stat/UI copy still fails.
+	for allowed: String in [
+		"GOBRO", "LET'S GOOOOO", "M9", "Zeus x27", "AWP", "Glock-18", "M4A4", "P90", "AK-47",
+		"M4A1-S", "UMP-45", "MP9", "MAC-10", "C4", "USP-S",
+	]:
 		cleaned = cleaned.replace(allowed, "")
 	var latin := RegEx.new()
 	latin.compile("[A-Za-z]")

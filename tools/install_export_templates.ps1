@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
 	[string]$GodotBinary = $env:GODOT_BIN,
-	[string]$CacheDirectory = (Join-Path $env:LOCALAPPDATA "GOBRO\godot-template-cache"),
+	[string]$CacheDirectory = (Join-Path $env:LOCALAPPDATA "LETS_GOOOOO\godot-template-cache"),
 	[switch]$KeepArchive
 )
 

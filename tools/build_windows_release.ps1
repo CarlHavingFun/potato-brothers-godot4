@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
 	[string]$GodotBinary = $env:GODOT_BIN,
-	[string]$SkinManifest = "res://content_packs/skins/dev_placeholder/skin.tres",
+	[string]$SkinManifest = "res://content_packs/skins/lets_gooooo/skin.tres",
 	[switch]$SkipAcceptance,
 	[switch]$SkipTemplateInstall,
 	[switch]$KeepTemplateArchive

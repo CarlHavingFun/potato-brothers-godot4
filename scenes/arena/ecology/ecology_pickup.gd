@@ -3,6 +3,7 @@ class_name EcologyPickup
 
 var pickup_kind := 0
 var amount := 8.0
+var _skin_visual: Sprite2D
 
 
 func configure(kind: int, value: float = 8.0) -> void:
@@ -39,6 +40,43 @@ func _update_visual() -> void:
 				Vector2(0, -24), Vector2(21, -4), Vector2(13, 23),
 				Vector2(-13, 23), Vector2(-21, -4),
 			])
+	_apply_skin_visual(body)
+
+
+func _apply_skin_visual(fallback_body: Polygon2D) -> void:
+	if Presentation.active_skin == null:
+		return
+	var presentation_id := &"pickup.heal"
+	if pickup_kind == ArenaEcology.PickupKind.MATERIAL:
+		presentation_id = &"pickup.material"
+	elif pickup_kind in [
+		ArenaEcology.PickupKind.CHEST,
+		ArenaEcology.PickupKind.LEGENDARY_CHEST,
+	]:
+		presentation_id = &"pickup.chest"
+	var table: Variant = Presentation.active_skin.asset_tables.get(&"pickup/world", {})
+	if table is not Dictionary or not (table as Dictionary).has(presentation_id):
+		fallback_body.visible = true
+		return
+	var texture := Presentation.resolve_texture(&"pickup", presentation_id, null, &"world")
+	if texture == null:
+		fallback_body.visible = true
+		return
+	if not is_instance_valid(_skin_visual):
+		_skin_visual = Sprite2D.new()
+		_skin_visual.name = "SkinVisual"
+		_skin_visual.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_skin_visual.scale = Vector2.ONE * 0.28
+		_skin_visual.z_index = 1
+		add_child(_skin_visual)
+	_skin_visual.texture = texture
+	_skin_visual.modulate = (
+		Color(1.15, 1.0, 0.52, 1.0)
+		if pickup_kind == ArenaEcology.PickupKind.LEGENDARY_CHEST
+		else Color.WHITE
+	)
+	_skin_visual.visible = true
+	fallback_body.visible = false
 
 
 static func healing_amount_for_run(base_amount: float, run_state: RunState) -> float:

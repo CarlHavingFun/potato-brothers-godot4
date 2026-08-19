@@ -2,7 +2,7 @@ config_version=5
 
 [application]
 
-config/name="GOBRO Core PCK Inspector"
+config/name="Core PCK Release Inspector"
 
 [rendering]
 

@@ -10,13 +10,17 @@ signal quit_requested
 signal profile_changed(profile_id: int)
 
 const TRANSITION_SECONDS := 0.16
-const CARD_SIZE := Vector2(224, 138)
+const WEAPON_CARD_SIZE_SMALL := Vector2(152, 82)
+const WEAPON_CARD_SIZE_LARGE := Vector2(244, 100)
 const CHARACTER_CARD_SIZE_SMALL := Vector2(72, 64)
 const CHARACTER_CARD_SIZE_LARGE := Vector2(92, 84)
 
 @onready var pages: Control = $Pages
 @onready var background: TextureRect = $Background
+@onready var brand_mark: TextureRect = $Pages/TitlePage/SafeArea/Layout/Logo/BrandMark
 @onready var product_name_label: Label = $Pages/TitlePage/SafeArea/Layout/Logo/Name
+@onready var tagline_label: Label = $Pages/TitlePage/SafeArea/Layout/Logo/Tagline
+@onready var build_label: Label = $Pages/TitlePage/SafeArea/Layout/Version
 @onready var primary_button: Button = $Pages/TitlePage/SafeArea/Layout/Menu/PrimaryButton
 @onready var new_game_button: Button = $Pages/TitlePage/SafeArea/Layout/Menu/NewGameButton
 @onready var profile_button: Button = $Pages/TitlePage/SafeArea/Layout/Menu/ProfileButton
@@ -40,6 +44,11 @@ const CHARACTER_CARD_SIZE_LARGE := Vector2(92, 84)
 @onready var run_mode_option: OptionButton = $Pages/CharacterPage/Content/Body/OptionsCard/Options/RunMode
 @onready var device_hint: Label = %DeviceHint
 @onready var weapon_choices: GridContainer = $Pages/WeaponPage/Content/WeaponChoices
+@onready var weapon_content: VBoxContainer = $Pages/WeaponPage/Content
+@onready var weapon_body: HBoxContainer = $Pages/WeaponPage/Content/Body
+@onready var weapon_back_button: Button = $Pages/WeaponPage/Content/Header/BackButton
+@onready var weapon_character_card: Panel = $Pages/WeaponPage/Content/Body/CharacterCard
+@onready var weapon_detail_card: Panel = $Pages/WeaponPage/Content/Body/WeaponCard
 @onready var weapon_character_icon: TextureRect = $Pages/WeaponPage/Content/Body/CharacterCard/Info/Icon
 @onready var weapon_character_name: Label = $Pages/WeaponPage/Content/Body/CharacterCard/Info/Name
 @onready var weapon_character_traits: RichTextLabel = $Pages/WeaponPage/Content/Body/CharacterCard/Info/Traits
@@ -71,11 +80,19 @@ var _pending_profile_action := 0
 var _profile_buttons_by_slot: Dictionary = {}
 var _character_buttons_by_id: Dictionary = {}
 var _random_character_button: Button
+var _weapon_stats_return_focus: Button
+var _fallback_theme: Theme
 
 
 func _ready() -> void:
+	# Keep the scene-owned theme as the fallback for development/test skins that
+	# intentionally do not provide a branded Theme resource.
+	_fallback_theme = theme
 	_apply_skin_branding()
+	if not Presentation.skin_loaded.is_connected(_on_skin_loaded):
+		Presentation.skin_loaded.connect(_on_skin_loaded)
 	resized.connect(_apply_character_page_layout)
+	resized.connect(_apply_weapon_page_layout)
 	InputDevices.device_changed.connect(_on_input_device_changed)
 	selection_flow.step_changed.connect(_on_step_changed)
 	selection_flow.draft_changed.connect(_on_draft_changed)
@@ -84,12 +101,15 @@ func _ready() -> void:
 	_setup_run_mode()
 	_on_input_device_changed(InputDevices.active_device)
 	_setup_profile_dialogs()
+	weapon_stats.gui_input.connect(_on_weapon_stats_gui_input)
 	_apply_character_page_layout()
+	_apply_weapon_page_layout()
 	_build_character_choices()
 	_refresh_profiles()
 	_show_step(SelectionStep.Value.TITLE, false)
 	_register_button_feedback(self)
 	_apply_character_page_layout.call_deferred()
+	_apply_weapon_page_layout.call_deferred()
 
 
 func _notification(what: int) -> void:
@@ -101,13 +121,33 @@ func _notification(what: int) -> void:
 func _apply_skin_branding() -> void:
 	if Presentation.active_skin == null:
 		return
+	var skin := Presentation.active_skin
+	var source_theme: Theme = skin.theme if skin.theme != null else _fallback_theme
+	if source_theme != null:
+		# Font assignment must not mutate either the skin resource or the scene
+		# subresource; both may be reused by comparison tests and other screens.
+		theme = source_theme.duplicate(true) as Theme
 	product_name_label.text = LocalizedTextService.resolve(
-		&"ui.title.name", [], Presentation.active_skin.product_name
+		&"ui.title.name", [], skin.product_name
 	)
-	if Presentation.active_skin.background != null:
-		background.texture = Presentation.active_skin.background
-	if Presentation.active_skin.font != null and theme != null:
-		theme.default_font = Presentation.active_skin.font
+	# These two labels are skin-owned copy. Godot's global TranslationServer does
+	# not define deterministic precedence when the core and skin catalogs expose
+	# the same key, so resolve them explicitly through the skin-first service.
+	tagline_label.text = LocalizedTextService.resolve(&"ui.frontend.subtitle")
+	build_label.text = LocalizedTextService.resolve(&"ui.frontend.build")
+	brand_mark.texture = skin.logo
+	brand_mark.visible = brand_mark.texture != null
+	brand_mark.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	if skin.background != null:
+		background.texture = skin.background
+		background.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	if skin.font != null and theme != null:
+		theme.default_font = skin.font
+
+
+func _on_skin_loaded(_skin_id: StringName) -> void:
+	if is_node_ready():
+		_apply_skin_branding()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -370,8 +410,8 @@ func _update_character_details(definition: CharacterDef) -> void:
 	if definition == null or definition.stats == null:
 		return
 	var stats := definition.stats
-	character_icon.texture = Presentation.resolve_texture(
-		&"character", definition.get_presentation_id(Content.catalog.pack_id), stats.icon
+	character_icon.texture = Presentation.resolve_content_texture(
+		definition, stats.icon, &"icon", Content.catalog.pack_id
 	)
 	character_name.text = FrontendViewModel.character_name(definition)
 	character_traits.text = _character_traits_text(definition)
@@ -413,8 +453,10 @@ func _allowed_weapons(character: CharacterDef) -> Array[WeaponDef]:
 func _build_weapon_choices(character: CharacterDef) -> void:
 	_clear_children(weapon_choices)
 	_visible_weapon_ids.clear()
+	_weapon_stats_return_focus = null
 	var random_button := _make_choice_button(LocalizedTextService.resolve(&"ui.selection.random"), null)
 	random_button.pressed.connect(choose_random_weapon)
+	random_button.focus_entered.connect(_on_weapon_grid_focus_entered.bind(random_button))
 	weapon_choices.add_child(random_button)
 	var first_available: WeaponDef
 	for definition: WeaponDef in _allowed_weapons(character):
@@ -425,18 +467,20 @@ func _build_weapon_choices(character: CharacterDef) -> void:
 		var item := definition.tiers[0]
 		var button := _make_choice_button(
 			FrontendViewModel.weapon_name(item),
-			Presentation.resolve_texture(
-				&"weapon", definition.get_presentation_id(Content.catalog.pack_id), item.item_icon
+			Presentation.resolve_content_texture(
+				definition, item.item_icon, &"icon", Content.catalog.pack_id
 			)
 		)
 		button.set_meta("content_id", stable_id)
 		button.pressed.connect(choose_weapon.bind(stable_id))
 		button.focus_entered.connect(_preview_weapon.bind(definition))
+		button.focus_entered.connect(_on_weapon_grid_focus_entered.bind(button))
 		button.mouse_entered.connect(_preview_weapon.bind(definition))
 		weapon_choices.add_child(button)
 		if first_available == null:
 			first_available = definition
 	_register_button_feedback(weapon_choices)
+	_wire_weapon_focus_graph(random_button)
 	if first_available != null:
 		_update_weapon_details(first_available)
 
@@ -449,8 +493,8 @@ func _update_weapon_details(definition: WeaponDef) -> void:
 	if definition == null or definition.tiers.is_empty():
 		return
 	var item := definition.tiers[0]
-	weapon_icon.texture = Presentation.resolve_texture(
-		&"weapon", definition.get_presentation_id(Content.catalog.pack_id), item.item_icon
+	weapon_icon.texture = Presentation.resolve_content_texture(
+		definition, item.item_icon, &"icon", Content.catalog.pack_id
 	)
 	weapon_name.text = FrontendViewModel.weapon_name(item)
 	weapon_stats.text = _weapon_stats_text(item)
@@ -469,14 +513,14 @@ func _update_final_overview() -> void:
 	var weapon := Content.catalog.get_weapon(draft.weapon_id)
 	if character != null:
 		overview_character_name.text = FrontendViewModel.character_name(character)
-		overview_character_icon.texture = Presentation.resolve_texture(
-			&"character", character.get_presentation_id(Content.catalog.pack_id), character.stats.icon
+		overview_character_icon.texture = Presentation.resolve_content_texture(
+			character, character.stats.icon, &"icon", Content.catalog.pack_id
 		)
 		overview_character_traits.text = _character_traits_text(character)
 	if weapon != null and not weapon.tiers.is_empty():
 		overview_weapon_name.text = FrontendViewModel.weapon_name(weapon.tiers[0])
-		overview_weapon_icon.texture = Presentation.resolve_texture(
-			&"weapon", weapon.get_presentation_id(Content.catalog.pack_id), weapon.tiers[0].item_icon
+		overview_weapon_icon.texture = Presentation.resolve_content_texture(
+			weapon, weapon.tiers[0].item_icon, &"icon", Content.catalog.pack_id
 		)
 		overview_weapon_stats.text = _weapon_stats_text(weapon.tiers[0])
 
@@ -530,21 +574,164 @@ func _preview_difficulty(definition: DifficultyDef, locked: bool) -> void:
 
 func _make_choice_button(label: String, icon_texture: Texture2D) -> Button:
 	var button := Button.new()
-	button.custom_minimum_size = (
-		Vector2(152.0, 110.0)
-		if get_viewport_rect().size.x < 1500.0
-		else CARD_SIZE
-	)
 	button.text = label
 	button.icon = icon_texture
 	button.expand_icon = true
+	button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	button.clip_text = true
 	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	button.add_theme_font_size_override(&"font_size", 18)
-	button.add_theme_constant_override("icon_max_width", 48)
+	# Bake Soda is a display face whose lowercase Latin glyphs read as caps.
+	# Weapon model names use the engine fallback so "Glock-18" retains its
+	# intentional casing while Chinese names remain readable.
+	button.add_theme_font_override(&"font", ThemeDB.fallback_font)
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.focus_mode = Control.FOCUS_ALL
+	_apply_weapon_choice_size(button)
 	return button
+
+
+func _apply_weapon_choice_size(button: Button) -> void:
+	if not is_instance_valid(button):
+		return
+	var viewport_size := get_viewport_rect().size
+	var compact := viewport_size.x < 1500.0 or viewport_size.y <= 800.0
+	button.custom_minimum_size = (
+		WEAPON_CARD_SIZE_SMALL if compact else WEAPON_CARD_SIZE_LARGE
+	)
+	button.add_theme_font_size_override(&"font_size", 16 if compact else 18)
+	button.add_theme_constant_override(&"icon_max_width", 56 if compact else 68)
+
+
+func _apply_weapon_page_layout() -> void:
+	if not is_node_ready():
+		return
+	var viewport_size := get_viewport_rect().size
+	var compact := viewport_size.x < 1500.0 or viewport_size.y <= 800.0
+	weapon_content.add_theme_constant_override(&"separation", 8 if compact else 12)
+	weapon_body.custom_minimum_size = Vector2(0.0, 210.0 if compact else 420.0)
+	weapon_body.add_theme_constant_override(&"separation", 12 if compact else 20)
+	weapon_character_card.custom_minimum_size = Vector2(400.0 if compact else 520.0, 0.0)
+	weapon_detail_card.custom_minimum_size = Vector2.ZERO
+	weapon_character_icon.custom_minimum_size = (
+		Vector2(90.0, 90.0) if compact else Vector2(168.0, 168.0)
+	)
+	weapon_icon.custom_minimum_size = weapon_character_icon.custom_minimum_size
+	weapon_character_name.add_theme_font_size_override(&"font_size", 24 if compact else 30)
+	weapon_name.add_theme_font_size_override(&"font_size", 24 if compact else 30)
+	weapon_character_traits.add_theme_font_size_override(&"normal_font_size", 16 if compact else 20)
+	weapon_stats.add_theme_font_size_override(&"normal_font_size", 16 if compact else 20)
+	_apply_weapon_stats_focus_style()
+	weapon_choices.add_theme_constant_override(&"h_separation", 6 if compact else 10)
+	weapon_choices.add_theme_constant_override(&"v_separation", 6 if compact else 10)
+	for child: Node in weapon_choices.get_children():
+		var button := child as Button
+		if button != null:
+			_apply_weapon_choice_size(button)
+	weapon_body.queue_sort()
+	weapon_choices.queue_sort()
+
+
+func _apply_weapon_stats_focus_style() -> void:
+	var accent := _character_accent_color()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.018, 0.023, 0.029, 0.96).lerp(accent, 0.12)
+	style.border_color = accent
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.corner_radius_top_left = 5
+	style.corner_radius_top_right = 5
+	style.corner_radius_bottom_left = 5
+	style.corner_radius_bottom_right = 5
+	style.content_margin_left = 6.0
+	style.content_margin_top = 4.0
+	style.content_margin_right = 6.0
+	style.content_margin_bottom = 4.0
+	weapon_stats.add_theme_stylebox_override(&"focus", style)
+
+
+func _wire_weapon_focus_graph(anchor: Button = null) -> void:
+	if not is_node_ready():
+		return
+	var buttons: Array[Button] = []
+	for child: Node in weapon_choices.get_children():
+		var button := child as Button
+		if button != null and not button.disabled and button.focus_mode != Control.FOCUS_NONE:
+			buttons.append(button)
+	if buttons.is_empty():
+		return
+	var grid_anchor := anchor
+	if not is_instance_valid(grid_anchor) or grid_anchor.disabled:
+		grid_anchor = buttons[0]
+	var columns := maxi(1, weapon_choices.columns)
+	var final_row_start := ((buttons.size() - 1) / columns) * columns
+	for index: int in buttons.size():
+		var button := buttons[index]
+		var column := index % columns
+		var row_start := index - column
+		var row_end := mini(row_start + columns - 1, buttons.size() - 1)
+		var left := buttons[index - 1] if index > row_start else button
+		var right := buttons[index + 1] if index < row_end else button
+		var top: Control = weapon_stats if index < columns else buttons[index - columns]
+		var bottom: Control = weapon_back_button
+		if index + columns < buttons.size():
+			bottom = buttons[index + columns]
+		elif row_start < final_row_start:
+			bottom = buttons[mini(final_row_start + column, buttons.size() - 1)]
+		_set_focus_neighbor(button, &"focus_neighbor_left", left)
+		_set_focus_neighbor(button, &"focus_neighbor_right", right)
+		_set_focus_neighbor(button, &"focus_neighbor_top", top)
+		_set_focus_neighbor(button, &"focus_neighbor_bottom", bottom)
+	_set_focus_neighbor(weapon_back_button, &"focus_neighbor_top", grid_anchor)
+	_set_focus_neighbor(weapon_back_button, &"focus_neighbor_bottom", grid_anchor)
+	_set_focus_neighbor(weapon_back_button, &"focus_neighbor_left", grid_anchor)
+	_set_focus_neighbor(weapon_back_button, &"focus_neighbor_right", grid_anchor)
+	_set_focus_neighbor(weapon_stats, &"focus_neighbor_top", weapon_back_button)
+	_set_focus_neighbor(weapon_stats, &"focus_neighbor_bottom", grid_anchor)
+
+
+func _on_weapon_grid_focus_entered(button: Button) -> void:
+	if not is_instance_valid(button) or button.disabled:
+		return
+	_weapon_stats_return_focus = button
+	_focus_by_step[SelectionStep.Value.WEAPON] = button
+	_set_focus_neighbor(weapon_stats, &"focus_neighbor_bottom", button)
+
+
+func _on_weapon_stats_gui_input(event: InputEvent) -> void:
+	if not event.is_pressed():
+		return
+	if event.is_action_pressed(&"ui_down"):
+		_scroll_weapon_stats(1.0)
+		weapon_stats.accept_event()
+	elif event.is_action_pressed(&"ui_up"):
+		_scroll_weapon_stats(-1.0)
+		weapon_stats.accept_event()
+	elif event.is_action_pressed(&"ui_cancel") or event.is_action_pressed(&"ui_accept"):
+		_return_focus_from_weapon_stats()
+		weapon_stats.accept_event()
+
+
+func _scroll_weapon_stats(direction: float) -> void:
+	var scroll_bar := weapon_stats.get_v_scroll_bar()
+	if scroll_bar == null:
+		return
+	var limit := maxf(scroll_bar.min_value, scroll_bar.max_value - scroll_bar.page)
+	var step := maxf(28.0, scroll_bar.page * 0.3)
+	scroll_bar.value = clampf(scroll_bar.value + direction * step, scroll_bar.min_value, limit)
+
+
+func _return_focus_from_weapon_stats() -> void:
+	var target := _weapon_stats_return_focus
+	if not is_instance_valid(target) or not target.visible or target.disabled:
+		for child: Node in weapon_choices.get_children():
+			var button := child as Button
+			if button != null and not button.disabled and button.focus_mode != Control.FOCUS_NONE:
+				target = button
+				break
+	if is_instance_valid(target):
+		target.grab_focus()
 
 
 func _make_character_choice_button(definition: CharacterDef, unlocked: bool) -> Button:
@@ -572,10 +759,11 @@ func _make_character_choice_button(definition: CharacterDef, unlocked: bool) -> 
 			)
 		)
 		if unlocked:
-			button.icon = Presentation.resolve_texture(
-				&"character",
-				definition.get_presentation_id(Content.catalog.pack_id),
+			button.icon = Presentation.resolve_content_texture(
+				definition,
 				definition.stats.icon,
+				&"icon",
+				Content.catalog.pack_id,
 			)
 		else:
 			button.text = LocalizedTextService.resolve(&"ui.character.lock_symbol")

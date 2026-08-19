@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://dt7tu5wgsfk5f" path="res://resources/items/weapons/item_weapon.gd" id="1_3ah7b"]
 [ext_resource type="PackedScene" uid="uid://mirxhvwiwkej" path="res://scenes/weapons/range/weapon_smg.tscn" id="1_wkw2v"]
-[ext_resource type="Texture2D" uid="uid://5qsdr8kgiqe3" path="res://assets/sprites/Weapons/Icons/weapon_smg_icon.png" id="1_x1xia"]
 [ext_resource type="Resource" uid="uid://bit0cjedt6mtg" path="res://resources/items/weapons/range/smg/stats_smg_1.tres" id="4_uiivj"]
 [ext_resource type="Resource" uid="uid://b3xt0cpapqprk" path="res://resources/items/weapons/range/smg/item_smg_2.tres" id="5_g08sy"]
 
@@ -13,7 +12,6 @@ scene = ExtResource("1_wkw2v")
 stats = ExtResource("4_uiivj")
 upgrade_to = ExtResource("5_g08sy")
 item_name = "SMG I"
-item_icon = ExtResource("1_x1xia")
 item_tier = 0
 item_type = 0
 item_cost = 10

@@ -50,7 +50,7 @@ func setup_wave(wave: int, run_seed: int, player: Player) -> void:
 		var tree_drop: int = _roll_tree_drop()
 		tree_positions.append(position)
 		if is_inside_tree():
-			_spawn_tree(position, tree_drop)
+			_spawn_tree(position, tree_drop, tree_index)
 	var heal_position: Vector2 = _roll_world_position(220.0)
 	pickup_kinds.append(PickupKind.HEAL)
 	if is_inside_tree():
@@ -112,13 +112,20 @@ func _draw() -> void:
 	draw_arc(danger_center, danger_radius, 0.0, TAU, 64, edge, 7.0 if active else 4.0)
 
 
-func _spawn_tree(world_position: Vector2, kind: int) -> void:
+func _spawn_tree(world_position: Vector2, kind: int, stable_index: int = 0) -> void:
 	var tree := TREE_SCENE.instantiate() as EcologyTree
 	tree.position = world_position
 	tree.pickup_kind = kind
+	tree.configure_presentation(_prop_presentation_id(stable_index))
 	tree.set_meta(&"ecology_runtime", true)
 	tree.harvested.connect(_on_tree_harvested)
 	add_child(tree)
+
+
+func _prop_presentation_id(stable_index: int) -> StringName:
+	# This stable alternation is presentation-only. It deliberately consumes no
+	# RNG, so prop art cannot move spawns or change drops/combat state.
+	return &"prop.weapon_rack" if posmod(stable_index, 2) == 1 else &"prop.supply_crate"
 
 
 func _spawn_pickup(world_position: Vector2, kind: int) -> void:

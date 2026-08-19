@@ -10,10 +10,12 @@ config_version=5
 
 [application]
 
-config/name="GOBRO"
+config/name="LET'S GOOOOO"
 run/main_scene="res://scenes/game_root/game_root.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
-config/icon="res://icon.svg"
+config/icon="res://content_packs/skins/lets_gooooo/assets/ui/app_icon.svg"
+config/use_custom_user_dir=true
+config/custom_user_dir_name="GOBRO"
 
 [balance]
 
@@ -129,10 +131,11 @@ aim_down={
 
 [presentation]
 
-skin_manifest="res://content_packs/skins/dev_placeholder/skin.tres"
+skin_manifest="res://content_packs/skins/lets_gooooo/skin.tres"
 
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+textures/canvas_textures/default_texture_filter=0
 textures/vram_compression/import_etc2_astc=true

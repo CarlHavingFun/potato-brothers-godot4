@@ -10,10 +10,11 @@ class_name UpgradeCard
 func _set_data(value: ItemUpgrade) -> void:
 	item_data = value
 	var definition := Content.catalog.get_upgrade_definition_for_item(item_data)
-	item_icon.texture = Presentation.resolve_texture(
-		&"pickup",
-		definition.get_presentation_id(Content.catalog.pack_id) if definition != null else Content.catalog.get_item_stable_id(item_data),
-		item_data.item_icon
+	item_icon.texture = Presentation.resolve_content_texture(
+		definition,
+		item_data.item_icon,
+		&"icon",
+		Content.catalog.pack_id
 	)
 	item_name.text = ItemDescriptionFormatter.upgrade_display_name(item_data)
 	item_description.text = ItemDescriptionFormatter.format_upgrade(item_data)

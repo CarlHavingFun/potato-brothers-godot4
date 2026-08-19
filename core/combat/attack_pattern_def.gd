@@ -15,11 +15,14 @@ enum Kind {
 	ORBIT,
 	BUILDING,
 	SUMMON,
+	THROWN,
+	DEPLOYABLE,
 }
 
 const KIND_KEYS: Array[StringName] = [
 	&"arc", &"thrust", &"continuous", &"scatter", &"burst", &"charged",
 	&"boomerang", &"beam", &"area", &"orbit", &"building", &"summon",
+	&"thrown", &"deployable",
 ]
 
 @export var pattern_id: StringName
@@ -50,6 +53,19 @@ const KIND_KEYS: Array[StringName] = [
 @export_range(1, 99, 1) var status_stacks := 1
 @export_range(0.0, 5.0, 0.05) var status_damage_scale := 0.1
 @export var summon_count := 0
+@export var utility_kind: StringName
+@export_range(0.0, 10.0, 0.05) var arming_delay := 0.0
+@export_range(0.0, 3.0, 0.05) var travel_duration := 0.25
+@export_range(0.0, 240.0, 1.0) var throw_arc_height := 72.0
+@export_range(0.0, 30.0, 0.1) var zone_duration := 0.0
+@export var zone_radius := 0.0
+@export_range(0.05, 2.0, 0.05) var zone_tick_interval := 0.25
+@export_range(0.1, 1.0, 0.05) var zone_speed_multiplier := 0.7
+@export var interrupt_ranged := false
+@export_range(1, 8, 1) var max_active := 1
+@export_range(0.0, 20.0, 0.1) var recoil_ramp_degrees_per_shot := 0.0
+@export_range(0.0, 45.0, 0.1) var recoil_ramp_cap_degrees := 0.0
+@export_range(0.05, 3.0, 0.05) var recoil_recovery_seconds := 0.55
 
 
 func kind_key() -> StringName:
@@ -103,6 +119,13 @@ func sequence_duration() -> float:
 	return float(runtime_shot_count() - 1) * runtime_shot_interval()
 
 
+func recoil_ramp_degrees(consecutive_shots: int) -> float:
+	return minf(
+		maxf(0.0, recoil_ramp_cap_degrees),
+		maxf(0.0, recoil_ramp_degrees_per_shot) * float(maxi(0, consecutive_shots))
+	)
+
+
 func projectile_modifiers() -> Dictionary:
 	return {
 		"pierce": maxi(0, pierce),
@@ -119,6 +142,19 @@ func projectile_modifiers() -> Dictionary:
 		"status_damage_scale": maxf(0.0, status_damage_scale),
 		"runtime_motion": "boomerang" if kind == Kind.BOOMERANG else "linear",
 		"boomerang_outbound_duration": maxf(0.05, boomerang_outbound_duration),
+		"utility_kind": String(utility_kind),
+		"arming_delay": maxf(0.0, arming_delay),
+		"travel_duration": maxf(0.0, travel_duration),
+		"throw_arc_height": maxf(0.0, throw_arc_height),
+		"zone_duration": maxf(0.0, zone_duration),
+		"zone_radius": maxf(0.0, zone_radius),
+		"zone_tick_interval": maxf(0.05, zone_tick_interval),
+		"zone_speed_multiplier": clampf(zone_speed_multiplier, 0.1, 1.0),
+		"interrupt_ranged": interrupt_ranged,
+		"max_active": maxi(1, max_active),
+		"recoil_ramp_degrees_per_shot": maxf(0.0, recoil_ramp_degrees_per_shot),
+		"recoil_ramp_cap_degrees": maxf(0.0, recoil_ramp_cap_degrees),
+		"recoil_recovery_seconds": maxf(0.05, recoil_recovery_seconds),
 	}
 
 
@@ -151,4 +187,17 @@ func behavior_signature() -> String:
 		"status_stacks": status_stacks,
 		"status_scale": status_damage_scale,
 		"summon": summon_count,
+		"utility": String(utility_kind),
+		"arming_delay": arming_delay,
+		"travel_duration": travel_duration,
+		"throw_arc_height": throw_arc_height,
+		"zone_duration": zone_duration,
+		"zone_radius": zone_radius,
+		"zone_tick_interval": zone_tick_interval,
+		"zone_speed_multiplier": zone_speed_multiplier,
+		"interrupt_ranged": interrupt_ranged,
+		"max_active": max_active,
+		"recoil_ramp_degrees_per_shot": recoil_ramp_degrees_per_shot,
+		"recoil_ramp_cap_degrees": recoil_ramp_cap_degrees,
+		"recoil_recovery_seconds": recoil_recovery_seconds,
 	})

@@ -179,6 +179,13 @@ theme_override_constants/separation = 18
 layout_mode = 2
 theme_override_constants/separation = -20
 
+[node name="BrandMark" type="TextureRect" parent="Pages/TitlePage/SafeArea/Layout/Logo"]
+custom_minimum_size = Vector2(280, 82)
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 3
+stretch_mode = 5
+
 [node name="Name" type="Label" parent="Pages/TitlePage/SafeArea/Layout/Logo"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.96, 0.9, 0.67, 1)
@@ -572,7 +579,7 @@ offset_right = -54.0
 offset_bottom = -44.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 20
+theme_override_constants/separation = 12
 
 [node name="Header" type="HBoxContainer" parent="Pages/WeaponPage/Content"]
 layout_mode = 2
@@ -589,13 +596,13 @@ theme_override_font_sizes/font_size = 46
 text = "ui.weapon.title"
 
 [node name="Body" type="HBoxContainer" parent="Pages/WeaponPage/Content"]
-custom_minimum_size = Vector2(0, 520)
+custom_minimum_size = Vector2(0, 420)
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 24
+theme_override_constants/separation = 20
 
 [node name="CharacterCard" type="Panel" parent="Pages/WeaponPage/Content/Body"]
-custom_minimum_size = Vector2(650, 0)
+custom_minimum_size = Vector2(520, 0)
 layout_mode = 2
 
 [node name="Info" type="VBoxContainer" parent="Pages/WeaponPage/Content/Body/CharacterCard"]
@@ -611,7 +618,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Icon" type="TextureRect" parent="Pages/WeaponPage/Content/Body/CharacterCard/Info"]
-custom_minimum_size = Vector2(210, 210)
+custom_minimum_size = Vector2(168, 168)
 layout_mode = 2
 size_flags_horizontal = 4
 expand_mode = 3
@@ -619,7 +626,7 @@ stretch_mode = 5
 
 [node name="Name" type="Label" parent="Pages/WeaponPage/Content/Body/CharacterCard/Info"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 34
+theme_override_font_sizes/font_size = 30
 horizontal_alignment = 1
 
 [node name="Traits" type="RichTextLabel" parent="Pages/WeaponPage/Content/Body/CharacterCard/Info"]
@@ -644,7 +651,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Icon" type="TextureRect" parent="Pages/WeaponPage/Content/Body/WeaponCard/Info"]
-custom_minimum_size = Vector2(210, 210)
+custom_minimum_size = Vector2(168, 168)
 layout_mode = 2
 size_flags_horizontal = 4
 expand_mode = 3
@@ -652,19 +659,20 @@ stretch_mode = 5
 
 [node name="Name" type="Label" parent="Pages/WeaponPage/Content/Body/WeaponCard/Info"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 34
+theme_override_font_sizes/font_size = 30
 text = "ui.weapon.choose"
 horizontal_alignment = 1
 
 [node name="Stats" type="RichTextLabel" parent="Pages/WeaponPage/Content/Body/WeaponCard/Info"]
 layout_mode = 2
 size_flags_vertical = 3
+focus_mode = 2
 bbcode_enabled = true
 
 [node name="WeaponChoices" type="GridContainer" parent="Pages/WeaponPage/Content"]
 layout_mode = 2
-theme_override_constants/h_separation = 14
-theme_override_constants/v_separation = 14
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
 columns = 7
 
 [node name="DifficultyPage" type="Control" parent="Pages"]

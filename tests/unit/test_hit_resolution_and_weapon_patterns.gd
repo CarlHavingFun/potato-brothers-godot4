@@ -137,9 +137,9 @@ func test_pattern_status_and_explosion_are_consumed_on_confirmed_hit() -> void:
 	)
 
 
-func test_elemental_weapon_copies_its_pattern_modifiers_to_the_melee_hitbox() -> void:
+func test_status_weapon_copies_its_pattern_modifiers_to_the_melee_hitbox() -> void:
 	Global.begin_run(730, null, 0)
-	var definition: WeaponDef = Content.catalog.get_weapon(&"weapon/ember_staff")
+	var definition: WeaponDef = Content.catalog.get_weapon(&"weapon/cleaver")
 	var holder: Node2D = auto_free(Node2D.new()) as Node2D
 	var weapon: Weapon = auto_free(definition.tiers[0].scene.instantiate() as Weapon) as Weapon
 	add_child(holder)
@@ -149,8 +149,8 @@ func test_elemental_weapon_copies_its_pattern_modifiers_to_the_melee_hitbox() ->
 	var behavior := weapon.weapon_behavior as MeleeBehavior
 	behavior.execute_attack()
 
-	assert_str(str(behavior.hitbox.hit_modifiers.get("status_id", ""))).is_equal("burn")
-	assert_float(float(behavior.hitbox.hit_modifiers.get("explosion_radius", 0.0))).is_equal(72.0)
+	assert_str(str(behavior.hitbox.hit_modifiers.get("status_id", ""))).is_equal("bleed")
+	assert_float(float(behavior.hitbox.hit_modifiers.get("status_duration", 0.0))).is_equal(3.0)
 
 
 func test_life_steal_is_attempted_only_after_damage_lands() -> void:
@@ -232,7 +232,7 @@ func test_attack_pattern_separates_volleys_from_timed_bursts() -> void:
 
 func test_range_burst_spawns_followup_shots_after_an_interval() -> void:
 	Global.begin_run(74, null, 0)
-	var definition: WeaponDef = Content.catalog.get_weapon(&"weapon/smg")
+	var definition: WeaponDef = Content.catalog.get_weapon(&"weapon/pistol")
 	var holder: Node2D = auto_free(Node2D.new()) as Node2D
 	var weapon: Weapon = auto_free(definition.tiers[0].scene.instantiate() as Weapon) as Weapon
 	add_child(holder)
@@ -295,7 +295,7 @@ func test_melee_reach_contract_uses_resolved_runtime_attack_range() -> void:
 
 func test_charged_range_attack_waits_before_spawning_its_projectile() -> void:
 	Global.begin_run(75, null, 0)
-	var definition: WeaponDef = Content.catalog.get_weapon(&"weapon/railbow")
+	var definition: WeaponDef = Content.catalog.get_weapon(&"weapon/laser")
 	var holder: Node2D = auto_free(Node2D.new()) as Node2D
 	var weapon: Weapon = auto_free(definition.tiers[0].scene.instantiate() as Weapon) as Weapon
 	add_child(holder)
@@ -313,6 +313,13 @@ func test_charged_range_attack_waits_before_spawning_its_projectile() -> void:
 func test_beam_attack_emits_damage_slices_over_time() -> void:
 	Global.begin_run(76, null, 0)
 	var definition: WeaponDef = Content.catalog.get_weapon(&"weapon/laser")
+	var release_pattern := definition.attack_pattern
+	var beam_pattern := AttackPatternDef.new()
+	beam_pattern.pattern_id = &"attack/test_range_beam"
+	beam_pattern.kind = AttackPatternDef.Kind.BEAM
+	beam_pattern.beam_pulse_count = 2
+	beam_pattern.beam_pulse_interval = 0.05
+	definition.attack_pattern = beam_pattern
 	var holder: Node2D = auto_free(Node2D.new()) as Node2D
 	var weapon: Weapon = auto_free(definition.tiers[0].scene.instantiate() as Weapon) as Weapon
 	add_child(holder)
@@ -322,7 +329,8 @@ func test_beam_attack_emits_damage_slices_over_time() -> void:
 
 	weapon.weapon_behavior.execute_attack()
 	var immediate := _projectile_count() - before
-	await get_tree().create_timer(definition.attack_pattern.beam_pulse_interval + 0.02).timeout
+	await get_tree().create_timer(beam_pattern.beam_pulse_interval + 0.02).timeout
+	definition.attack_pattern = release_pattern
 
 	assert_int(immediate).is_equal(1)
 	assert_bool(_projectile_count() - before > immediate).is_true()

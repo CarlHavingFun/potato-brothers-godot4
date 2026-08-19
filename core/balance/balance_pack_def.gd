@@ -3,7 +3,7 @@ extends Resource
 
 
 const BASELINE_ID: StringName = &"baseline_parity_1_1_15_4"
-const BASELINE_VERSION := "1.1.15.4-baseline.1"
+const BASELINE_VERSION := "1.1.15.4-baseline.3"
 
 @export var balance_pack_id: StringName = BASELINE_ID
 @export var balance_pack_version := BASELINE_VERSION
@@ -183,6 +183,28 @@ func merge_weapon_values(overrides: Dictionary) -> void:
 			weapon_values[str(raw_balance_id)] = {"tiers": value.duplicate(true)}
 		elif value is Dictionary:
 			weapon_values[str(raw_balance_id)] = value.duplicate(true)
+
+
+func merge_weapon_tier_overrides(overrides: Dictionary) -> void:
+	# Identity overlays are intentionally partial. They correct only tier fields
+	# that changed semantic meaning while preserving the copied reference row's
+	# economy and compatible combat values.
+	for raw_balance_id: Variant in overrides:
+		var balance_id := str(raw_balance_id)
+		var tier_overrides: Variant = overrides[raw_balance_id]
+		if not tier_overrides is Array:
+			continue
+		var weapon_entry: Variant = weapon_values.get(balance_id, {})
+		if not weapon_entry is Dictionary:
+			continue
+		var tiers: Variant = weapon_entry.get("tiers", [])
+		if not tiers is Array:
+			continue
+		for tier_index: int in mini(tiers.size(), tier_overrides.size()):
+			var base_tier: Variant = tiers[tier_index]
+			var identity_tier: Variant = tier_overrides[tier_index]
+			if base_tier is Dictionary and identity_tier is Dictionary:
+				(base_tier as Dictionary).merge(identity_tier as Dictionary, true)
 
 
 func merge_passive_values(overrides: Dictionary) -> void:
@@ -429,16 +451,17 @@ func _baseline_character_rule_contracts() -> Dictionary:
 		"core:character/brawler": {
 			"reference_slot": "unarmed_melee",
 			"starting_stat_modifiers": {"attack_speed": 50.0, "dodge": 15.0, "range": -50.0, "ranged_damage": -50.0},
-			"allowed_weapon_tags": [&"burst"],
-			"forbidden_weapon_tags": [&"ranged"],
-			"semantic_rules": {"preferred_weapon_family": "unarmed"},
+			"allowed_weapon_tags": [&"close_quarters"],
+			"forbidden_weapon_tags": [&"firearm", &"tactical"],
+			"semantic_rules": {"preferred_weapon_family": "close_quarters"},
 			"runtime_support": {"starting_stats": true, "unarmed_only": true},
 		},
 		"core:character/bunny": {
 			"reference_slot": "rapid_ranged",
 			"starting_stat_modifiers": {"range": 50.0},
 			"stat_modification_multipliers": {"ranged_damage": 1.5, "melee_damage": 0.0, "max_health": 0.75},
-			"forbidden_weapon_tags": [&"melee"],
+			"allowed_weapon_tags": [&"firearm"],
+			"forbidden_weapon_tags": [&"close_quarters", &"tactical"],
 			"runtime_support": {"starting_stats": true, "stat_modification_multipliers": true, "no_melee_weapons": true},
 		},
 		"core:character/crazy": {
@@ -469,12 +492,15 @@ func _baseline_character_rule_contracts() -> Dictionary:
 			"reference_slot": "elemental",
 			"starting_stat_modifiers": {},
 			"stat_modification_multipliers": {"elemental_damage": 1.25, "melee_damage": 0.0, "ranged_damage": 0.0, "engineering": 0.5},
+			"allowed_weapon_tags": [&"tactical"],
 			"runtime_support": {"stat_modification_multipliers": true},
 		},
 		"core:character/scrapwright": {
 			"reference_slot": "engineering",
 			"starting_stat_modifiers": {"engineering": 10.0},
 			"stat_modification_multipliers": {"engineering": 1.25, "damage": 0.5},
+			"allowed_weapon_tags": [&"sidearm"],
+			"starter_weapon_ids": [&"core:weapon/wand", &"core:weapon/pistol", &"core:weapon/revolver", &"core:weapon/drone_beacon"],
 			"semantic_rules": {"structures_spawn_close": true},
 			"runtime_support": {"starting_stats": true, "stat_modification_multipliers": true, "structures_spawn_close": false},
 		},
@@ -482,10 +508,10 @@ func _baseline_character_rule_contracts() -> Dictionary:
 			"reference_slot": "ethereal_dodge",
 			"starting_stat_modifiers": {"damage": 10.0, "dodge": 30.0, "armor": -100.0},
 			"dodge_cap_override": 90.0,
-			"allowed_weapon_tags": [&"boomerang"],
-			"forbidden_weapon_tags": [&"ranged", &"engineering"],
-			"starter_weapon_ids": [&"core:weapon/void_prism"],
-			"semantic_rules": {"preferred_weapon_family": "ethereal"},
+			"allowed_weapon_tags": [&"mobility"],
+			"forbidden_weapon_tags": [&"tactical"],
+			"starter_weapon_ids": [&"core:weapon/chainsaw", &"core:weapon/punch", &"core:weapon/sword", &"core:weapon/boomerang"],
+			"semantic_rules": {"preferred_weapon_family": "mobility"},
 			"runtime_support": {"starting_stats": true, "dodge_cap_override": true, "ethereal_only": true},
 		},
 		"core:character/bloodbound": {

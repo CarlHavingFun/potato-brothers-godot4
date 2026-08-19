@@ -4,6 +4,13 @@ extends GdUnitTestSuite
 const DEFAULT_PACK_PATH := "res://content_packs/default/pack.tres"
 
 
+func _weapon(pack: ContentPackDef, content_id: StringName) -> WeaponDef:
+	for weapon: WeaponDef in pack.weapons:
+		if weapon != null and weapon.content_id == content_id:
+			return weapon
+	return null
+
+
 func test_baseline_profile_has_strict_content_and_economy_coverage() -> void:
 	var pack := load(DEFAULT_PACK_PATH) as ContentPackDef
 	var balance_pack := BalanceProfileRegistry.load_active(pack)
@@ -46,10 +53,11 @@ func test_neutral_baseline_tables_are_applied_to_runtime_content() -> void:
 	)[0] as EnemyDef
 
 	assert_object(balance_pack).is_not_null()
-	assert_float(shotgun.tiers[0].stats.damage).is_equal(3.0)
-	assert_float(shotgun.tiers[0].stats.cooldown).is_equal_approx(1.37, 0.0001)
-	assert_int(shotgun.tiers[0].stats.projectile_count).is_equal(4)
-	assert_int(shotgun.tiers[3].stats.projectile_count).is_equal(6)
+	assert_str(balance_pack.balance_pack_version).is_equal(BalancePackDef.BASELINE_VERSION)
+	assert_float(shotgun.tiers[0].stats.damage).is_equal(10.0)
+	assert_float(shotgun.tiers[0].stats.cooldown).is_equal_approx(0.48, 0.0001)
+	assert_int(shotgun.tiers[0].stats.projectile_count).is_equal(1)
+	assert_int(shotgun.tiers[3].stats.projectile_count).is_equal(1)
 	assert_int(shotgun.tiers[0].item_cost).is_equal(20)
 	assert_float(arc_lens.stat_modifiers.get("ranged_damage", 0.0)).is_equal(1.0)
 	assert_float(arc_lens.stat_modifiers.get("range", 0.0)).is_equal(-5.0)
@@ -91,9 +99,9 @@ func test_reference_tables_are_applied_to_runtime_content_by_neutral_id() -> voi
 		func(candidate: WeaponDef):
 			return candidate.get_balance_id(pack.pack_id) == &"core:weapon/shotgun"
 	)[0] as WeaponDef
-	assert_float(weapon.tiers[3].stats.damage).is_equal(9.0)
-	assert_float(weapon.tiers[3].stats.cooldown).is_equal(1.2)
-	assert_int(weapon.tiers[3].stats.projectile_count).is_equal(6)
+	assert_float(weapon.tiers[3].stats.damage).is_equal(34.0)
+	assert_float(weapon.tiers[3].stats.cooldown).is_equal(0.38)
+	assert_int(weapon.tiers[3].stats.projectile_count).is_equal(1)
 
 	var passive := pack.passives.filter(
 		func(candidate: PassiveItemDef):
@@ -110,6 +118,71 @@ func test_reference_tables_are_applied_to_runtime_content_by_neutral_id() -> voi
 	assert_int(enemy.stats.health).is_equal(8)
 	assert_float(enemy.stats.health_increase_per_wave).is_equal(1.0)
 	assert_int(enemy.stats.speed).is_equal(200)
+
+
+func test_weapon_identity_overlay_survives_reference_baseline_application() -> void:
+	var pack := load(DEFAULT_PACK_PATH) as ContentPackDef
+	var balance_pack := BalanceProfileRegistry.load_active(pack)
+
+	assert_object(balance_pack).is_not_null()
+	assert_int(pack.weapons.size()).is_equal(24)
+	var expected_ids := PackedStringArray()
+	for weapon: WeaponDef in pack.weapons:
+		assert_int(weapon.tiers.size()).is_equal(4)
+		expected_ids.append(str(weapon.get_balance_id(pack.pack_id)))
+	expected_ids.sort()
+	assert_array(
+		BalanceProfileRegistry.REFERENCE_WEAPON_IDENTITY_OVERLAY.reviewed_ids()
+	).is_equal(expected_ids)
+
+	# Representative identity contracts. These stable IDs intentionally no
+	# longer mean the legacy fantasy weapon whose reference row they inherited.
+	var smoke := _weapon(pack, &"weapon/frost_orb")
+	assert_float(smoke.tiers[0].stats.damage).is_equal(0.0)
+	assert_float(smoke.tiers[0].stats.cooldown).is_equal(2.4)
+	assert_float(smoke.tiers[3].stats.cooldown).is_equal(1.8)
+	assert_float(smoke.tiers[3].stats.max_range).is_equal(460.0)
+	assert_dict(smoke.tiers[0].stats.scaling_coefficients).is_empty()
+
+	var he := _weapon(pack, &"weapon/void_prism")
+	assert_float(he.tiers[0].stats.damage).is_equal(18.0)
+	assert_float(he.tiers[3].stats.damage).is_equal(75.0)
+	assert_float(he.tiers[0].stats.cooldown).is_equal(2.3)
+	assert_float(he.tiers[0].stats.scaling_coefficients.get("ranged_damage", 0.0)).is_equal(0.7)
+
+	var c4 := _weapon(pack, &"weapon/turret_kit")
+	assert_float(c4.tiers[0].stats.damage).is_equal(35.0)
+	assert_float(c4.tiers[3].stats.damage).is_equal(130.0)
+	assert_float(c4.tiers[0].stats.cooldown).is_equal(4.5)
+	assert_float(c4.tiers[0].stats.scaling_coefficients.get("engineering", 0.0)).is_equal(1.0)
+
+	var usp := _weapon(pack, &"weapon/drone_beacon")
+	assert_float(usp.tiers[0].stats.damage).is_equal(8.0)
+	assert_float(usp.tiers[3].stats.damage).is_equal(28.0)
+	assert_float(usp.tiers[0].stats.max_range).is_equal(430.0)
+	assert_float(usp.tiers[0].stats.scaling_coefficients.get("ranged_damage", 0.0)).is_equal(0.8)
+	assert_bool(usp.tiers[0].stats.scaling_coefficients.has("engineering")).is_false()
+
+	var ak := _weapon(pack, &"weapon/carbine")
+	assert_float(ak.tiers[0].stats.damage).is_equal(12.0)
+	assert_float(ak.tiers[3].stats.damage).is_equal(42.0)
+	assert_float(ak.tiers[0].stats.cooldown).is_equal(0.72)
+	assert_float(ak.tiers[3].stats.max_range).is_equal(420.0)
+
+	var m4a4 := _weapon(pack, &"weapon/shotgun")
+	assert_float(m4a4.tiers[0].stats.damage).is_equal(10.0)
+	assert_float(m4a4.tiers[3].stats.damage).is_equal(34.0)
+	assert_float(m4a4.tiers[0].stats.cooldown).is_equal(0.48)
+	assert_int(m4a4.tiers[0].stats.projectile_count).is_equal(1)
+	assert_int(m4a4.tiers[3].stats.projectile_count).is_equal(1)
+
+	# Pattern behavior belongs to the weapon identity and cannot be affected by
+	# tier-stat overlays.
+	assert_int(smoke.attack_pattern.kind).is_equal(AttackPatternDef.Kind.THROWN)
+	assert_str(smoke.attack_pattern.utility_kind).is_equal("smoke")
+	assert_float(c4.attack_pattern.arming_delay).is_equal(1.8)
+	assert_float(ak.attack_pattern.recoil_ramp_cap_degrees).is_equal(7.0)
+	assert_int(m4a4.attack_pattern.burst_count).is_equal(3)
 
 
 func test_run_state_versions_new_runs_and_preserves_legacy_rebuild_inputs() -> void:
@@ -132,6 +205,10 @@ func test_run_state_versions_new_runs_and_preserves_legacy_rebuild_inputs() -> v
 	assert_bool(legacy.requires_stat_rebuild()).is_false()
 	assert_bool(legacy.stat_rebuild_source.is_empty()).is_true()
 	assert_float(legacy.player_stats.get_stat(StatId.DAMAGE)).is_equal(7.0)
+
+	var previous_identity_balance := RunState.new(13)
+	previous_identity_balance.balance_pack_version = "1.1.15.4-baseline.2"
+	assert_bool(previous_identity_balance.requires_stat_rebuild()).is_true()
 
 
 func test_stat_rebuild_service_preserves_v3_and_rebuilds_versioned_ledgers() -> void:
