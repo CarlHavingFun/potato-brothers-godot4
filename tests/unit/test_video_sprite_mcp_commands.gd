@@ -1,0 +1,143 @@
+extends GdUnitTestSuite
+
+
+const Commands = preload("res://mcp_commands/video_sprite_commands.gd")
+const TEMP_ROOT := "res://reports/video_sprite_mcp"
+const PIPELINE_ROOT := TEMP_ROOT + "/pipeline"
+const PYTHON_PATH := TEMP_ROOT + "/python.exe"
+
+var launched_executable := ""
+var launched_arguments := PackedStringArray()
+
+
+func before_test() -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(PIPELINE_ROOT + "/tools"))
+	_write(PYTHON_PATH, "fixture")
+	_write(PIPELINE_ROOT + "/tools/build_video_sprite_library.py", "# fixture")
+	_write(PIPELINE_ROOT + "/characters.json", "{}")
+
+
+func after_test() -> void:
+	launched_executable = ""
+	launched_arguments = PackedStringArray()
+
+
+func test_registers_exactly_the_five_video_sprite_commands() -> void:
+	var commands := Commands.new()
+	assert_array(commands.get_commands().keys()).contains_exactly_in_any_order([
+		"video_sprites.scan_directory",
+		"video_sprites.import_directory",
+		"video_sprites.import_video",
+		"video_sprites.job_status",
+		"video_sprites.validate_library",
+	])
+	commands.free()
+
+
+func test_output_path_is_confined_below_tools_sprites() -> void:
+	assert_str(Commands.validate_output_path("res://tools/sprites/niko_video_library")).is_empty()
+	assert_str(Commands.validate_output_path("res://content_packs")).is_not_empty()
+	assert_str(Commands.validate_output_path("res://tools/sprites/../content_packs")).is_not_empty()
+	assert_str(Commands.validate_output_path("E:/outside")).is_not_empty()
+
+
+func test_import_launch_builds_exact_worker_arguments_and_returns_immediately() -> void:
+	var source_absolute := ProjectSettings.globalize_path(TEMP_ROOT)
+	var commands := Commands.new()
+	var result: Dictionary = commands.start_import_job(
+		"import-directory",
+		{
+			"source_directory": source_absolute,
+			"output_directory": "res://tools/sprites/niko_video_library",
+			"pipeline_root": ProjectSettings.globalize_path(PIPELINE_ROOT),
+			"python_executable": ProjectSettings.globalize_path(PYTHON_PATH),
+			"config_path": ProjectSettings.globalize_path(PIPELINE_ROOT + "/characters.json"),
+			"force_generated": true,
+			"replace_selection": true,
+		},
+		Callable(self, "_fake_launcher"),
+		"job-fixed"
+	)
+	assert_array(result.get("errors", PackedStringArray())).is_empty()
+	assert_int(result.get("pid", 0)).is_equal(4321)
+	assert_str(result.get("job_id", "")).is_equal("job-fixed")
+	assert_str(result.get("state", "")).is_equal("queued")
+	assert_str(launched_executable).is_equal(ProjectSettings.globalize_path(PYTHON_PATH))
+	assert_array(launched_arguments).contains_exactly([
+		ProjectSettings.globalize_path(PIPELINE_ROOT + "/tools/build_video_sprite_library.py"),
+		"import-directory",
+		"--source-directory", source_absolute,
+		"--output-directory", ProjectSettings.globalize_path("res://tools/sprites/niko_video_library"),
+		"--job-receipt", ProjectSettings.globalize_path("user://video_sprite_jobs/job-fixed.json"),
+		"--config", ProjectSettings.globalize_path(PIPELINE_ROOT + "/characters.json"),
+		"--job-id", "job-fixed",
+		"--force-generated",
+		"--replace-selection",
+	])
+	commands.free()
+
+
+func test_job_polling_reports_running_and_finalizes_worker_complete_receipts() -> void:
+	var commands := Commands.new()
+	commands.track_job("job-test", "user://video_sprite_jobs/job-test.json")
+	var running: Dictionary = commands.poll_job(
+		"job-test", Callable(self, "_running_receipt"), Callable(self, "_finalize_receipt")
+	)
+	assert_array(running.get("errors", PackedStringArray())).is_empty()
+	assert_str(running.get("state", "")).is_equal("running")
+	assert_int(running.get("completed_frames", 0)).is_equal(12)
+	var complete: Dictionary = commands.poll_job(
+		"job-test", Callable(self, "_worker_complete_receipt"), Callable(self, "_finalize_receipt")
+	)
+	assert_array(complete.get("errors", PackedStringArray())).is_empty()
+	assert_str(complete.get("state", "")).is_equal("complete")
+	assert_bool(complete.get("finalized", false)).is_true()
+	commands.free()
+
+
+func test_job_polling_rejects_missing_receipts_and_passes_failed_state_through() -> void:
+	var commands := Commands.new()
+	var unknown: Dictionary = commands.poll_job("unknown", Callable(self, "_missing_receipt"))
+	assert_str("\n".join(unknown.get("errors", PackedStringArray()))).contains("unknown job ID")
+	commands.track_job("job-failed", "user://video_sprite_jobs/job-failed.json")
+	var missing: Dictionary = commands.poll_job("job-failed", Callable(self, "_missing_receipt"))
+	assert_str("\n".join(missing.get("errors", PackedStringArray()))).contains("missing or malformed")
+	var failed: Dictionary = commands.poll_job("job-failed", Callable(self, "_failed_receipt"))
+	assert_array(failed.get("errors", PackedStringArray())).is_empty()
+	assert_str(failed.get("state", "")).is_equal("failed")
+	commands.free()
+
+
+func _fake_launcher(executable: String, arguments: PackedStringArray) -> int:
+	launched_executable = executable
+	launched_arguments = arguments
+	return 4321
+
+
+func _running_receipt(_path: String) -> Dictionary:
+	return {"job_id": "job-test", "state": "running", "completed_frames": 12}
+
+
+func _worker_complete_receipt(_path: String) -> Dictionary:
+	return {"job_id": "job-test", "state": "worker_complete", "completed_frames": 124}
+
+
+func _missing_receipt(_path: String) -> Dictionary:
+	return {}
+
+
+func _failed_receipt(_path: String) -> Dictionary:
+	return {"job_id": "job-failed", "state": "failed", "error": "fixture"}
+
+
+func _finalize_receipt(receipt: Dictionary, _path: String) -> Dictionary:
+	receipt["state"] = "complete"
+	receipt["finalized"] = true
+	return receipt
+
+
+func _write(path: String, content: String) -> void:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	assert_object(file).is_not_null()
+	file.store_string(content)
+	file.close()
