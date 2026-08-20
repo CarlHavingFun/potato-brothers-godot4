@@ -5,6 +5,7 @@
 /reports/*
 !/reports/.gdignore
 /test_reports/
+/.worktrees/
 *.tmp
 *.bak
 
