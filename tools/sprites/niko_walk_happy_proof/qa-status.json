@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "required_tier": "prototype",
+  "thresholds": {
+    "prototype": {
+      "max_height_range": 6.0,
+      "max_width_range": 4.0,
+      "max_bbox_center_x_range": 2.0,
+      "max_alpha_centroid_x_range": 2.0,
+      "max_bottom_range": 1.0,
+      "max_root_x_deviation": 1.0,
+      "min_median_foot_gap": 8.0,
+      "max_foot_gap": 28.0,
+      "min_separated_frame_fraction": 0.75,
+      "min_foot_alternation_range": 6.0,
+      "min_foot_pca_ratio": 0.25,
+      "max_foot_opposition_correlation": -0.25,
+      "min_pair_alpha_iou": 0.88,
+      "max_pair_mae": 15.0,
+      "max_torso_opaque_range_ratio": 0.22,
+      "max_torso_bright_range_ratio": 0.45,
+      "max_torso_pair_mae": 60.0
+    },
+    "release": {
+      "max_height_range": 4.0,
+      "max_width_range": 3.0,
+      "max_bbox_center_x_range": 1.5,
+      "max_alpha_centroid_x_range": 1.5,
+      "max_bottom_range": 0.0,
+      "max_root_x_deviation": 1.0,
+      "min_median_foot_gap": 10.0,
+      "max_foot_gap": 24.0,
+      "min_separated_frame_fraction": 1.0,
+      "min_foot_alternation_range": 8.0,
+      "min_foot_pca_ratio": 0.4,
+      "max_foot_opposition_correlation": -0.55,
+      "min_pair_alpha_iou": 0.9,
+      "max_pair_mae": 12.0,
+      "max_torso_opaque_range_ratio": 0.12,
+      "max_torso_bright_range_ratio": 0.2,
+      "max_torso_pair_mae": 35.0
+    }
+  },
+  "candidate": {
+    "name": "E:\\01_gobro\\pixelmotion-2d-niko\\work\\godot-proof\\niko-walk-happy-v1\\sprite-sheet-alpha.png",
+    "verdict": "reject",
+    "prototype_pass": false,
+    "release_pass": false,
+    "prototype_failures": [
+      "width_range=8 > 4",
+      "bbox_center_x_range=4 > 2",
+      "alpha_centroid_x_range=2.672 > 2",
+      "max_root_x_deviation=4.5 > 1",
+      "median_foot_gap=0 < 8",
+      "separated_frame_fraction=0 < 0.75"
+    ],
+    "release_failures": [
+      "width_range=8 > 3",
+      "bbox_center_x_range=4 > 1.5",
+      "alpha_centroid_x_range=2.672 > 1.5",
+      "max_root_x_deviation=4.5 > 1",
+      "median_foot_gap=0 < 10",
+      "separated_frame_fraction=0 < 1"
+    ],
+    "metrics": {
+      "frame_count": 8,
+      "height_range": 0.0,
+      "width_range": 8.0,
+      "bbox_center_x_range": 4.0,
+      "alpha_centroid_x_range": 2.6722400910080495,
+      "bottom_range": 0.0,
+      "max_root_x_deviation": 4.5,
+      "pair_mae": [
+        2.1318359375,
+        2.14404296875,
+        4.3720703125,
+        4.547770023345947,
+        2.22314453125,
+        1.9104818105697632,
+        4.631591796875,
+        4.758951663970947
+      ],
+      "pair_alpha_iou": [
+        0.9861111111111112,
+        0.9715686274509804,
+        0.9507874015748031,
+        0.96318407960199,
+        0.9774288518155054,
+        0.9863013698630136,
+        0.9392156862745098,
+        0.9532338308457712
+      ],
+      "max_pair_mae": 4.758951663970947,
+      "min_pair_alpha_iou": 0.9392156862745098,
+      "foot_gaps": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "median_foot_gap": 0.0,
+      "max_foot_gap": 0.0,
+      "separated_frame_fraction": 0.0,
+      "foot_alternation_scores": [
+        -7.542250156402588,
+        7.011329174041748,
+        -7.542250156402588,
+        6.563797473907471,
+        -5.761219501495361,
+        7.011329174041748,
+        -6.6663031578063965,
+        6.925568103790283
+      ],
+      "foot_alternation_range": 14.553579330444336,
+      "foot_pca_ratio": 0.8948689103126526,
+      "foot_opposition_correlation": -0.9362177848815918,
+      "torso_opaque_range_ratio": 0.024004364429896344,
+      "torso_bright_range_ratio": 0.10840108401084012,
+      "max_torso_pair_mae": 33.4393310546875
+    }
+  }
+}

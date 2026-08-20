@@ -1,0 +1,39 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://tools/sprites/niko_walk_happy_proof/niko_walk_happy_proof.gd" id="1_script"]
+[ext_resource type="SpriteFrames" path="res://tools/sprites/niko_walk_happy_proof/sprite_frames.tres" id="2_frames"]
+
+[node name="NikoWalkHappyProof" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Title" type="Label" parent="."]
+z_index = 2
+offset_left = 80.0
+offset_top = 44.0
+offset_right = 1840.0
+offset_bottom = 92.0
+theme_override_colors/font_color = Color(0.105882, 0.137255, 0.184314, 1)
+theme_override_font_sizes/font_size = 32
+text = "Niko · Happy walk_down · 8 frames @ 10 FPS"
+horizontal_alignment = 1
+
+[node name="Status" type="Label" parent="."]
+z_index = 2
+offset_left = 80.0
+offset_top = 942.0
+offset_right = 1840.0
+offset_bottom = 1032.0
+theme_override_colors/font_color = Color(0.643137, 0.286275, 0.0431373, 1)
+theme_override_font_sizes/font_size = 22
+text = "EXPERIMENTAL SAMPLE · motion QA failed: shoe separation and horizontal root stability · not installed as production character art"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Character" type="AnimatedSprite2D" parent="."]
+texture_filter = 1
+position = Vector2(960, 750)
+scale = Vector2(2, 2)
+offset = Vector2(0, -104)
+sprite_frames = ExtResource("2_frames")
+animation = &"walk_down"
+autoplay = "walk_down"

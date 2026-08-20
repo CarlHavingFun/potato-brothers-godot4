@@ -1,0 +1,67 @@
+[gd_resource type="SpriteFrames" format=3]
+
+[ext_resource type="Texture2D" path="res://tools/sprites/niko_walk_happy_proof/sprite-sheet-alpha.png" id="1_vnrvo"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ciks6"]
+atlas = ExtResource("1_vnrvo")
+region = Rect2(0, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bruqa"]
+atlas = ExtResource("1_vnrvo")
+region = Rect2(256, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ofv7q"]
+atlas = ExtResource("1_vnrvo")
+region = Rect2(512, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hsds6"]
+atlas = ExtResource("1_vnrvo")
+region = Rect2(768, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sid3g"]
+atlas = ExtResource("1_vnrvo")
+region = Rect2(1024, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1dru7"]
+atlas = ExtResource("1_vnrvo")
+region = Rect2(1280, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_r2sc5"]
+atlas = ExtResource("1_vnrvo")
+region = Rect2(1536, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6cdu3"]
+atlas = ExtResource("1_vnrvo")
+region = Rect2(1792, 0, 256, 256)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ciks6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bruqa")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ofv7q")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hsds6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_sid3g")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1dru7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_r2sc5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6cdu3")
+}],
+"loop": 1,
+"name": &"walk_down",
+"speed": 10.0
+}]
