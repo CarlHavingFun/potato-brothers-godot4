@@ -212,6 +212,68 @@ static func install_clip(manifest_path: String, replace_selection := false) -> D
 	return result
 
 
+static func write_preview_scene(manifest_path: String) -> Dictionary:
+	var parsed := parse_manifest_file(manifest_path)
+	var errors := parsed.get("errors", PackedStringArray()) as PackedStringArray
+	if not errors.is_empty():
+		return {"errors": errors}
+	var manifest := parsed["manifest"] as Dictionary
+	var selection_path := manifest_path.get_base_dir().path_join("selection.tres")
+	if not FileAccess.file_exists(selection_path):
+		return {"errors": PackedStringArray(["selection not found: %s" % selection_path])}
+	var preview_path := manifest_path.get_base_dir().path_join("preview.tscn")
+	var clip_id := str(manifest["clip_id"])
+	var root := manifest["root"] as Dictionary
+	var source := """[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://tools/video_sprites/video_sprite_preview.gd" id="1_preview"]
+[ext_resource type="SpriteFrames" path="%s" id="2_frames"]
+
+[node name="VideoSpritePreview" type="Node2D"]
+script = ExtResource("1_preview")
+clip_id = "%s"
+root_anchor = Vector2(%d, %d)
+
+[node name="Checkerboard" type="Node2D" parent="."]
+
+[node name="RootGuide" type="Node2D" parent="."]
+
+[node name="Sprite" type="AnimatedSprite2D" parent="."]
+texture_filter = 1
+sprite_frames = ExtResource("2_frames")
+animation = &"%s"
+autoplay = "%s"
+centered = false
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Info" type="Label" parent="HUD"]
+offset_left = 18.0
+offset_top = 18.0
+offset_right = 900.0
+offset_bottom = 50.0
+theme_override_colors/font_color = Color(0.08, 0.09, 0.11, 1)
+theme_override_colors/font_shadow_color = Color(1, 1, 1, 0.85)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+text = "%s"
+""" % [
+		selection_path,
+		clip_id.c_escape(),
+		int(root["x"]),
+		int(root["y"]),
+		clip_id.c_escape(),
+		clip_id.c_escape(),
+		clip_id.c_escape(),
+	]
+	var file := FileAccess.open(preview_path, FileAccess.WRITE)
+	if file == null:
+		return {"errors": PackedStringArray(["could not write preview: %s" % preview_path])}
+	file.store_string(source)
+	file.close()
+	return {"errors": PackedStringArray(), "preview_path": preview_path}
+
+
 static func _record_result(result: Dictionary, key: String, value: String) -> void:
 	var values := result.get(key, PackedStringArray()) as PackedStringArray
 	values.append(value)

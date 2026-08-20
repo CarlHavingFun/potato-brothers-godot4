@@ -2,14 +2,17 @@ extends GdUnitTestSuite
 
 
 const Importer = preload("res://tools/video_sprites/video_sprite_manifest_importer.gd")
+const Preview = preload("res://tools/video_sprites/video_sprite_preview.gd")
+const Cli = preload("res://tools/video_sprites/video_sprite_library_cli.gd")
 const INSTALL_ROOT := "res://reports/video_sprite_importer/preserve_selection"
 const MANIFEST_PATH := INSTALL_ROOT + "/manifest.json"
 const SOURCE_PATH := INSTALL_ROOT + "/source_all_frames.tres"
 const SELECTION_PATH := INSTALL_ROOT + "/selection.tres"
+const PREVIEW_PATH := INSTALL_ROOT + "/preview.tscn"
 
 
 func after_test() -> void:
-	for path: String in [SELECTION_PATH, SOURCE_PATH, MANIFEST_PATH]:
+	for path: String in [PREVIEW_PATH, SELECTION_PATH, SOURCE_PATH, MANIFEST_PATH]:
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
@@ -91,6 +94,41 @@ func test_install_overwrites_source_but_preserves_selection_until_explicit_repla
 		SELECTION_PATH, "SpriteFrames", ResourceLoader.CACHE_MODE_REPLACE
 	) as SpriteFrames
 	assert_float(selection.get_animation_speed(&"walk_happy")).is_equal_approx(24.0, 0.001)
+
+
+func test_preview_scene_uses_selection_nearest_filter_checkerboard_and_root_guide() -> void:
+	_write_install_manifest()
+	var install: Dictionary = Importer.install_clip(MANIFEST_PATH)
+	assert_array(install.get("errors", PackedStringArray())).is_empty()
+	var result: Dictionary = Importer.write_preview_scene(MANIFEST_PATH)
+	assert_array(result.get("errors", PackedStringArray())).is_empty()
+	var scene_source := FileAccess.get_file_as_string(PREVIEW_PATH)
+	assert_str(scene_source).contains("selection.tres")
+	assert_str(scene_source).contains("texture_filter = 1")
+	assert_str(scene_source).contains("name=\"Checkerboard\"")
+	assert_str(scene_source).contains("name=\"RootGuide\"")
+	var preview_source := FileAccess.get_file_as_string(
+		"res://tools/video_sprites/video_sprite_preview.gd"
+	)
+	assert_str(preview_source).contains("_draw_checkerboard")
+	assert_str(preview_source).contains("_draw_root_guide")
+	var packed := ResourceLoader.load(
+		PREVIEW_PATH, "PackedScene", ResourceLoader.CACHE_MODE_REPLACE
+	) as PackedScene
+	assert_object(packed).is_not_null()
+	var preview := packed.instantiate()
+	assert_object(preview.get_node_or_null("Sprite")).is_not_null()
+	assert_object(preview.get_node_or_null("HUD/Info")).is_not_null()
+	preview.free()
+
+
+func test_headless_cli_rejects_missing_and_unknown_arguments() -> void:
+	var missing: Dictionary = Cli.parse_arguments([])
+	assert_int(missing.get("exit_code", 0)).is_equal(2)
+	assert_str("\n".join(missing.get("errors", PackedStringArray()))).contains("--manifest")
+	var unknown: Dictionary = Cli.parse_arguments(["--manifest", MANIFEST_PATH, "--wat"])
+	assert_int(unknown.get("exit_code", 0)).is_equal(2)
+	assert_str("\n".join(unknown.get("errors", PackedStringArray()))).contains("unknown argument")
 
 
 func _write_install_manifest() -> void:
