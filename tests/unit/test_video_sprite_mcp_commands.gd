@@ -41,6 +41,23 @@ func test_output_path_is_confined_below_tools_sprites() -> void:
 	assert_str(Commands.validate_output_path("E:/outside")).is_not_empty()
 
 
+func test_readme_explains_all_commands_and_non_destructive_selection_workflow() -> void:
+	var readme := FileAccess.get_file_as_string("res://tools/video_sprites/README.md")
+	for command in [
+		"video_sprites.scan_directory",
+		"video_sprites.import_directory",
+		"video_sprites.import_video",
+		"video_sprites.job_status",
+		"video_sprites.validate_library",
+	]:
+		assert_str(readme).contains(command)
+	assert_str(readme).contains("source_all_frames.tres")
+	assert_str(readme).contains("selection.tres")
+	assert_str(readme).contains("24 FPS")
+	assert_str(readme).contains("selected FPS")
+	assert_str(readme).contains("never overwrites")
+
+
 func test_import_launch_builds_exact_worker_arguments_and_returns_immediately() -> void:
 	var source_absolute := ProjectSettings.globalize_path(TEMP_ROOT)
 	var commands := Commands.new()
