@@ -586,14 +586,27 @@ func get_command_docs() -> Dictionary:
 			"params": _import_docs("source_directory", "Absolute source video directory."),
 		},
 		"video_sprites.import_video": {
-			"description": "Start an asynchronous full-frame single-video import.",
-			"params": _import_docs("source_video", "Absolute source video path.") + [
+			"description": "Stage one video outside res://; no Godot resources are generated until curated promotion.",
+			"params": _video_import_docs() + [
 				doc_param("clip_id", "String", false, "Optional stable clip identifier."),
 			],
 		},
 		"video_sprites.job_status": {
-			"description": "Read authoritative progress and finalize completed Godot resources.",
+			"description": "Read authoritative progress for an external staged or legacy directory job.",
 			"params": [doc_param("job_id", "String", true, "Job ID returned by an import command.")],
+		},
+		"video_sprites.dependency_status": {
+			"description": "Report resolved or missing Python, PixelMotion, sprite-gen, worker, and ffprobe paths.",
+			"params": [
+				doc_param("pipeline_root", "String", false, "PixelMotion 2D root override."),
+				doc_param("sprite_gen_root", "String", false, "sprite-gen root override."),
+				doc_param("python_executable", "String", false, "Python override."),
+				doc_param("ffprobe_executable", "String", false, "ffprobe override."),
+			],
+		},
+		"video_sprites.cancel_job": {
+			"description": "Cancel only the PID owned by the recorded non-terminal external video job.",
+			"params": [doc_param("job_id", "String", true, "External video job ID to cancel.")],
 		},
 		"video_sprites.validate_library": {
 			"description": "Read-only validation of installed manifests and Godot selection resources.",
@@ -624,6 +637,19 @@ func _import_docs(source_name: String, source_description: String) -> Array:
 		doc_param("config_path", "String", false, "PixelMotion character config override."),
 		doc_param("force_generated", "bool", false, "Rebuild generated PNG/atlas/manifest files."),
 		doc_param("replace_selection", "bool", false, "Explicitly replace selection.tres during finalization."),
+	]
+
+
+func _video_import_docs() -> Array:
+	return [
+		doc_param("source_video", "String", true, "Absolute source video path."),
+		doc_param("staging_directory", "String", false, "Optional absolute directory below user://video_sprite_workspace; defaults to a unique job directory."),
+		doc_param("pipeline_root", "String", false, "PixelMotion 2D root; workspace/environment/settings discovery remains available."),
+		doc_param("sprite_gen_root", "String", false, "sprite-gen skill root."),
+		doc_param("python_executable", "String", false, "sprite-gen venv Python override."),
+		doc_param("ffprobe_executable", "String", false, "ffprobe override; PATH lookup is used when omitted."),
+		doc_param("config_path", "String", false, "Optional PixelMotion character config override."),
+		doc_param("force_generated", "bool", false, "Rebuild generated external staging artifacts."),
 	]
 
 

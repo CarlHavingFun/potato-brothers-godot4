@@ -33,6 +33,23 @@ class WorkerError(RuntimeError):
     """Raised when the reproducible PixelMotion -> sprite-gen contract fails."""
 
 
+def record_worker_pid(receipt_path: Path, job_id: str | None, pid: int | None = None) -> None:
+    """Publish the spawned worker PID without replacing the service receipt state."""
+    if not job_id:
+        return
+    path = Path(receipt_path)
+    try:
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise WorkerError(f"could not read job receipt {path}: {exc}") from exc
+    if not isinstance(receipt, dict) or receipt.get("job_id") != job_id:
+        raise WorkerError(f"job receipt does not belong to worker job {job_id}: {path}")
+    receipt["pid"] = int(os.getpid() if pid is None else pid)
+    temporary = path.with_suffix(path.suffix + ".pid.tmp")
+    temporary.write_text(json.dumps(receipt, ensure_ascii=False) + "\n", encoding="utf-8")
+    os.replace(temporary, path)
+
+
 def build_sprite_request(frame_count: int, fps: float, loop: bool) -> dict[str, Any]:
     if frame_count <= 0:
         raise WorkerError("frame_count must be positive")
@@ -763,6 +780,8 @@ def _emit(value: Mapping[str, Any]) -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
+        if args.command in {"import-directory", "import-video"}:
+            record_worker_pid(args.job_receipt, args.job_id)
         library, image_tools = _load_pixelmotion(args.pixelmotion_root)
         if args.command == "scan":
             rows = library.scan_video_directory(args.source_directory, ffprobe=args.ffprobe)

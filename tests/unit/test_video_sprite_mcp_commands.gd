@@ -102,6 +102,19 @@ func test_mcp_video_import_delegates_to_the_external_staging_service_without_cha
 	commands.free()
 
 
+func test_mcp_docs_describe_external_video_staging_and_job_controls() -> void:
+	var commands := Commands.new()
+	var docs: Dictionary = commands.get_command_docs()
+	var video := docs["video_sprites.import_video"] as Dictionary
+	var names := PackedStringArray()
+	for entry in video["params"] as Array:
+		names.append(str((entry as Dictionary)["name"]))
+	assert_array(names).contains("staging_directory")
+	assert_array(names).not_contains("output_directory")
+	assert_dict(docs).contains_keys(["video_sprites.dependency_status", "video_sprites.cancel_job"])
+	commands.free()
+
+
 func test_readme_explains_all_commands_and_non_destructive_selection_workflow() -> void:
 	var readme := FileAccess.get_file_as_string("res://tools/video_sprites/README.md")
 	for command in [

@@ -55,3 +55,44 @@ All commands exited `0`: 4/4 external-staging service GdUnit tests, 10/10 MCP co
 ## Concerns
 
 - Focused tests use injected launcher/terminator callables, as intended to avoid exercising real OS process creation/termination. A live PixelMotion/sprite-gen run is environment-dependent and was not run in this task.
+
+## Fix Round 1
+
+### Coverage added
+
+- `tests/unit/test_video_sprite_job_service.gd`: sibling-prefix containment escape, terminal `worker_complete` PID reuse protection, receipt PID ownership mismatch, exited-worker failure normalization through injected liveness/exit-code callables, launch/receipt race preservation, dependency candidate/source/resolution diagnostics, and default external staging/config compatibility.
+- `tests/unit/test_video_sprite_mcp_commands.gd`: typed MCP documentation for external staging, diagnostics, and cancellation.
+- `tests/python/test_spritegen_video_worker.py`: worker-owned PID receipt publication.
+
+### RED
+
+```powershell
+.\tools\run_tests.ps1 -GodotBinary E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64_console.exe -TestPath res://tests/unit/test_video_sprite_job_service.gd -ReportDirectory res://reports/gdunit-task1-fix1-red
+py -3 tests\python\test_spritegen_video_worker.py
+```
+
+```powershell
+.\tools\run_tests.ps1 -GodotBinary E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64_console.exe -TestPath res://tests/unit/test_video_sprite_job_service.gd -ReportDirectory res://reports/gdunit-task1-fix1-pid-red
+```
+
+The service RED failed at discovery because `poll_job` lacked the liveness/exit-code seam. The subsequent no-PID regression RED returned `queued` with an empty error instead of the required loud `failed` terminal state. The worker RED failed with `AttributeError: module 'spritegen_video_worker' has no attribute 'record_worker_pid'`.
+
+### GREEN
+
+```powershell
+git diff --check
+.\tools\run_tests.ps1 -GodotBinary E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64_console.exe -TestPath res://tests/unit/test_video_sprite_job_service.gd -ReportDirectory res://reports/gdunit-task1-fix1-final-service
+.\tools\run_tests.ps1 -GodotBinary E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64_console.exe -TestPath res://tests/unit/test_video_sprite_mcp_commands.gd -ReportDirectory res://reports/gdunit-task1-fix1-final-mcp
+py -3 tests\python\test_spritegen_video_worker.py
+```
+
+Final output: service 12/12, MCP 11/11, Python 13/13; all commands exit `0` and `git diff --check` is clean.
+
+### Review fixes
+
+- Terminal states now neutralize the tracked PID; `worker_complete` normalizes to `complete`, and cancellation reads/validates the receipt job ID before treating terminal jobs as non-cancellable or comparing a live PID.
+- Cancellation compares the worker-published receipt PID to the tracked PID before termination. The Python worker records its own PID before it loads PixelMotion, and the Godot service never overwrites receipt state after launch.
+- Staging uses a component boundary rather than a raw prefix and rejects existing link/reparse-point components below the staging root.
+- Polling owns final state, writes a loud failed terminal receipt for exited or untracked workers, and accepts injected liveness/exit-code callables for safe tests.
+- Dependency diagnostics retain candidates plus `source` and `resolution`; legacy workspace/settings/environment defaults and PATH ffprobe lookup are restored. Omitted staging and config select an external job-specific directory and the legacy PixelMotion config path.
+- Typed MCP docs now distinguish single-video external staging from legacy `res://` directory output and publish the diagnostics/cancellation schemas.

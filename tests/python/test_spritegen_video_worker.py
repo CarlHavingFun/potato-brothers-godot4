@@ -23,6 +23,19 @@ def load_worker():
 
 
 class SpriteRequestTests(unittest.TestCase):
+    def test_worker_pid_recording_preserves_a_queued_receipt_for_its_own_job(self) -> None:
+        worker = load_worker()
+        with tempfile.TemporaryDirectory() as temporary:
+            receipt = Path(temporary) / "receipt.json"
+            receipt.write_text(json.dumps({"job_id": "job-1", "state": "queued", "pid": 0}))
+
+            worker.record_worker_pid(receipt, "job-1", 4321)
+
+            self.assertEqual(
+                {"job_id": "job-1", "state": "queued", "pid": 4321},
+                json.loads(receipt.read_text()),
+            )
+
     def test_request_accepts_any_positive_frame_count_without_a_take_wide_gate(self) -> None:
         worker = load_worker()
 
