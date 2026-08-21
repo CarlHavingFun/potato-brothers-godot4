@@ -7,6 +7,11 @@
 水平对齐和底部落地。最终帧不是普通缩放结果。sprite-gen 以 y=232 作为地面边界，
 所以最后一个不透明像素位于 y=231。
 
+sprite-gen 的整行动作配准偶尔会让宽物体保留空白偏移（例如 `born` 第一帧的舱门）。
+导入器会在 sprite-gen 完成后按 4 px 逻辑网格整体平移可见像素，使其重新落回 24 px
+安全区；该步骤不缩放、不重采样、不改色、不改变 alpha，也不会删除任何源帧。每帧的
+平移量记录在 manifest 的 `source_frames[].alignment_shift_x`。
+
 ## MCP 命令
 
 - `video_sprites.scan_directory`：递归扫描视频，返回路径、哈希、尺寸、精确 FPS、时间戳及总帧数。

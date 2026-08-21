@@ -71,6 +71,36 @@ class RawStripTests(unittest.TestCase):
 
 
 class ExtractedFrameTests(unittest.TestCase):
+    def test_install_recenters_a_registered_frame_without_resampling_or_dropping_pixels(self) -> None:
+        worker = load_worker()
+        palette = [(42, 15, 13), (241, 238, 240)]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            extracted = root / "extracted"
+            extracted.mkdir()
+            source = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+            # Reproduces the born-door failure: sprite-gen row registration leaves
+            # a valid 184px-wide object at x=68..252 even though it can fit inside
+            # the declared 24px horizontal safety area by translation alone.
+            source.paste((*palette[0], 255), (68, 104, 252, 232))
+            source.save(extracted / "frame-0.png")
+            timing = [
+                {"source_frame": 1, "timestamp_seconds": 0.0, "duration_ms": 41.666667}
+            ]
+
+            installed = worker.install_extracted_frames(
+                extracted, root / "frames", timing, palette
+            )
+
+            destination = root / "frames" / "frame_001.png"
+            with Image.open(destination) as opened:
+                rgba = opened.convert("RGBA")
+                self.assertEqual((36, 104, 220, 232), rgba.getchannel("A").getbbox())
+                pixels = rgba.get_flattened_data()
+                self.assertEqual(184 * 128, sum(1 for pixel in pixels if pixel[3]))
+                self.assertEqual({(*palette[0], 255), (0, 0, 0, 0)}, set(pixels))
+            self.assertEqual(-32, installed[0]["alignment_shift_x"])
+
     def test_install_keeps_one_to_one_source_mapping_including_frame_018(self) -> None:
         worker = load_worker()
         palette = [(42, 15, 13), (241, 238, 240)]

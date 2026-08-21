@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -22,6 +23,7 @@ STATE = "source_all"
 CELL_SIZE = (256, 256)
 SAFE_MARGIN = 24
 ROOT_ANCHOR = (128, 232)
+PIXEL_SCALE = 4
 CHROMA_RGBA = (255, 0, 255, 255)
 VIDEO_EXTENSIONS = (".avi", ".mkv", ".mov", ".mp4", ".webm")
 IMAGE_EXTENSIONS = (".bmp", ".jpeg", ".jpg", ".png", ".webp")
@@ -159,9 +161,8 @@ def install_extracted_frames(
     results: list[dict[str, Any]] = []
     for index, frame_timing in enumerate(timing):
         source = extracted / f"frame-{index}.png"
-        _validate_pixel_frame(source, allowed)
         destination = output / f"frame_{index + 1:03d}.png"
-        shutil.copy2(source, destination)
+        alignment_shift_x = _normalize_registered_frame(source, destination, allowed)
         results.append(
             {
                 "path": str(destination),
@@ -170,9 +171,74 @@ def install_extracted_frames(
                 "timestamp_seconds": float(frame_timing["timestamp_seconds"]),
                 "duration_ms": float(frame_timing["duration_ms"]),
                 "processor": "sprite-gen/pixel-unfake",
+                "alignment_shift_x": alignment_shift_x,
             }
         )
     return results
+
+
+def _normalize_registered_frame(
+    source: Path,
+    destination: Path,
+    allowed_palette: set[tuple[int, int, int]],
+) -> int:
+    """Translate a registered sprite-gen cell onto its declared horizontal axis.
+
+    sprite-gen registers a whole row before per-frame alpha-centroid placement.  If
+    a frame occupies only an offset portion of that registered logical canvas, its
+    placement clamp can retain the empty registration padding and push visible
+    pixels into the margin zone.  Re-centering the visible cell after extraction is
+    a pixel-grid translation only: no source pose, palette, alpha, scale, or pixel
+    count changes.
+    """
+    try:
+        with Image.open(source) as opened:
+            rgba = opened.convert("RGBA")
+    except OSError as exc:
+        raise WorkerError(f"could not open sprite-gen frame {source}: {exc}") from exc
+    try:
+        _validate_pixel_image(rgba, source, allowed_palette, require_horizontal_safety=False)
+        alpha = rgba.getchannel("A")
+        bbox = alpha.getbbox()
+        assert bbox is not None
+        min_shift = SAFE_MARGIN - bbox[0]
+        max_shift = CELL_SIZE[0] - SAFE_MARGIN - bbox[2]
+        lower_grid_shift = math.ceil(min_shift / PIXEL_SCALE) * PIXEL_SCALE
+        upper_grid_shift = math.floor(max_shift / PIXEL_SCALE) * PIXEL_SCALE
+        if lower_grid_shift > upper_grid_shift:
+            raise WorkerError(
+                "sprite-gen visible content is wider than the 24px horizontal safety area: "
+                f"{source}: {bbox}"
+            )
+
+        alpha_pixels = alpha.load()
+        alpha_total = 0
+        weighted_x = 0.0
+        for y in range(bbox[1], bbox[3]):
+            for x in range(bbox[0], bbox[2]):
+                value = alpha_pixels[x, y]
+                if value:
+                    alpha_total += value
+                    weighted_x += value * (x + 0.5)
+        centroid_x = weighted_x / alpha_total
+        desired_shift = round((ROOT_ANCHOR[0] - centroid_x) / PIXEL_SCALE) * PIXEL_SCALE
+        shift_x = min(max(desired_shift, lower_grid_shift), upper_grid_shift)
+
+        normalized = Image.new("RGBA", CELL_SIZE, (0, 0, 0, 0))
+        try:
+            visible = rgba.crop(bbox)
+            try:
+                normalized.alpha_composite(visible, (bbox[0] + shift_x, bbox[1]))
+            finally:
+                visible.close()
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            normalized.save(destination, format="PNG", optimize=False)
+        finally:
+            normalized.close()
+    finally:
+        rgba.close()
+    _validate_pixel_frame(destination, allowed_palette)
+    return int(shift_x)
 
 
 def _validate_pixel_frame(path: Path, allowed_palette: set[tuple[int, int, int]]) -> None:
@@ -182,29 +248,41 @@ def _validate_pixel_frame(path: Path, allowed_palette: set[tuple[int, int, int]]
     except OSError as exc:
         raise WorkerError(f"could not open sprite-gen frame {path}: {exc}") from exc
     try:
-        if rgba.size != CELL_SIZE:
-            raise WorkerError(f"sprite-gen frame must be 256x256: {path} is {rgba.size}")
-        alpha_values = set(rgba.getchannel("A").get_flattened_data())
-        if not alpha_values.issubset({0, 255}):
-            raise WorkerError(f"sprite-gen frame does not have hard alpha: {path}")
-        colours = {pixel[:3] for pixel in rgba.get_flattened_data() if pixel[3]}
-        if not colours.issubset(allowed_palette):
-            unexpected = sorted(colours - allowed_palette)[:5]
-            raise WorkerError(f"sprite-gen frame escaped the locked palette: {path}: {unexpected}")
-        bbox = rgba.getchannel("A").getbbox()
-        if bbox is None:
-            raise WorkerError(f"sprite-gen frame has no visible subject: {path}")
-        if (
-            bbox[0] < SAFE_MARGIN
-            or bbox[1] < SAFE_MARGIN
-            or bbox[2] > CELL_SIZE[0] - SAFE_MARGIN
-            or bbox[3] != ROOT_ANCHOR[1]
-        ):
-            raise WorkerError(
-                f"sprite-gen frame violates 24px safety/root contract: {path}: {bbox}"
-            )
+        _validate_pixel_image(rgba, path, allowed_palette, require_horizontal_safety=True)
     finally:
         rgba.close()
+
+
+def _validate_pixel_image(
+    rgba: Image.Image,
+    path: Path,
+    allowed_palette: set[tuple[int, int, int]],
+    *,
+    require_horizontal_safety: bool,
+) -> None:
+    if rgba.size != CELL_SIZE:
+        raise WorkerError(f"sprite-gen frame must be 256x256: {path} is {rgba.size}")
+    alpha_values = set(rgba.getchannel("A").get_flattened_data())
+    if not alpha_values.issubset({0, 255}):
+        raise WorkerError(f"sprite-gen frame does not have hard alpha: {path}")
+    colours = {pixel[:3] for pixel in rgba.get_flattened_data() if pixel[3]}
+    if not colours.issubset(allowed_palette):
+        unexpected = sorted(colours - allowed_palette)[:5]
+        raise WorkerError(f"sprite-gen frame escaped the locked palette: {path}: {unexpected}")
+    bbox = rgba.getchannel("A").getbbox()
+    if bbox is None:
+        raise WorkerError(f"sprite-gen frame has no visible subject: {path}")
+    if (
+        bbox[1] < SAFE_MARGIN
+        or bbox[3] != ROOT_ANCHOR[1]
+        or (
+            require_horizontal_safety
+            and (bbox[0] < SAFE_MARGIN or bbox[2] > CELL_SIZE[0] - SAFE_MARGIN)
+        )
+    ):
+        raise WorkerError(
+            f"sprite-gen frame violates 24px safety/root contract: {path}: {bbox}"
+        )
 
 
 def validate_installed_clip(
