@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "clip_id": "walk_strong",
+  "valid": true,
+  "frame_count": 124,
+  "checks": {
+    "cell_256": true,
+    "hard_alpha": true,
+    "palette_max_32": true,
+    "safe_margin_24": true,
+    "root_128_232": true,
+    "explicit_rectangles": 124
+  }
+}

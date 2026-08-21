@@ -57,6 +57,11 @@ Niko 的集中编辑入口是：
 编辑完成后执行 `character_sprite.publish` 或编辑器菜单“角色精灵/发布当前角色动画”。
 游戏只加载发布后的轻量资源，不加载全部 source 轨。
 
+默认内容包中的 `character/well_rounded` 已改用
+`res://scenes/unit/players/player_niko.tscn`；其他 11 个角色仍使用原场景。Niko 场景固定
+引用 `runtime/niko_runtime_frames.tres`，所以你在母资源中手动选帧并再次“发布当前角色
+动画”后，不需要再修改场景或内容包。
+
 ## 每个可玩角色需要的动作
 
 当前项目的 12 个可玩角色使用同一个人工友好动作模板：`well_rounded`、`brawler`、

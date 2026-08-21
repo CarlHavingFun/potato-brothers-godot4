@@ -3,6 +3,7 @@ extends RefCounted
 
 
 const ENGINE := "pixelmotion2d-video-library"
+const SPRITE_GEN_ENGINE := "pixelmotion2d-cutout+sprite-gen-pixel-unfake"
 const KIND := "pixelmotion-video-sprite-library"
 const STATE := &"source_all"
 const EXPECTED_CELL := Vector2i(256, 256)
@@ -103,8 +104,9 @@ static func validate_manifest(manifest: Dictionary, manifest_path := "") -> Pack
 		manifest_path = str(manifest.get("_manifest_path", ""))
 	if str(manifest.get("kind", "")) != KIND:
 		errors.append("kind must be %s" % KIND)
-	if str(manifest.get("engine", "")) != ENGINE:
-		errors.append("engine must be %s" % ENGINE)
+	var engine := str(manifest.get("engine", ""))
+	if engine != ENGINE and engine != SPRITE_GEN_ENGINE:
+		errors.append("engine must be one of: %s, %s" % [ENGINE, SPRITE_GEN_ENGINE])
 	if bool(manifest.get("degraded_static_fallback", true)):
 		errors.append("degraded_static_fallback must be false")
 	var clip_id := str(manifest.get("clip_id", ""))

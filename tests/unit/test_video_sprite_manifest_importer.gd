@@ -204,3 +204,13 @@ func _fake_texture(_path: String) -> Texture2D:
 	texture.width = 4096
 	texture.height = 512
 	return texture
+
+func test_manifest_accepts_the_sprite_gen_full_frame_engine_and_rejects_unknown_engines() -> void:
+	var manifest := _valid_manifest(3)
+	manifest["engine"] = "pixelmotion2d-cutout+sprite-gen-pixel-unfake"
+	assert_array(Importer.validate_manifest(manifest)).is_empty()
+
+	manifest["engine"] = "unknown-resizer"
+	assert_str("\n".join(Importer.validate_manifest(manifest))).contains(
+		"engine must be one of"
+	)

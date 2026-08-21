@@ -1,0 +1,33 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://tools/video_sprites/video_sprite_preview.gd" id="1_preview"]
+[ext_resource type="SpriteFrames" path="res://tools/sprites/niko_video_library/walk_happy/selection.tres" id="2_frames"]
+
+[node name="VideoSpritePreview" type="Node2D"]
+script = ExtResource("1_preview")
+clip_id = "walk_happy"
+root_anchor = Vector2(128, 232)
+
+[node name="Checkerboard" type="Node2D" parent="."]
+
+[node name="RootGuide" type="Node2D" parent="."]
+
+[node name="Sprite" type="AnimatedSprite2D" parent="."]
+texture_filter = 1
+sprite_frames = ExtResource("2_frames")
+animation = &"walk_happy"
+autoplay = "walk_happy"
+centered = false
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Info" type="Label" parent="HUD"]
+offset_left = 18.0
+offset_top = 18.0
+offset_right = 900.0
+offset_bottom = 50.0
+theme_override_colors/font_color = Color(0.08, 0.09, 0.11, 1)
+theme_override_colors/font_shadow_color = Color(1, 1, 1, 0.85)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+text = "walk_happy"
