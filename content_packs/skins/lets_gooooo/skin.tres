@@ -30,6 +30,7 @@ asset_tables = {
 &"character.ember_sage": "res://assets/sprites/Players/Player_4.png",
 &"character.glass_cannon": "res://assets/sprites/Players/Player_3}.png",
 &"character.knight": "res://assets/sprites/Players/Player_5.png",
+&"character.niko_happy": "res://content_packs/default/assets/sprites/players/niko_happy/icon_niko_happy.tres",
 &"character.scrap_broker": "res://assets/sprites/Players/Player_1.png",
 &"character.scrapwright": "res://assets/sprites/Players/Player_1.png",
 &"character.well_rounded": "res://assets/sprites/Players/Player_1.png"

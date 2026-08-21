@@ -1,0 +1,86 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tools/sprites/niko_skeleton_idle_proof/niko_skeleton_idle_proof.gd" id="1_script"]
+
+[node name="NikoSkeletonIdleProof" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 1920.0
+offset_bottom = 1080.0
+mouse_filter = 2
+color = Color(0.0784314, 0.0941176, 0.12549, 1)
+show_behind_parent = true
+
+[node name="Title" type="Label" parent="."]
+offset_left = 80.0
+offset_top = 42.0
+offset_right = 1840.0
+offset_bottom = 92.0
+theme_override_colors/font_color = Color(0.862745, 0.901961, 0.960784, 1)
+theme_override_font_sizes/font_size = 32
+text = "Niko · Skeleton2D idle_front · local-only"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="."]
+offset_left = 80.0
+offset_top = 982.0
+offset_right = 1840.0
+offset_bottom = 1038.0
+theme_override_colors/font_color = Color(0.6, 0.670588, 0.760784, 1)
+theme_override_font_sizes/font_size = 22
+text = "3 rigid pixel layers · fixed feet · editable Bone2D tracks"
+horizontal_alignment = 1
+
+[node name="Character" type="Node2D" parent="."]
+texture_filter = 1
+position = Vector2(960, 510)
+scale = Vector2(2, 2)
+
+[node name="Skeleton2D" type="Skeleton2D" parent="Character"]
+
+[node name="Root" type="Bone2D" parent="Character/Skeleton2D"]
+rest = Transform2D(1, 0, 0, 1, 0, 0)
+autocalculate_length_and_angle = false
+length = 24.0
+
+[node name="Feet" type="Bone2D" parent="Character/Skeleton2D/Root"]
+position = Vector2(0, 135)
+rest = Transform2D(1, 0, 0, 1, 0, 135)
+autocalculate_length_and_angle = false
+length = 16.0
+
+[node name="FeetSprite" type="Sprite2D" parent="Character/Skeleton2D/Root/Feet"]
+position = Vector2(0, -135)
+
+[node name="Torso" type="Bone2D" parent="Character/Skeleton2D/Root"]
+position = Vector2(0, 75)
+rest = Transform2D(1, 0, 0, 1, 0, 75)
+autocalculate_length_and_angle = false
+length = 52.0
+
+[node name="TorsoSprite" type="Sprite2D" parent="Character/Skeleton2D/Root/Torso"]
+position = Vector2(0, -75)
+
+[node name="Head" type="Bone2D" parent="Character/Skeleton2D/Root/Torso"]
+position = Vector2(0, -5)
+rest = Transform2D(1, 0, 0, 1, 0, -5)
+autocalculate_length_and_angle = false
+length = 70.0
+
+[node name="HeadSprite" type="Sprite2D" parent="Character/Skeleton2D/Root/Torso/Head"]
+position = Vector2(0, -70)
+
+[node name="ArmLeft" type="Bone2D" parent="Character/Skeleton2D/Root/Torso"]
+position = Vector2(-48, 14)
+rest = Transform2D(1, 0, 0, 1, -48, 14)
+autocalculate_length_and_angle = false
+length = 30.0
+
+[node name="ArmRight" type="Bone2D" parent="Character/Skeleton2D/Root/Torso"]
+position = Vector2(48, 14)
+rest = Transform2D(1, 0, 0, 1, 48, 14)
+autocalculate_length_and_angle = false
+length = 30.0
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]

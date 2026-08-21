@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "name": "idle_front",
+  "fps": 5,
+  "frameCount": 8,
+  "loop": true,
+  "tracks": [
+    {
+      "path": "Character/Skeleton2D/Root/Torso:position",
+      "valueType": "Vector2",
+      "values": [
+        [0, 75],
+        [0, 75],
+        [0, 74],
+        [0, 73],
+        [0, 73],
+        [0, 74],
+        [0, 75],
+        [0, 75]
+      ]
+    }
+  ]
+}
