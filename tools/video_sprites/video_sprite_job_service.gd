@@ -165,6 +165,8 @@ func is_staging_directory_active(path: String) -> bool:
 
 
 static func _paths_overlap(first: String, second: String) -> bool:
+	first = _comparison_path(first)
+	second = _comparison_path(second)
 	return (
 		first == second
 		or first.begins_with(second.trim_suffix("/") + "/")
@@ -344,10 +346,12 @@ static func validate_staging_directory(path: String, path_is_link: Callable = Ca
 		return "staging_directory must be an absolute path"
 	var staging_root := ProjectSettings.globalize_path(STAGING_ROOT).simplify_path()
 	var candidate := path.simplify_path()
-	if not (candidate == staging_root or candidate.begins_with(staging_root.trim_suffix("/") + "/")):
+	var compared_candidate := _comparison_path(candidate)
+	var compared_root := _comparison_path(staging_root)
+	if not (compared_candidate == compared_root or compared_candidate.begins_with(compared_root.trim_suffix("/") + "/")):
 		return "staging_directory must remain under %s and outside res://" % staging_root
 	var project_root := ProjectSettings.globalize_path("res://").simplify_path()
-	if candidate.begins_with(project_root):
+	if compared_candidate.begins_with(_comparison_path(project_root)):
 		return "staging_directory must remain outside res://"
 	if _contains_link_component(staging_root, candidate, path_is_link):
 		return "staging_directory must not traverse a symlink, junction, or reparse point"
@@ -359,13 +363,19 @@ static func _contains_link_component(root: String, candidate: String, path_is_li
 		return _path_is_link(candidate, path_is_link)
 	if _path_is_link(root, path_is_link):
 		return true
-	var relative := candidate.trim_prefix(root.trim_suffix("/") + "/")
+	var root_prefix := root.trim_suffix("/") + "/"
+	var relative := candidate.substr(root_prefix.length())
 	var cursor := root
 	for part in relative.split("/", false):
 		cursor = cursor.path_join(part)
-		if DirAccess.dir_exists_absolute(cursor) and _path_is_link(cursor, path_is_link):
+		if _path_is_link(cursor, path_is_link):
 			return true
 	return false
+
+
+static func _comparison_path(path: String) -> String:
+	var normalized := path.simplify_path().replace("\\", "/")
+	return normalized.to_lower() if OS.get_name() == "Windows" else normalized
 
 
 static func _path_is_link(path: String, path_is_link: Callable = Callable()) -> bool:

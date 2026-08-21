@@ -15,6 +15,9 @@ const VALID_ENGINES := [
 ]
 
 var config_replacer: Callable = Callable()
+var config_restorer: Callable = Callable()
+var authoring_installer: Callable = Callable()
+var output_mutator: Callable = Callable()
 var path_is_link: Callable = Callable()
 var job_service: Variant = JobService.new()
 
@@ -222,9 +225,12 @@ func promote_selection(params: Dictionary) -> Dictionary:
 	errors = emitted.get("errors", PackedStringArray()) as PackedStringArray
 	if not errors.is_empty():
 		return {"errors": errors, "output_path": output_path}
+	if output_mutator.is_valid():
+		output_mutator.call(emitted)
 	var output_validation := _validate_promoted_output(emitted)
 	errors = output_validation.get("errors", PackedStringArray()) as PackedStringArray
 	if not errors.is_empty():
+		_discard_promoted_output(output_path)
 		return {"errors": errors, "output_path": output_path}
 
 	var config := (context["config"] as Dictionary).duplicate(true)
@@ -243,15 +249,14 @@ func promote_selection(params: Dictionary) -> Dictionary:
 		return {"errors": config_errors, "output_path": output_path}
 	var original_config := FileAccess.get_file_as_bytes(str(context["config_path"]))
 	if not _commit_config(str(context["config_path"]), config):
+		_discard_promoted_output(output_path)
 		return {"errors": PackedStringArray(["could not atomically register promoted take"]), "output_path": output_path}
-	var installed := Importer.install_character_library(
-		config,
-		str(config.get("clip_root", PROMOTION_ROOT)),
-		str(config.get("authoring_path", ""))
-	)
+	var installed := _install_authoring(config)
 	errors = installed.get("errors", PackedStringArray()) as PackedStringArray
 	if not errors.is_empty():
-		_restore_config_bytes(str(context["config_path"]), original_config)
+		if not _restore_config(str(context["config_path"]), original_config):
+			errors.append("config rollback failed; original bytes could not be restored")
+		_discard_promoted_output(output_path)
 		return {"errors": errors, "output_path": output_path}
 	var result := preview.duplicate(true)
 	result.merge(emitted, true)
@@ -281,12 +286,11 @@ func set_preferred_take(params: Dictionary) -> Dictionary:
 	var original_config := FileAccess.get_file_as_bytes(str(context["config_path"]))
 	if not _commit_config(str(context["config_path"]), config):
 		return {"errors": PackedStringArray(["could not atomically update preferred take"])}
-	var installed := Importer.install_character_library(
-		config, str(config.get("clip_root", PROMOTION_ROOT)), str(config.get("authoring_path", ""))
-	)
+	var installed := _install_authoring(config)
 	errors = installed.get("errors", PackedStringArray()) as PackedStringArray
 	if not errors.is_empty():
-		_restore_config_bytes(str(context["config_path"]), original_config)
+		if not _restore_config(str(context["config_path"]), original_config):
+			errors.append("config rollback failed; original bytes could not be restored")
 		return {"errors": errors}
 	return {
 		"errors": PackedStringArray(), "character_id": context["character_id"],
@@ -457,7 +461,7 @@ func _emit_promoted_take(
 		promoted_frames.append({
 			"index": playback_index,
 			"source_index": source_index,
-			"source_frame": int(source_frame.get("source_frame", source_index + 1)),
+			"source_frame": int(source_frame["source_frame"]),
 			"timestamp_seconds": float(source_frame.get("timestamp_seconds", 0.0)),
 			"source_duration_ms": float(source_frame.get("duration_ms", 0.0)),
 			"duration_ms": duration_ms,
@@ -553,6 +557,9 @@ centered = false
 		"preview_path": preview_path,
 		"unique_frame_count": unique_indices.size(),
 		"playback_frame_count": selection.size(),
+		"selection": selection.duplicate(),
+		"fps": fps,
+		"loop": loop,
 		"output_path": output_path,
 		"take": preview["take"],
 	}
@@ -566,11 +573,44 @@ func _validate_promoted_output(emitted: Dictionary) -> Dictionary:
 	var atlas := Image.load_from_file(ProjectSettings.globalize_path(str(emitted.get("atlas_path", ""))))
 	if atlas.is_empty() or atlas.get_height() != CELL_SIZE.y or atlas.get_width() != int(emitted.get("unique_frame_count", 0)) * CELL_SIZE.x:
 		errors.append("promoted atlas dimensions are invalid")
+	var manifest_result := _parse_json_file(str(emitted.get("manifest_path", "")), "promoted manifest")
+	var provenance_result := _parse_json_file(str(emitted.get("provenance_path", "")), "promoted provenance")
+	errors.append_array(manifest_result.get("errors", PackedStringArray()))
+	errors.append_array(provenance_result.get("errors", PackedStringArray()))
+	if (manifest_result.get("value", null) is Dictionary and provenance_result.get("value", null) is Dictionary):
+		var manifest := manifest_result["value"] as Dictionary
+		var provenance := provenance_result["value"] as Dictionary
+		var expected_selection := emitted.get("selection", []) as Array
+		if _json_integer_array(provenance.get("ordered_source_indices", null)) != expected_selection:
+			errors.append("promoted provenance ordered selection failed readback")
+		var row := ((manifest.get("animation", {}) as Dictionary).get("rows", {}) as Dictionary).get(STATE, {}) as Dictionary
+		if not is_equal_approx(float(row.get("fps", 0.0)), float(emitted.get("fps", 0.0))) or bool(row.get("loop", false)) != bool(emitted.get("loop", false)):
+			errors.append("promoted manifest FPS/loop failed readback")
+		var source_frames := manifest.get("source_frames", []) as Array
+		if source_frames.size() != expected_selection.size():
+			errors.append("promoted manifest frame count failed readback")
+		for frame_value: Variant in source_frames:
+			if not frame_value is Dictionary:
+				errors.append("promoted manifest frame failed readback")
+				continue
+			var frame := frame_value as Dictionary
+			var png_path := str(emitted.get("output_path", "")).path_join(str(frame.get("png", "")))
+			if not FileAccess.file_exists(png_path) or FileAccess.get_sha256(png_path) != str(frame.get("sha256", "")):
+				errors.append("promoted PNG hash failed readback")
+			if not frame.get("rect", null) is Dictionary or Vector2i(int((frame["rect"] as Dictionary).get("w", 0)), int((frame["rect"] as Dictionary).get("h", 0))) != CELL_SIZE:
+				errors.append("promoted manifest region failed readback")
 	var frames := ResourceLoader.load(
 		str(emitted.get("resource_path", "")), "SpriteFrames", ResourceLoader.CACHE_MODE_REPLACE
 	) as SpriteFrames
 	if frames == null or not frames.has_animation(&"source_all") or frames.get_frame_count(&"source_all") != int(emitted.get("playback_frame_count", 0)):
 		errors.append("promoted selected SpriteFrames failed validation")
+	elif not is_equal_approx(frames.get_animation_speed(&"source_all"), float(emitted.get("fps", 0.0))) or frames.get_animation_loop(&"source_all") != bool(emitted.get("loop", false)):
+		errors.append("promoted selected SpriteFrames timing failed validation")
+	else:
+		for index in frames.get_frame_count(&"source_all"):
+			var texture := frames.get_frame_texture(&"source_all", index)
+			if not texture is AtlasTexture or (texture as AtlasTexture).region.size != Vector2(CELL_SIZE):
+				errors.append("promoted selected SpriteFrames region failed validation")
 	return {"errors": errors}
 
 
@@ -582,27 +622,20 @@ func _commit_config(config_path: String, config: Dictionary) -> bool:
 	var replaced := (
 		bool(config_replacer.call(temporary, absolute))
 		if config_replacer.is_valid()
-		else _replace_file_with_backup(temporary, absolute)
+		else _replace_file_direct(temporary, absolute)
 	)
 	if FileAccess.file_exists(temporary):
 		DirAccess.remove_absolute(temporary)
 	return replaced
 
 
-static func _replace_file_with_backup(temporary: String, destination: String) -> bool:
-	var backup := "%s.%d.backup" % [destination, Time.get_ticks_usec()]
-	if FileAccess.file_exists(destination) and DirAccess.rename_absolute(destination, backup) != OK:
-		return false
-	if DirAccess.rename_absolute(temporary, destination) != OK:
-		if FileAccess.file_exists(backup):
-			DirAccess.rename_absolute(backup, destination)
-		return false
-	if FileAccess.file_exists(backup):
-		DirAccess.remove_absolute(backup)
-	return true
+static func _replace_file_direct(temporary: String, destination: String) -> bool:
+	return DirAccess.rename_absolute(temporary, destination) == OK
 
 
-static func _restore_config_bytes(config_path: String, bytes: PackedByteArray) -> bool:
+func _restore_config(config_path: String, bytes: PackedByteArray) -> bool:
+	if config_restorer.is_valid():
+		return bool(config_restorer.call(config_path, bytes))
 	var absolute := ProjectSettings.globalize_path(config_path)
 	var temporary := "%s.%d.restore" % [absolute, Time.get_ticks_usec()]
 	var file := FileAccess.open(temporary, FileAccess.WRITE)
@@ -610,7 +643,27 @@ static func _restore_config_bytes(config_path: String, bytes: PackedByteArray) -
 		return false
 	file.store_buffer(bytes)
 	file.close()
-	return _replace_file_with_backup(temporary, absolute)
+	return _replace_file_direct(temporary, absolute)
+
+
+func _install_authoring(config: Dictionary) -> Dictionary:
+	var clip_root := str(config.get("clip_root", PROMOTION_ROOT))
+	var authoring_path := str(config.get("authoring_path", ""))
+	return (
+		authoring_installer.call(config, clip_root, authoring_path) as Dictionary
+		if authoring_installer.is_valid()
+		else Importer.install_character_library(config, clip_root, authoring_path)
+	)
+
+
+func _discard_promoted_output(path: String) -> bool:
+	var absolute := ProjectSettings.globalize_path(path).simplify_path()
+	var root := ProjectSettings.globalize_path(PROMOTION_ROOT).simplify_path()
+	var compared := absolute.to_lower() if OS.get_name() == "Windows" else absolute
+	var compared_root := root.to_lower() if OS.get_name() == "Windows" else root
+	if not compared.begins_with(compared_root.trim_suffix("/") + "/"):
+		return false
+	return not DirAccess.dir_exists_absolute(absolute) or _remove_tree_exact(absolute)
 
 
 static func _write_json_new_absolute(path: String, value: Dictionary) -> bool:
@@ -686,7 +739,7 @@ static func _validate_selection_values(
 	}
 
 
-static func _validate_manifest_structure(
+func _validate_manifest_structure(
 	manifest: Dictionary,
 	manifest_path: String,
 	errors: PackedStringArray
@@ -776,6 +829,8 @@ static func _validate_manifest_structure(
 		var frame := frame_value as Dictionary
 		if not _is_integer_value(frame.get("index", null)) or int(frame.get("index", -1)) != index:
 			errors.append("source frame indices must be contiguous from zero")
+		if not _is_integer_value(frame.get("source_frame", null)) or int(frame.get("source_frame", 0)) <= 0:
+			errors.append("source frame %d source_frame must be a positive integer" % index)
 		if float(frame.get("duration_ms", 0.0)) <= 0.0:
 			errors.append("source frame %d duration must be positive" % index)
 		elif index < row_durations.size() and absf(float(frame.get("duration_ms", 0.0)) - float(row_durations[index])) > 0.002:
@@ -793,7 +848,7 @@ static func _validate_manifest_structure(
 		var png_declared := str(frame.get("png", ""))
 		var png_path := _resolve_staged_asset(manifest_path, png_declared)
 		if png_path.is_empty() or not FileAccess.file_exists(png_path):
-			errors.append("source frame %d PNG not found inside staging: %s" % [index, png_declared])
+			errors.append("source frame %d PNG not found inside staging or traverses a link: %s" % [index, png_declared])
 		elif not _is_sha256(str(frame.get("sha256", ""))) or FileAccess.get_sha256(png_path) != str(frame.get("sha256", "")):
 			errors.append("source frame %d PNG sha256 mismatch" % index)
 		else:
@@ -803,7 +858,7 @@ static func _validate_manifest_structure(
 
 	var atlas_path := _resolve_staged_asset(manifest_path, str(manifest.get("game_input", "")))
 	if atlas_path.is_empty() or not FileAccess.file_exists(atlas_path):
-		errors.append("source atlas not found inside staging")
+		errors.append("source atlas not found inside staging or traverses a link")
 	else:
 		var atlas := Image.load_from_file(atlas_path)
 		if atlas.is_empty() or Vector2i(atlas.get_width(), atlas.get_height()) != Vector2i(sheet_width, sheet_height):
@@ -853,24 +908,26 @@ static func _validate_rect(
 		errors.append("source rectangle %d must be an in-bounds 256x256 cell" % index)
 
 
-static func _validate_external_manifest_path(path: String) -> String:
+func _validate_external_manifest_path(path: String) -> String:
 	if path.is_empty():
 		return "manifest_path is required"
 	var absolute := _absolute_path(path)
 	if not absolute.is_absolute_path() or not FileAccess.file_exists(absolute):
 		return "manifest_path must be an existing absolute/user path"
-	var staging_error := JobService.validate_staging_directory(absolute.get_base_dir())
+	var staging_error := JobService.validate_staging_directory(absolute, path_is_link)
 	if not staging_error.is_empty():
 		return staging_error.replace("staging_directory", "manifest_path")
 	return ""
 
 
-static func _resolve_staged_asset(manifest_path: String, declared: String) -> String:
+func _resolve_staged_asset(manifest_path: String, declared: String) -> String:
 	if declared.is_empty() or declared.is_absolute_path() or declared.contains(".."):
 		return ""
 	var root := manifest_path.get_base_dir().simplify_path()
 	var candidate := root.path_join(declared).simplify_path()
 	if not candidate.begins_with(root.trim_suffix("/") + "/"):
+		return ""
+	if not JobService.validate_staging_directory(candidate, path_is_link).is_empty():
 		return ""
 	return candidate
 

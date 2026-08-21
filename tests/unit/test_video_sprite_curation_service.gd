@@ -182,8 +182,35 @@ func test_external_manifest_validation_rejects_inconsistent_counts_timing_and_st
 	_assert_manifest_error(service, fixture["manifest_path"], manifest, "more than one")
 
 
+func test_external_manifest_rejects_links_at_manifest_atlas_frame_directory_and_png() -> void:
+	var fixture := _write_external_fixture("linked-assets", 2)
+	var service: Variant = _new_service()
+	for linked_suffix: String in ["manifest.json", "atlas.png", "frames", "frame_001.png"]:
+		service.path_is_link = func(path: String) -> bool: return path.replace("\\", "/").ends_with(linked_suffix)
+		var result: Dictionary = service.validate_external_manifest(fixture["manifest_path"])
+		assert_str("\n".join(result.get("errors", PackedStringArray()))).contains("link")
+	service.path_is_link = Callable()
+
+
+func test_external_manifest_requires_positive_integral_source_frame_provenance() -> void:
+	var service: Variant = _new_service()
+	for invalid: Variant in [null, 0, -1, 1.5, "1"]:
+		var fixture := _write_external_fixture("source-frame", 2)
+		var manifest := _read_json(fixture["manifest_path"])
+		var frame := (manifest["source_frames"] as Array)[0] as Dictionary
+		if invalid == null:
+			frame.erase("source_frame")
+		else:
+			frame["source_frame"] = invalid
+		_assert_manifest_error(service, fixture["manifest_path"], manifest, "source_frame")
+
+
 func test_promotion_packs_unique_cells_reuses_duplicate_rects_and_emits_selected_only_resources() -> void:
 	var fixture := _write_external_fixture("promote", 3)
+	var source_manifest := _read_json(fixture["manifest_path"])
+	for index in 3:
+		((source_manifest["source_frames"] as Array)[index] as Dictionary)["source_frame"] = 101 + index
+	_write_json(fixture["manifest_path"], source_manifest)
 	var service: Variant = _new_service()
 	if service == null or not _require_method(service, "promote_selection"):
 		return
@@ -218,7 +245,7 @@ func test_promotion_packs_unique_cells_reuses_duplicate_rects_and_emits_selected
 	assert_dict(rects[0]).is_not_equal(rects[1])
 	var source_frames := manifest["source_frames"] as Array
 	assert_array(source_frames.map(func(frame: Dictionary) -> int: return int(frame["source_index"]))).contains_exactly([2, 0, 2])
-	assert_array(source_frames.map(func(frame: Dictionary) -> int: return int(frame["source_frame"]))).contains_exactly([3, 1, 3])
+	assert_array(source_frames.map(func(frame: Dictionary) -> int: return int(frame["source_frame"]))).contains_exactly([103, 101, 103])
 	assert_float(float((source_frames[0] as Dictionary)["timestamp_seconds"])).is_equal_approx(0.08, 0.001)
 	assert_float(float((source_frames[0] as Dictionary)["duration_ms"])).is_equal_approx(1000.0 / 12.0, 0.001)
 	assert_bool((((manifest["animation"] as Dictionary)["rows"] as Dictionary)["source_all"] as Dictionary)["loop"]).is_false()
@@ -300,6 +327,51 @@ func test_failed_atomic_config_replacement_keeps_original_bytes_and_reports_fail
 	assert_array(FileAccess.get_file_as_bytes(CONFIG_PATH)).contains_exactly(original)
 	assert_int((_read_json(CONFIG_PATH)["actions"]["dash"]["takes"] as Array).size()).is_equal(0)
 	assert_bool(FileAccess.file_exists(AUTHORING_PATH)).is_false()
+
+
+func test_promotion_readback_rejects_tampered_provenance_before_registration() -> void:
+	var fixture := _write_external_fixture("readback", 2)
+	var service: Variant = _new_service()
+	assert_bool("output_mutator" in service).is_true()
+	if not "output_mutator" in service:
+		return
+	service.output_mutator = func(emitted: Dictionary) -> void:
+		var provenance := _read_json(str(emitted["provenance_path"]))
+		provenance["ordered_source_indices"] = [0]
+		_write_json(str(emitted["provenance_path"]), provenance)
+	var result: Dictionary = service.promote_selection(_promotion_params(fixture["manifest_path"], "readback"))
+	assert_str("\n".join(result.get("errors", PackedStringArray()))).contains("provenance")
+	assert_int((_read_json(CONFIG_PATH)["actions"]["dash"]["takes"] as Array).size()).is_equal(0)
+
+
+func test_authoring_failure_restores_config_and_removes_only_new_output() -> void:
+	var fixture := _write_external_fixture("authoring-rollback", 2)
+	var service: Variant = _new_service()
+	assert_bool("authoring_installer" in service).is_true()
+	if not "authoring_installer" in service:
+		return
+	service.authoring_installer = func(_config: Dictionary, _clip_root: String, _path: String) -> Dictionary:
+		return {"errors": PackedStringArray(["injected authoring failure"])}
+	var original := FileAccess.get_file_as_bytes(CONFIG_PATH)
+	var result: Dictionary = service.promote_selection(_promotion_params(fixture["manifest_path"], "rollback"))
+	assert_str("\n".join(result.get("errors", PackedStringArray()))).contains("injected authoring failure")
+	assert_array(FileAccess.get_file_as_bytes(CONFIG_PATH)).contains_exactly(original)
+	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(OUTPUT_ROOT + "/dash/rollback"))).is_false()
+
+
+func test_restore_failure_is_reported_loudly_and_new_output_is_removed() -> void:
+	var fixture := _write_external_fixture("restore-failure", 2)
+	var service: Variant = _new_service()
+	assert_bool("authoring_installer" in service).is_true()
+	assert_bool("config_restorer" in service).is_true()
+	if not "authoring_installer" in service or not "config_restorer" in service:
+		return
+	service.authoring_installer = func(_config: Dictionary, _clip_root: String, _path: String) -> Dictionary:
+		return {"errors": PackedStringArray(["injected authoring failure"])}
+	service.config_restorer = func(_path: String, _bytes: PackedByteArray) -> bool: return false
+	var result: Dictionary = service.promote_selection(_promotion_params(fixture["manifest_path"], "restore_fail"))
+	assert_str("\n".join(result.get("errors", PackedStringArray()))).contains("rollback failed")
+	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(OUTPUT_ROOT + "/dash/restore_fail"))).is_false()
 
 
 func test_preferred_take_changes_only_explicitly_and_rebuilds_authoring_without_runtime_publish() -> void:
@@ -384,6 +456,22 @@ func test_cleanup_refuses_a_cache_owned_by_an_active_job_but_allows_terminal_job
 		"staging_directory": ProjectSettings.globalize_path(fixture["root"]),
 	})
 	assert_array(terminal.get("errors", PackedStringArray())).is_empty()
+
+
+func test_cleanup_active_job_overlap_is_case_insensitive_on_windows() -> void:
+	if OS.get_name() != "Windows":
+		return
+	var fixture := _write_external_fixture("case-job", 2)
+	var service: Variant = _new_service()
+	var jobs: Variant = load(JOB_SERVICE_PATH).new()
+	service.job_service = jobs
+	var receipt_path := STAGING_ROOT.path_join("case-receipt.json")
+	var staging := ProjectSettings.globalize_path(fixture["root"])
+	_write_json(receipt_path, {"job_id": "case-job", "state": "running", "output_directory": staging.to_upper()})
+	jobs.track_job("case-job", receipt_path, 123)
+	var active: Dictionary = service.cleanup_staging({"staging_directory": staging})
+	assert_str("\n".join(active.get("errors", PackedStringArray()))).contains("active job")
+	assert_bool(DirAccess.dir_exists_absolute(staging)).is_true()
 
 
 func _new_service() -> Variant:
