@@ -7,6 +7,8 @@ const DEFAULT_OUTPUT := "res://tools/sprites/niko_video_library"
 const JOB_ROOT := "user://video_sprite_jobs"
 const DEFAULT_CHARACTER_CONFIG := "res://tools/video_sprites/niko_character_sources.json"
 const SPRITE_GEN_WORKER := "res://tools/video_sprites/spritegen_video_worker.py"
+const PIPELINE_ROOT_SETTING := "video_sprites/pixelmotion_root"
+const SOURCE_DIRECTORY_SETTING := "video_sprites/niko/source_directory"
 
 var _jobs: Dictionary = {}
 
@@ -111,9 +113,12 @@ func _character_import_all(params: Dictionary) -> Dictionary:
 	enriched.erase("config_path")
 	if params.has("worker_config_path"):
 		enriched["config_path"] = params["worker_config_path"]
-	enriched["source_directory"] = str(
-		enriched.get("source_directory", config.get("source_directory", ""))
-	)
+	enriched["source_directory"] = resolve_character_source_directory(config, enriched)
+	if str(enriched["source_directory"]).is_empty():
+		return error_invalid_params(
+			"source_directory is missing; set %s, NIKO_VIDEO_SOURCE_DIRECTORY, or pass an override"
+			% SOURCE_DIRECTORY_SETTING
+		)
 	enriched["output_directory"] = str(config.get("clip_root", DEFAULT_OUTPUT))
 	enriched["character_config_path"] = str(context["config_path"])
 	return _start_import_response("import-directory", enriched)
@@ -198,10 +203,46 @@ static func resolve_pipeline_root(params: Dictionary) -> String:
 	var candidate := str(params.get("pipeline_root", ""))
 	if candidate.is_empty():
 		candidate = OS.get_environment("PIXELMOTION2D_ROOT")
+	if candidate.is_empty():
+		candidate = str(ProjectSettings.get_setting(PIPELINE_ROOT_SETTING, ""))
+	if candidate.is_empty():
+		candidate = _discover_workspace_directory("pixelmotion-2d-niko")
 	if candidate.is_empty() or not candidate.is_absolute_path():
 		return ""
 	candidate = candidate.simplify_path()
 	return candidate if DirAccess.dir_exists_absolute(candidate) else ""
+
+
+static func resolve_character_source_directory(
+	config: Dictionary, params: Dictionary = {}
+) -> String:
+	var candidates := PackedStringArray([
+		str(params.get("source_directory", "")),
+		OS.get_environment("NIKO_VIDEO_SOURCE_DIRECTORY"),
+		str(ProjectSettings.get_setting(SOURCE_DIRECTORY_SETTING, "")),
+		str(config.get("source_directory", "")),
+		_discover_workspace_directory("MINIMAX_OK/niko"),
+	])
+	for candidate_value: String in candidates:
+		if candidate_value.is_empty() or not candidate_value.is_absolute_path():
+			continue
+		var candidate := candidate_value.simplify_path()
+		if DirAccess.dir_exists_absolute(candidate):
+			return candidate
+	return ""
+
+
+static func _discover_workspace_directory(relative_path: String) -> String:
+	var cursor := ProjectSettings.globalize_path("res://").simplify_path()
+	for _depth in 6:
+		var candidate := cursor.path_join(relative_path).simplify_path()
+		if DirAccess.dir_exists_absolute(candidate):
+			return candidate
+		var parent := cursor.get_base_dir()
+		if parent == cursor:
+			break
+		cursor = parent
+	return ""
 
 
 static func resolve_sprite_gen_root(params: Dictionary) -> String:
@@ -388,6 +429,8 @@ func validate_library_resources(output_path: String) -> Dictionary:
 		var clip_root := output_path.path_join(clip_id)
 		var parsed := Importer.parse_manifest_file(clip_root.path_join("manifest.json"))
 		var clip_errors := parsed.get("errors", PackedStringArray()) as PackedStringArray
+		if clip_errors.is_empty():
+			clip_errors = Importer.validate_manifest_assets(parsed["manifest"] as Dictionary)
 		for message in clip_errors:
 			errors.append("%s: %s" % [clip_id, message])
 		for required in ["source_all_frames.tres", "selection.tres", "preview.tscn"]:

@@ -276,6 +276,20 @@ func test_publish_runtime_rejects_missing_idle_without_writing_a_fallback() -> v
 	assert_bool(FileAccess.file_exists(RUNTIME_ROOT + "/niko_runtime_frames.tres")).is_false()
 
 
+func test_publish_runtime_rejects_a_deleted_configured_gameplay_action() -> void:
+	var authoring := SpriteFrames.new()
+	authoring.remove_animation(&"default")
+	authoring.add_animation(&"idle_down")
+	authoring.add_frame(&"idle_down", _solid_texture(Color.RED))
+	authoring.set_meta("required_runtime_actions", PackedStringArray(["idle", "walk"]))
+
+	var result := Importer.publish_character_runtime(
+		authoring, "niko", RUNTIME_ROOT, Callable(self, "_load_png_texture"), 2, 2
+	)
+	assert_str("\n".join(result.get("errors", PackedStringArray()))).contains("walk_down")
+	assert_bool(FileAccess.file_exists(RUNTIME_ROOT + "/niko_runtime_frames.tres")).is_false()
+
+
 func _config() -> Dictionary:
 	return {
 		"schema_version": 1,

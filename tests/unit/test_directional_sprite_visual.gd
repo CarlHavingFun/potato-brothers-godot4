@@ -73,6 +73,22 @@ func test_victory_uses_its_front_only_fallback() -> void:
 	assert_str(visual.animation).is_equal("victory_down")
 
 
+func test_missing_transient_animation_does_not_latch_the_idle_fallback() -> void:
+	var visual := auto_free(DirectionalSpriteVisual.new()) as DirectionalSpriteVisual
+	var frames := SpriteFrames.new()
+	frames.remove_animation(&"default")
+	frames.add_animation(&"idle_down")
+	frames.set_animation_loop(&"idle_down", true)
+	frames.add_frame(&"idle_down", GradientTexture2D.new())
+	visual.sprite_frames = frames
+	add_child(visual)
+	await await_idle_frame()
+
+	assert_bool(visual.trigger_action(&"dash")).is_false()
+	assert_str(visual.current_action).is_equal("idle")
+	assert_str(visual.animation).is_equal("idle_down")
+
+
 func test_player_detects_directional_visual_without_changing_weapon_container() -> void:
 	var player := auto_free(
 		load("res://scenes/unit/players/player_well_rounded.tscn").instantiate()

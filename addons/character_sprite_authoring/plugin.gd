@@ -4,33 +4,74 @@ extends EditorPlugin
 
 const Importer = preload("res://tools/video_sprites/video_sprite_manifest_importer.gd")
 const Commands = preload("res://mcp_commands/video_sprite_commands.gd")
+const ImportJobTracker = preload("res://addons/character_sprite_authoring/import_job_tracker.gd")
 const CONFIG_PATH := "res://tools/video_sprites/niko_character_sources.json"
 const IMPORT_LABEL := "角色精灵/导入 Niko 全部视频"
 const PUBLISH_LABEL := "角色精灵/发布当前角色动画"
 const STATUS_LABEL := "角色精灵/显示当前角色状态"
+const POLL_INTERVAL_SECONDS := 0.5
+
+var _commands: Commands
+var _job_tracker: CharacterSpriteImportJobTracker
+var _poll_elapsed := 0.0
 
 
 func _enter_tree() -> void:
+	_commands = Commands.new()
+	_job_tracker = ImportJobTracker.new()
+	_job_tracker.commands = _commands
+	set_process(false)
 	add_tool_menu_item(IMPORT_LABEL, _import_all)
 	add_tool_menu_item(PUBLISH_LABEL, _publish_current)
 	add_tool_menu_item(STATUS_LABEL, _show_status)
 
 
 func _exit_tree() -> void:
+	set_process(false)
 	remove_tool_menu_item(IMPORT_LABEL)
 	remove_tool_menu_item(PUBLISH_LABEL)
 	remove_tool_menu_item(STATUS_LABEL)
+	_job_tracker = null
+	if is_instance_valid(_commands):
+		_commands.free()
+	_commands = null
+
+
+func _process(delta: float) -> void:
+	_poll_elapsed += delta
+	if _poll_elapsed < POLL_INTERVAL_SECONDS:
+		return
+	_poll_elapsed = 0.0
+	poll_import_job()
 
 
 func _import_all() -> void:
-	var commands := Commands.new()
-	var result := commands.get_commands()["character_sprite.import_all"].call({
+	var context := _load_context()
+	if not (context.get("errors", PackedStringArray()) as PackedStringArray).is_empty():
+		_print_result("导入失败", context)
+		return
+	var config := context["config"] as Dictionary
+	var source_directory := Commands.resolve_character_source_directory(config)
+	var pipeline_root := Commands.resolve_pipeline_root({})
+	var result := _commands.get_commands()["character_sprite.import_all"].call({
 		"character_id": "niko",
 		"config_path": CONFIG_PATH,
-		"pipeline_root": "E:/01_gobro/pixelmotion-2d-niko",
+		"source_directory": source_directory,
+		"pipeline_root": pipeline_root,
 	}) as Dictionary
 	_print_result("导入任务", result)
-	commands.free()
+	if _job_tracker.track_import_result(result):
+		_poll_elapsed = 0.0
+		set_process(true)
+
+
+func poll_import_job() -> Dictionary:
+	var result := _job_tracker.poll_import_job()
+	if not _job_tracker.active_job_id.is_empty():
+		return result
+	set_process(false)
+	_print_result("导入完成", result)
+	return result
 
 
 func _publish_current() -> void:
@@ -57,12 +98,10 @@ func _publish_current() -> void:
 
 
 func _show_status() -> void:
-	var commands := Commands.new()
-	var result := commands.get_commands()["character_sprite.status"].call({
+	var result := _commands.get_commands()["character_sprite.status"].call({
 		"character_id": "niko", "config_path": CONFIG_PATH,
 	}) as Dictionary
 	_print_result("角色状态", result)
-	commands.free()
 
 
 func _load_context() -> Dictionary:

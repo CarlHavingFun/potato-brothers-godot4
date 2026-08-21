@@ -9,10 +9,22 @@ const MANIFEST_PATH := INSTALL_ROOT + "/manifest.json"
 const SOURCE_PATH := INSTALL_ROOT + "/source_all_frames.tres"
 const SELECTION_PATH := INSTALL_ROOT + "/selection.tres"
 const PREVIEW_PATH := INSTALL_ROOT + "/preview.tscn"
+const STRICT_ROOT := "res://reports/video_sprite_importer/strict_assets"
+const STRICT_FRAME_PATH := STRICT_ROOT + "/frame_001.png"
+const STRICT_FRAME_2_PATH := STRICT_ROOT + "/frame_002.png"
+const STRICT_ATLAS_PATH := STRICT_ROOT + "/atlas.png"
 
 
 func after_test() -> void:
-	for path: String in [PREVIEW_PATH, SELECTION_PATH, SOURCE_PATH, MANIFEST_PATH]:
+	for path: String in [
+		PREVIEW_PATH,
+		SELECTION_PATH,
+		SOURCE_PATH,
+		MANIFEST_PATH,
+		STRICT_FRAME_PATH,
+		STRICT_FRAME_2_PATH,
+		STRICT_ATLAS_PATH,
+	]:
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
@@ -47,6 +59,9 @@ func test_manifest_rejects_unsafe_or_incomplete_frame_provenance() -> void:
 	(rects[1] as Dictionary)["x"] = 4096
 	var sources := manifest["source_frames"] as Array
 	(sources[1] as Dictionary)["index"] = 0
+	(sources[1] as Dictionary)["source_frame"] = 99
+	(sources[1] as Dictionary)["timestamp_seconds"] = -1.0
+	(sources[1] as Dictionary)["sha256"] = ""
 	(sources[1] as Dictionary)["png"] = "missing.png"
 	var report := "\n".join(Importer.validate_manifest(manifest))
 	assert_str(report).contains("degraded_static_fallback must be false")
@@ -54,6 +69,9 @@ func test_manifest_rejects_unsafe_or_incomplete_frame_provenance() -> void:
 	assert_str(report).contains("duration 1 must be positive")
 	assert_str(report).contains("rectangle 1 exceeds the declared sheet")
 	assert_str(report).contains("indices must be contiguous")
+	assert_str(report).contains("source_frame must equal 2")
+	assert_str(report).contains("timestamp_seconds must be non-negative")
+	assert_str(report).contains("sha256 must contain 64 lowercase hex characters")
 	assert_str(report).contains("PNG not found")
 
 
@@ -131,6 +149,52 @@ func test_headless_cli_rejects_missing_and_unknown_arguments() -> void:
 	assert_str("\n".join(unknown.get("errors", PackedStringArray()))).contains("unknown argument")
 
 
+func test_strict_asset_validation_rejects_hash_pixel_contract_and_atlas_tampering() -> void:
+	var importer := Importer.new()
+	if not importer.has_method("validate_manifest_assets"):
+		fail("strict PNG and atlas validation is not implemented")
+		return
+	var manifest := _strict_asset_manifest()
+	assert_array(importer.call("validate_manifest_assets", manifest)).is_empty()
+
+	(manifest["source_frames"] as Array)[0]["sha256"] = "0".repeat(64)
+	var report := "\n".join(importer.call("validate_manifest_assets", manifest))
+	assert_str(report).contains("sha256 mismatch")
+
+	var tampered := Image.load_from_file(ProjectSettings.globalize_path(STRICT_FRAME_PATH))
+	for index in 33:
+		tampered.set_pixel(24 + index, 200, Color8(index * 7, index * 5, index * 3, 255))
+	tampered.set_pixel(23, 201, Color8(255, 0, 255, 128))
+	assert_int(tampered.save_png(ProjectSettings.globalize_path(STRICT_FRAME_PATH))).is_equal(OK)
+	(manifest["source_frames"] as Array)[0]["sha256"] = FileAccess.get_sha256(STRICT_FRAME_PATH)
+	report = "\n".join(importer.call("validate_manifest_assets", manifest))
+	assert_str(report).contains("hard alpha")
+	assert_str(report).contains("32-colour palette")
+	assert_str(report).contains("24px safe margin")
+	assert_str(report).contains("does not match atlas region")
+
+
+func test_strict_asset_validation_enforces_shared_palette_and_exact_grounding() -> void:
+	var importer := Importer.new()
+	var manifest := _strict_two_frame_manifest_with_disjoint_palettes()
+	var report := "\n".join(importer.call("validate_manifest_assets", manifest))
+	assert_str(report).contains("shared 32-colour palette")
+
+	manifest = _strict_asset_manifest()
+	var empty := Image.create(256, 256, false, Image.FORMAT_RGBA8)
+	empty.fill(Color(0, 0, 0, 0))
+	_write_strict_frame_and_atlas(empty, manifest)
+	report = "\n".join(importer.call("validate_manifest_assets", manifest))
+	assert_str(report).contains("at least one opaque pixel")
+
+	var floating := Image.create(256, 256, false, Image.FORMAT_RGBA8)
+	floating.fill(Color(0, 0, 0, 0))
+	floating.fill_rect(Rect2i(120, 200, 16, 16), Color8(120, 80, 40, 255))
+	_write_strict_frame_and_atlas(floating, manifest)
+	report = "\n".join(importer.call("validate_manifest_assets", manifest))
+	assert_str(report).contains("must be grounded at root y=232")
+
+
 func _write_install_manifest() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(INSTALL_ROOT))
 	var manifest := _valid_manifest(2)
@@ -143,6 +207,66 @@ func _write_install_manifest() -> void:
 	assert_object(file).is_not_null()
 	file.store_string(JSON.stringify(manifest))
 	file.close()
+
+
+func _strict_asset_manifest() -> Dictionary:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(STRICT_ROOT))
+	var image := Image.create(256, 256, false, Image.FORMAT_RGBA8)
+	image.fill(Color(0, 0, 0, 0))
+	image.fill_rect(Rect2i(120, 200, 16, 32), Color8(120, 80, 40, 255))
+	assert_int(image.save_png(ProjectSettings.globalize_path(STRICT_FRAME_PATH))).is_equal(OK)
+	assert_int(image.save_png(ProjectSettings.globalize_path(STRICT_ATLAS_PATH))).is_equal(OK)
+	var manifest := _valid_manifest(1)
+	manifest["engine"] = "pixelmotion2d-cutout+sprite-gen-pixel-unfake"
+	manifest["_manifest_path"] = STRICT_ROOT + "/manifest.json"
+	manifest["game_input"] = "atlas.png"
+	manifest["processing"] = {"hard_alpha": true, "palette_size": 32}
+	var layout := manifest["frame_layout"] as Dictionary
+	layout["sheetWidth"] = 256
+	layout["sheetHeight"] = 256
+	var source := (manifest["source_frames"] as Array)[0] as Dictionary
+	source["png"] = "frame_001.png"
+	source["sha256"] = FileAccess.get_sha256(STRICT_FRAME_PATH)
+	return manifest
+
+
+func _strict_two_frame_manifest_with_disjoint_palettes() -> Dictionary:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(STRICT_ROOT))
+	var first := Image.create(256, 256, false, Image.FORMAT_RGBA8)
+	var second := Image.create(256, 256, false, Image.FORMAT_RGBA8)
+	first.fill(Color(0, 0, 0, 0))
+	second.fill(Color(0, 0, 0, 0))
+	for index in 17:
+		first.set_pixel(112 + index, 231, Color8(10 + index, 40 + index, 70 + index, 255))
+		second.set_pixel(112 + index, 231, Color8(110 + index, 140 + index, 170 + index, 255))
+	assert_int(first.save_png(ProjectSettings.globalize_path(STRICT_FRAME_PATH))).is_equal(OK)
+	assert_int(second.save_png(ProjectSettings.globalize_path(STRICT_FRAME_2_PATH))).is_equal(OK)
+	var atlas := Image.create(512, 256, false, Image.FORMAT_RGBA8)
+	atlas.fill(Color(0, 0, 0, 0))
+	atlas.blit_rect(first, Rect2i(0, 0, 256, 256), Vector2i.ZERO)
+	atlas.blit_rect(second, Rect2i(0, 0, 256, 256), Vector2i(256, 0))
+	assert_int(atlas.save_png(ProjectSettings.globalize_path(STRICT_ATLAS_PATH))).is_equal(OK)
+	var manifest := _valid_manifest(2)
+	manifest["engine"] = "pixelmotion2d-cutout+sprite-gen-pixel-unfake"
+	manifest["_manifest_path"] = STRICT_ROOT + "/manifest.json"
+	manifest["game_input"] = "atlas.png"
+	manifest["processing"] = {"hard_alpha": true, "palette_size": 32}
+	var layout := manifest["frame_layout"] as Dictionary
+	layout["sheetWidth"] = 512
+	layout["sheetHeight"] = 256
+	var sources := manifest["source_frames"] as Array
+	(sources[0] as Dictionary)["png"] = "frame_001.png"
+	(sources[0] as Dictionary)["sha256"] = FileAccess.get_sha256(STRICT_FRAME_PATH)
+	(sources[1] as Dictionary)["png"] = "frame_002.png"
+	(sources[1] as Dictionary)["sha256"] = FileAccess.get_sha256(STRICT_FRAME_2_PATH)
+	return manifest
+
+
+func _write_strict_frame_and_atlas(image: Image, manifest: Dictionary) -> void:
+	assert_int(image.save_png(ProjectSettings.globalize_path(STRICT_FRAME_PATH))).is_equal(OK)
+	assert_int(image.save_png(ProjectSettings.globalize_path(STRICT_ATLAS_PATH))).is_equal(OK)
+	var source := (manifest["source_frames"] as Array)[0] as Dictionary
+	source["sha256"] = FileAccess.get_sha256(STRICT_FRAME_PATH)
 
 
 func _valid_manifest(frame_count: int) -> Dictionary:
@@ -164,7 +288,7 @@ func _valid_manifest(frame_count: int) -> Dictionary:
 			"timestamp_seconds": float(index) / 24.0,
 			"duration_ms": 41.666667,
 			"png": "res://tools/sprites/niko_walk_happy_proof/sprite-sheet-alpha.png",
-			"sha256": "fixture",
+			"sha256": "0".repeat(64),
 			"rect": rect.duplicate(true),
 		})
 	return {

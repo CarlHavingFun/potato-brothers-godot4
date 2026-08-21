@@ -2,6 +2,9 @@ extends GdUnitTestSuite
 
 
 const Commands = preload("res://mcp_commands/video_sprite_commands.gd")
+const ImportJobTracker = preload(
+	"res://addons/character_sprite_authoring/import_job_tracker.gd"
+)
 const TEMP_ROOT := "res://reports/video_sprite_mcp"
 const PIPELINE_ROOT := TEMP_ROOT + "/pipeline"
 const SPRITE_GEN_ROOT := TEMP_ROOT + "/sprite-gen"
@@ -9,6 +12,18 @@ const PYTHON_PATH := TEMP_ROOT + "/python.exe"
 
 var launched_executable := ""
 var launched_arguments := PackedStringArray()
+
+
+class FakeJobCommands extends Node:
+	var poll_count := 0
+
+	func poll_job(job_id: String) -> Dictionary:
+		poll_count += 1
+		return {
+			"errors": PackedStringArray(),
+			"job_id": job_id,
+			"state": "running" if poll_count == 1 else "complete",
+		}
 
 
 func before_test() -> void:
@@ -136,6 +151,31 @@ func test_job_polling_rejects_missing_receipts_and_passes_failed_state_through()
 	assert_array(failed.get("errors", PackedStringArray())).is_empty()
 	assert_str(failed.get("state", "")).is_equal("failed")
 	commands.free()
+
+
+func test_editor_import_retains_and_polls_the_job_until_godot_finalization() -> void:
+	var tracker := ImportJobTracker.new()
+	var fake := auto_free(FakeJobCommands.new()) as FakeJobCommands
+	tracker.commands = fake
+	assert_bool(tracker.track_import_result(
+		{"result": {"job_id": "job-editor", "state": "queued"}}
+	)).is_true()
+	assert_str(tracker.active_job_id).is_equal("job-editor")
+	tracker.poll_import_job()
+	assert_int(fake.poll_count).is_equal(1)
+	assert_str(tracker.active_job_id).is_equal("job-editor")
+	tracker.poll_import_job()
+	assert_int(fake.poll_count).is_equal(2)
+	assert_str(tracker.active_job_id).is_empty()
+
+
+func test_editor_import_uses_portable_source_and_pipeline_resolution() -> void:
+	var plugin_source := FileAccess.get_file_as_string(
+		"res://addons/character_sprite_authoring/plugin.gd"
+	)
+	assert_str(plugin_source).not_contains("E:/01_gobro/pixelmotion-2d-niko")
+	assert_str(plugin_source).contains("resolve_character_source_directory")
+	assert_str(plugin_source).contains("resolve_pipeline_root")
 
 
 func _fake_launcher(executable: String, arguments: PackedStringArray) -> int:

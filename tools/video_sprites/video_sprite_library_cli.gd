@@ -88,6 +88,8 @@ func _initialize() -> void:
 	if bool(arguments["validate_only"]):
 		var parsed := Importer.parse_manifest_file(manifest_path)
 		var errors := parsed.get("errors", PackedStringArray()) as PackedStringArray
+		if errors.is_empty():
+			errors = Importer.validate_manifest_assets(parsed["manifest"] as Dictionary)
 		_emit({"manifest": manifest_path, "valid": errors.is_empty(), "errors": errors})
 		quit(0 if errors.is_empty() else 3)
 		return

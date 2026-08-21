@@ -127,6 +127,8 @@ static func validate_manifest(manifest: Dictionary, manifest_path := "") -> Pack
 		var cell := cell_value as Dictionary
 		if Vector2i(int(cell.get("width", 0)), int(cell.get("height", 0))) != EXPECTED_CELL:
 			errors.append("cell must be 256x256")
+		if int(cell.get("safe_margin", -1)) != 24:
+			errors.append("cell safe_margin must be 24")
 	var root_value: Variant = manifest.get("root", {})
 	if not root_value is Dictionary:
 		errors.append("root must be an object")
@@ -174,8 +176,124 @@ static func validate_manifest(manifest: Dictionary, manifest_path := "") -> Pack
 	var sources := sources_value as Array
 	if sources.size() != expected_count:
 		errors.append("source_frames count must match source.frame_count")
+	var previous_timestamp := -1.0
+	var expected_timestamp := 0.0
 	for index in sources.size():
 		_validate_source_frame(index, sources[index], rects, manifest_path, errors)
+		if not sources[index] is Dictionary:
+			continue
+		var source_frame := sources[index] as Dictionary
+		var timestamp := float(source_frame.get("timestamp_seconds", -1.0))
+		if index > 0 and timestamp <= previous_timestamp:
+			errors.append("source frame timestamps must increase at %d" % index)
+		if timestamp >= 0.0 and absf(timestamp - expected_timestamp) > 0.002:
+			errors.append("source frame %d timestamp does not match frame timing" % index)
+		if durations_value is Array and index < (durations_value as Array).size():
+			var layout_duration := float((durations_value as Array)[index])
+			if absf(float(source_frame.get("duration_ms", 0.0)) - layout_duration) > 0.002:
+				errors.append("source frame %d duration must match animation timing" % index)
+			expected_timestamp += layout_duration / 1000.0
+		previous_timestamp = timestamp
+	return errors
+
+
+static func validate_manifest_assets(manifest: Dictionary) -> PackedStringArray:
+	var errors := validate_manifest(manifest)
+	if not errors.is_empty():
+		return errors
+	var manifest_path := str(manifest.get("_manifest_path", ""))
+	var atlas_path := _resolve_resource_path(str(manifest.get("game_input", "")), manifest_path)
+	var atlas := Image.load_from_file(ProjectSettings.globalize_path(atlas_path))
+	if atlas.is_empty():
+		return PackedStringArray(["could not decode atlas PNG: %s" % atlas_path])
+	atlas.convert(Image.FORMAT_RGBA8)
+	var layout := manifest["frame_layout"] as Dictionary
+	var expected_sheet := Vector2i(int(layout["sheetWidth"]), int(layout["sheetHeight"]))
+	if Vector2i(atlas.get_width(), atlas.get_height()) != expected_sheet:
+		errors.append(
+			"atlas PNG size must match frame_layout: expected %s, found %s" % [
+				expected_sheet, Vector2i(atlas.get_width(), atlas.get_height()),
+			]
+		)
+		return errors
+	var processing_value: Variant = manifest.get("processing", {})
+	var processing := processing_value as Dictionary if processing_value is Dictionary else {}
+	var palette_size := mini(int(processing.get("palette_size", 32)), 32)
+	var cell := manifest["cell"] as Dictionary
+	var safe_margin := int(cell.get("safe_margin", 24))
+	var ground_y := int((manifest["root"] as Dictionary).get("y", EXPECTED_ROOT.y))
+	var rects := ((layout["rows"] as Dictionary)[STATE] as Array)
+	var sources := manifest["source_frames"] as Array
+	var shared_colours: Dictionary = {}
+	for index in sources.size():
+		var source := sources[index] as Dictionary
+		var png_path := _resolve_resource_path(str(source["png"]), manifest_path)
+		var actual_sha := FileAccess.get_sha256(png_path)
+		if actual_sha != str(source["sha256"]):
+			errors.append("source frame %d sha256 mismatch" % index)
+		var frame := Image.load_from_file(ProjectSettings.globalize_path(png_path))
+		if frame.is_empty():
+			errors.append("source frame %d PNG could not be decoded" % index)
+			continue
+		frame.convert(Image.FORMAT_RGBA8)
+		if Vector2i(frame.get_width(), frame.get_height()) != EXPECTED_CELL:
+			errors.append("source frame %d PNG must be 256x256" % index)
+			continue
+		var frame_data := frame.get_data()
+		var has_soft_alpha := false
+		var violates_margin := false
+		var opaque_pixel_count := 0
+		var lowest_opaque_y := -1
+		for y in EXPECTED_CELL.y:
+			for x in EXPECTED_CELL.x:
+				var offset := (y * EXPECTED_CELL.x + x) * 4
+				var alpha := int(frame_data[offset + 3])
+				if alpha == 0:
+					continue
+				opaque_pixel_count += 1
+				lowest_opaque_y = maxi(lowest_opaque_y, y)
+				if alpha != 255:
+					has_soft_alpha = true
+				if (
+					x < safe_margin
+					or x >= EXPECTED_CELL.x - safe_margin
+					or y < safe_margin
+					or y >= ground_y
+				):
+					violates_margin = true
+				var colour_key := (
+					(int(frame_data[offset]) << 16)
+					| (int(frame_data[offset + 1]) << 8)
+					| int(frame_data[offset + 2])
+				)
+				shared_colours[colour_key] = true
+		if has_soft_alpha:
+			errors.append("source frame %d PNG must use hard alpha" % index)
+		if opaque_pixel_count == 0:
+			errors.append("source frame %d PNG must contain at least one opaque pixel" % index)
+		elif lowest_opaque_y + 1 != ground_y:
+			errors.append(
+				"source frame %d must be grounded at root y=%d (opaque bbox bottom=%d)" % [
+					index, ground_y, lowest_opaque_y + 1,
+				]
+			)
+		if violates_margin:
+			errors.append("source frame %d violates the 24px safe margin/root boundary" % index)
+		var rect_value := rects[index] as Dictionary
+		var rect := Rect2i(
+			int(rect_value["x"]), int(rect_value["y"]),
+			int(rect_value["w"]), int(rect_value["h"])
+		)
+		var atlas_region := atlas.get_region(rect)
+		atlas_region.convert(Image.FORMAT_RGBA8)
+		if atlas_region.get_data() != frame_data:
+			errors.append("source frame %d PNG does not match atlas region" % index)
+	if shared_colours.size() > palette_size:
+		errors.append(
+			"clip exceeds the shared %d-colour palette (%d colours found)" % [
+				palette_size, shared_colours.size(),
+			]
+		)
 	return errors
 
 
@@ -303,7 +421,27 @@ static func build_character_sprite_frames(
 	frames.set_meta("character_id", character_id)
 	frames.set_meta("source_take_count", source_take_count)
 	frames.set_meta("degraded_static_fallback", false)
+	frames.set_meta("required_runtime_actions", configured_runtime_actions(config))
 	return {"sprite_frames": frames, "errors": errors}
+
+
+static func configured_runtime_actions(config: Dictionary) -> PackedStringArray:
+	var result := PackedStringArray()
+	var actions_value: Variant = config.get("actions", {})
+	if not actions_value is Dictionary:
+		return result
+	var required_value: Variant = config.get("required_actions", [])
+	if not required_value is Array:
+		return result
+	for action_value: Variant in required_value as Array:
+		var action := str(action_value)
+		var action_data_value: Variant = (actions_value as Dictionary).get(action, {})
+		if not action_data_value is Dictionary:
+			continue
+		var takes_value: Variant = (action_data_value as Dictionary).get("takes", [])
+		if takes_value is Array and not (takes_value as Array).is_empty():
+			result.append(action)
+	return result
 
 
 static func character_status(config: Dictionary, frames: SpriteFrames) -> Dictionary:
@@ -430,11 +568,25 @@ static func publish_character_runtime(
 		errors.append("output_root must resolve inside res://")
 	if page_columns <= 0 or page_rows <= 0:
 		errors.append("runtime atlas page dimensions must be positive")
-	if authoring != null and (
-		not authoring.has_animation(&"idle_down")
-		or authoring.get_frame_count(&"idle_down") <= 0
-	):
-		errors.append("idle_down must contain at least one frame before publishing")
+	if authoring != null:
+		var required_value: Variant = authoring.get_meta(
+			"required_runtime_actions", PackedStringArray(["idle"])
+		)
+		var required_actions := PackedStringArray()
+		if required_value is PackedStringArray:
+			required_actions = required_value as PackedStringArray
+		elif required_value is Array:
+			for action_value: Variant in required_value as Array:
+				required_actions.append(str(action_value))
+		for action: String in required_actions:
+			var animation_name := StringName("%s_down" % action)
+			if (
+				not authoring.has_animation(animation_name)
+				or authoring.get_frame_count(animation_name) <= 0
+			):
+				errors.append(
+					"%s must contain at least one frame before publishing" % animation_name
+				)
 	if not errors.is_empty():
 		return {"errors": errors}
 
@@ -869,10 +1021,16 @@ static func _validate_source_frame(
 	var source := value as Dictionary
 	if int(source.get("index", -1)) != index:
 		errors.append("source frame indices must be contiguous from zero at %d" % index)
-	if int(source.get("source_frame", 0)) <= 0:
-		errors.append("source frame %d source_frame must be positive" % index)
+	if int(source.get("source_frame", 0)) != index + 1:
+		errors.append("source frame %d source_frame must equal %d" % [index, index + 1])
+	if float(source.get("timestamp_seconds", -1.0)) < 0.0:
+		errors.append("source frame %d timestamp_seconds must be non-negative" % index)
 	if float(source.get("duration_ms", 0.0)) <= 0.0:
 		errors.append("source frame %d duration_ms must be positive" % index)
+	if not _is_sha256(str(source.get("sha256", ""))):
+		errors.append(
+			"source frame %d sha256 must contain 64 lowercase hex characters" % index
+		)
 	if index < rects.size() and source.get("rect", {}) != rects[index]:
 		errors.append("source frame %d rectangle must match frame_layout" % index)
 	var png_declared := str(source.get("png", ""))
@@ -881,6 +1039,15 @@ static func _validate_source_frame(
 		errors.append("source frame %d PNG must resolve inside res://" % index)
 	elif not FileAccess.file_exists(png_path):
 		errors.append("source frame %d PNG not found: %s" % [index, png_path])
+
+
+static func _is_sha256(value: String) -> bool:
+	if value.length() != 64:
+		return false
+	for index in value.length():
+		if value.substr(index, 1) not in "0123456789abcdef":
+			return false
+	return true
 
 
 static func _is_project_resource_path(path: String, manifest_path: String) -> bool:

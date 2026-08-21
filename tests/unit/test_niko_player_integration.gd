@@ -41,6 +41,9 @@ func test_authoring_resource_exposes_every_full_video_take_and_frame_018() -> vo
 	expected_names.append_array(EXPECTED_ACTIONS)
 	expected_names.append_array(EXPECTED_SOURCE_TRACKS)
 	assert_array(authoring.get_animation_names()).contains_exactly_in_any_order(expected_names)
+	assert_array(authoring.get_meta(
+		"required_runtime_actions", PackedStringArray()
+	)).contains_exactly(["spawn", "idle", "walk", "hit", "death", "victory"])
 	for animation_name: StringName in expected_names:
 		assert_int(authoring.get_frame_count(animation_name)).override_failure_message(
 			String(animation_name)

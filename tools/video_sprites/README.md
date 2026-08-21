@@ -43,6 +43,13 @@ sprite-gen 的整行动作配准偶尔会让宽物体保留空白偏移（例如
 
 导入立即返回 `job_id`，随后用 `video_sprites.job_status` 轮询。默认输出位置严格限制在 `res://tools/sprites` 下。
 
+编辑器菜单会保留导入命令对象并每 0.5 秒轮询，直到 Python 处理、Godot 导入、预览和
+集中母资源全部完成。源目录与 PixelMotion 根目录可在“项目设置”中填写
+`video_sprites/niko/source_directory`、`video_sprites/pixelmotion_root`，也可分别设置
+`NIKO_VIDEO_SOURCE_DIRECTORY`、`PIXELMOTION2D_ROOT`；留空时会从项目的上级工作区
+自动发现 `MINIMAX_OK/niko` 和 `pixelmotion-2d-niko`，因此编辑器插件不依赖某台机器的
+盘符。
+
 ## 在 Godot 中选帧
 
 Niko 的集中编辑入口是：
@@ -56,6 +63,9 @@ Niko 的集中编辑入口是：
 
 编辑完成后执行 `character_sprite.publish` 或编辑器菜单“角色精灵/发布当前角色动画”。
 游戏只加载发布后的轻量资源，不加载全部 source 轨。
+发布前会检查配置中所有具有视频 take 的动作仍至少有一帧；误删 `walk_down`、
+`spawn_down` 等动作会直接拒绝发布。没有任何 take 的 `dash_down` 仍作为明确缺项保留，
+不会被伪造，也不会在触发冲刺时锁死到循环待机动画。
 
 默认内容包中的 `character/well_rounded` 已改用
 `res://scenes/unit/players/player_niko.tscn`；其他 11 个角色仍使用原场景。Niko 场景固定
@@ -102,6 +112,10 @@ Niko 当前视频与模板的映射如下；`dash_down` 明确缺失，不会用
 - `source_all_frames.tres`：每次导入都会刷新，保留源视频的全部帧和 24 FPS 时间；
 - `selection.tres`：用于人工删帧、排序和设置 selected FPS；
 - `preview.tscn`：最近邻、棋盘透明背景和 `(128, 232)` 根点参考线预览。
+
+`video_sprites.validate_library` 与 CLI `--validate-only` 使用严格资源验证：除 manifest
+结构外，还会核对连续源帧号、逐帧 SHA-256、硬 alpha、整段动画共享最多 32 色、
+24 px 安全区、每帧非空且脚底精确落在根点，以及每张单帧 PNG 与图集矩形的逐像素一致性。
 
 在 Godot 文件系统里双击 `selection.tres`，进入内置 SpriteFrames 编辑器：删除不需要的帧、拖动调整顺序，然后设置循环和速度。比如从 124 个 24 FPS 来源帧中选出 8 帧后，可把 selected FPS 改为 10。
 
