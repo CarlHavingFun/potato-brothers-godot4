@@ -27,6 +27,8 @@ var _built := false
 var _poll_elapsed := 0.0
 var _preview_index := 0
 var _preview_elapsed := 0.0
+var _preferred_target_action := ""
+var _preferred_target_take := ""
 
 
 func _ready() -> void:
@@ -429,8 +431,15 @@ func _on_action_selected() -> void:
 		return
 	var metadata: Variant = item.get_metadata(0)
 	if metadata is Dictionary:
-		controller.select_action(str((metadata as Dictionary).get("action", "")))
-		take_edit.text = str((metadata as Dictionary).get("take", ""))
+		var action := str((metadata as Dictionary).get("action", ""))
+		var take := str((metadata as Dictionary).get("take", ""))
+		controller.select_action(action)
+		if take.is_empty():
+			_preferred_target_action = ""
+			_preferred_target_take = ""
+		else:
+			_preferred_target_action = action
+			_preferred_target_take = take
 
 
 func _open_file_dialog() -> void:
@@ -519,11 +528,11 @@ func _on_loop_changed(value: bool) -> void:
 
 
 func _save() -> void:
-	show_result("保存挑帧", controller.save_curation(take_edit.text))
+	show_result("保存挑帧", controller.save_curation())
 
 
 func _preview_promotion() -> void:
-	var result := controller.preview_promotion(take_edit.text)
+	var result := controller.preview_promotion()
 	if not _errors(result).is_empty():
 		show_result("提升预览失败", result)
 		return
@@ -537,7 +546,12 @@ func _confirm_promotion() -> void:
 
 
 func _set_preferred() -> void:
-	show_result("设为首选", controller.set_preferred_take(take_edit.text))
+	var action := _preferred_target_action
+	var take := _preferred_target_take
+	if action.is_empty() or take.is_empty():
+		action = controller.current_action
+		take = controller.current_take
+	show_result("设为首选", controller.set_preferred_take(action, take))
 	refresh_config()
 
 

@@ -53,6 +53,10 @@ func selected_final_positions() -> Array[int]:
 
 
 func clear_source_selection() -> void:
+	reset_source_selection()
+
+
+func reset_source_selection() -> void:
 	_source_selection.clear()
 	source_anchor = -1
 

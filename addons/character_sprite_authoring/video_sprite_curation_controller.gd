@@ -32,6 +32,7 @@ var current_take := ""
 var pending_promotion: Dictionary = {}
 var last_errors := PackedStringArray()
 var _dependencies: Dictionary = {}
+var _job_fingerprints: Dictionary = {}
 
 
 func load_config(path: String) -> Dictionary:
@@ -134,7 +135,7 @@ func poll_jobs() -> Array[Dictionary]:
 	for job_id: String in ordered_ids:
 		var row := jobs[job_id] as Dictionary
 		if str(row.get("state", "")) in TERMINAL_STATES:
-			results.append(row.duplicate(true))
+			_append_changed_job(job_id, row, results)
 			continue
 		var cancellation_pending := bool(row.get("cancellation_pending", false))
 		var polled := job_service.poll_job(job_id) as Dictionary
@@ -150,7 +151,7 @@ func poll_jobs() -> Array[Dictionary]:
 		if str(row.get("state", "")) in ["complete", "complete_with_errors"] and not bool(row.get("manifest_loaded", false)):
 			_complete_job(row)
 		jobs[job_id] = row
-		results.append(row.duplicate(true))
+		_append_changed_job(job_id, row, results)
 	return results
 
 
@@ -188,14 +189,14 @@ func preview_sequence() -> Array[Dictionary]:
 	return result
 
 
-func save_curation(take := "") -> Dictionary:
-	var result := curation_service.save_curation(_curation_params(take)) as Dictionary
+func save_curation(_take := "") -> Dictionary:
+	var result := curation_service.save_curation(_curation_params()) as Dictionary
 	last_errors = _errors_from(result)
 	return result
 
 
-func preview_promotion(take := "") -> Dictionary:
-	var preview_params := _curation_params(take)
+func preview_promotion(_take := "") -> Dictionary:
+	var preview_params := _curation_params()
 	var result := curation_service.preview_promotion(preview_params) as Dictionary
 	last_errors = _errors_from(result)
 	pending_promotion = result.duplicate(true) if last_errors.is_empty() else {}
@@ -224,11 +225,18 @@ func confirm_promotion() -> Dictionary:
 	return result
 
 
-func set_preferred_take(take: String) -> Dictionary:
+func set_preferred_take(action: String, take: String) -> Dictionary:
+	var registered := false
+	for take_value: Variant in action_overview(action).get("takes", []) as Array:
+		if str((take_value as Dictionary).get("name", "")) == take:
+			registered = true
+			break
+	if not registered:
+		return {"errors": PackedStringArray(["动作 %s 中没有已注册 take：%s" % [action, take]])}
 	var result := curation_service.set_preferred_take({
 		"config_path": config_path,
 		"character_id": str(config.get("character_id", "niko")),
-		"action": selected_action,
+		"action": action,
 		"take": take,
 	}) as Dictionary
 	last_errors = _errors_from(result)
@@ -387,13 +395,14 @@ func _apply_snapshot(job_id: String, row: Dictionary) -> void:
 	for frame_value: Variant in snapshot.get("source_frames", []) as Array:
 		source_frames.append((frame_value as Dictionary).duplicate(true))
 	model.set_source_count(source_frames.size())
+	model.reset_source_selection()
 	model.set_sequence(snapshot.get("selection", []) as Array)
 	if not model.set_fps(float(snapshot.get("fps", 10.0))):
 		model.set_fps(10.0)
 	model.set_loop(bool(snapshot.get("loop", true)))
 
 
-func _curation_params(take: String) -> Dictionary:
+func _curation_params() -> Dictionary:
 	return {
 		"manifest_path": current_manifest_path,
 		"selection": model.sequence.duplicate(),
@@ -402,7 +411,7 @@ func _curation_params(take: String) -> Dictionary:
 		"config_path": config_path,
 		"character_id": str(config.get("character_id", "niko")),
 		"action": current_action,
-		"take": take if not take.is_empty() else current_take,
+		"take": current_take,
 	}
 
 
@@ -421,6 +430,25 @@ static func _progress(result: Dictionary) -> float:
 	var completed := float(result.get("completed_frames", result.get("completed", 0)))
 	var total := float(result.get("total_frames", result.get("total", 0)))
 	return clampf(completed / total, 0.0, 1.0) if total > 0.0 else 0.0
+
+
+func _append_changed_job(job_id: String, row: Dictionary, results: Array[Dictionary]) -> void:
+	var fingerprint := _job_fingerprint(row)
+	if str(_job_fingerprints.get(job_id, "")) == fingerprint:
+		return
+	_job_fingerprints[job_id] = fingerprint
+	results.append(row.duplicate(true))
+
+
+static func _job_fingerprint(row: Dictionary) -> String:
+	return JSON.stringify({
+		"state": str(row.get("state", "")),
+		"progress": float(row.get("progress", 0.0)),
+		"completed": int(row.get("completed_frames", row.get("completed", 0))),
+		"total": int(row.get("total_frames", row.get("total", 0))),
+		"errors": "\n".join(_errors_from(row)),
+		"cancellation_pending": bool(row.get("cancellation_pending", false)),
+	})
 
 
 static func _fps_value(value: Variant) -> float:

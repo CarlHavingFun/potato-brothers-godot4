@@ -18,6 +18,22 @@ class FakeCancelService extends RefCounted:
 		return {"errors": PackedStringArray(), "job_id": job_id, "state": "cancellation_requested"}
 
 
+class FakeOwnershipService extends RefCounted:
+	var calls: Array[Dictionary] = []
+
+	func save_curation(params: Dictionary) -> Dictionary:
+		calls.append({"method": "save", "params": params.duplicate(true)})
+		return {"errors": PackedStringArray(), "message": "已保存"}
+
+	func preview_promotion(params: Dictionary) -> Dictionary:
+		calls.append({"method": "preview", "params": params.duplicate(true)})
+		return {"errors": PackedStringArray(), "take": "clip_2", "output_path": "res://clip_2"}
+
+	func set_preferred_take(params: Dictionary) -> Dictionary:
+		calls.append({"method": "preferred", "params": params.duplicate(true)})
+		return {"errors": PackedStringArray(), "preferred_take": params["take"]}
+
+
 var dropped := PackedStringArray()
 
 
@@ -210,12 +226,68 @@ func test_terminal_job_polling_does_not_rebuild_unchanged_frame_lists() -> void:
 	assert_str(source.get_item_text(0)).is_equal("scroll-and-drag-sentinel")
 
 
+func test_unchanged_terminal_poll_does_not_overwrite_a_later_operation_result() -> void:
+	var dock: Variant = auto_free(Dock.new())
+	dock.build_ui()
+	dock.controller.jobs = {
+		"job-1": {"job_id": "job-1", "action": "walk", "take": "one", "state": "complete"},
+	}
+	dock.call("_process", Dock.POLL_INTERVAL)
+	dock.job_list.select(0)
+	dock.show_result("保存挑帧", {"errors": PackedStringArray(), "message": "已保存"})
+	dock.call("_process", Dock.POLL_INTERVAL)
+	assert_str(dock.status.text).is_equal("保存挑帧：已保存")
+
+
+func test_tree_preferred_target_never_overwrites_or_mixes_active_curation_ownership() -> void:
+	var dock: Variant = auto_free(Dock.new())
+	dock.build_ui()
+	var service := FakeOwnershipService.new()
+	dock.controller.curation_service = service
+	dock.refresh_config()
+	dock.controller.current_job_id = "job-active"
+	dock.controller.current_action = "walk"
+	dock.controller.current_take = "clip"
+	dock.controller.current_manifest_path = "C:/stage/clip/manifest.json"
+	dock.take_edit.text = "clip"
+	var idle_take := _find_tree_take(dock.action_tree, "idle", "calm")
+	assert_object(idle_take).is_not_null()
+	idle_take.select(0)
+	dock.call("_on_action_selected")
+	assert_str(dock.controller.selected_action).is_equal("idle")
+	assert_str(dock.take_edit.text).is_equal("clip")
+	dock.controller.save_curation("calm")
+	dock.controller.preview_promotion("calm")
+	dock.call("_set_preferred")
+	assert_str(service.calls[0]["params"]["action"]).is_equal("walk")
+	assert_str(service.calls[0]["params"]["take"]).is_equal("clip")
+	assert_str(service.calls[1]["params"]["action"]).is_equal("walk")
+	assert_str(service.calls[1]["params"]["take"]).is_equal("clip")
+	assert_str(service.calls[2]["params"]["action"]).is_equal("idle")
+	assert_str(service.calls[2]["params"]["take"]).is_equal("calm")
+
+
 func _snapshot(action: String, take: String) -> Dictionary:
 	return {
 		"manifest_path": "C:/stage/%s/manifest.json" % take,
 		"staging_directory": "C:/stage/%s" % take, "action": action, "take": take,
 		"source_frames": [], "selection": [], "fps": 12.0, "loop": true,
 	}
+
+
+func _find_tree_take(tree: Tree, action: String, take: String) -> TreeItem:
+	var action_item := tree.get_root().get_first_child()
+	while action_item != null:
+		var action_metadata := action_item.get_metadata(0) as Dictionary
+		if str(action_metadata.get("action", "")) == action:
+			var take_item := action_item.get_first_child()
+			while take_item != null:
+				var take_metadata := take_item.get_metadata(0) as Dictionary
+				if str(take_metadata.get("take", "")) == take:
+					return take_item
+				take_item = take_item.get_next()
+		action_item = action_item.get_next()
+	return null
 
 
 func _receive_drop(files: PackedStringArray) -> void:

@@ -199,7 +199,7 @@ func test_sidecar_preview_promotion_preferred_publish_and_cleanup_are_explicit_a
 	assert_str(promoted["take"]).is_equal("clip_2")
 	assert_array(opened).is_equal(["res://tools/sprites/niko/walk/clip_2/selection.tres"])
 	assert_int(refreshed).is_equal(1)
-	controller.set_preferred_take("happy")
+	controller.set_preferred_take("walk", "happy")
 	assert_int(published).is_zero()
 
 	var refused: Dictionary = controller.cleanup_current(false)
@@ -250,6 +250,32 @@ func test_multiple_completed_jobs_keep_independent_snapshots_and_never_change_vi
 	assert_str(promote_params["manifest_path"]).is_equal("C:/stage/job-1/manifest.json")
 	assert_str(promote_params["action"]).is_equal("walk")
 	assert_array(promote_params["selection"]).is_equal([2, 0])
+
+
+func test_switching_snapshots_resets_source_selection_and_shift_anchor() -> void:
+	var jobs := FakeJobService.new()
+	var curation := FakeCurationService.new()
+	curation.manifest_result = {"errors": PackedStringArray(), "manifest": _manifest(3)}
+	var controller := Controller.new()
+	controller.job_service = jobs
+	controller.curation_service = curation
+	controller.manifest_finder = Callable(self, "_find_manifest")
+	controller.load_config("res://tools/video_sprites/niko_character_sources.json")
+	controller.select_action("walk")
+	controller.accept_video_files(["C:/drop/one.mp4", "C:/drop/two.mp4"])
+	jobs.polls["job-1"] = {"job_id": "job-1", "state": "complete", "errors": PackedStringArray()}
+	jobs.polls["job-2"] = {"job_id": "job-2", "state": "complete", "errors": PackedStringArray()}
+	controller.poll_jobs()
+	controller.model.select_source(1)
+	controller.model.select_source(2, false, true)
+	assert_array(controller.model.selected_source_indices()).is_equal([1, 2])
+	assert_int(controller.model.source_anchor).is_equal(1)
+	controller.activate_job("job-2")
+	assert_array(controller.model.selected_source_indices()).is_empty()
+	assert_int(controller.model.source_anchor).is_equal(-1)
+	controller.model.select_source(2, false, true)
+	assert_array(controller.model.selected_source_indices()).is_equal([2])
+	assert_int(controller.model.source_anchor).is_equal(2)
 
 
 func test_manifest_animation_fps_is_used_before_the_ten_fps_fallback() -> void:
@@ -339,7 +365,7 @@ func test_save_sends_the_active_snapshot_fields_and_active_cleanup_is_refused() 
 	assert_float(params["fps"]).is_equal_approx(14.0, 0.001)
 	assert_bool(params["loop"]).is_false()
 	assert_str(params["action"]).is_equal("walk")
-	assert_str(params["take"]).is_equal("chosen")
+	assert_str(params["take"]).is_equal("clip")
 	(controller.jobs["job-1"] as Dictionary)["state"] = "running"
 	var refused: Dictionary = controller.cleanup_current(true)
 	assert_str("\n".join(refused.get("errors", PackedStringArray()))).contains("活动任务不能清理")
