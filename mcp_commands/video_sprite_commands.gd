@@ -94,12 +94,14 @@ func _job_status(params: Dictionary) -> Dictionary:
 	var required := require_string(params, "job_id")
 	if required[1] != null:
 		return required[1]
-	var result: Dictionary = video_service.poll_job(str(required[0]))
-	if not (result.get("errors", PackedStringArray()) as PackedStringArray).is_empty():
-		result = poll_job(str(required[0]))
+	var job_id := str(required[0])
+	var owned_by_video_service: bool = bool(video_service.owns_job(job_id))
+	var result: Dictionary = video_service.poll_job(job_id) if owned_by_video_service else poll_job(job_id)
+	if owned_by_video_service:
+		return success(result)
 	var errors := result.get("errors", PackedStringArray()) as PackedStringArray
 	if not errors.is_empty():
-		return error_not_found("video sprite job '%s'" % str(required[0]), "\n".join(errors))
+		return error_not_found("video sprite job '%s'" % job_id, "\n".join(errors))
 	return success(result)
 
 

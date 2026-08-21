@@ -139,6 +139,10 @@ func track_job(job_id: String, receipt_path: String, pid: int = 0) -> void:
 	_jobs[job_id] = {"receipt_path": receipt_path, "cancel_request_path": "", "job_token": "", "pid": pid}
 
 
+func owns_job(job_id: String) -> bool:
+	return _jobs.has(job_id)
+
+
 func poll_job(
 	job_id: String,
 	receipt_reader: Callable = Callable(),
@@ -277,7 +281,7 @@ func cancel_job(job_id: String) -> Dictionary:
 	var tracked := _jobs[job_id] as Dictionary
 	var receipt_path := str(tracked["receipt_path"])
 	var receipt := _read_receipt(receipt_path)
-	if receipt.is_empty() or str(receipt.get("job_id", "")) != job_id:
+	if receipt.is_empty() or _receipt_is_corrupt(receipt, job_id):
 		return {"errors": PackedStringArray(["job receipt is missing or malformed: %s" % receipt_path])}
 	if str(receipt.get("state", "")) in ["worker_complete", "complete", "complete_with_errors", "failed", "cancelled"]:
 		if str(receipt.get("state", "")) == "worker_complete":

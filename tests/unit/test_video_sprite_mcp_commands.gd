@@ -48,6 +48,16 @@ class FakeVideoService extends RefCounted:
 		return {"errors": PackedStringArray(["unknown job ID"])}
 
 
+class OwnedStatefulVideoService extends RefCounted:
+	var response := {}
+
+	func owns_job(job_id: String) -> bool:
+		return job_id == "service-job"
+
+	func poll_job(_job_id: String) -> Dictionary:
+		return response.duplicate(true)
+
+
 func before_test() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(PIPELINE_ROOT + "/tools"))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SPRITE_GEN_ROOT + "/scripts"))
@@ -118,6 +128,32 @@ func test_mcp_docs_describe_external_video_staging_and_job_controls() -> void:
 	assert_str((fields["staging_directory"] as Dictionary).get("default", "not-empty")).is_empty()
 	assert_bool(fields.has("output_directory")).is_false()
 	assert_dict(docs).contains_keys(["video_sprites.dependency_status", "video_sprites.cancel_job"])
+	commands.free()
+
+
+func test_mcp_job_status_preserves_owned_service_errors_instead_of_falling_back_to_legacy_jobs() -> void:
+	var commands := Commands.new()
+	var service := OwnedStatefulVideoService.new()
+	commands.video_service = service
+	service.response = {
+		"job_id": "service-job",
+		"state": "running",
+		"error": "job receipt is corrupt",
+		"errors": PackedStringArray(["job receipt is corrupt"]),
+	}
+	var live: Dictionary = commands.get_commands()["video_sprites.job_status"].call({"job_id": "service-job"})
+	assert_str(live.get("result", {}).get("state", "")).is_equal("running")
+	assert_str(live.get("result", {}).get("error", "")).contains("corrupt")
+
+	service.response = {
+		"job_id": "service-job",
+		"state": "failed",
+		"receipt_persisted": false,
+		"errors": PackedStringArray(["could not persist failed job receipt"]),
+	}
+	var failed: Dictionary = commands.get_commands()["video_sprites.job_status"].call({"job_id": "service-job"})
+	assert_str(failed.get("result", {}).get("state", "")).is_equal("failed")
+	assert_bool(failed.get("result", {}).get("receipt_persisted", true)).is_false()
 	commands.free()
 
 

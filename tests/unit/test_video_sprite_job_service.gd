@@ -148,6 +148,38 @@ func test_cancellation_requires_the_receipt_job_token_to_match_the_tracked_job()
 	assert_str("\n".join(cancelled.get("errors", PackedStringArray()))).contains("token")
 
 
+func test_cancellation_rejects_a_numeric_receipt_job_id_as_corrupt() -> void:
+	var service := Service.new()
+	var result: Dictionary = service.start_single_video_job(
+		_dependencies(ProjectSettings.globalize_path("user://video_sprite_workspace/numeric-job-id")),
+		Callable(self, "_fake_launcher"),
+		"123"
+	)
+	_write_absolute(ProjectSettings.globalize_path(str(result["receipt_path"])), JSON.stringify({
+		"job_id": 123, "job_token": result["job_token"], "pid": 4321, "state": "running"
+	}))
+
+	var cancelled: Dictionary = service.cancel_job("123")
+	assert_str("\n".join(cancelled.get("errors", PackedStringArray()))).contains("malformed")
+	assert_bool(FileAccess.file_exists(ProjectSettings.globalize_path(str(result["cancel_request_path"])))).is_false()
+
+
+func test_cancellation_rejects_an_unknown_receipt_state_as_corrupt() -> void:
+	var service := Service.new()
+	var result: Dictionary = service.start_single_video_job(
+		_dependencies(ProjectSettings.globalize_path("user://video_sprite_workspace/unknown-cancel-state")),
+		Callable(self, "_fake_launcher"),
+		"unknown-cancel-state"
+	)
+	_write_absolute(ProjectSettings.globalize_path(str(result["receipt_path"])), JSON.stringify({
+		"job_id": "unknown-cancel-state", "job_token": result["job_token"], "pid": 4321, "state": "unknown"
+	}))
+
+	var cancelled: Dictionary = service.cancel_job("unknown-cancel-state")
+	assert_str("\n".join(cancelled.get("errors", PackedStringArray()))).contains("malformed")
+	assert_bool(FileAccess.file_exists(ProjectSettings.globalize_path(str(result["cancel_request_path"])))).is_false()
+
+
 func test_polling_marks_an_exited_queued_worker_failed_loudly() -> void:
 	var service := Service.new()
 	service.start_single_video_job(
