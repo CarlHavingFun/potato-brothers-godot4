@@ -349,6 +349,7 @@ static func build_character_sprite_frames(
 	existing: SpriteFrames = null
 ) -> Dictionary:
 	var errors := PackedStringArray()
+	var warnings := PackedStringArray()
 	var character_id := str(config.get("character_id", ""))
 	if character_id.is_empty():
 		errors.append("character_id must be non-empty")
@@ -399,12 +400,11 @@ static func build_character_sprite_frames(
 				continue
 			var source_frame_count := source.get_frame_count(STATE)
 			if expected_source_frame_count > 0 and source_frame_count != expected_source_frame_count:
-				errors.append(
-					"%s must contain exactly %d source frames; found %d" % [
-						clip_id, expected_source_frame_count, source_frame_count,
+				warnings.append(
+					"%s has %d source frames; legacy expected_source_frame_count metadata is %d" % [
+						clip_id, source_frame_count, expected_source_frame_count,
 					]
 				)
-				continue
 			var source_name := StringName("%s%s_down__%s" % [SOURCE_PREFIX, action, take_name])
 			_copy_animation(source, STATE, frames, source_name)
 			frames.set_animation_loop(source_name, bool(action_data.get("loop", false)))
@@ -419,10 +419,11 @@ static func build_character_sprite_frames(
 			errors.append("action %s preferred_take does not resolve" % action)
 
 	frames.set_meta("character_id", character_id)
+	frames.set_meta("expected_source_frame_count", expected_source_frame_count)
 	frames.set_meta("source_take_count", source_take_count)
 	frames.set_meta("degraded_static_fallback", false)
 	frames.set_meta("required_runtime_actions", configured_runtime_actions(config))
-	return {"sprite_frames": frames, "errors": errors}
+	return {"sprite_frames": frames, "errors": errors, "warnings": warnings}
 
 
 static func configured_runtime_actions(config: Dictionary) -> PackedStringArray:

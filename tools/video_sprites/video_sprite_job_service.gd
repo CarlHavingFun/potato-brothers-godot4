@@ -143,18 +143,27 @@ func poll_job(
 	job_id: String,
 	receipt_reader: Callable = Callable(),
 	process_running: Callable = Callable(),
-	process_exit_code: Callable = Callable()
+	process_exit_code: Callable = Callable(),
+	terminal_receipt_writer: Callable = Callable()
 ) -> Dictionary:
 	if not _jobs.has(job_id):
 		return {"errors": PackedStringArray(["unknown job ID: %s" % job_id])}
 	var tracked := _jobs[job_id] as Dictionary
+	if tracked.has("terminal_result"):
+		return (tracked["terminal_result"] as Dictionary).duplicate(true)
 	var receipt_path := str(tracked["receipt_path"])
 	var receipt_value: Variant = receipt_reader.call(receipt_path) if receipt_reader.is_valid() else _read_receipt(receipt_path)
 	if not receipt_value is Dictionary or (receipt_value as Dictionary).is_empty():
-		return _poll_missing_receipt(job_id, tracked, receipt_path, process_running, process_exit_code)
+		return _poll_missing_receipt(
+			job_id, tracked, receipt_path, process_running, process_exit_code,
+			terminal_receipt_writer, "job receipt is missing or malformed"
+		)
 	var receipt := receipt_value as Dictionary
-	if str(receipt.get("job_id", "")) != job_id:
-		return {"errors": PackedStringArray(["job receipt ID does not match: %s" % receipt_path])}
+	if _receipt_is_corrupt(receipt, job_id):
+		return _poll_missing_receipt(
+			job_id, tracked, receipt_path, process_running, process_exit_code,
+			terminal_receipt_writer, "job receipt is corrupt"
+		)
 	var state := str(receipt.get("state", ""))
 	if state == "worker_complete":
 		receipt["state"] = "complete"
@@ -185,17 +194,19 @@ func _poll_missing_receipt(
 	tracked: Dictionary,
 	receipt_path: String,
 	process_running: Callable,
-	process_exit_code: Callable
+	process_exit_code: Callable,
+	terminal_receipt_writer: Callable = Callable(),
+	receipt_problem := "job receipt is missing or malformed"
 ) -> Dictionary:
 	var pid := int(tracked.get("pid", 0))
 	var running := pid > 0 and (bool(process_running.call(pid)) if process_running.is_valid() else OS.is_process_running(pid))
 	if running:
 		return {
-			"errors": PackedStringArray(),
+			"errors": PackedStringArray([receipt_problem]),
 			"job_id": job_id,
 			"state": "running",
 			"receipt_path": receipt_path,
-			"warning": "job receipt is temporarily missing or malformed",
+			"error": receipt_problem,
 		}
 	var exit_code := int(process_exit_code.call(pid)) if pid > 0 and process_exit_code.is_valid() else OS.get_process_exit_code(pid)
 	var failed := {
@@ -203,26 +214,61 @@ func _poll_missing_receipt(
 		"job_id": job_id,
 		"job_token": str(tracked.get("job_token", "")),
 		"state": "failed",
-		"error": "job receipt is missing or malformed after worker exit (exit %d)" % exit_code,
+		"error": "%s after worker exit (exit %d)" % [receipt_problem, exit_code],
 		"pid": 0,
 	}
-	var persisted_path := _persist_terminal_failure(job_id, receipt_path, failed)
-	failed["receipt_path"] = persisted_path
-	_neutralize_pid(job_id)
-	failed["errors"] = PackedStringArray()
+	var persistence := _persist_terminal_failure(job_id, receipt_path, failed, terminal_receipt_writer)
+	failed["receipt_path"] = str(persistence["path"])
+	failed["receipt_persisted"] = bool(persistence["persisted"])
+	if bool(persistence["persisted"]):
+		_neutralize_pid(job_id)
+		failed["errors"] = PackedStringArray()
+	else:
+		failed["errors"] = PackedStringArray(["could not persist failed job receipt"])
+		var cached_tracked := _jobs[job_id] as Dictionary
+		cached_tracked["terminal_result"] = failed.duplicate(true)
+		_jobs[job_id] = cached_tracked
 	return failed
 
 
-func _persist_terminal_failure(job_id: String, receipt_path: String, failed: Dictionary) -> String:
+func _persist_terminal_failure(
+	job_id: String,
+	receipt_path: String,
+	failed: Dictionary,
+	terminal_receipt_writer: Callable = Callable()
+) -> Dictionary:
 	var absolute := ProjectSettings.globalize_path(receipt_path)
-	if not FileAccess.file_exists(absolute) and _write_new_json(absolute, failed):
-		return receipt_path
+	if not FileAccess.file_exists(absolute) and _write_terminal_failure(absolute, failed, terminal_receipt_writer):
+		return {"path": receipt_path, "persisted": true}
 	var fallback_path := receipt_path.trim_suffix(".json") + ".failed.json"
-	if _write_new_json(ProjectSettings.globalize_path(fallback_path), failed) and _jobs.has(job_id):
+	if _write_terminal_failure(ProjectSettings.globalize_path(fallback_path), failed, terminal_receipt_writer):
 		var tracked := _jobs[job_id] as Dictionary
 		tracked["receipt_path"] = fallback_path
 		_jobs[job_id] = tracked
-	return fallback_path
+		return {"path": fallback_path, "persisted": true}
+	return {"path": fallback_path, "persisted": false}
+
+
+static func _write_terminal_failure(path: String, failed: Dictionary, writer: Callable) -> bool:
+	return bool(writer.call(path, failed)) if writer.is_valid() else _write_new_json(path, failed)
+
+
+static func _receipt_is_corrupt(receipt: Dictionary, job_id: String) -> bool:
+	if not receipt.has("job_id") or not receipt["job_id"] is String or str(receipt["job_id"]) != job_id:
+		return true
+	if not receipt.has("state") or not receipt["state"] is String or str(receipt["state"]).is_empty():
+		return true
+	if str(receipt["state"]) not in ["queued", "running", "worker_complete", "complete", "complete_with_errors", "failed", "cancelled"]:
+		return true
+	if receipt.has("pid") and not _receipt_pid_is_valid(receipt["pid"]):
+		return true
+	if receipt.has("job_token") and not receipt["job_token"] is String:
+		return true
+	return false
+
+
+static func _receipt_pid_is_valid(value: Variant) -> bool:
+	return value is int or (value is float and is_equal_approx(value, floor(value)))
 
 
 func cancel_job(job_id: String) -> Dictionary:

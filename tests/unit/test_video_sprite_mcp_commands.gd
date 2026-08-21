@@ -115,7 +115,7 @@ func test_mcp_docs_describe_external_video_staging_and_job_controls() -> void:
 	assert_str((fields["source_video"] as Dictionary).get("type", "")).is_equal("String")
 	assert_bool((fields["staging_directory"] as Dictionary).get("required", true)).is_false()
 	assert_str((fields["staging_directory"] as Dictionary).get("type", "")).is_equal("String")
-	assert_str((fields["staging_directory"] as Dictionary).get("default", "")).contains("unique job directory")
+	assert_str((fields["staging_directory"] as Dictionary).get("default", "not-empty")).is_empty()
 	assert_bool(fields.has("output_directory")).is_false()
 	assert_dict(docs).contains_keys(["video_sprites.dependency_status", "video_sprites.cancel_job"])
 	commands.free()

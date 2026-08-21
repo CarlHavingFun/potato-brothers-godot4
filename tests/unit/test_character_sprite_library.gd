@@ -53,18 +53,34 @@ func test_character_library_groups_every_take_and_seeds_runtime_from_preferred_t
 	assert_bool(frames.has_animation(&"dash_down")).is_false()
 
 
-func test_character_library_refuses_any_take_that_is_not_the_full_expected_frame_count() -> void:
+func test_character_library_accepts_three_frame_takes_when_expected_count_is_legacy_metadata() -> void:
+	var config := _config()
+	config["expected_source_frame_count"] = 124
 	var result := Importer.build_character_sprite_frames(
-		_config(),
+		config,
 		{
-			"walk_happy": _source_frames(2, 24.0, 101),
+			"walk_happy": _source_frames(3, 24.0, 101),
 			"walk_power": _source_frames(3, 24.0, 201),
 			"idle_take": _source_frames(3, 24.0, 301),
 		}
 	)
-	assert_str("\n".join(result.get("errors", PackedStringArray()))).contains(
-		"walk_happy must contain exactly 3 source frames"
+	assert_array(result.get("errors", PackedStringArray())).is_empty()
+	var frames := result.get("sprite_frames") as SpriteFrames
+	assert_int(frames.get_frame_count(&"source__walk_down__happy")).is_equal(3)
+	assert_int(frames.get_frame_count(&"walk_down")).is_equal(3)
+
+
+func test_character_library_keeps_a_legacy_124_frame_take() -> void:
+	var result := Importer.build_character_sprite_frames(
+		_config(),
+		{
+			"walk_happy": _source_frames(124, 24.0, 101),
+			"walk_power": _source_frames(124, 24.0, 201),
+			"idle_take": _source_frames(124, 24.0, 301),
+		}
 	)
+	assert_array(result.get("errors", PackedStringArray())).is_empty()
+	assert_int((result.get("sprite_frames") as SpriteFrames).get_frame_count(&"walk_down")).is_equal(124)
 
 
 func test_character_library_refreshes_sources_without_overwriting_human_runtime_edits() -> void:
@@ -148,9 +164,11 @@ func test_install_character_library_persists_one_editable_resource_and_preserves
 	if not importer.has_method("install_character_library"):
 		fail("character-level authoring resource installation is not implemented")
 		return
+	var config := _config()
+	config["expected_source_frame_count"] = 124
 	var first: Dictionary = importer.call(
 		"install_character_library",
-		_config(),
+		config,
 		"res://tools/sprites/niko_video_library",
 		AUTHORING_PATH,
 		false,
@@ -171,7 +189,7 @@ func test_install_character_library_persists_one_editable_resource_and_preserves
 
 	var refreshed: Dictionary = importer.call(
 		"install_character_library",
-		_config(),
+		config,
 		"res://tools/sprites/niko_video_library",
 		AUTHORING_PATH,
 		false,

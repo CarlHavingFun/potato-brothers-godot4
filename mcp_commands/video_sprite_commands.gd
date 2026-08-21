@@ -655,7 +655,7 @@ func _video_import_docs() -> Array:
 
 func _optional_staging_directory_param() -> Dictionary:
 	var parameter := doc_param("staging_directory", "String", false, "Optional absolute directory below user://video_sprite_workspace.")
-	parameter["default"] = "unique job directory below user://video_sprite_workspace"
+	parameter["default"] = ""
 	return parameter
 
 

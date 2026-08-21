@@ -211,7 +211,69 @@ func test_polling_keeps_a_stateful_nonterminal_response_while_a_missing_receipt_
 
 	var pending: Dictionary = service.poll_job("awaiting-receipt", Callable(self, "_missing_receipt"), Callable(self, "_running_process"))
 	assert_str(pending.get("state", "")).is_equal("running")
-	assert_array(pending.get("errors", PackedStringArray())).is_empty()
+	assert_str(pending.get("error", "")).contains("missing or malformed")
+
+
+func test_polling_treats_legal_json_with_a_wrong_job_id_as_corrupt_while_worker_runs() -> void:
+	var service := Service.new()
+	service.start_single_video_job(
+		_dependencies(ProjectSettings.globalize_path("user://video_sprite_workspace/wrong-job-id")),
+		Callable(self, "_fake_launcher"),
+		"wrong-job-id"
+	)
+
+	var pending: Dictionary = service.poll_job("wrong-job-id", Callable(self, "_wrong_job_id_receipt"), Callable(self, "_running_process"))
+	assert_str(pending.get("state", "")).is_equal("running")
+	assert_str(pending.get("error", "")).contains("corrupt")
+
+
+func test_polling_treats_legal_json_without_state_as_failed_after_worker_exit() -> void:
+	var service := Service.new()
+	service.start_single_video_job(
+		_dependencies(ProjectSettings.globalize_path("user://video_sprite_workspace/missing-state")),
+		Callable(self, "_fake_launcher"),
+		"missing-state"
+	)
+
+	var failed: Dictionary = service.poll_job("missing-state", Callable(self, "_missing_state_receipt"), Callable(self, "_exited_process"), Callable(self, "_exit_code"))
+	assert_str(failed.get("state", "")).is_equal("failed")
+	assert_str(failed.get("error", "")).contains("corrupt")
+
+
+func test_polling_treats_missing_and_bad_typed_receipt_fields_as_corrupt() -> void:
+	var service := Service.new()
+	service.start_single_video_job(
+		_dependencies(ProjectSettings.globalize_path("user://video_sprite_workspace/bad-fields")),
+		Callable(self, "_fake_launcher"),
+		"bad-fields"
+	)
+
+	var missing_id: Dictionary = service.poll_job("bad-fields", Callable(self, "_missing_job_id_receipt"), Callable(self, "_running_process"))
+	assert_str(missing_id.get("state", "")).is_equal("running")
+	assert_str(missing_id.get("error", "")).contains("corrupt")
+	var bad_pid: Dictionary = service.poll_job("bad-fields", Callable(self, "_bad_pid_receipt"), Callable(self, "_running_process"))
+	assert_str(bad_pid.get("state", "")).is_equal("running")
+	assert_str(bad_pid.get("error", "")).contains("corrupt")
+	var bad_state: Dictionary = service.poll_job("bad-fields", Callable(self, "_bad_state_receipt"), Callable(self, "_running_process"))
+	assert_str(bad_state.get("state", "")).is_equal("running")
+	assert_str(bad_state.get("error", "")).contains("corrupt")
+
+
+func test_polling_reports_and_caches_terminal_failure_when_no_receipt_path_can_be_written() -> void:
+	var service := Service.new()
+	service.start_single_video_job(
+		_dependencies(ProjectSettings.globalize_path("user://video_sprite_workspace/unpersisted-failure")),
+		Callable(self, "_fake_launcher"),
+		"unpersisted-failure"
+	)
+
+	var failed: Dictionary = service.poll_job("unpersisted-failure", Callable(self, "_missing_receipt"), Callable(self, "_exited_process"), Callable(self, "_exit_code"), Callable(self, "_failing_receipt_writer"))
+	assert_str(failed.get("state", "")).is_equal("failed")
+	assert_bool(failed.get("receipt_persisted", true)).is_false()
+	assert_array(failed.get("errors", PackedStringArray())).is_not_empty()
+	var cached: Dictionary = service.poll_job("unpersisted-failure")
+	assert_str(cached.get("state", "")).is_equal("failed")
+	assert_bool(cached.get("receipt_persisted", true)).is_false()
 
 
 func test_job_launch_does_not_overwrite_a_worker_completed_receipt() -> void:
@@ -279,6 +341,30 @@ func _missing_pid_receipt(_path: String) -> Dictionary:
 
 func _missing_receipt(_path: String) -> Dictionary:
 	return {}
+
+
+func _wrong_job_id_receipt(_path: String) -> Dictionary:
+	return {"job_id": "other-job", "state": "running", "pid": 4321}
+
+
+func _missing_state_receipt(_path: String) -> Dictionary:
+	return {"job_id": "missing-state", "pid": 4321}
+
+
+func _missing_job_id_receipt(_path: String) -> Dictionary:
+	return {"state": "running", "pid": 4321}
+
+
+func _bad_pid_receipt(_path: String) -> Dictionary:
+	return {"job_id": "bad-fields", "state": "running", "pid": "not-a-pid"}
+
+
+func _bad_state_receipt(_path: String) -> Dictionary:
+	return {"job_id": "bad-fields", "state": "unknown", "pid": 4321}
+
+
+func _failing_receipt_writer(_path: String, _receipt: Dictionary) -> bool:
+	return false
 
 
 func _root_is_link(path: String) -> bool:
