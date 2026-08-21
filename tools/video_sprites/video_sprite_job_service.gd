@@ -50,6 +50,7 @@ func start_single_video_job(
 		_append_error(result, "source_video must be an existing absolute path")
 		return result
 	var job_id := fixed_job_id if not fixed_job_id.is_empty() else _new_job_id()
+	var job_token := _new_job_token(job_id)
 	var staging := str(params.get("staging_directory", ""))
 	if staging.is_empty():
 		staging = ProjectSettings.globalize_path(STAGING_ROOT).path_join(job_id)
@@ -68,11 +69,17 @@ func start_single_video_job(
 	if config.is_empty() or not config.is_absolute_path() or not FileAccess.file_exists(config):
 		_append_error(result, "video sprite config must be an existing absolute path")
 		return result
-	var receipt_path := JOB_ROOT.path_join("%s.json" % job_id)
+	var job_directory := JOB_ROOT.path_join(job_id)
+	var receipt_path := job_directory.path_join("receipt.json")
+	var cancel_request_path := job_directory.path_join("cancel-request.json")
 	var receipt_absolute := ProjectSettings.globalize_path(receipt_path)
+	var cancel_request_absolute := ProjectSettings.globalize_path(cancel_request_path)
+	if FileAccess.file_exists(cancel_request_absolute):
+		DirAccess.remove_absolute(cancel_request_absolute)
 	var queued := {
 		"schema_version": 2,
 		"job_id": job_id,
+		"job_token": job_token,
 		"state": "queued",
 		"source_video": source,
 		"output_directory": staging,
@@ -94,6 +101,10 @@ func start_single_video_job(
 		"--job-receipt", receipt_absolute,
 		"--config", config,
 		"--job-id", job_id,
+		"--job-token", job_token,
+		"--cancel-request", ProjectSettings.globalize_path(cancel_request_path),
+		"--allowed-staging-root", ProjectSettings.globalize_path(STAGING_ROOT),
+		"--project-root", ProjectSettings.globalize_path("res://"),
 		"--ffprobe", str((dependencies["ffprobe"] as Dictionary)["path"]),
 	])
 	if not str(params.get("clip_id", "")).is_empty():
@@ -111,19 +122,21 @@ func start_single_video_job(
 	# The worker owns subsequent receipt writes and records its PID itself. Never
 	# rewrite this queued receipt after launch: a fast worker may already have
 	# published running/complete state.
-	_jobs[job_id] = {"receipt_path": receipt_path, "pid": pid}
+	_jobs[job_id] = {"receipt_path": receipt_path, "cancel_request_path": cancel_request_path, "job_token": job_token, "pid": pid}
 	return {
 		"errors": PackedStringArray(),
 		"job_id": job_id,
 		"pid": pid,
 		"receipt_path": receipt_path,
+		"cancel_request_path": cancel_request_path,
+		"job_token": job_token,
 		"state": "queued",
 		"output_directory": staging,
 	}
 
 
 func track_job(job_id: String, receipt_path: String, pid: int = 0) -> void:
-	_jobs[job_id] = {"receipt_path": receipt_path, "pid": pid}
+	_jobs[job_id] = {"receipt_path": receipt_path, "cancel_request_path": "", "job_token": "", "pid": pid}
 
 
 func poll_job(
@@ -138,7 +151,7 @@ func poll_job(
 	var receipt_path := str(tracked["receipt_path"])
 	var receipt_value: Variant = receipt_reader.call(receipt_path) if receipt_reader.is_valid() else _read_receipt(receipt_path)
 	if not receipt_value is Dictionary or (receipt_value as Dictionary).is_empty():
-		return {"errors": PackedStringArray(["job receipt is missing or malformed: %s" % receipt_path])}
+		return _poll_missing_receipt(job_id, tracked, receipt_path, process_running, process_exit_code)
 	var receipt := receipt_value as Dictionary
 	if str(receipt.get("job_id", "")) != job_id:
 		return {"errors": PackedStringArray(["job receipt ID does not match: %s" % receipt_path])}
@@ -167,7 +180,52 @@ func poll_job(
 	return receipt
 
 
-func cancel_job(job_id: String, terminator: Callable = Callable()) -> Dictionary:
+func _poll_missing_receipt(
+	job_id: String,
+	tracked: Dictionary,
+	receipt_path: String,
+	process_running: Callable,
+	process_exit_code: Callable
+) -> Dictionary:
+	var pid := int(tracked.get("pid", 0))
+	var running := pid > 0 and (bool(process_running.call(pid)) if process_running.is_valid() else OS.is_process_running(pid))
+	if running:
+		return {
+			"errors": PackedStringArray(),
+			"job_id": job_id,
+			"state": "running",
+			"receipt_path": receipt_path,
+			"warning": "job receipt is temporarily missing or malformed",
+		}
+	var exit_code := int(process_exit_code.call(pid)) if pid > 0 and process_exit_code.is_valid() else OS.get_process_exit_code(pid)
+	var failed := {
+		"schema_version": 2,
+		"job_id": job_id,
+		"job_token": str(tracked.get("job_token", "")),
+		"state": "failed",
+		"error": "job receipt is missing or malformed after worker exit (exit %d)" % exit_code,
+		"pid": 0,
+	}
+	var persisted_path := _persist_terminal_failure(job_id, receipt_path, failed)
+	failed["receipt_path"] = persisted_path
+	_neutralize_pid(job_id)
+	failed["errors"] = PackedStringArray()
+	return failed
+
+
+func _persist_terminal_failure(job_id: String, receipt_path: String, failed: Dictionary) -> String:
+	var absolute := ProjectSettings.globalize_path(receipt_path)
+	if not FileAccess.file_exists(absolute) and _write_new_json(absolute, failed):
+		return receipt_path
+	var fallback_path := receipt_path.trim_suffix(".json") + ".failed.json"
+	if _write_new_json(ProjectSettings.globalize_path(fallback_path), failed) and _jobs.has(job_id):
+		var tracked := _jobs[job_id] as Dictionary
+		tracked["receipt_path"] = fallback_path
+		_jobs[job_id] = tracked
+	return fallback_path
+
+
+func cancel_job(job_id: String) -> Dictionary:
 	if not _jobs.has(job_id):
 		return {"errors": PackedStringArray(["unknown job ID: %s" % job_id])}
 	var tracked := _jobs[job_id] as Dictionary
@@ -181,25 +239,28 @@ func cancel_job(job_id: String, terminator: Callable = Callable()) -> Dictionary
 		_neutralize_pid(job_id)
 		receipt["errors"] = PackedStringArray()
 		return receipt
-	var pid := int(tracked.get("pid", 0))
-	if pid <= 0:
-		return {"errors": PackedStringArray(["job has no recorded worker PID: %s" % job_id])}
-	if int(receipt.get("pid", 0)) != pid:
-		return {"errors": PackedStringArray(["job receipt PID does not match recorded worker PID: %d" % pid])}
-	var terminated := bool(terminator.call(pid)) if terminator.is_valid() else OS.kill(pid) == OK
-	if not terminated:
-		return {"errors": PackedStringArray(["could not terminate recorded worker PID: %d" % pid])}
-	receipt["state"] = "cancelled"
-	receipt["cancelled_pid"] = pid
-	receipt["cancelled_at_unix"] = Time.get_unix_time_from_system()
-	if not _write_receipt(ProjectSettings.globalize_path(receipt_path), receipt):
-		return {"errors": PackedStringArray(["could not record cancelled job state"])}
-	_neutralize_pid(job_id)
-	receipt["errors"] = PackedStringArray()
-	return receipt
+	if str(receipt.get("job_token", "")) != str(tracked.get("job_token", "")):
+		return {"errors": PackedStringArray(["job receipt token does not match tracked job"])}
+	var request_path := str(tracked.get("cancel_request_path", ""))
+	if request_path.is_empty():
+		return {"errors": PackedStringArray(["job does not support cooperative cancellation: %s" % job_id])}
+	var request := {
+		"schema_version": 1,
+		"job_id": job_id,
+		"job_token": str(tracked.get("job_token", "")),
+		"requested_at_unix": Time.get_unix_time_from_system(),
+	}
+	if not _write_new_json(ProjectSettings.globalize_path(request_path), request):
+		return {"errors": PackedStringArray(["could not atomically record cancellation request"])}
+	return {
+		"errors": PackedStringArray(),
+		"job_id": job_id,
+		"state": "cancellation_requested",
+		"cancel_request_path": request_path,
+	}
 
 
-static func validate_staging_directory(path: String) -> String:
+static func validate_staging_directory(path: String, path_is_link: Callable = Callable()) -> String:
 	if path.is_empty() or not path.is_absolute_path():
 		return "staging_directory must be an absolute path"
 	var staging_root := ProjectSettings.globalize_path(STAGING_ROOT).simplify_path()
@@ -209,24 +270,28 @@ static func validate_staging_directory(path: String) -> String:
 	var project_root := ProjectSettings.globalize_path("res://").simplify_path()
 	if candidate.begins_with(project_root):
 		return "staging_directory must remain outside res://"
-	if _contains_link_component(staging_root, candidate):
+	if _contains_link_component(staging_root, candidate, path_is_link):
 		return "staging_directory must not traverse a symlink, junction, or reparse point"
 	return ""
 
 
-static func _contains_link_component(root: String, candidate: String) -> bool:
+static func _contains_link_component(root: String, candidate: String, path_is_link: Callable) -> bool:
 	if candidate == root:
-		return _path_is_link(candidate)
+		return _path_is_link(candidate, path_is_link)
+	if _path_is_link(root, path_is_link):
+		return true
 	var relative := candidate.trim_prefix(root.trim_suffix("/") + "/")
 	var cursor := root
 	for part in relative.split("/", false):
 		cursor = cursor.path_join(part)
-		if DirAccess.dir_exists_absolute(cursor) and _path_is_link(cursor):
+		if DirAccess.dir_exists_absolute(cursor) and _path_is_link(cursor, path_is_link):
 			return true
 	return false
 
 
-static func _path_is_link(path: String) -> bool:
+static func _path_is_link(path: String, path_is_link: Callable = Callable()) -> bool:
+	if path_is_link.is_valid():
+		return bool(path_is_link.call(path))
 	var parent := DirAccess.open(path.get_base_dir())
 	return parent != null and parent.is_link(path.get_file())
 
@@ -349,12 +414,32 @@ static func _new_job_id() -> String:
 	return "%d-%s" % [Time.get_unix_time_from_system(), str(randi()).sha256_text().left(10)]
 
 
+static func _new_job_token(job_id: String) -> String:
+	return ("%s-%d-%d" % [job_id, Time.get_ticks_usec(), randi()]).sha256_text()
+
+
 static func _read_receipt(path: String) -> Dictionary:
 	var absolute := ProjectSettings.globalize_path(path) if path.begins_with("user://") else path
 	if not FileAccess.file_exists(absolute):
 		return {}
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(absolute))
 	return parsed as Dictionary if parsed is Dictionary else {}
+
+
+static func _write_new_json(path: String, value: Dictionary) -> bool:
+	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+	if FileAccess.file_exists(path):
+		return true
+	var temporary := "%s.%d.tmp" % [path, randi()]
+	var file := FileAccess.open(temporary, FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_string(JSON.stringify(value, "\t") + "\n")
+	file.close()
+	var renamed := DirAccess.rename_absolute(temporary, path) == OK
+	if not renamed and FileAccess.file_exists(temporary):
+		DirAccess.remove_absolute(temporary)
+	return renamed or FileAccess.file_exists(path)
 
 
 static func _write_receipt(path: String, receipt: Dictionary) -> bool:

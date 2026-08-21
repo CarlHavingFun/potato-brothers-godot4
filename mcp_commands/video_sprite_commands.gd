@@ -605,7 +605,7 @@ func get_command_docs() -> Dictionary:
 			],
 		},
 		"video_sprites.cancel_job": {
-			"description": "Cancel only the PID owned by the recorded non-terminal external video job.",
+			"description": "Request cooperative cancellation for the exact non-terminal external video job; no process PID is terminated.",
 			"params": [doc_param("job_id", "String", true, "External video job ID to cancel.")],
 		},
 		"video_sprites.validate_library": {
@@ -643,7 +643,7 @@ func _import_docs(source_name: String, source_description: String) -> Array:
 func _video_import_docs() -> Array:
 	return [
 		doc_param("source_video", "String", true, "Absolute source video path."),
-		doc_param("staging_directory", "String", false, "Optional absolute directory below user://video_sprite_workspace; defaults to a unique job directory."),
+		_optional_staging_directory_param(),
 		doc_param("pipeline_root", "String", false, "PixelMotion 2D root; workspace/environment/settings discovery remains available."),
 		doc_param("sprite_gen_root", "String", false, "sprite-gen skill root."),
 		doc_param("python_executable", "String", false, "sprite-gen venv Python override."),
@@ -651,6 +651,12 @@ func _video_import_docs() -> Array:
 		doc_param("config_path", "String", false, "Optional PixelMotion character config override."),
 		doc_param("force_generated", "bool", false, "Rebuild generated external staging artifacts."),
 	]
+
+
+func _optional_staging_directory_param() -> Dictionary:
+	var parameter := doc_param("staging_directory", "String", false, "Optional absolute directory below user://video_sprite_workspace.")
+	parameter["default"] = "unique job directory below user://video_sprite_workspace"
+	return parameter
 
 
 func _character_docs(include_worker: bool) -> Array:

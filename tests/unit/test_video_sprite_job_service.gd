@@ -10,7 +10,6 @@ const FFPROBE_PATH := TEMP_ROOT + "/ffprobe.exe"
 const SOURCE_VIDEO := TEMP_ROOT + "/clip.mp4"
 
 var launched_arguments := PackedStringArray()
-var terminated_pid := -1
 
 
 func before_test() -> void:
@@ -29,7 +28,6 @@ func before_test() -> void:
 
 func after_test() -> void:
 	launched_arguments = PackedStringArray()
-	terminated_pid = -1
 
 
 func test_single_video_job_uses_only_external_staging_and_never_res_output() -> void:
@@ -78,6 +76,13 @@ func test_single_video_job_rejects_a_sibling_prefix_escape() -> void:
 	assert_str("\n".join(result.get("errors", PackedStringArray()))).contains("staging_directory")
 
 
+func test_staging_root_link_detector_rejects_a_root_reparse_point() -> void:
+	var root := ProjectSettings.globalize_path("user://video_sprite_workspace")
+	var error := Service.validate_staging_directory(root.path_join("safe-job"), Callable(self, "_root_is_link"))
+
+	assert_str(error).contains("symlink, junction, or reparse point")
+
+
 func test_dependency_status_names_every_ui_dependency_and_reports_paths() -> void:
 	var service := Service.new()
 	var status: Dictionary = service.dependency_status(_dependencies("E:/not-used"))
@@ -92,7 +97,7 @@ func test_dependency_status_names_every_ui_dependency_and_reports_paths() -> voi
 	assert_bool(status.get("ready", false)).is_true()
 
 
-func test_polling_and_cancellation_only_use_the_recorded_job_pid() -> void:
+func test_cancellation_writes_a_job_token_scoped_cooperative_request_and_polls_terminal() -> void:
 	var service := Service.new()
 	var result: Dictionary = service.start_single_video_job(
 		_dependencies(ProjectSettings.globalize_path("user://video_sprite_workspace/cancel-job")),
@@ -100,15 +105,15 @@ func test_polling_and_cancellation_only_use_the_recorded_job_pid() -> void:
 		"cancel-job"
 	)
 	assert_array(result.get("errors", PackedStringArray())).is_empty()
-	var running: Dictionary = service.poll_job("cancel-job", Callable(self, "_running_receipt"), Callable(self, "_running_process"))
-	assert_str(running.get("state", "")).is_equal("running")
-	_write_absolute(ProjectSettings.globalize_path(str(result["receipt_path"])), JSON.stringify({
-		"job_id": "cancel-job", "pid": 4321, "state": "running"
-	}))
-	var cancelled: Dictionary = service.cancel_job("cancel-job", Callable(self, "_fake_terminator"))
+	var cancelled: Dictionary = service.cancel_job("cancel-job")
 	assert_array(cancelled.get("errors", PackedStringArray())).is_empty()
-	assert_str(cancelled.get("state", "")).is_equal("cancelled")
-	assert_int(terminated_pid).is_equal(4321)
+	assert_str(cancelled.get("state", "")).is_equal("cancellation_requested")
+	var request := _read_absolute(ProjectSettings.globalize_path(str(result["cancel_request_path"])))
+	assert_str(request.get("job_id", "")).is_equal("cancel-job")
+	assert_str(request.get("job_token", "")).is_equal(str(result["job_token"]))
+	_write_absolute(ProjectSettings.globalize_path(str(result["receipt_path"])), JSON.stringify({
+		"job_id": "cancel-job", "job_token": result["job_token"], "pid": 4321, "state": "cancelled"
+	}))
 	assert_str(service.poll_job("cancel-job").get("state", "")).is_equal("cancelled")
 
 
@@ -125,12 +130,11 @@ func test_terminal_worker_receipt_is_normalized_and_never_terminates_a_reused_pi
 
 	var complete: Dictionary = service.poll_job("complete-job", Callable(), Callable(self, "_running_process"))
 	assert_str(complete.get("state", "")).is_equal("complete")
-	var cancelled: Dictionary = service.cancel_job("complete-job", Callable(self, "_fake_terminator"))
+	var cancelled: Dictionary = service.cancel_job("complete-job")
 	assert_str(cancelled.get("state", "")).is_equal("complete")
-	assert_int(terminated_pid).is_equal(-1)
 
 
-func test_cancellation_requires_the_receipt_pid_to_match_the_tracked_job() -> void:
+func test_cancellation_requires_the_receipt_job_token_to_match_the_tracked_job() -> void:
 	var service := Service.new()
 	var result: Dictionary = service.start_single_video_job(
 		_dependencies(ProjectSettings.globalize_path("user://video_sprite_workspace/pid-mismatch")),
@@ -138,11 +142,10 @@ func test_cancellation_requires_the_receipt_pid_to_match_the_tracked_job() -> vo
 		"pid-mismatch"
 	)
 	_write_absolute(ProjectSettings.globalize_path(str(result["receipt_path"])), JSON.stringify({
-		"job_id": "pid-mismatch", "pid": 9999, "state": "running"
+		"job_id": "pid-mismatch", "job_token": "wrong-token", "pid": 9999, "state": "running"
 	}))
-	var cancelled: Dictionary = service.cancel_job("pid-mismatch", Callable(self, "_fake_terminator"))
-	assert_str("\n".join(cancelled.get("errors", PackedStringArray()))).contains("PID")
-	assert_int(terminated_pid).is_equal(-1)
+	var cancelled: Dictionary = service.cancel_job("pid-mismatch")
+	assert_str("\n".join(cancelled.get("errors", PackedStringArray()))).contains("token")
 
 
 func test_polling_marks_an_exited_queued_worker_failed_loudly() -> void:
@@ -164,6 +167,51 @@ func test_polling_marks_a_nonterminal_receipt_without_a_tracked_pid_failed() -> 
 	var failed: Dictionary = service.poll_job("missing-pid", Callable(self, "_missing_pid_receipt"))
 	assert_str(failed.get("state", "")).is_equal("failed")
 	assert_str(failed.get("error", "")).contains("no recorded worker PID")
+
+
+func test_polling_persists_a_failed_terminal_receipt_when_the_receipt_is_missing_after_exit() -> void:
+	var service := Service.new()
+	var result: Dictionary = service.start_single_video_job(
+		_dependencies(ProjectSettings.globalize_path("user://video_sprite_workspace/missing-receipt")),
+		Callable(self, "_fake_launcher"),
+		"missing-receipt"
+	)
+	var receipt_path := ProjectSettings.globalize_path(str(result["receipt_path"]))
+	DirAccess.remove_absolute(receipt_path)
+
+	var failed: Dictionary = service.poll_job("missing-receipt", Callable(self, "_missing_receipt"), Callable(self, "_exited_process"), Callable(self, "_exit_code"))
+	assert_str(failed.get("state", "")).is_equal("failed")
+	assert_str(_read_absolute(receipt_path).get("state", "")).is_equal("failed")
+
+
+func test_polling_persists_an_atomic_fallback_receipt_when_the_receipt_is_corrupt_after_exit() -> void:
+	var service := Service.new()
+	var result: Dictionary = service.start_single_video_job(
+		_dependencies(ProjectSettings.globalize_path("user://video_sprite_workspace/corrupt-receipt")),
+		Callable(self, "_fake_launcher"),
+		"corrupt-receipt"
+	)
+	var receipt_path := ProjectSettings.globalize_path(str(result["receipt_path"]))
+	var fallback_path := receipt_path.trim_suffix(".json") + ".failed.json"
+	DirAccess.remove_absolute(fallback_path)
+	_write_absolute(receipt_path, "{not-json")
+
+	var failed: Dictionary = service.poll_job("corrupt-receipt", Callable(self, "_missing_receipt"), Callable(self, "_exited_process"), Callable(self, "_exit_code"))
+	assert_str(failed.get("state", "")).is_equal("failed")
+	assert_str(_read_absolute(fallback_path).get("state", "")).is_equal("failed")
+
+
+func test_polling_keeps_a_stateful_nonterminal_response_while_a_missing_receipt_worker_runs() -> void:
+	var service := Service.new()
+	service.start_single_video_job(
+		_dependencies(ProjectSettings.globalize_path("user://video_sprite_workspace/awaiting-receipt")),
+		Callable(self, "_fake_launcher"),
+		"awaiting-receipt"
+	)
+
+	var pending: Dictionary = service.poll_job("awaiting-receipt", Callable(self, "_missing_receipt"), Callable(self, "_running_process"))
+	assert_str(pending.get("state", "")).is_equal("running")
+	assert_array(pending.get("errors", PackedStringArray())).is_empty()
 
 
 func test_job_launch_does_not_overwrite_a_worker_completed_receipt() -> void:
@@ -209,11 +257,6 @@ func _fake_launcher(_executable: String, arguments: PackedStringArray) -> int:
 	return 4321
 
 
-func _fake_terminator(pid: int) -> bool:
-	terminated_pid = pid
-	return pid == 4321
-
-
 func _running_process(_pid: int) -> bool:
 	return true
 
@@ -232,6 +275,14 @@ func _queued_receipt(_path: String) -> Dictionary:
 
 func _missing_pid_receipt(_path: String) -> Dictionary:
 	return {"job_id": "missing-pid", "pid": 0, "state": "queued"}
+
+
+func _missing_receipt(_path: String) -> Dictionary:
+	return {}
+
+
+func _root_is_link(path: String) -> bool:
+	return path == ProjectSettings.globalize_path("user://video_sprite_workspace")
 
 
 func _racing_launcher(_executable: String, arguments: PackedStringArray) -> int:

@@ -96,3 +96,45 @@ Final output: service 12/12, MCP 11/11, Python 13/13; all commands exit `0` and 
 - Polling owns final state, writes a loud failed terminal receipt for exited or untracked workers, and accepts injected liveness/exit-code callables for safe tests.
 - Dependency diagnostics retain candidates plus `source` and `resolution`; legacy workspace/settings/environment defaults and PATH ffprobe lookup are restored. Omitted staging and config select an external job-specific directory and the legacy PixelMotion config path.
 - Typed MCP docs now distinguish single-video external staging from legacy `res://` directory output and publish the diagnostics/cancellation schemas.
+
+## Fix Round 2
+
+### Coverage added
+
+- `tests/unit/test_video_sprite_job_service.gd`: cooperative cancellation request/token contract, root reparse-point detector seam, and stateful missing/corrupt receipt recovery with an atomically created failed fallback receipt.
+- `tests/python/test_spritegen_video_worker.py`: resolved allowed-root containment, injected root-link detection, and worker cancellation receipt finalization.
+- `tests/unit/test_video_sprite_mcp_commands.gd`: complete required/type/default contract for `source_video` and optional auto-created `staging_directory`.
+
+### RED
+
+```powershell
+.\tools\run_tests.ps1 -GodotBinary E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64_console.exe -TestPath res://tests/unit/test_video_sprite_job_service.gd -ReportDirectory res://reports/gdunit-task1-fix2-red-service
+.\tools\run_tests.ps1 -GodotBinary E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64_console.exe -TestPath res://tests/unit/test_video_sprite_mcp_commands.gd -ReportDirectory res://reports/gdunit-task1-fix2-red-mcp
+py -3 tests\python\test_spritegen_video_worker.py
+.\tools\run_tests.ps1 -GodotBinary E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64_console.exe -TestPath res://tests/unit/test_video_sprite_job_service.gd -ReportDirectory res://reports/gdunit-task1-fix2-corrupt-red
+```
+
+Observed RED: service discovery reported that `validate_staging_directory` lacked the injected root-link detector; the MCP schema had no `staging_directory.default`; Python lacked the staging validator and `WorkerCancelled`; the corrupt-receipt regression did not create a failed fallback receipt.
+
+### GREEN
+
+```powershell
+git diff --check
+.\tools\run_tests.ps1 -GodotBinary E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64_console.exe -TestPath res://tests/unit/test_video_sprite_job_service.gd -ReportDirectory res://reports/gdunit-task1-fix2-green-service
+.\tools\run_tests.ps1 -GodotBinary E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64_console.exe -TestPath res://tests/unit/test_video_sprite_mcp_commands.gd -ReportDirectory res://reports/gdunit-task1-fix2-green-mcp
+py -3 tests\python\test_spritegen_video_worker.py
+```
+
+Final output: service 16/16, MCP 11/11, Python 16/16; all commands exited `0` and `git diff --check` was clean.
+
+### Review fixes
+
+- `cancel_job` no longer calls a terminator or `OS.kill`. It atomically creates a request scoped to the job directory, `job_id`, and random job token; the worker validates that request at startup and before/after its main stages, atomically writes `cancelled`, and polling returns the terminal state.
+- Single-video worker invocation now receives the allowed staging root and project root. Both Godot and Python reject root/component links (including junction/reparse detectors), resolved containment escapes, and project-root output before processing or rechecking before import writes.
+- Polling turns missing/corrupt receipts into a stateful `running` response while the tracked process is live, or a persisted terminal `failed` receipt with cleared PID after exit. Corrupt receipts retain forensic evidence while an atomic `.failed.json` fallback becomes the tracked receipt.
+- MCP documentation now publishes `staging_directory` as optional `String` with an explicit unique-job-directory default, and README describes the same cooperative cancellation and optional staging contract.
+
+### Self-review and concerns
+
+- No production path uses PID termination. Cooperative cancellation is intentionally delayed until the worker reaches a checkpoint; it cannot interrupt an opaque PixelMotion call mid-function, but it cannot kill an unrelated reused PID.
+- Windows junction behavior is covered through the Godot and Python detector seams; the focused test suite does not create a real privileged junction.

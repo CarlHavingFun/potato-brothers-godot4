@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
@@ -33,6 +34,59 @@ class WorkerError(RuntimeError):
     """Raised when the reproducible PixelMotion -> sprite-gen contract fails."""
 
 
+class WorkerCancelled(WorkerError):
+    """Raised after a matching cooperative cancellation request is persisted."""
+
+
+def atomic_write_json(path: Path, value: Mapping[str, Any]) -> None:
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w", encoding="utf-8", dir=destination.parent, delete=False
+    ) as temporary:
+        json.dump(dict(value), temporary, ensure_ascii=False)
+        temporary.write("\n")
+        temporary_path = Path(temporary.name)
+    os.replace(temporary_path, destination)
+
+
+def _is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def validate_staging_directory(
+    output_directory: Path,
+    allowed_staging_root: Path,
+    project_root: Path,
+    link_detector: Callable[[Path], bool] | None = None,
+) -> Path:
+    is_link = link_detector or (
+        lambda path: path.is_symlink()
+        or (hasattr(os.path, "isjunction") and os.path.isjunction(path))
+    )
+    root_raw = Path(allowed_staging_root)
+    output_raw = Path(output_directory)
+    if is_link(root_raw):
+        raise WorkerError(f"allowed staging root must not be a link: {root_raw}")
+    root = root_raw.resolve()
+    output = output_raw.resolve()
+    project = Path(project_root).resolve()
+    if not _is_relative_to(output, root):
+        raise WorkerError(f"output directory escapes allowed staging root: {output}")
+    if _is_relative_to(output, project):
+        raise WorkerError(f"output directory must remain outside project root: {output}")
+    cursor = root_raw
+    for part in output_raw.relative_to(root_raw).parts if _is_relative_to(output_raw, root_raw) else ():
+        cursor = cursor / part
+        if cursor.exists() and is_link(cursor):
+            raise WorkerError(f"output directory must not traverse a link: {cursor}")
+    return output
+
+
 def record_worker_pid(receipt_path: Path, job_id: str | None, pid: int | None = None) -> None:
     """Publish the spawned worker PID without replacing the service receipt state."""
     if not job_id:
@@ -45,9 +99,33 @@ def record_worker_pid(receipt_path: Path, job_id: str | None, pid: int | None = 
     if not isinstance(receipt, dict) or receipt.get("job_id") != job_id:
         raise WorkerError(f"job receipt does not belong to worker job {job_id}: {path}")
     receipt["pid"] = int(os.getpid() if pid is None else pid)
-    temporary = path.with_suffix(path.suffix + ".pid.tmp")
-    temporary.write_text(json.dumps(receipt, ensure_ascii=False) + "\n", encoding="utf-8")
-    os.replace(temporary, path)
+    atomic_write_json(path, receipt)
+
+
+def check_cancellation(
+    cancel_request: Path,
+    receipt_path: Path,
+    job_id: str | None,
+    job_token: str | None,
+) -> None:
+    if not cancel_request.is_file() or not job_id or not job_token:
+        return
+    try:
+        request = json.loads(cancel_request.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise WorkerError(f"could not read cancellation request {cancel_request}: {exc}") from exc
+    if not isinstance(request, dict) or request.get("job_id") != job_id or request.get("job_token") != job_token:
+        return
+    try:
+        receipt = json.loads(Path(receipt_path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise WorkerError(f"could not read job receipt for cancellation {receipt_path}: {exc}") from exc
+    if not isinstance(receipt, dict) or receipt.get("job_id") != job_id or receipt.get("job_token") != job_token:
+        raise WorkerError("job receipt does not match cooperative cancellation request")
+    receipt["state"] = "cancelled"
+    receipt["cancelled_at_unix"] = time.time()
+    atomic_write_json(Path(receipt_path), receipt)
+    raise WorkerCancelled("cancel requested")
 
 
 def build_sprite_request(frame_count: int, fps: float, loop: bool) -> dict[str, Any]:
@@ -764,6 +842,10 @@ def _parser() -> argparse.ArgumentParser:
     import_video.add_argument("--config", required=True, type=Path)
     import_video.add_argument("--clip-id")
     import_video.add_argument("--job-id")
+    import_video.add_argument("--job-token", required=True)
+    import_video.add_argument("--cancel-request", required=True, type=Path)
+    import_video.add_argument("--allowed-staging-root", required=True, type=Path)
+    import_video.add_argument("--project-root", required=True, type=Path)
     import_video.add_argument("--force-generated", action="store_true")
     import_video.add_argument("--replace-selection", action="store_true")
 
@@ -780,9 +862,16 @@ def _emit(value: Mapping[str, Any]) -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
+        if args.command == "import-video":
+            args.output_directory = validate_staging_directory(
+                args.output_directory, args.allowed_staging_root, args.project_root
+            )
+            check_cancellation(args.cancel_request, args.job_receipt, args.job_id, args.job_token)
         if args.command in {"import-directory", "import-video"}:
             record_worker_pid(args.job_receipt, args.job_id)
         library, image_tools = _load_pixelmotion(args.pixelmotion_root)
+        if args.command == "import-video":
+            check_cancellation(args.cancel_request, args.job_receipt, args.job_id, args.job_token)
         if args.command == "scan":
             rows = library.scan_video_directory(args.source_directory, ffprobe=args.ffprobe)
             _emit(
@@ -806,6 +895,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0 if result["valid"] else 1
 
         config = load_worker_config(args.config, args.palette_lock, args.base_image)
+        if args.command == "import-video":
+            check_cancellation(args.cancel_request, args.job_receipt, args.job_id, args.job_token)
         configure_pixelmotion(
             library,
             image_tools,
@@ -826,6 +917,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             _emit(result)
             return 0 if result["state"] in {"worker_complete", "complete_with_errors"} else 1
+        args.output_directory = validate_staging_directory(
+            args.output_directory, args.allowed_staging_root, args.project_root
+        )
+        check_cancellation(args.cancel_request, args.job_receipt, args.job_id, args.job_token)
         result = library.run_import_video(
             args.source_video,
             args.output_directory,
@@ -837,6 +932,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             replace_selection=args.replace_selection,
             ffprobe=args.ffprobe,
         )
+        check_cancellation(args.cancel_request, args.job_receipt, args.job_id, args.job_token)
         _emit(result)
         return 0 if result["state"] == "worker_complete" else 1
     except (WorkerError, OSError, ValueError) as exc:

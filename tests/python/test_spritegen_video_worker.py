@@ -69,6 +69,49 @@ class SpriteRequestTests(unittest.TestCase):
         request = worker.build_sprite_request(124, 23.999808001535985, True)
         self.assertEqual(24, request["states"]["source_all"]["fps"])
 
+
+class StagingSecurityTests(unittest.TestCase):
+    def test_worker_refuses_output_outside_the_resolved_allowed_staging_root(self) -> None:
+        worker = load_worker()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "workspace"
+            project = Path(temporary) / "project"
+            root.mkdir()
+            project.mkdir()
+
+            with self.assertRaisesRegex(worker.WorkerError, "allowed staging root"):
+                worker.validate_staging_directory(project / "escaped", root, project)
+
+    def test_worker_refuses_a_linked_allowed_staging_root_through_the_link_detector(self) -> None:
+        worker = load_worker()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "workspace"
+            root.mkdir()
+
+            with self.assertRaisesRegex(worker.WorkerError, "link"):
+                worker.validate_staging_directory(
+                    root / "job", root, Path(temporary) / "project", lambda path: path == root
+                )
+
+    def test_worker_honours_a_matching_atomic_cancel_request_with_a_terminal_receipt(self) -> None:
+        worker = load_worker()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            receipt = root / "receipt.json"
+            request = root / "cancel-request.json"
+            receipt.write_text(
+                json.dumps({"job_id": "job-1", "job_token": "token-1", "state": "running"}),
+                encoding="utf-8",
+            )
+            request.write_text(
+                json.dumps({"job_id": "job-1", "job_token": "token-1"}), encoding="utf-8"
+            )
+
+            with self.assertRaisesRegex(worker.WorkerCancelled, "cancel requested"):
+                worker.check_cancellation(request, receipt, "job-1", "token-1")
+
+            self.assertEqual("cancelled", json.loads(receipt.read_text(encoding="utf-8"))["state"])
+
 class RawStripTests(unittest.TestCase):
     def test_strip_uses_explicit_native_slots_and_preserves_white_clothing(self) -> None:
         worker = load_worker()

@@ -23,7 +23,7 @@ sprite-gen 的整行动作配准偶尔会让宽物体保留空白偏移（例如
 - `video_sprites.import_video`：异步处理单个视频到 `user://video_sprite_workspace` 下的外部暂存目录；不会在 `res://` 生成帧、图集、manifest 或预览资源。
 - `video_sprites.job_status`：查看目录导入或外部单视频暂存任务的进度。
 - `video_sprites.dependency_status`：列出 Python、PixelMotion、sprite-gen、worker 脚本和 ffprobe 的已解析/缺失路径，供编辑器 UI 显示。
-- `video_sprites.cancel_job`：仅终止该任务收据中记录的 worker PID，并将任务标记为 `cancelled`。
+- `video_sprites.cancel_job`：在该任务专属目录原子写入带 `job_id` 与随机 `job_token` 的协作式取消请求；绝不会按 PID 终止进程。worker 在安全检查点发现匹配请求后写入终态 `cancelled`。
 - `video_sprites.validate_library`：只读验证 PNG、图集、manifest、SpriteFrames 和预览场景。
 - `character_sprite.import_all`：按角色配置导入全部视频，并刷新一个集中展示所有动作/take 的母资源。
 - `character_sprite.publish`：把人工编辑后的运行轨重新打包为轻量 Godot 图集和 SpriteFrames。
@@ -43,7 +43,7 @@ sprite-gen 的整行动作配准偶尔会让宽物体保留空白偏移（例如
 }
 ```
 
-目录导入立即返回 `job_id`，随后用 `video_sprites.job_status` 轮询；目录输出仍严格限制在 `res://tools/sprites` 下。单视频导入必须传入一个绝对 `staging_directory`，并且该目录必须位于 `user://video_sprite_workspace` 下；完整处理结果和 provenance 仅保留在该外部暂存位置，等待人工挑选后再发布。
+目录导入立即返回 `job_id`，随后用 `video_sprites.job_status` 轮询；目录输出仍严格限制在 `res://tools/sprites` 下。单视频导入的 `staging_directory` 可省略，省略时自动创建 `user://video_sprite_workspace` 下唯一的任务目录；若提供，它必须是该根目录下的绝对路径。完整处理结果和 provenance 仅保留在该外部暂存位置，等待人工挑选后再发布。
 
 编辑器菜单会保留导入命令对象并每 0.5 秒轮询，直到 Python 处理、Godot 导入、预览和
 集中母资源全部完成。源目录与 PixelMotion 根目录可在“项目设置”中填写

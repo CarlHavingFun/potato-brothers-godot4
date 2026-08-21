@@ -106,11 +106,17 @@ func test_mcp_docs_describe_external_video_staging_and_job_controls() -> void:
 	var commands := Commands.new()
 	var docs: Dictionary = commands.get_command_docs()
 	var video := docs["video_sprites.import_video"] as Dictionary
-	var names := PackedStringArray()
+	var fields := {}
 	for entry in video["params"] as Array:
-		names.append(str((entry as Dictionary)["name"]))
-	assert_array(names).contains("staging_directory")
-	assert_array(names).not_contains("output_directory")
+		var field := entry as Dictionary
+		fields[str(field["name"])] = field
+	assert_dict(fields).contains_keys(["source_video", "staging_directory"])
+	assert_bool((fields["source_video"] as Dictionary).get("required", false)).is_true()
+	assert_str((fields["source_video"] as Dictionary).get("type", "")).is_equal("String")
+	assert_bool((fields["staging_directory"] as Dictionary).get("required", true)).is_false()
+	assert_str((fields["staging_directory"] as Dictionary).get("type", "")).is_equal("String")
+	assert_str((fields["staging_directory"] as Dictionary).get("default", "")).contains("unique job directory")
+	assert_bool(fields.has("output_directory")).is_false()
 	assert_dict(docs).contains_keys(["video_sprites.dependency_status", "video_sprites.cancel_job"])
 	commands.free()
 
