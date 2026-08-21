@@ -172,8 +172,8 @@ def install_extracted_frames(
             "processor": "sprite-gen/pixel-unfake",
             "alignment_shift_x": alignment["shift_x"],
         }
-        if alignment["safety_margin_intrusion"]:
-            provenance["safety_margin_intrusion"] = alignment["safety_margin_intrusion"]
+        if alignment["cropped_margin_pixels"] > 0:
+            provenance["cropped_margin_pixels"] = alignment["cropped_margin_pixels"]
         results.append(
             provenance
         )
@@ -191,8 +191,9 @@ def _normalize_registered_frame(
     a frame occupies only an offset portion of that registered logical canvas, its
     placement clamp can retain the empty registration padding and push visible
     pixels into the margin zone.  Re-centering the visible cell after extraction is
-    a pixel-grid translation only: no source pose, palette, alpha, scale, or pixel
-    count changes.
+    a pixel-grid translation only. If a wide source prop still enters the declared
+    margin, crop only those out-of-contract edge pixels; never resample or drop the
+    chronological source frame.
     """
     try:
         with Image.open(source) as opened:
@@ -210,9 +211,8 @@ def _normalize_registered_frame(
             min_shift = SAFE_MARGIN - bbox[0]
             max_shift = CELL_SIZE[0] - SAFE_MARGIN - bbox[2]
         else:
-            # sprite-gen defines native logical content entering the margin zone
-            # as informational. Preserve a wide source prop intact and center it
-            # within the physical cell; provenance makes the exception explicit.
+            # Center wide props within the physical cell first. The explicit safe
+            # rectangle crop below then removes only the unavoidable overflow.
             min_shift = -bbox[0]
             max_shift = CELL_SIZE[0] - bbox[2]
         lower_grid_shift = math.ceil(min_shift / PIXEL_SCALE) * PIXEL_SCALE
@@ -243,35 +243,57 @@ def _normalize_registered_frame(
                 normalized.alpha_composite(visible, (bbox[0] + shift_x, bbox[1]))
             finally:
                 visible.close()
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            normalized.save(destination, format="PNG", optimize=False)
+            before_crop = sum(
+                1 for value in normalized.getchannel("A").get_flattened_data() if value
+            )
+            safe_cell = Image.new("RGBA", CELL_SIZE, (0, 0, 0, 0))
+            try:
+                safe_region = normalized.crop(
+                    (
+                        SAFE_MARGIN,
+                        SAFE_MARGIN,
+                        CELL_SIZE[0] - SAFE_MARGIN,
+                        ROOT_ANCHOR[1],
+                    )
+                )
+                try:
+                    safe_cell.alpha_composite(safe_region, (SAFE_MARGIN, SAFE_MARGIN))
+                finally:
+                    safe_region.close()
+                after_crop = sum(
+                    1 for value in safe_cell.getchannel("A").get_flattened_data() if value
+                )
+                cropped_margin_pixels = before_crop - after_crop
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                safe_cell.save(destination, format="PNG", optimize=False)
+            finally:
+                safe_cell.close()
         finally:
             normalized.close()
     finally:
         rgba.close()
-    intrusion = _validate_pixel_frame(
-        destination, allowed_palette, allow_margin_intrusion=True
-    )
-    return {"shift_x": int(shift_x), "safety_margin_intrusion": intrusion}
+    _validate_pixel_frame(destination, allowed_palette)
+    return {
+        "shift_x": int(shift_x),
+        "cropped_margin_pixels": int(cropped_margin_pixels),
+    }
 
 
 def _validate_pixel_frame(
     path: Path,
     allowed_palette: set[tuple[int, int, int]],
-    *,
-    allow_margin_intrusion: bool = False,
-) -> dict[str, int]:
+) -> None:
     try:
         with Image.open(path) as opened:
             rgba = opened.convert("RGBA")
     except OSError as exc:
         raise WorkerError(f"could not open sprite-gen frame {path}: {exc}") from exc
     try:
-        return _validate_pixel_image(
+        _validate_pixel_image(
             rgba,
             path,
             allowed_palette,
-            require_safe_margins=not allow_margin_intrusion,
+            require_safe_margins=True,
         )
     finally:
         rgba.close()
@@ -377,20 +399,7 @@ def validate_installed_clip(
             raise WorkerError(f"frame PNG not found inside clip: {frame_path}")
         if _sha256(frame_path) != str(frame.get("sha256", "")):
             raise WorkerError(f"frame PNG hash mismatch: {frame_path}")
-        declared_intrusion = frame.get("safety_margin_intrusion")
-        if declared_intrusion is not None and not isinstance(declared_intrusion, dict):
-            raise WorkerError(
-                f"frame {expected_index} safety_margin_intrusion must be an object"
-            )
-        actual_intrusion = _validate_pixel_frame(
-            frame_path,
-            allowed,
-            allow_margin_intrusion=declared_intrusion is not None,
-        )
-        if actual_intrusion != (declared_intrusion or {}):
-            raise WorkerError(
-                f"frame {expected_index} safety margin provenance does not match pixels"
-            )
+        _validate_pixel_frame(frame_path, allowed)
     return {
         "clip_id": str(manifest.get("clip_id", "")),
         "frame_count": expected_count,
@@ -661,7 +670,7 @@ def configure_pixelmotion(
                 "align_y": "bottom",
                 "ground_frames": True,
                 "resample": "kcentroid+NEAREST-integer",
-                "post_alignment": "4px-grid-alpha-centroid-translation",
+                "post_alignment": "4px-grid-alpha-centroid-translation+safe-margin-crop",
                 "sprite_gen_palette_lock_sha256": palette_hash,
                 "sprite_gen_prepare_sha256": prepare_hash,
                 "sprite_gen_extract_sha256": extract_hash,
@@ -674,11 +683,9 @@ def configure_pixelmotion(
                     source_frame["alignment_shift_x"] = int(
                         processed.get("alignment_shift_x", 0)
                     )
-                    intrusion = processed.get("safety_margin_intrusion")
-                    if isinstance(intrusion, Mapping) and intrusion:
-                        source_frame["safety_margin_intrusion"] = {
-                            str(key): int(value) for key, value in intrusion.items()
-                        }
+                    cropped = int(processed.get("cropped_margin_pixels", 0))
+                    if cropped > 0:
+                        source_frame["cropped_margin_pixels"] = cropped
         return manifest
 
     library.process_decoded_frames = process_decoded_frames

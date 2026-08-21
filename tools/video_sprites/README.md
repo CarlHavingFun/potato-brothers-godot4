@@ -9,10 +9,10 @@
 
 sprite-gen 的整行动作配准偶尔会让宽物体保留空白偏移（例如 `born` 第一帧的舱门）。
 导入器会在 sprite-gen 完成后按 4 px 逻辑网格整体平移可见像素，使可容纳的内容重新
-落回 24 px 安全区；该步骤不缩放、不重采样、不改色、不改变 alpha，也不会删除任何
-源帧。若舱门等源道具本身宽于 208 px 安全区，仍完整保留，并在 manifest 的
-`source_frames[].safety_margin_intrusion` 中显式记录 margin-zone QA 警告。每帧平移量
-记录在 `source_frames[].alignment_shift_x`，人物帧仍执行严格安全区校验。
+落回 24 px 安全区；该步骤不缩放、不重采样、不改色，也不会删除任何源帧。若舱门等
+源道具本身宽于 208 px 安全区，则只裁掉安全区外的边缘像素，并在 manifest 的
+`source_frames[].cropped_margin_pixels` 中记录实际裁掉的非透明像素数。每帧平移量记录
+在 `source_frames[].alignment_shift_x`，最终所有帧都重新执行严格安全区校验。
 
 ## MCP 命令
 

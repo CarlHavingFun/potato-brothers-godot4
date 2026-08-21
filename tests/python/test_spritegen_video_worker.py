@@ -100,9 +100,9 @@ class ExtractedFrameTests(unittest.TestCase):
                 self.assertEqual(184 * 128, sum(1 for pixel in pixels if pixel[3]))
                 self.assertEqual({(*palette[0], 255), (0, 0, 0, 0)}, set(pixels))
             self.assertEqual(-32, installed[0]["alignment_shift_x"])
-            self.assertNotIn("safety_margin_intrusion", installed[0])
+            self.assertNotIn("cropped_margin_pixels", installed[0])
 
-    def test_install_keeps_a_wide_source_prop_and_records_its_unavoidable_margin_intrusion(self) -> None:
+    def test_install_crops_only_the_unavoidable_margin_overflow_from_a_wide_source_prop(self) -> None:
         worker = load_worker()
         palette = [(42, 15, 13)]
         with tempfile.TemporaryDirectory() as temporary:
@@ -111,8 +111,8 @@ class ExtractedFrameTests(unittest.TestCase):
             extracted.mkdir()
             source = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
             # 212px is one 4px logical pixel wider than the 208px safe area.
-            # The source prop must remain intact and the exception must be visible
-            # in provenance instead of silently resampling or clipping it.
+            # Keep the source frame and pixel scale, but crop the one overflowing
+            # logical column as explicitly requested instead of resampling it.
             source.paste((*palette[0], 255), (44, 92, 256, 232))
             source.save(extracted / "frame-0.png")
 
@@ -125,13 +125,10 @@ class ExtractedFrameTests(unittest.TestCase):
 
             destination = root / "frames" / "frame_001.png"
             with Image.open(destination) as opened:
-                self.assertEqual((20, 92, 232, 232), opened.getchannel("A").getbbox())
-                self.assertEqual(212 * 140, sum(1 for px in opened.get_flattened_data() if px[3]))
+                self.assertEqual((24, 92, 232, 232), opened.getchannel("A").getbbox())
+                self.assertEqual(208 * 140, sum(1 for px in opened.get_flattened_data() if px[3]))
             self.assertEqual(-24, installed[0]["alignment_shift_x"])
-            self.assertEqual(
-                {"left": 4, "top": 0, "right": 0},
-                installed[0]["safety_margin_intrusion"],
-            )
+            self.assertEqual(4 * 140, installed[0]["cropped_margin_pixels"])
 
     def test_install_keeps_one_to_one_source_mapping_including_frame_018(self) -> None:
         worker = load_worker()
@@ -246,7 +243,7 @@ class ManifestAugmentationTests(unittest.TestCase):
                 [
                     {
                         "alignment_shift_x": -32,
-                        "safety_margin_intrusion": {"left": 4, "top": 0, "right": 0},
+                        "cropped_margin_pixels": 560,
                     },
                     {"alignment_shift_x": 0},
                 ],
@@ -256,19 +253,63 @@ class ManifestAugmentationTests(unittest.TestCase):
             )
 
             self.assertEqual(-32, manifest["source_frames"][0]["alignment_shift_x"])
-            self.assertEqual(
-                {"left": 4, "top": 0, "right": 0},
-                manifest["source_frames"][0]["safety_margin_intrusion"],
-            )
-            self.assertNotIn("safety_margin_intrusion", manifest["source_frames"][1])
+            self.assertEqual(560, manifest["source_frames"][0]["cropped_margin_pixels"])
+            self.assertNotIn("cropped_margin_pixels", manifest["source_frames"][1])
             self.assertEqual(0, manifest["source_frames"][1]["alignment_shift_x"])
             self.assertEqual(
-                "4px-grid-alpha-centroid-translation",
+                "4px-grid-alpha-centroid-translation+safe-margin-crop",
                 manifest["processing"]["post_alignment"],
             )
 
 
 class InstalledClipTests(unittest.TestCase):
+    def test_validation_accepts_a_safe_frame_with_recorded_crop_provenance(self) -> None:
+        worker = load_worker()
+        palette = [(42, 15, 13)]
+        with tempfile.TemporaryDirectory() as temporary:
+            clip = Path(temporary)
+            frames = clip / "frames"
+            frames.mkdir()
+            frame_path = frames / "frame_001.png"
+            frame = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+            frame.paste((*palette[0], 255), (24, 92, 232, 232))
+            frame.save(frame_path)
+            atlas = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+            atlas.alpha_composite(frame)
+            atlas.save(clip / "atlas.png")
+            rect = {"x": 0, "y": 0, "w": 256, "h": 256}
+            manifest = {
+                "clip_id": "born_test",
+                "degraded_static_fallback": False,
+                "game_input": "atlas.png",
+                "source": {"frame_count": 1},
+                "frame_layout": {
+                    "sheetWidth": 256,
+                    "sheetHeight": 256,
+                    "rows": {"source_all": [rect]},
+                },
+                "source_frames": [
+                    {
+                        "index": 0,
+                        "source_frame": 8,
+                        "duration_ms": 41.666667,
+                        "png": "frames/frame_001.png",
+                        "sha256": worker._sha256(frame_path),
+                        "rect": rect,
+                        "cropped_margin_pixels": 560,
+                    }
+                ],
+            }
+            manifest_path = clip / "manifest.json"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            result = worker.validate_installed_clip(clip, palette)
+
+            self.assertEqual(
+                {"clip_id": "born_test", "frame_count": 1, "valid": True},
+                result,
+            )
+
     def test_validation_uses_sprite_gen_ground_boundary_and_explicit_layout(self) -> None:
         worker = load_worker()
         palette = [(42, 15, 13), (241, 238, 240)]
