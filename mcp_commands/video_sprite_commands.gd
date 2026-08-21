@@ -3,6 +3,7 @@ extends "res://addons/godot_mcp/commands/base_command.gd"
 
 
 const Importer = preload("res://tools/video_sprites/video_sprite_manifest_importer.gd")
+const VideoSpriteJobService = preload("res://tools/video_sprites/video_sprite_job_service.gd")
 const DEFAULT_OUTPUT := "res://tools/sprites/niko_video_library"
 const JOB_ROOT := "user://video_sprite_jobs"
 const DEFAULT_CHARACTER_CONFIG := "res://tools/video_sprites/niko_character_sources.json"
@@ -11,6 +12,7 @@ const PIPELINE_ROOT_SETTING := "video_sprites/pixelmotion_root"
 const SOURCE_DIRECTORY_SETTING := "video_sprites/niko/source_directory"
 
 var _jobs: Dictionary = {}
+var video_service: Variant = VideoSpriteJobService.new()
 
 
 func get_commands() -> Dictionary:
@@ -19,6 +21,8 @@ func get_commands() -> Dictionary:
 		"video_sprites.import_directory": _import_directory,
 		"video_sprites.import_video": _import_video,
 		"video_sprites.job_status": _job_status,
+		"video_sprites.dependency_status": _dependency_status,
+		"video_sprites.cancel_job": _cancel_job,
 		"video_sprites.validate_library": _validate_library,
 		"character_sprite.import_all": _character_import_all,
 		"character_sprite.publish": _character_publish,
@@ -81,18 +85,35 @@ func _import_directory(params: Dictionary) -> Dictionary:
 
 
 func _import_video(params: Dictionary) -> Dictionary:
-	return _start_import_response("import-video", params)
+	var result: Dictionary = video_service.start_single_video_job(params)
+	var errors := result.get("errors", PackedStringArray()) as PackedStringArray
+	return error_invalid_params("\n".join(errors)) if not errors.is_empty() else success(result)
 
 
 func _job_status(params: Dictionary) -> Dictionary:
 	var required := require_string(params, "job_id")
 	if required[1] != null:
 		return required[1]
-	var result := poll_job(str(required[0]))
+	var result: Dictionary = video_service.poll_job(str(required[0]))
+	if not (result.get("errors", PackedStringArray()) as PackedStringArray).is_empty():
+		result = poll_job(str(required[0]))
 	var errors := result.get("errors", PackedStringArray()) as PackedStringArray
 	if not errors.is_empty():
 		return error_not_found("video sprite job '%s'" % str(required[0]), "\n".join(errors))
 	return success(result)
+
+
+func _dependency_status(params: Dictionary) -> Dictionary:
+	return success(video_service.dependency_status(params))
+
+
+func _cancel_job(params: Dictionary) -> Dictionary:
+	var required := require_string(params, "job_id")
+	if required[1] != null:
+		return required[1]
+	var result: Dictionary = video_service.cancel_job(str(required[0]))
+	var errors := result.get("errors", PackedStringArray()) as PackedStringArray
+	return error_not_found("video sprite job '%s'" % str(required[0]), "\n".join(errors)) if not errors.is_empty() else success(result)
 
 
 func _validate_library(params: Dictionary) -> Dictionary:
@@ -284,6 +305,8 @@ func start_import_job(
 	launcher: Callable = Callable(),
 	fixed_job_id := ""
 ) -> Dictionary:
+	if command == "import-video":
+		return video_service.start_single_video_job(params, launcher, fixed_job_id)
 	var result := {"errors": PackedStringArray()}
 	if command not in ["import-directory", "import-video"]:
 		_append_result_error(result, "unsupported import command: %s" % command)

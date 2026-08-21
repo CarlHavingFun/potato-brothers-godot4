@@ -23,6 +23,13 @@ def load_worker():
 
 
 class SpriteRequestTests(unittest.TestCase):
+    def test_request_accepts_any_positive_frame_count_without_a_take_wide_gate(self) -> None:
+        worker = load_worker()
+
+        request = worker.build_sprite_request(3, 24.0, True)
+
+        self.assertEqual(3, request["states"]["source_all"]["frames"])
+
     def test_full_video_request_keeps_every_frame_and_locks_pixel_unfake_contract(self) -> None:
         worker = load_worker()
         request = worker.build_sprite_request(124, 24.0, True)
@@ -48,7 +55,6 @@ class SpriteRequestTests(unittest.TestCase):
         worker = load_worker()
         request = worker.build_sprite_request(124, 23.999808001535985, True)
         self.assertEqual(24, request["states"]["source_all"]["fps"])
-
 
 class RawStripTests(unittest.TestCase):
     def test_strip_uses_explicit_native_slots_and_preserves_white_clothing(self) -> None:

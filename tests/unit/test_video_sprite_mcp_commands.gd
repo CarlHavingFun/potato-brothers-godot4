@@ -26,6 +26,28 @@ class FakeJobCommands extends Node:
 		}
 
 
+class FakeVideoService extends RefCounted:
+	var received_params := {}
+
+	func start_single_video_job(params: Dictionary) -> Dictionary:
+		received_params = params
+		return {
+			"errors": PackedStringArray(),
+			"job_id": "delegated-video",
+			"state": "queued",
+			"output_directory": "E:/external/video_sprite_workspace/delegated-video",
+		}
+
+	func poll_job(_job_id: String) -> Dictionary:
+		return {"errors": PackedStringArray(["unknown job ID"])}
+
+	func dependency_status(_params: Dictionary) -> Dictionary:
+		return {"ready": true}
+
+	func cancel_job(_job_id: String) -> Dictionary:
+		return {"errors": PackedStringArray(["unknown job ID"])}
+
+
 func before_test() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(PIPELINE_ROOT + "/tools"))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SPRITE_GEN_ROOT + "/scripts"))
@@ -48,6 +70,8 @@ func test_registers_video_import_and_character_authoring_commands() -> void:
 		"video_sprites.import_directory",
 		"video_sprites.import_video",
 		"video_sprites.job_status",
+		"video_sprites.dependency_status",
+		"video_sprites.cancel_job",
 		"video_sprites.validate_library",
 		"character_sprite.import_all",
 		"character_sprite.publish",
@@ -61,6 +85,21 @@ func test_output_path_is_confined_below_tools_sprites() -> void:
 	assert_str(Commands.validate_output_path("res://content_packs")).is_not_empty()
 	assert_str(Commands.validate_output_path("res://tools/sprites/../content_packs")).is_not_empty()
 	assert_str(Commands.validate_output_path("E:/outside")).is_not_empty()
+
+
+func test_mcp_video_import_delegates_to_the_external_staging_service_without_changing_response_shape() -> void:
+	var commands := Commands.new()
+	var service := FakeVideoService.new()
+	commands.video_service = service
+	var response: Dictionary = commands.get_commands()["video_sprites.import_video"].call({
+		"source_video": "E:/videos/niko.mp4",
+		"staging_directory": "E:/external/video_sprite_workspace/delegated-video",
+	})
+
+	assert_dict(service.received_params).contains_keys(["source_video", "staging_directory"])
+	assert_str(response.get("result", {}).get("job_id", "")).is_equal("delegated-video")
+	assert_str(response.get("result", {}).get("state", "")).is_equal("queued")
+	commands.free()
 
 
 func test_readme_explains_all_commands_and_non_destructive_selection_workflow() -> void:
