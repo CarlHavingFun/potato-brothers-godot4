@@ -41,6 +41,7 @@ const LEGACY_CATEGORY_ALIASES := {
 @export var skin_version := "0.1.0"
 @export var skin_api_version := CURRENT_API_VERSION
 @export var product_name := "GOBRO"
+@export var show_product_branding := true
 @export var logo: Texture2D
 @export var background: Texture2D
 @export var theme: Theme

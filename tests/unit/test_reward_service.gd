@@ -37,6 +37,58 @@ func test_reward_offers_are_reproducible_for_the_same_run_seed() -> void:
 	)
 
 
+func test_level_up_offers_follow_level_luck_and_reference_milestones() -> void:
+	var service := RewardService.new(981)
+	assert_bool(service.has_method("select_level_up_offers")).is_true()
+	if not service.has_method("select_level_up_offers"):
+		return
+	var pool: Array[ItemUpgrade] = Content.catalog.get_upgrade_items()
+	var run := RunState.new(981)
+	run.player_stats.set_stat(StatId.LUCK, 10000.0)
+	for expected in [
+		{"level": 1, "tier": Global.UpgradeTier.COMMON},
+		{"level": 5, "tier": Global.UpgradeTier.RARE},
+		{"level": 10, "tier": Global.UpgradeTier.EPIC},
+		{"level": 15, "tier": Global.UpgradeTier.EPIC},
+		{"level": 20, "tier": Global.UpgradeTier.EPIC},
+		{"level": 25, "tier": Global.UpgradeTier.LEGENDARY},
+	]:
+		run.level = int(expected.level)
+		run.queued_level_ups = 1
+		var offers: Array = service.call(
+			"select_level_up_offers", pool, run, 4, Content.catalog
+		)
+		assert_int(offers.size()).is_equal(4)
+		for offer: ItemUpgrade in offers:
+			assert_int(_upgrade_tier(offer)).is_equal(int(expected.tier))
+		assert_int(_upgrade_stat_ids(offers).size()).is_equal(offers.size())
+
+
+func test_level_up_offer_sequence_uses_each_pending_level_and_is_reproducible() -> void:
+	var first := RewardService.new(982)
+	var second := RewardService.new(982)
+	assert_bool(first.has_method("pending_level_up_level")).is_true()
+	assert_bool(first.has_method("select_level_up_offers")).is_true()
+	if not first.has_method("pending_level_up_level") \
+		or not first.has_method("select_level_up_offers"):
+		return
+	var first_run := RunState.new(982)
+	first_run.level = 5
+	first_run.queued_level_ups = 2
+	var second_run := RunState.from_dict(first_run.to_dict())
+
+	assert_int(int(first.call("pending_level_up_level", first_run))).is_equal(4)
+	var first_offers: Array = first.call(
+		"select_level_up_offers", Content.catalog.get_upgrade_items(), first_run, 4, Content.catalog
+	)
+	var second_offers: Array = second.call(
+		"select_level_up_offers", Content.catalog.get_upgrade_items(), second_run, 4, Content.catalog
+	)
+	assert_array(first_offers).is_equal(second_offers)
+	assert_bool(first.claim_level_up(first_run)).is_true()
+	assert_int(int(first.call("pending_level_up_level", first_run))).is_equal(5)
+
+
 func test_experience_can_queue_multiple_level_ups_without_losing_remainder() -> void:
 	var run := RunState.new(12)
 	var service := RewardService.new(12)
@@ -47,6 +99,20 @@ func test_experience_can_queue_multiple_level_ups_without_losing_remainder() -> 
 	assert_int(run.level).is_equal(3)
 	assert_int(run.experience).is_equal(11)
 	assert_int(run.queued_level_ups).is_equal(2)
+
+
+func _upgrade_tier(item: ItemUpgrade) -> int:
+	var definition := Content.catalog.get_upgrade_definition_for_item(item)
+	return definition.quality if definition != null else -1
+
+
+func _upgrade_stat_ids(items: Array) -> Dictionary:
+	var result := {}
+	for item: ItemUpgrade in items:
+		var definition := Content.catalog.get_upgrade_definition_for_item(item)
+		if definition != null:
+			result[definition.stat_id] = true
+	return result
 
 
 func test_post_upgrade_phase_drains_upgrades_before_chest_and_shop() -> void:

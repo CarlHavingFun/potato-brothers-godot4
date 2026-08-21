@@ -185,14 +185,33 @@ static func validate_skin_root(root: String) -> PackedStringArray:
 				)
 		var collection := String(source.get("collection", ""))
 		if collection in [
-			CURATED_COLLECTION,
-			CURATED_WORLD_COLLECTION,
-			CURATED_PROJECTILE_COLLECTION,
-			CURATED_PASSIVE_COLLECTION,
-		]:
-			if source.get("pipeline", []) != ["built_in_image_gen", "sprite_gen_curation"]:
+				CURATED_COLLECTION,
+				CURATED_WORLD_COLLECTION,
+				CURATED_PROJECTILE_COLLECTION,
+				CURATED_PASSIVE_COLLECTION,
+			]:
+			var normalization := entry.get("normalization", {}) as Dictionary
+			var is_pixel_unfake_curated := (
+				String(normalization.get("mode", "")) == "sprite_gen_pixel_unfake_curated"
+			)
+			var expected_pipeline := (
+				[
+					"built_in_image_gen",
+					"sprite_gen_component_row",
+					"sprite_gen_pixel_unfake",
+					"sprite_gen_curation",
+				]
+				if is_pixel_unfake_curated
+				else ["built_in_image_gen", "sprite_gen_curation"]
+			)
+			if source.get("pipeline", []) != expected_pipeline:
 				errors.append("Curated asset provenance pipeline is invalid: %s" % asset_id)
-			if String((entry.get("approval", {}) as Dictionary).get("basis", "")) != "agent_visual_qa":
+			var expected_approval_basis := (
+				"agent_visual_qa_sprite_gen_curation"
+				if is_pixel_unfake_curated
+				else "agent_visual_qa"
+			)
+			if String((entry.get("approval", {}) as Dictionary).get("basis", "")) != expected_approval_basis:
 				errors.append("Curated asset visual approval is missing: %s" % asset_id)
 		if collection == CURATED_PASSIVE_COLLECTION:
 			_validate_curated_passive_provenance(entry, errors)
@@ -312,6 +331,9 @@ static func _validate_asset_file(entry: Dictionary, errors: PackedStringArray) -
 	if category in ["scene_background", "scene_floor"]:
 		_validate_generated_scene_png(entry, image, errors)
 		return
+	if category == "ui_app_icon":
+		_validate_user_selected_app_icon(entry, image, errors)
+		return
 	if category not in [
 		"weapon_icon",
 		"passive_icon",
@@ -322,6 +344,15 @@ static func _validate_asset_file(entry: Dictionary, errors: PackedStringArray) -
 	]:
 		errors.append("Unsupported static asset category: %s" % category)
 		return
+	_validate_pixel_art_image(entry, image, errors)
+
+
+static func _validate_pixel_art_image(
+	entry: Dictionary,
+	image: Image,
+	errors: PackedStringArray
+) -> void:
+	var path := String(entry.get("path", ""))
 	if image.get_width() != OUTPUT_CANVAS or image.get_height() != OUTPUT_CANVAS:
 		errors.append("Approved static asset must be 256x256: %s" % path)
 		return
@@ -346,6 +377,70 @@ static func _validate_asset_file(entry: Dictionary, errors: PackedStringArray) -
 			):
 				errors.append("Approved static asset contains color under transparent alpha: %s" % path)
 				return
+	if _has_suspect_chroma_edge(logical):
+		errors.append("Approved static asset contains a saturated green chroma edge: %s" % path)
+
+
+static func _validate_user_selected_app_icon(
+	entry: Dictionary,
+	image: Image,
+	errors: PackedStringArray
+) -> void:
+	var asset_id := String(entry.get("id", ""))
+	if image.get_width() != OUTPUT_CANVAS or image.get_height() != OUTPUT_CANVAS:
+		errors.append("User-selected app icon must be a 256px pixel-art master: %s" % asset_id)
+		return
+	var source := entry.get("source", {}) as Dictionary
+	if String(source.get("kind", "")) != "user_provided_art":
+		errors.append("User-selected app icon provenance is invalid: %s" % asset_id)
+	if source.get("pipeline", []) != ["sprite_gen_pixel_unfake", "sprite_gen_curation"]:
+		errors.append("User-selected app icon curation pipeline is invalid: %s" % asset_id)
+	if String((entry.get("approval", {}) as Dictionary).get("basis", "")) != "user_explicit_selection":
+		errors.append("User-selected app icon approval is missing: %s" % asset_id)
+	var normalization := entry.get("normalization", {}) as Dictionary
+	if String(normalization.get("mode", "")) != "sprite_gen_pixel_unfake_curated":
+		errors.append("User-selected app icon must use the curated pixel-unfake master: %s" % asset_id)
+	var logical_canvas := normalization.get("logical_canvas", []) as Array
+	if (
+		logical_canvas.size() != 2
+		or int(logical_canvas[0]) != LOGICAL_CANVAS
+		or int(logical_canvas[1]) != LOGICAL_CANVAS
+	):
+		errors.append("User-selected app icon logical canvas is invalid: %s" % asset_id)
+	if int(normalization.get("nearest_scale", 0)) != NEAREST_SCALE:
+		errors.append("User-selected app icon nearest-neighbor scale is invalid: %s" % asset_id)
+	if float(normalization.get("outline_strength", 0.0)) < 1.0:
+		errors.append("User-selected app icon outline is not strong enough: %s" % asset_id)
+	if float(normalization.get("edge_dark_fraction", 0.0)) < 0.85:
+		errors.append("User-selected app icon lacks a clean dark silhouette: %s" % asset_id)
+	_validate_pixel_art_image(entry, image, errors)
+
+
+static func _has_suspect_chroma_edge(logical: Image) -> bool:
+	for y: int in range(LOGICAL_CANVAS):
+		for x: int in range(LOGICAL_CANVAS):
+			var pixel := logical.get_pixel(x, y)
+			var green_key_edge := (
+				pixel.g >= 0.58
+				and pixel.g - pixel.r >= 0.22
+				and pixel.g - pixel.b >= 0.22
+			)
+			if pixel.a < 1.0 or not green_key_edge:
+				continue
+			for offset: Vector2i in [
+				Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1),
+				Vector2i(-1, 0), Vector2i(1, 0),
+				Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1),
+			]:
+				var neighbor := Vector2i(x, y) + offset
+				if (
+					neighbor.x < 0 or neighbor.x >= LOGICAL_CANVAS
+					or neighbor.y < 0 or neighbor.y >= LOGICAL_CANVAS
+				):
+					continue
+				if logical.get_pixelv(neighbor).a == 0.0:
+					return true
+	return false
 
 
 static func _validate_svg(entry: Dictionary, errors: PackedStringArray) -> void:
@@ -412,6 +507,14 @@ static func _validate_weapon_anchors(entry: Dictionary, errors: PackedStringArra
 		errors.append("Weapon anchor coordinate space is invalid: %s" % asset_id)
 	if not _valid_logical_point(anchors.get("pivot_logical", [])):
 		errors.append("Weapon pivot is missing or outside the logical canvas: %s" % asset_id)
+	var world_scale := float(anchors.get("world_scale", 0.0))
+	if world_scale < 0.12 or world_scale > 0.35:
+		errors.append("Weapon world scale is missing or implausible: %s" % asset_id)
+	var mount_position: Variant = anchors.get("mount_position_world", [])
+	if not mount_position is Array or (mount_position as Array).size() != 2:
+		errors.append("Weapon mount position is missing: %s" % asset_id)
+	if String(anchors.get("calibration_status", "")) != "runtime_calibrated_2026_08_19":
+		errors.append("Weapon runtime calibration is incomplete: %s" % asset_id)
 	var has_action_origin := false
 	for key: String in [
 		"muzzle_logical",

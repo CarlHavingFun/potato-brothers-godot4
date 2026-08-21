@@ -39,6 +39,7 @@ CURATED_PROJECTILE_COLLECTION = "sprite-gen-curated-projectiles-2026-08-18"
 CURATED_PASSIVE_COLLECTION = "sprite-gen-curated-passives-2026-08-18"
 GENERATED_SCENE_COLLECTION = "generated-scene-art-2026-08-18"
 CODE_NATIVE_COLLECTION = "original-code-native-vectors-2026-08-18"
+USER_SELECTED_IDENTITY_COLLECTION = "user-selected-product-identity-2026-08-19"
 OWNED_COLLECTIONS = {
     EXISTING_COLLECTION,
     CURATED_COLLECTION,
@@ -47,6 +48,7 @@ OWNED_COLLECTIONS = {
     CURATED_PASSIVE_COLLECTION,
     GENERATED_SCENE_COLLECTION,
     CODE_NATIVE_COLLECTION,
+    USER_SELECTED_IDENTITY_COLLECTION,
 }
 PASSIVE_CURATION_REL_ROOT = Path("builds/skin_curation/passives_missing")
 PASSIVE_SELECTION_SHA256 = "3ba081d98d3920629ff7c7bb67ff0103c5b5e50eadc9c17808e4c63dcbf54861"
@@ -90,6 +92,37 @@ CURATED_PASSIVE_IDS = (
     "passive.turret_gears",
     "passive.vest",
 )
+
+# Absolute Godot Sprite2D scales and attachment points for the shared 256px
+# canvases.  Icon art remains normalized for UI readability; the combat world
+# applies these calibrated transforms so a pistol is not the size of a rifle
+# and grenade/C4 silhouettes sit next to the player instead of over them.
+WEAPON_WORLD_TRANSFORMS: dict[str, dict[str, Any]] = {
+    "weapon.carbine": {"scale": 0.27, "mount": [22, -2]},
+    "weapon.shotgun": {"scale": 0.27, "mount": [22, -2]},
+    "weapon.railbow": {"scale": 0.28, "mount": [22, -2]},
+    "weapon.laser": {"scale": 0.30, "mount": [22, -3]},
+    "weapon.pistol": {"scale": 0.17, "mount": [17, -1]},
+    "weapon.revolver": {"scale": 0.19, "mount": [18, -1]},
+    "weapon.smg": {"scale": 0.23, "mount": [20, -2]},
+    "weapon.shrapnel_launcher": {"scale": 0.24, "mount": [20, -2]},
+    "weapon.needler": {"scale": 0.21, "mount": [19, -2]},
+    "weapon.boomerang": {"scale": 0.22, "mount": [19, -2]},
+    "weapon.drone_beacon": {"scale": 0.19, "mount": [18, -1]},
+    "weapon.ember_staff": {"scale": 0.17, "mount": [16, 0]},
+    "weapon.axe": {"scale": 0.22, "mount": [23, 2]},
+    "weapon.chainsaw": {"scale": 0.21, "mount": [22, 0]},
+    "weapon.mace": {"scale": 0.22, "mount": [23, 1]},
+    "weapon.punch": {"scale": 0.18, "mount": [18, 0]},
+    "weapon.sword": {"scale": 0.21, "mount": [21, 0]},
+    "weapon.wand": {"scale": 0.20, "mount": [19, 0]},
+    "weapon.spear": {"scale": 0.22, "mount": [23, 0]},
+    "weapon.cleaver": {"scale": 0.21, "mount": [22, 0]},
+    "weapon.turret_kit": {"scale": 0.18, "mount": [16, 1]},
+    "weapon.void_prism": {"scale": 0.20, "mount": [16, 0]},
+    "weapon.storm_coil": {"scale": 0.20, "mount": [16, 0]},
+    "weapon.frost_orb": {"scale": 0.20, "mount": [16, 0]},
+}
 
 
 def _weapon(
@@ -647,13 +680,26 @@ APPROVED_ASSETS: tuple[dict[str, Any], ...] = (
         "pickup.material",
         "pickup_world",
         "pickups/material.png",
-        "builds/skin_curation/pickup_set/candidates/material_b.png",
-        "fda62a8b5414274f08c29b33b098ccfd44d466565497aa3a5ce75cc8c743c000",
-        "curated-world-02",
+        "builds/skin_curation/pickup_set/candidates/material_gold_shard_v2.png",
+        "f962398c4fddecdd00e619be66aee49507435965f38331a41a5e45286efd08a5",
+        "pickup-material-gold-shard-v2",
         "pickup.world",
         "pickup",
-        (48, 44),
-    ),
+        (48, 34),
+    )
+    | {
+        "source_pipeline": [
+            "built_in_image_gen",
+            "sprite_gen_component_row",
+            "sprite_gen_pixel_unfake",
+            "sprite_gen_curation",
+        ],
+        "approval_basis": "agent_visual_qa_sprite_gen_curation",
+        "approval_date": "2026-08-21",
+        "lossless_curated": True,
+        "expected_logical_bbox": [9, 16, 47, 32],
+        "normalization_mode": "sprite_gen_pixel_unfake_curated",
+    },
     _curated_world_asset(
         "pickup.heal",
         "pickup_world",
@@ -784,14 +830,21 @@ CODE_NATIVE_ASSETS: tuple[dict[str, Any], ...] = (
         "original-vector-01",
         "ui.logo",
     ),
-    _code_native_vector(
-        "ui.app_icon",
-        "ui_app_icon",
-        "ui/app_icon.svg",
-        "0502790f2d920f4590d62d7944b6bde927c3106beb5d3289ba69e52fe02903f4",
-        "original-vector-02",
-        "ui.app_icon",
-    ),
+)
+
+USER_SELECTED_IDENTITY_ASSETS: tuple[dict[str, Any], ...] = (
+    {
+        "presentation_id": "ui.app_icon",
+        "category": "ui_app_icon",
+        "output_rel": "ui/app_icon.png",
+        "source_sha256": "3a300e6897c38dbcd5d7d5f1ca70b4f650365195155ff005976742ac31179504",
+        "sha256": "677d1fc236182d09d879085b047b91eff996ac4565584d025ebb7c62218cdd92",
+        "asset_ref": "conversation-attachment-chicken-pixel",
+        "use": "ui.app_icon",
+        "source_canvas": (1254, 1254),
+        "canvas": (256, 256),
+        "logical_canvas": (64, 64),
+    },
 )
 
 
@@ -903,13 +956,22 @@ def _clean_curated_chroma(
         from sprite_gen.frames.extract import (  # type: ignore[import-not-found]
             component_group_image,
             connected_components,
-            remove_chroma_background_ycbcr,
+            remove_chroma_background,
         )
     except ImportError as error:
         raise RuntimeError(
             "Curated chroma cleanup requires the sprite-gen virtual environment"
         ) from error
-    cleaned = remove_chroma_background_ycbcr(image, (0, 255, 112))
+    cleaned = remove_chroma_background(
+        image,
+        (0, 255, 112),
+        190.0,
+        232.0,
+        18.0,
+        unmix_reach=6,
+        spill_max_fraction=0.005,
+    )
+    cleaned = _strip_saturated_key_halo(cleaned)
     components = connected_components(cleaned)
     if not components:
         raise ValueError("Chroma cleanup erased the curated subject")
@@ -925,6 +987,47 @@ def _clean_curated_chroma(
     elif component_policy != "largest_subject":
         raise ValueError(f"Unsupported curated component policy: {component_policy}")
     return component_group_image(cleaned, selected, padding=2)
+
+
+def _strip_saturated_key_halo(image: Image.Image) -> Image.Image:
+    """Remove the last green-screen blend ring without touching dark olive art.
+
+    The generated review sheets contain a bright green/yellow bloom around a
+    few silhouettes.  The sprite-gen matte removes the background correctly,
+    but a one-logical-pixel saturated blend can remain attached to the subject.
+    Only saturated yellow/green pixels connected to transparency are peeled;
+    interior indicators, paint and olive equipment are preserved.
+    """
+    output = image.convert("RGBA")
+    for _pass in range(2):
+        source = output.copy()
+        source_pixels = source.load()
+        output_pixels = output.load()
+        removals: list[tuple[int, int]] = []
+        for y in range(source.height):
+            for x in range(source.width):
+                red, green, blue, alpha = source_pixels[x, y]
+                if alpha <= 16 or green < 170 or blue > 110 or red < 90:
+                    continue
+                if max(red, green, blue) - min(red, green, blue) < 105:
+                    continue
+                for offset_x, offset_y in (
+                    (-1, -1), (0, -1), (1, -1),
+                    (-1, 0), (1, 0),
+                    (-1, 1), (0, 1), (1, 1),
+                ):
+                    neighbor_x = x + offset_x
+                    neighbor_y = y + offset_y
+                    if not (0 <= neighbor_x < source.width and 0 <= neighbor_y < source.height):
+                        continue
+                    if source_pixels[neighbor_x, neighbor_y][3] <= 16:
+                        removals.append((x, y))
+                        break
+        for x, y in removals:
+            output_pixels[x, y] = (0, 0, 0, 0)
+        if not removals:
+            break
+    return output
 
 
 def _normalize(
@@ -978,7 +1081,7 @@ def _normalize(
             logical_bbox[3] - logical_bbox[1],
         ],
         "content_limit": [max_width, max_height],
-        "chroma_cleanup": f"sprite_gen_ycbcr_{component_policy}"
+        "chroma_cleanup": f"sprite_gen_rgb_exact_unmix_{component_policy}"
         if chroma_cleanup
         else "not_required",
     }
@@ -989,6 +1092,9 @@ def _copy_curated_passive(
     output: Path,
     expected_sha256: str,
     expected_logical_bbox: list[int],
+    *,
+    content_limit: tuple[int, int] = (50, 50),
+    normalization_mode: str = "lossless_curated_copy",
 ) -> dict[str, Any]:
     if _sha256(source) != expected_sha256:
         raise ValueError(f"Curated passive input hash changed: {source.name}")
@@ -1013,16 +1119,19 @@ def _copy_curated_passive(
     actual_bbox = [bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]]
     if actual_bbox != [int(value) for value in expected_logical_bbox]:
         raise ValueError(f"Curated passive logical bbox changed: {source.name}")
-    if actual_bbox[2] > 50 or actual_bbox[3] > 50:
-        raise ValueError(f"Curated passive exceeds the 50x50 content limit: {source.name}")
+    max_width, max_height = content_limit
+    if actual_bbox[2] > max_width or actual_bbox[3] > max_height:
+        raise ValueError(
+            f"Curated asset exceeds the {max_width}x{max_height} content limit: {source.name}"
+        )
     output.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source, output)
     if _sha256(output) != expected_sha256:
         raise ValueError(f"Lossless curated passive copy changed bytes: {source.name}")
     return {
-        "mode": "lossless_curated_copy",
+        "mode": normalization_mode,
         "logical_bbox_xywh": actual_bbox,
-        "content_limit": [50, 50],
+        "content_limit": [max_width, max_height],
         "logical_canvas": [LOGICAL_CANVAS, LOGICAL_CANVAS],
         "output_canvas": [OUTPUT_CANVAS, OUTPUT_CANVAS],
         "alpha": "binary",
@@ -1067,17 +1176,24 @@ def _copy_generated_scene(
     }
 
 
-def _initial_anchors(normalization: dict[str, Any], anchor_kind: str) -> dict[str, Any]:
+def _initial_anchors(
+    normalization: dict[str, Any],
+    anchor_kind: str,
+    presentation_id: str,
+) -> dict[str, Any]:
     x, y, width, height = normalization["logical_bbox_xywh"]
     pivot = [round(x + width * 0.42), round(y + height * 0.68)]
     anchors: dict[str, Any] = {
         "coordinate_space": "logical_64",
         "facing": "screen_right",
         "pivot_logical": pivot,
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": anchor_kind,
     }
+    world_transform = WEAPON_WORLD_TRANSFORMS[presentation_id]
+    anchors["world_scale"] = float(world_transform["scale"])
+    anchors["mount_position_world"] = list(world_transform["mount"])
     if anchor_kind == "throw":
         anchors["throw_origin_logical"] = [round(x + width * 0.5), round(y + height * 0.5)]
     elif anchor_kind == "place":
@@ -1155,6 +1271,7 @@ def install(
             *curated_passive_specs,
             *GENERATED_SCENE_ASSETS,
             *CODE_NATIVE_ASSETS,
+            *USER_SELECTED_IDENTITY_ASSETS,
         )
     }
     preserved_assets: list[dict[str, Any]] = []
@@ -1187,13 +1304,23 @@ def install(
             )
         output = output_asset_root / str(spec["output_rel"])
         expected_outputs.add(output.resolve())
-        normalization = _normalize(
-            source,
-            output,
-            tuple(spec["content_limit"]),
-            chroma_cleanup=bool(spec.get("chroma_cleanup", False)),
-            component_policy=str(spec.get("component_policy", "largest_subject")),
-        )
+        if spec.get("lossless_curated"):
+            normalization = _copy_curated_passive(
+                source,
+                output,
+                str(spec["source_sha256"]),
+                list(spec["expected_logical_bbox"]),
+                content_limit=tuple(spec["content_limit"]),
+                normalization_mode=str(spec["normalization_mode"]),
+            )
+        else:
+            normalization = _normalize(
+                source,
+                output,
+                tuple(spec["content_limit"]),
+                chroma_cleanup=bool(spec.get("chroma_cleanup", False)),
+                component_policy=str(spec.get("component_policy", "largest_subject")),
+            )
         source_record: dict[str, Any] = {
             "kind": spec["source_kind"],
             "collection": spec["source_collection"],
@@ -1212,7 +1339,7 @@ def install(
             "approval": {
                 "status": "approved",
                 "basis": spec["approval_basis"],
-                "date": "2026-08-18",
+                "date": str(spec.get("approval_date", "2026-08-18")),
             },
             "rights": {
                 "status": "cleared",
@@ -1240,7 +1367,11 @@ def install(
             },
         }
         if spec["category"] == "weapon_icon":
-            entry["anchors"] = _initial_anchors(normalization, str(spec["anchor_kind"]))
+            entry["anchors"] = _initial_anchors(
+                normalization,
+                str(spec["anchor_kind"]),
+                str(spec["presentation_id"]),
+            )
         elif spec["category"] in ["pickup_world", "prop_world", "ally_world"]:
             entry["anchors"] = _initial_world_anchors(
                 normalization,
@@ -1404,6 +1535,60 @@ def install(
                 "shipping_allowed": True,
                 "uses": [spec["use"]],
                 "format": "svg",
+            }
+        )
+
+    for spec in USER_SELECTED_IDENTITY_ASSETS:
+        output = output_asset_root / str(spec["output_rel"])
+        if not output.is_file():
+            raise FileNotFoundError(f"Approved user-selected identity asset is missing: {output}")
+        output_sha256 = _sha256(output)
+        if output_sha256 != spec["sha256"]:
+            raise ValueError(
+                f"Approved user-selected identity asset changed for {spec['asset_ref']}: "
+                f"expected {spec['sha256']}, got {output_sha256}"
+            )
+        expected_outputs.add(output.resolve())
+        canvas = [int(value) for value in spec["canvas"]]
+        manifest_assets.append(
+            {
+                "id": spec["presentation_id"],
+                "presentation_id": spec["presentation_id"],
+                "category": spec["category"],
+                "path": f"{ASSET_RES_ROOT}/{spec['output_rel']}",
+                "sha256": output_sha256,
+                "source": {
+                    "kind": "user_provided_art",
+                    "collection": USER_SELECTED_IDENTITY_COLLECTION,
+                    "asset_ref": spec["asset_ref"],
+                    "sha256": spec["source_sha256"],
+                    "pipeline": ["sprite_gen_pixel_unfake", "sprite_gen_curation"],
+                },
+                "approval": {
+                    "status": "approved",
+                    "basis": "user_explicit_selection",
+                    "date": "2026-08-19",
+                },
+                "rights": {
+                    "status": "cleared",
+                    "basis": "user_provided_for_project",
+                    "restrictions": ["project_use_only"],
+                },
+                "shipping_allowed": True,
+                "uses": [spec["use"]],
+                "format": "png",
+                "normalization": {
+                    "mode": "sprite_gen_pixel_unfake_curated",
+                    "source_canvas": [int(value) for value in spec["source_canvas"]],
+                    "output_canvas": canvas,
+                    "logical_canvas": [int(value) for value in spec["logical_canvas"]],
+                    "nearest_scale": 4,
+                    "palette_size": 48,
+                    "outline_strength": 1.0,
+                    "edge_dark_fraction": 0.9067524115755627,
+                    "alpha": "binary",
+                    "transparent_rgb": "zero",
+                },
             }
         )
 

@@ -12,10 +12,12 @@ $projectRoot = (Resolve-Path (Split-Path -Parent $PSScriptRoot)).Path
 $buildRoot = Join-Path $projectRoot "builds"
 $stagingRoot = Join-Path $buildRoot "release_staging"
 $stagingProject = Join-Path $stagingRoot "core_project"
-$distRoot = Join-Path $projectRoot "dist\lets-gooooo"
+$distRoot = Join-Path $projectRoot "dist\game-prototype"
 $contentPack = Join-Path $buildRoot "content\default_content.pck"
 $FormalSkinManifest = "res://content_packs/skins/lets_gooooo/skin.tres"
-$FormalGlobalFontResource = "res://assets/font/Bake Soda.otf"
+$FormalGlobalFontResource = "res://assets/font/brotato_font_stack.tres"
+$FormalPrimaryFontResource = "res://assets/font/Anybody-Medium.ttf"
+$FormalFallbackFontResource = "res://assets/font/NotoSansCJKsc-Medium.otf"
 $DefaultContentReadyMarker = "MECHANICS_CONTENT_READY weapons=24 passives=60 upgrades=64 presentation_icons=0"
 $GodotFailureOutputPattern = "SCRIPT ERROR|ERROR:|Unicode parsing error|ObjectDB instances were leaked|resources still in use"
 $RuntimeFailureOutputPattern = "$GodotFailureOutputPattern|Default content pack failed"
@@ -154,28 +156,28 @@ function Set-FormalGlobalFontConfiguration([string]$ProjectText, [string]$Staged
 	if (-not (Test-Path -LiteralPath $fontPath -PathType Leaf)) {
 		throw "Formal global font is missing from the staged project: $FormalGlobalFontResource"
 	}
-	$fontImportPath = "$fontPath.import"
-	if (-not (Test-Path -LiteralPath $fontImportPath -PathType Leaf)) {
-		throw "Formal global font import metadata is missing: $fontImportPath"
-	}
-	$fontImportText = Get-Content -LiteralPath $fontImportPath -Raw
-	$fontUidMatch = [regex]::Match($fontImportText, '(?m)^uid="(?<uid>uid://[^"]+)"\r?$')
+	$fontResourceText = Get-Content -LiteralPath $fontPath -Raw
+	$fontUidMatch = [regex]::Match($fontResourceText, '\[gd_resource [^\]]*uid="(?<uid>uid://[^"]+)"\]')
 	if (-not $fontUidMatch.Success) {
-		throw "Formal global font import metadata has no UID: $fontImportPath"
+		throw "Formal global font resource has no UID: $fontPath"
 	}
-	$fontDataMatch = [regex]::Match(
-		$fontImportText,
-		'(?m)^path="(?<path>res://[^"]+\.fontdata)"\r?$'
-	)
-	if (-not $fontDataMatch.Success) {
-		throw "Formal global font import metadata has no fontdata destination: $fontImportPath"
-	}
-	$fontDataResource = $fontDataMatch.Groups["path"].Value
-	$fontDataRelativePath = $fontDataResource.Substring(6).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
-	$fontDataPath = Join-Path $StagedProjectRoot $fontDataRelativePath
-	Assert-ChildPath $fontDataPath $StagedProjectRoot
-	if (-not (Test-Path -LiteralPath $fontDataPath -PathType Leaf)) {
-		throw "Formal global font imported data is missing: $fontDataPath"
+	foreach ($fontBinaryResource in @($FormalPrimaryFontResource, $FormalFallbackFontResource)) {
+		$fontBinaryPath = Join-Path $StagedProjectRoot $fontBinaryResource.Substring(6).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+		Assert-ChildPath $fontBinaryPath $StagedProjectRoot
+		$fontImportPath = "$fontBinaryPath.import"
+		if (-not (Test-Path -LiteralPath $fontImportPath -PathType Leaf)) {
+			throw "Formal font binary import metadata is missing: $fontImportPath"
+		}
+		$fontImportText = Get-Content -LiteralPath $fontImportPath -Raw
+		$fontDataMatch = [regex]::Match($fontImportText, '(?m)^path="(?<path>res://[^"]+\.fontdata)"\r?$')
+		if (-not $fontDataMatch.Success) {
+			throw "Formal font binary import metadata has no fontdata destination: $fontImportPath"
+		}
+		$fontDataPath = Join-Path $StagedProjectRoot $fontDataMatch.Groups["path"].Value.Substring(6).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+		Assert-ChildPath $fontDataPath $StagedProjectRoot
+		if (-not (Test-Path -LiteralPath $fontDataPath -PathType Leaf)) {
+			throw "Formal font binary imported data is missing: $fontDataPath"
+		}
 	}
 	$fontSettingPattern = '(?m)^theme/custom_font="[^"]*"\r?$'
 	if (-not [regex]::IsMatch($ProjectText, $fontSettingPattern)) {
@@ -230,7 +232,7 @@ function Assert-WindowsX64Executable([string]$ExecutablePath) {
 }
 
 function Assert-WindowsReleaseDirectory([string]$PlatformDirectory) {
-	$requiredFiles = @("LETS_GOOOOO.exe", "LETS_GOOOOO.pck", "default_content.pck", "PLAYTEST.md", "THIRD_PARTY.md")
+	$requiredFiles = @("GamePrototype.exe", "GamePrototype.pck", "default_content.pck", "PLAYTEST.md", "THIRD_PARTY.md")
 	$actualFiles = @(Get-ChildItem -LiteralPath $PlatformDirectory -File -Recurse | ForEach-Object {
 		$_.FullName.Substring($PlatformDirectory.Length + 1).Replace('\', '/')
 	})
@@ -244,13 +246,13 @@ function Assert-WindowsReleaseDirectory([string]$PlatformDirectory) {
 		$file = Get-Item -LiteralPath (Join-Path $PlatformDirectory $fileName)
 		if ($file.Length -le 0) { throw "Windows package contains an empty file: $fileName" }
 	}
-	Assert-WindowsX64Executable (Join-Path $PlatformDirectory "LETS_GOOOOO.exe")
+	Assert-WindowsX64Executable (Join-Path $PlatformDirectory "GamePrototype.exe")
 }
 
 function Assert-WindowsReleaseArchive([string]$ArchivePath) {
 	Add-Type -AssemblyName System.IO.Compression
 	Add-Type -AssemblyName System.IO.Compression.FileSystem
-	$requiredFiles = @("LETS_GOOOOO.exe", "LETS_GOOOOO.pck", "default_content.pck", "PLAYTEST.md", "THIRD_PARTY.md")
+	$requiredFiles = @("GamePrototype.exe", "GamePrototype.pck", "default_content.pck", "PLAYTEST.md", "THIRD_PARTY.md")
 	$archive = [System.IO.Compression.ZipFile]::OpenRead($ArchivePath)
 	try {
 		$actualFiles = @($archive.Entries | Where-Object { -not [string]::IsNullOrEmpty($_.Name) } | ForEach-Object {
@@ -268,7 +270,7 @@ function Assert-WindowsReleaseArchive([string]$ArchivePath) {
 
 function Invoke-WindowsReleaseSmoke([string]$PlatformDirectory) {
 	$tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
-	$smokeRoot = Join-Path $tempRoot ("LETS-GOOOOO-release-smoke-" + [Guid]::NewGuid().ToString("N"))
+	$smokeRoot = Join-Path $tempRoot ("game-prototype-release-smoke-" + [Guid]::NewGuid().ToString("N"))
 	Assert-ChildPath $smokeRoot $tempRoot
 	$smokePackage = Join-Path $smokeRoot "package"
 	$isolatedAppData = Join-Path $smokeRoot "isolated-appdata"
@@ -286,7 +288,7 @@ function Invoke-WindowsReleaseSmoke([string]$PlatformDirectory) {
 	try {
 		$env:APPDATA = $isolatedAppData
 		$env:LOCALAPPDATA = $isolatedLocalAppData
-		$smokeExecutable = Join-Path $smokePackage "LETS_GOOOOO.exe"
+		$smokeExecutable = Join-Path $smokePackage "GamePrototype.exe"
 		$smokeProcess = Start-Process `
 			-FilePath $smokeExecutable `
 			-WorkingDirectory $smokePackage `
@@ -305,9 +307,9 @@ function Invoke-WindowsReleaseSmoke([string]$PlatformDirectory) {
 		$runtimeLogs = @($smokeLog, $smokeStdout, $smokeStderr) | Where-Object {
 			Test-Path -LiteralPath $_ -PathType Leaf
 		}
-		# Keep the legacy user-data directory while the visible product name
-		# changes, so existing profiles remain available after the skin swap.
-		$gameLog = Join-Path $isolatedAppData "Godot\app_userdata\GOBRO\logs\latest.log"
+		# The formal product uses an isolated user-data namespace. Developer-era
+		# Older developer saves must not make a clean playtest package look pre-played.
+		$gameLog = Join-Path $isolatedAppData "LETS_GOOOOO\logs\latest.log"
 		if (Test-Path -LiteralPath $gameLog -PathType Leaf) { $runtimeLogs += $gameLog }
 		$smokeErrors = @($runtimeLogs | ForEach-Object {
 			Get-Content -LiteralPath $_ | Where-Object { $_ -match $RuntimeFailureOutputPattern
@@ -397,9 +399,9 @@ $verifiedStagingImportArguments = @("--headless", "--editor", "--path", $staging
 Invoke-Godot $verifiedStagingImportArguments
 
 $platformConfig = @{
-	Windows = @{ Preset = "Windows Desktop"; Folder = "windows"; File = "LETS_GOOOOO.exe" }
-	Linux   = @{ Preset = "Linux"; Folder = "linux"; File = "LETS_GOOOOO.x86_64" }
-	macOS   = @{ Preset = "macOS"; Folder = "macos"; File = "LETS_GOOOOO.zip" }
+	Windows = @{ Preset = "Windows Desktop"; Folder = "windows"; File = "GamePrototype.exe" }
+	Linux   = @{ Preset = "Linux"; Folder = "linux"; File = "GamePrototype.x86_64" }
+	macOS   = @{ Preset = "macOS"; Folder = "macos"; File = "GamePrototype.zip" }
 }
 $inspectorSource = Join-Path $projectRoot "tools\release_inspector"
 $inspectorProject = Join-Path $stagingRoot "inspector_project"
@@ -456,7 +458,7 @@ foreach ($platform in $Platforms) {
 			"--skin-manifest", $SkinManifest,
 			"--asset-manifest", $selectedSkinAssetManifestResource
 		)
-		$releaseArchive = Join-Path $distRoot "LETS-GOOOOO-macOS-universal.zip"
+		$releaseArchive = Join-Path $distRoot "GamePrototype-macOS-universal.zip"
 		Copy-Item -LiteralPath $exportPath -Destination $releaseArchive -Force
 	} else {
 		$corePck = [System.IO.Path]::ChangeExtension($exportPath, ".pck")
@@ -475,12 +477,12 @@ foreach ($platform in $Platforms) {
 			if ($env:OS -eq "Windows_NT") {
 				Invoke-WindowsReleaseSmoke $platformDir
 			}
-			$releaseArchive = Join-Path $distRoot "LETS-GOOOOO-Windows-x86_64.zip"
+			$releaseArchive = Join-Path $distRoot "GamePrototype-Windows-x86_64.zip"
 			tar -a -cf $releaseArchive -C $platformDir .
 			if ($LASTEXITCODE -ne 0) { throw "Windows archive creation failed" }
 			Assert-WindowsReleaseArchive $releaseArchive
 		} else {
-			$releaseArchive = Join-Path $distRoot "LETS-GOOOOO-Linux-x86_64.tar.gz"
+			$releaseArchive = Join-Path $distRoot "GamePrototype-Linux-x86_64.tar.gz"
 			tar -czf $releaseArchive -C $platformDir .
 			if ($LASTEXITCODE -ne 0) { throw "Linux archive creation failed" }
 		}
@@ -497,7 +499,7 @@ Get-ChildItem -LiteralPath $distRoot -File -Recurse | Where-Object Name -ne "rel
 	}
 }
 $manifest = [ordered]@{
-	product = "LET'S GOOOOO"
+	product = "Game Prototype"
 	phase = 1
 	version = "0.1.0-playtest"
 	godot = $godotVersion

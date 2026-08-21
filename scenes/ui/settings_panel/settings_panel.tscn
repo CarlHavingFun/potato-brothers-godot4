@@ -3,19 +3,27 @@
 [ext_resource type="Script" path="res://scenes/ui/settings_panel/settings_panel.gd" id="1"]
 
 [sub_resource type="StyleBoxFlat" id="background"]
-bg_color = Color(0.035, 0.043, 0.061, 0.99)
+anti_aliasing = true
+anti_aliasing_size = 1.25
+border_blend = true
+corner_detail = 12
+bg_color = Color(0.018, 0.018, 0.018, 0.99)
 
 [sub_resource type="StyleBoxFlat" id="page_background"]
-bg_color = Color(0.065, 0.078, 0.105, 0.96)
+anti_aliasing = true
+anti_aliasing_size = 1.25
+border_blend = true
+corner_detail = 12
+bg_color = Color(0.035, 0.035, 0.035, 0.96)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color(0.19, 0.23, 0.31, 0.9)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
+border_color = Color(0.2, 0.2, 0.2, 0.94)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [node name="SettingsPanel" type="Panel"]
 process_mode = 3
@@ -51,6 +59,8 @@ alignment = 1
 [node name="Title" type="Label" parent="SafeArea/Layout/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_colors/font_outline_color = Color(0.01, 0.01, 0.01, 1)
+theme_override_constants/outline_size = 4
 theme_override_font_sizes/font_size = 42
 text = "ui.settings.title"
 vertical_alignment = 1
@@ -241,24 +251,8 @@ title = "ui.settings.binding_conflict_title"
 ok_button_text = "ui.settings.replace_binding"
 cancel_button_text = "ui.common.cancel"
 
-[node name="DisplayConfirmDialog" type="ConfirmationDialog" parent="."]
-unique_name_in_owner = true
-process_mode = 3
-title = "ui.settings.keep_display_title"
-ok_button_text = "ui.settings.keep_display"
-cancel_button_text = "ui.settings.revert_display"
-
-[node name="DisplayConfirmTimer" type="Timer" parent="."]
-unique_name_in_owner = true
-process_mode = 3
-wait_time = 10.0
-one_shot = true
-
 [connection signal="pressed" from="SafeArea/Layout/Footer/ResetButton" to="." method="_on_reset_button_pressed"]
 [connection signal="pressed" from="SafeArea/Layout/Footer/CancelButton" to="." method="_on_cancel_button_pressed"]
 [connection signal="pressed" from="SafeArea/Layout/Footer/ApplyButton" to="." method="_on_apply_button_pressed"]
 [connection signal="confirmed" from="ConflictDialog" to="." method="_on_conflict_replace_confirmed"]
 [connection signal="canceled" from="ConflictDialog" to="." method="_on_conflict_canceled"]
-[connection signal="confirmed" from="DisplayConfirmDialog" to="." method="_on_display_keep_confirmed"]
-[connection signal="canceled" from="DisplayConfirmDialog" to="." method="_on_display_revert_requested"]
-[connection signal="timeout" from="DisplayConfirmTimer" to="." method="_on_display_revert_requested"]

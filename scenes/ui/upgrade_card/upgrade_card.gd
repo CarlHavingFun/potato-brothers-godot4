@@ -7,6 +7,10 @@ class_name UpgradeCard
 @onready var item_name: Label = %Name
 @onready var item_description: RichTextLabel = %Description
 
+
+func _ready() -> void:
+	item_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
 func _set_data(value: ItemUpgrade) -> void:
 	item_data = value
 	var definition := Content.catalog.get_upgrade_definition_for_item(item_data)

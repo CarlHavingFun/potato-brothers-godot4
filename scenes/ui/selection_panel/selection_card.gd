@@ -2,6 +2,10 @@ extends Button
 class_name SelectionCard
 
 
+func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
+
 func set_icon(texture: Texture2D) -> void:
 	icon = texture
 

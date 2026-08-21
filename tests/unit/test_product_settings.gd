@@ -67,6 +67,20 @@ func test_window_modes_have_distinct_native_window_contracts() -> void:
 	assert_bool(exclusive.borderless).is_false()
 
 
+func test_oversized_windowed_resolution_keeps_a_visible_windows_frame() -> void:
+	var policy: Script = load(WINDOW_MODE_POLICY_PATH)
+
+	assert_object(policy.call(
+		"resolved_windowed_size", Vector2i(1920, 1080), Vector2i(1920, 1040)
+	)).is_equal(Vector2i(1600, 900))
+	assert_object(policy.call(
+		"resolved_windowed_size", Vector2i(1280, 720), Vector2i(1920, 1040)
+	)).is_equal(Vector2i(1280, 720))
+	assert_object(policy.call(
+		"resolved_windowed_size", Vector2i(1920, 1080), Vector2i(1366, 728)
+	)).is_equal(Vector2i(1152, 648))
+
+
 func test_round_trip_clamps_invalid_values_and_normalizes_resolution() -> void:
 	var restored := ProductSettings.from_dict({
 		"master_volume": 2.0,

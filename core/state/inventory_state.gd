@@ -52,6 +52,37 @@ func find_weapon_slots(weapon_id: StringName, tier: int) -> Array[int]:
 	return result
 
 
+func find_auto_merge_slot(weapon_id: StringName, tier: int) -> int:
+	if has_weapon_slot() or weapon_id.is_empty() or tier < 1 or tier >= MAX_WEAPON_TIER:
+		return -1
+	var matching_slots := find_weapon_slots(weapon_id, tier)
+	return matching_slots[0] if not matching_slots.is_empty() else -1
+
+
+func merge_purchased_weapon(slot: int, weapon_id: StringName, tier: int, paid_price: int) -> bool:
+	if (
+		slot < 0
+		or slot >= _weapons.size()
+		or weapon_id.is_empty()
+		or tier < 1
+		or tier >= MAX_WEAPON_TIER
+		or paid_price < 0
+	):
+		return false
+	var current: Dictionary = _weapons[slot]
+	if (
+		StringName(str(current.get("weapon_id", ""))) != weapon_id
+		or int(current.get("tier", 0)) != tier
+	):
+		return false
+	_weapons[slot] = {
+		"weapon_id": String(weapon_id),
+		"tier": tier + 1,
+		"paid_price": maxi(0, int(current.get("paid_price", 0))) + paid_price,
+	}
+	return true
+
+
 func passive_count(item_id: StringName) -> int:
 	return int(_passives.get(String(item_id), 0))
 

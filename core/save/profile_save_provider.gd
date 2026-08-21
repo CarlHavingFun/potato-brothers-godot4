@@ -3,7 +3,7 @@ extends SaveProvider
 
 
 var store: ProfileStore
-var active_profile_id: int = 1
+var active_profile_id: int = 0
 
 
 func _init(profile_store: ProfileStore = null, initial_profile_id: int = 0) -> void:
@@ -22,9 +22,14 @@ func load_slot() -> Dictionary:
 func save_slot(payload: Variant) -> Error:
 	if store == null:
 		return ERR_UNAVAILABLE
+	if active_profile_id not in range(1, ProfileStore.MAX_PROFILES + 1):
+		return ERR_INVALID_PARAMETER
 	if not payload is Dictionary:
 		return ERR_INVALID_DATA
-	return store.save_profile(active_profile_id, payload)
+	var result := store.save_profile(active_profile_id, payload)
+	if result != OK:
+		return result
+	return store.save_active_profile_id(active_profile_id)
 
 
 func is_available() -> bool:
@@ -34,12 +39,26 @@ func is_available() -> bool:
 func set_active_profile(profile_id: int) -> bool:
 	if profile_id not in range(1, ProfileStore.MAX_PROFILES + 1):
 		return false
+	if store == null or not bool(store.profile_summary(profile_id).get("exists", false)):
+		return false
 	if profile_id == active_profile_id:
 		return true
-	if store == null or store.save_active_profile_id(profile_id) != OK:
+	if store.save_active_profile_id(profile_id) != OK:
 		return false
 	active_profile_id = profile_id
 	return true
+
+
+func stage_profile(profile_id: int) -> bool:
+	if store == null or profile_id not in range(1, ProfileStore.MAX_PROFILES + 1):
+		return false
+	active_profile_id = profile_id
+	return true
+
+
+func reload_active_profile() -> int:
+	active_profile_id = store.load_active_profile_id() if store != null else 0
+	return active_profile_id
 
 
 func summaries() -> Array[Dictionary]:

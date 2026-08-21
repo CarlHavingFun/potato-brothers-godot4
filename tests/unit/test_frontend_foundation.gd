@@ -57,6 +57,16 @@ func test_selection_flow_back_stack_keeps_completed_choices() -> void:
 	assert_str(flow.draft.character_id).is_equal("character.one")
 
 
+func test_profile_page_has_an_explicit_return_to_title() -> void:
+	var flow := SelectionFlow.new()
+	flow.open_profiles()
+
+	assert_int(flow.current_step).is_equal(SelectionStep.Value.PROFILE)
+	assert_bool(flow.go_back()).is_true()
+	assert_int(flow.current_step).is_equal(SelectionStep.Value.TITLE)
+	assert_bool(flow.go_back()).is_false()
+
+
 func test_selection_flow_rejects_missing_choices_and_locked_difficulty() -> void:
 	var flow := SelectionFlow.new()
 	flow.begin_new_run(1, 1, AimMode.AUTO_TARGET)

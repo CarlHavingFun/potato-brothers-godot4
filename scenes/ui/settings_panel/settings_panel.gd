@@ -7,7 +7,6 @@ signal closed
 const DISPLAY_MODE_WINDOWED := 0
 const DISPLAY_MODE_BORDERLESS := 1
 const DISPLAY_MODE_EXCLUSIVE := 2
-const DISPLAY_CONFIRM_SECONDS := 10.0
 const TAB_KEYS: Array[StringName] = [
 	&"ui.settings.tab.audio",
 	&"ui.settings.tab.display",
@@ -25,8 +24,6 @@ const TAB_FALLBACKS: Array[String] = ["Audio", "Display", "Gameplay", "Accessibi
 @onready var controls_content: VBoxContainer = %ControlsPage.get_node("Margin/Content")
 @onready var status_label: Label = %StatusLabel
 @onready var conflict_dialog: ConfirmationDialog = %ConflictDialog
-@onready var display_confirm_dialog: ConfirmationDialog = %DisplayConfirmDialog
-@onready var display_confirm_timer: Timer = %DisplayConfirmTimer
 
 var master_slider: HSlider
 var music_slider: HSlider
@@ -73,7 +70,7 @@ var _pending_settings: ProductSettings
 var _pending_event: InputEvent
 var _pending_action: StringName = &""
 var _translated_controls: Array[Control] = []
-var _display_confirmation_active := false
+var _populating_controls := false
 var _built := false
 
 
@@ -89,20 +86,18 @@ func _ready() -> void:
 	if not Input.joy_connection_changed.is_connected(_on_joy_connection_changed):
 		Input.joy_connection_changed.connect(_on_joy_connection_changed)
 	set_process_input(true)
-	set_process(false)
 
 
 func _configure_dialogs() -> void:
-	for dialog: ConfirmationDialog in [conflict_dialog, display_confirm_dialog]:
-		var message_label := dialog.get_label()
-		if message_label != null:
-			message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			message_label.add_theme_font_size_override(&"font_size", 18)
-		for button: Button in [dialog.get_ok_button(), dialog.get_cancel_button()]:
-			if button == null:
-				continue
-			button.custom_minimum_size = Vector2(150, 48)
-			button.add_theme_font_size_override(&"font_size", 18)
+	var message_label := conflict_dialog.get_label()
+	if message_label != null:
+		message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		message_label.add_theme_font_size_override(&"font_size", 18)
+	for button: Button in [conflict_dialog.get_ok_button(), conflict_dialog.get_cancel_button()]:
+		if button == null:
+			continue
+		button.custom_minimum_size = Vector2(150, 48)
+		button.add_theme_font_size_override(&"font_size", 18)
 
 
 func _notification(what: int) -> void:
@@ -138,7 +133,9 @@ func _build_pages() -> void:
 	display_mode_option.add_item(_text(&"ui.settings.display.exclusive", "Exclusive fullscreen"), DISPLAY_MODE_EXCLUSIVE)
 	display_mode_option.item_selected.connect(_on_display_mode_selected)
 	resolution_option = _add_option_row(display_content, "ResolutionOption", &"ui.settings.resolution", "Resolution")
+	resolution_option.item_selected.connect(_on_resolution_selected)
 	vsync_check = _add_check(display_content, "VsyncCheck", &"ui.settings.vsync", "Vertical sync")
+	vsync_check.toggled.connect(_on_vsync_toggled)
 	fps_cap_option = _add_option_row(display_content, "FpsCapOption", &"ui.settings.fps_cap", "Frame-rate limit")
 	for cap: int in [0, 60, 120, 144, 240]:
 		fps_cap_option.add_item(_text(&"ui.settings.unlimited", "Unlimited") if cap == 0 else str(cap), cap)
@@ -366,6 +363,7 @@ func load_settings() -> void:
 
 
 func _populate_controls(settings: ProductSettings) -> void:
+	_populating_controls = true
 	master_slider.value = settings.master_volume * 100.0
 	music_slider.value = settings.music_volume * 100.0
 	sfx_slider.value = settings.sfx_volume * 100.0
@@ -390,6 +388,7 @@ func _populate_controls(settings: ProductSettings) -> void:
 	high_contrast_projectiles_check.button_pressed = settings.high_contrast_projectiles
 	deadzone_slider.value = settings.gamepad_deadzone * 100.0
 	_on_display_mode_selected(display_mode_option.selected)
+	_populating_controls = false
 
 
 func set_resolution_provider(provider: Callable) -> void:
@@ -463,75 +462,15 @@ func _build_draft() -> ProductSettings:
 func _on_apply_button_pressed() -> void:
 	awaiting_action = &""
 	_pending_settings = _build_draft()
-	if _display_settings_changed(_settings_snapshot, _pending_settings):
-		if not Global.preview_product_settings(_pending_settings):
-			status_label.text = _text(&"ui.settings.apply_failed", "Could not apply settings.")
-			return
-		_display_confirmation_active = true
-		display_confirm_timer.start(DISPLAY_CONFIRM_SECONDS)
-		_update_display_confirmation_text()
-		display_confirm_dialog.popup_centered(Vector2i(560, 220))
-		set_process(true)
-		return
 	if not Global.apply_product_settings(_pending_settings, true):
+		Global.restore_product_settings(_settings_snapshot)
+		_populate_controls(_settings_snapshot)
 		status_label.text = _text(&"ui.settings.apply_failed", "Could not save settings.")
 		return
 	_finish_and_close()
 
 
-func _display_settings_changed(before: ProductSettings, after: ProductSettings) -> bool:
-	return before != null and after != null and (
-		before.display_mode != after.display_mode
-		or before.resolution != after.resolution
-		or before.vsync_enabled != after.vsync_enabled
-	)
-
-
-func _on_display_keep_confirmed() -> void:
-	if not _display_confirmation_active:
-		return
-	_display_confirmation_active = false
-	display_confirm_timer.stop()
-	set_process(false)
-	if _pending_settings == null or not Global.apply_product_settings(_pending_settings, true):
-		Global.restore_product_settings(_settings_snapshot)
-		status_label.text = _text(&"ui.settings.apply_failed", "Could not save settings; previous display restored.")
-		return
-	_finish_and_close()
-
-
-func _on_display_revert_requested() -> void:
-	if not _display_confirmation_active:
-		return
-	_display_confirmation_active = false
-	display_confirm_timer.stop()
-	set_process(false)
-	display_confirm_dialog.hide()
-	Global.restore_product_settings(_settings_snapshot)
-	remap_service.apply_actions(_binding_snapshot)
-	remap_service.set_gamepad_deadzone(_deadzone_snapshot)
-	_populate_controls(_settings_snapshot)
-	_refresh_binding_labels()
-	status_label.text = _text(&"ui.settings.display_reverted", "Previous display settings restored.")
-
-
-func _process(_delta: float) -> void:
-	if _display_confirmation_active:
-		_update_display_confirmation_text()
-
-
-func _update_display_confirmation_text() -> void:
-	var seconds := maxi(0, ceili(display_confirm_timer.time_left))
-	display_confirm_dialog.dialog_text = _text(
-		&"ui.settings.keep_display_countdown",
-		"Keep these display settings? Reverting in %d seconds." % seconds
-	).replace("{seconds}", str(seconds))
-
-
 func _on_cancel_button_pressed() -> void:
-	if _display_confirmation_active:
-		_on_display_revert_requested()
-		return
 	awaiting_action = &""
 	remap_service.apply_actions(_binding_snapshot)
 	remap_service.set_gamepad_deadzone(_deadzone_snapshot)
@@ -558,10 +497,7 @@ func _on_reset_controls_pressed() -> void:
 
 func _finish_and_close() -> void:
 	_pending_settings = null
-	display_confirm_timer.stop()
-	display_confirm_dialog.hide()
 	conflict_dialog.hide()
-	set_process(false)
 	closed.emit()
 	hide()
 
@@ -585,11 +521,6 @@ func _input(event: InputEvent) -> void:
 		if _is_capture_cancel(event):
 			conflict_dialog.hide()
 			_on_conflict_canceled()
-			get_viewport().set_input_as_handled()
-		return
-	if _display_confirmation_active:
-		if _is_capture_cancel(event):
-			_on_display_revert_requested()
 			get_viewport().set_input_as_handled()
 		return
 	if not awaiting_action.is_empty():
@@ -759,6 +690,36 @@ func _on_display_mode_selected(index: int) -> void:
 	resolution_option.disabled = (
 		display_mode_option.get_item_id(safe_index) != DISPLAY_MODE_WINDOWED
 	)
+	_preview_display_settings()
+
+
+func _on_resolution_selected(_index: int) -> void:
+	_preview_display_settings()
+
+
+func _on_vsync_toggled(_enabled: bool) -> void:
+	_preview_display_settings()
+
+
+func _preview_display_settings() -> void:
+	if _populating_controls or _settings_snapshot == null or not _built:
+		return
+	var preview := Global.product_settings.copy()
+	preview.display_mode = display_mode_option.get_item_id(display_mode_option.selected)
+	preview.resolution = _selected_resolution()
+	preview.vsync_enabled = vsync_check.button_pressed
+	if not Global.preview_product_settings(preview):
+		status_label.text = _text(&"ui.settings.apply_failed", "Could not apply settings.")
+		_populate_controls(Global.product_settings)
+	else:
+		if (
+			preview.display_mode == DISPLAY_MODE_WINDOWED
+			and Global.product_settings.resolution != preview.resolution
+		):
+			_populating_controls = true
+			_populate_resolutions(Global.product_settings.resolution)
+			_populating_controls = false
+		status_label.text = ""
 
 
 func _select_option_id(option: OptionButton, item_id: int) -> void:

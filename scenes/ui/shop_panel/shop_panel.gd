@@ -4,19 +4,37 @@ class_name ShopPanel
 signal on_shop_next_wave
 
 const SHOP_CARD_SCENE = preload("uid://csmrkxii0a74i")
+const UNAFFORDABLE_PRICE_COLOR := Color(1.0, 0.25, 0.25, 1.0)
 
 @onready var items_container: HBoxContainer = %ItemsContainer
 @onready var passives_container: GridContainer = %PassivesContainer
 @onready var weapons_container: GridContainer = %WeaponsContainer
 
 @onready var combine_button: Button = %CombineButton
+@onready var sell_button: Button = %SellButton
+@onready var close_button: Button = %CloseButton
 @onready var refresh_button: Button = %RefreshButton
+@onready var weapon_context_panel: PanelContainer = %WeaponContextPanel
+@onready var context_name_label: Label = %ContextName
+@onready var context_details_label: RichTextLabel = %ContextDetails
+@onready var context_refund_label: Label = %ContextRefund
 
 var context_card: ItemCard
 var current_wave := 1
 
 func _ready() -> void:
+	combine_button.focus_neighbor_right = sell_button.get_path()
+	sell_button.focus_neighbor_left = combine_button.get_path()
+	sell_button.focus_neighbor_right = close_button.get_path()
+	close_button.focus_neighbor_left = sell_button.get_path()
+	if not Global.materials_changed.is_connected(_on_materials_changed):
+		Global.materials_changed.connect(_on_materials_changed)
 	reset_inventory()
+
+
+func _exit_tree() -> void:
+	if Global.materials_changed.is_connected(_on_materials_changed):
+		Global.materials_changed.disconnect(_on_materials_changed)
 
 
 func reset_inventory() -> void:
@@ -25,6 +43,7 @@ func reset_inventory() -> void:
 	_clear_children(items_container)
 	context_card = null
 	combine_button.disabled = true
+	weapon_context_panel.hide()
 
 func load_shop(wave: int, force_refresh: bool = false) -> void:
 	current_wave = wave
@@ -57,7 +76,7 @@ func load_shop(wave: int, force_refresh: bool = false) -> void:
 		if shop_item == null:
 			continue
 		var card_instance := SHOP_CARD_SCENE.instantiate() as ShopCard
-		card_instance.on_item_purchased.connect(_on_item_purchased)
+		card_instance.on_item_purchased_detailed.connect(_on_item_purchased)
 		card_instance.lock_toggled.connect(_on_slot_lock_toggled)
 		items_container.add_child(card_instance)
 		card_instance.shop_item = shop_item
@@ -76,9 +95,12 @@ func create_item_card() -> ItemCard:
 	return item_card
 
 
-func create_item_weapon(weapon: ItemWeapon) -> void:
+func create_item_weapon(weapon: ItemWeapon, inventory_slot: int = -1) -> void:
 	var card := create_item_card()
 	weapons_container.add_child(card)
+	card.inventory_slot = (
+		inventory_slot if inventory_slot >= 0 else weapons_container.get_child_count() - 1
+	)
 	card.item = weapon
 
 
@@ -111,15 +133,27 @@ func _update_refresh_text() -> void:
 	var unlocked_count := Global.current_run.shop_slots.filter(
 		func(slot: ShopSlotState): return not slot.locked
 	).size()
-	refresh_button.text = "%s (%s)" % [LocalizedTextService.resolve(&"ui.shop.refresh"), Global.shop_service.refresh_price_for_run(
+	var price := Global.shop_service.refresh_price_for_run(
 		Global.current_run, current_wave, unlocked_count
-	)]
+	)
+	refresh_button.text = "%s (%s)" % [LocalizedTextService.resolve(&"ui.shop.refresh"), price]
+	refresh_button.add_theme_color_override(
+		"font_color", Color.WHITE if Global.current_run.materials >= price else UNAFFORDABLE_PRICE_COLOR
+	)
 
 
-func _on_item_purchased(item: ItemBase, slot_index: int = -1) -> void:
+func _on_materials_changed(_materials: int) -> void:
+	_update_refresh_text()
+
+
+func _on_item_purchased(item: ItemBase, slot_index: int = -1, result: Dictionary = {}) -> void:
 	if Global.current_run != null and slot_index < 0:
 		Global.shop_service.consume_offer(Global.current_run, item, Content.catalog)
-	project_item(item)
+	if result.get("mode", InventoryService.PURCHASE_MODE_NONE) == InventoryService.PURCHASE_MODE_AUTO_MERGE:
+		_rebuild_weapon_cards_from_inventory()
+	else:
+		project_item(item)
+		_refresh_offer_card_purchase_context()
 	var purchase_tags: Array[StringName] = []
 	purchase_tags.append(&"purchase/weapon" if item is ItemWeapon else &"purchase/passive")
 	Global.dispatch_gameplay_event(
@@ -132,39 +166,49 @@ func _on_item_purchased(item: ItemBase, slot_index: int = -1) -> void:
 
 
 func project_item(item: ItemBase, apply_passive_effects := true) -> void:
-	var item_card := create_item_card()
-	
 	if item.item_type == ItemBase.ItemType.WEAPON:
-		weapons_container.add_child(item_card)
 		var weapon := item as ItemWeapon
+		create_item_weapon(
+			weapon,
+			Global.current_run.inventory.weapon_count() - 1 if Global.current_run != null else -1
+		)
 		if is_instance_valid(Global.player):
 			Global.player.add_weapon(weapon)
 		Global.equipped_weapons.append(weapon)
 	
 	elif item.item_type == ItemBase.ItemType.PASSIVE:
+		var item_card := create_item_card()
 		passives_container.add_child(item_card)
 		var passive := item as ItemPassive
 		if apply_passive_effects:
 			Global.apply_passive_item(passive)
-	
-	item_card.item = item
+		item_card.item = item
 
 
 func _on_item_card_selected(card: ItemCard) -> void:
 	context_card = card
-	
+	if card == null or not card.item is ItemWeapon:
+		_close_weapon_context()
+		return
 	var can_merge := false
-	if card.item.item_type == ItemBase.ItemType.WEAPON:
-		var clicked_weapon := card.item as ItemWeapon
-		var count := 0
-		for weapon: ItemWeapon in Global.equipped_weapons:
-			if _same_weapon_family_and_tier(weapon, clicked_weapon):
-				count += 1
-		
-		if count >= 2:
-			can_merge = true
-	
+	var clicked_weapon := card.item as ItemWeapon
+	var count := 0
+	for weapon: ItemWeapon in Global.equipped_weapons:
+		if _same_weapon_family_and_tier(weapon, clicked_weapon):
+			count += 1
+	can_merge = count >= 2 and clicked_weapon.upgrade_to != null
 	combine_button.disabled = not can_merge
+	context_name_label.text = ItemDescriptionFormatter.item_display_name(clicked_weapon)
+	context_details_label.text = ItemDescriptionFormatter.format_weapon(
+		clicked_weapon,
+		Global.current_run.player_stats if Global.current_run != null else null
+	)
+	context_refund_label.text = LocalizedTextService.resolve(
+		&"ui.shop.context.refund", [_sell_refund_for_slot(card.inventory_slot)]
+	)
+	weapon_context_panel.show()
+	_position_weapon_context(card)
+	sell_button.grab_focus()
 
 
 func _on_combine_button_pressed() -> void:
@@ -181,15 +225,7 @@ func _on_combine_button_pressed() -> void:
 		func(weapon: Weapon): return _same_weapon_family_and_tier(weapon.data, clicked_weapon)
 	).slice(0, 2)
 	
-	var card_to_remove = weapons_container.get_children().filter(
-		func(card: ItemCard):
-			return card.item is ItemWeapon and _same_weapon_family_and_tier(
-				card.item,
-				clicked_weapon
-			)
-	).slice(0, 2)
-	
-	if weapons_to_remove.size() < 2 or card_to_remove.size() < 2:
+	if weapons_to_remove.size() < 2:
 		return
 	if Global.try_combine_weapon(clicked_weapon) != InventoryService.OK:
 		return
@@ -200,21 +236,12 @@ func _on_combine_button_pressed() -> void:
 		Global.equipped_weapons.erase(weapon.data)
 		weapon.queue_free()
 	
-	# Delete cards
-	for card: ItemCard in card_to_remove:
-		card.queue_free()
-	
 	# Create new Weapon
 	var upgraded_weapon: ItemWeapon = load(clicked_weapon.upgrade_to.resource_path)
 	Global.player.add_weapon(upgraded_weapon)
 	Global.equipped_weapons.append(upgraded_weapon)
-	
-	# Create new Item Card
-	var new_card := create_item_card()
-	weapons_container.add_child(new_card)
-	new_card.item = upgraded_weapon
-	
-	context_card = null
+	_close_weapon_context(false)
+	_rebuild_weapon_cards_from_inventory()
 	Global.save_progress()
 
 
@@ -224,27 +251,87 @@ func _on_sell_button_pressed() -> void:
 	if not context_card:
 		return
 	
-	var clicked_weapon := context_card.item as ItemWeapon
-	var matching_weapons: Array[Weapon] = Global.player.current_weapons.filter(
-		func(weapon: Weapon): return _same_weapon_family_and_tier(
-			weapon.data,
-			clicked_weapon
-		)
-	)
-	var weapon_to_remove: Weapon = matching_weapons.front() if not matching_weapons.is_empty() else null
-	if weapon_to_remove == null:
+	var inventory_slot := context_card.inventory_slot
+	var weapon_to_remove: Weapon
+	if is_instance_valid(Global.player) and inventory_slot >= 0 and inventory_slot < Global.player.current_weapons.size():
+		weapon_to_remove = Global.player.current_weapons[inventory_slot]
+	if Global.try_sell_weapon_slot(inventory_slot) != InventoryService.OK:
 		return
-	if Global.try_sell_weapon(clicked_weapon) != InventoryService.OK:
-		return
-	
-	if weapon_to_remove:
+	if is_instance_valid(weapon_to_remove):
 		Global.player.current_weapons.erase(weapon_to_remove)
-		Global.equipped_weapons.erase(weapon_to_remove.data)
 		weapon_to_remove.queue_free()
-	
-	context_card.queue_free()
-	context_card = null
+	if inventory_slot >= 0 and inventory_slot < Global.equipped_weapons.size():
+		Global.equipped_weapons.remove_at(inventory_slot)
+	_close_weapon_context(false)
+	_rebuild_weapon_cards_from_inventory()
 	Global.save_progress()
+
+
+func _close_weapon_context(restore_card_focus := true) -> void:
+	var restore_focus := context_card
+	weapon_context_panel.hide()
+	context_card = null
+	combine_button.disabled = true
+	if restore_card_focus and is_instance_valid(restore_focus):
+		restore_focus.grab_focus.call_deferred()
+
+
+func _position_weapon_context(card: ItemCard) -> void:
+	if not is_instance_valid(card):
+		return
+	var viewport_rect := get_viewport_rect()
+	var desired := card.global_position + Vector2(card.size.x + 12.0, -80.0)
+	var panel_size := weapon_context_panel.size
+	weapon_context_panel.global_position = Vector2(
+		clampf(desired.x, 12.0, maxf(12.0, viewport_rect.size.x - panel_size.x - 12.0)),
+		clampf(desired.y, 12.0, maxf(12.0, viewport_rect.size.y - panel_size.y - 12.0))
+	)
+
+
+func _sell_refund_for_slot(slot: int) -> int:
+	if Global.current_run == null:
+		return 0
+	var entry := Global.current_run.inventory.weapon_at(slot)
+	return floori(
+		int(entry.get("paid_price", 0))
+		* 0.75
+		* Global.current_run.recycle_value_multiplier
+	)
+
+
+func _rebuild_weapon_cards_from_inventory() -> void:
+	_clear_children(weapons_container)
+	if Global.current_run == null:
+		return
+	for slot: int in Global.current_run.inventory.weapon_count():
+		var entry := Global.current_run.inventory.weapon_at(slot)
+		var item := Content.catalog.get_weapon_tier(
+			StringName(str(entry.get("weapon_id", ""))), int(entry.get("tier", 0))
+		)
+		if item != null:
+			create_item_weapon(item, slot)
+	_refresh_offer_card_purchase_context()
+
+
+func _refresh_offer_card_purchase_context() -> void:
+	for child: Node in items_container.get_children():
+		if child is ShopCard and not child.is_queued_for_deletion():
+			(child as ShopCard).refresh_purchase_context()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if weapon_context_panel.visible and event.is_action_pressed(&"ui_cancel"):
+		_close_weapon_context()
+		get_viewport().set_input_as_handled()
+	elif (
+		weapon_context_panel.visible
+		and event is InputEventMouseButton
+		and (event as InputEventMouseButton).pressed
+		and not weapon_context_panel.get_global_rect().has_point(
+			(event as InputEventMouseButton).position
+		)
+	):
+		_close_weapon_context(false)
 
 
 func _same_weapon_family_and_tier(first: ItemWeapon, second: ItemWeapon) -> bool:

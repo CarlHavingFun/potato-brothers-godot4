@@ -14,17 +14,8 @@ signal frontend_requested
 @export var hp_color: Color
 @export var externally_managed_frontend := false
 
-@onready var wave_index_label: Label = %WaveIndexLabel
-@onready var wave_time_label: Label = %WaveTimeLabel
-@onready var encounter_label: Label = %EncounterLabel
-@onready var next_wave_label: Label = %NextWaveLabel
-@onready var boss_status_label: Label = %BossStatusLabel
-@onready var player_status_label: Label = %PlayerStatusLabel
-@onready var health_hud_label: Label = %HealthHudLabel
-@onready var experience_hud_label: Label = %ExperienceHudLabel
-@onready var material_bag_label: Label = %MaterialBagLabel
-@onready var health_hud_bar: ProgressBar = %HealthHudBar
-@onready var experience_hud_bar: ProgressBar = %ExperienceHudBar
+@onready var combat_hud: Control = %CombatHud
+@onready var post_wave_snapshot: TextureRect = %PostWaveSnapshot
 
 @onready var spawner: Spawner = $Spawner
 @onready var ecology: ArenaEcology = %ArenaEcology
@@ -37,7 +28,6 @@ signal frontend_requested
 @onready var pause_panel: PausePanel = %PausePanel
 @onready var settlement_panel: SettlementPanel = %SettlementPanel
 @onready var settings_panel: SettingsPanel = %SettingsPanel
-@onready var coins_bag: CoinsBag = %CoinsBag
 @onready var music_player: AudioStreamPlayer = $MusicPlayer
 @onready var game_camera: Camera = $Camera2D
 @onready var background: Sprite2D = $BlackBG
@@ -46,7 +36,6 @@ signal frontend_requested
 var gold_list: Array[Coins]
 var effect_entities: Array[EffectAlly] = []
 var gameplay_notices := GameplayNoticeBus.new()
-var notice_label: Label
 var _last_hud_run_id := 0
 var _last_hud_materials := -1
 var _last_hud_material_bag := -1
@@ -54,7 +43,7 @@ var _material_bag_explained := false
 
 func _ready() -> void:
 	_apply_skin_presentation()
-	_setup_notice_hud()
+	gameplay_notices.notice_emitted.connect(_on_gameplay_notice)
 	add_to_group(GameplayEffectExecutor.ARENA_GROUP)
 	Global.on_create_block_text.connect(_on_create_block_text)
 	Global.on_create_damage_text.connect(_on_create_damage_text)
@@ -73,8 +62,8 @@ func _apply_skin_presentation() -> void:
 	floor_background.texture = Presentation.resolve_texture(
 		&"scene", &"scene.arena.floor", floor_background.texture, &"floor"
 	)
-	background.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	floor_background.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	background.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	floor_background.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	music_player.stream = Presentation.resolve_music(&"combat")
 
 
@@ -94,113 +83,33 @@ func _process(delta: float) -> void:
 		spawner.wave_timer.time_left,
 		Global.reward_service.experience_required_for_level(Global.current_run.level)
 	)
-	wave_index_label.text = LocalizedTextService.resolve(
-		&"ui.hud.wave.endless" if hud.endless else &"ui.hud.wave.standard",
-		[hud.wave]
-	)
-	wave_time_label.text = str(hud.seconds_remaining)
+	combat_hud.call("apply_state", hud)
 	_track_material_notices(hud)
 	_refresh_runtime_hud()
 
 
 func _refresh_runtime_hud() -> void:
-	_refresh_player_vitals()
-	var current := spawner.current_wave_definition
-	encounter_label.text = (
-		LocalizedTextService.resolve(RUN_HUD_FORMATTER.encounter_key(current))
-		if current != null
-		else ""
-	)
-	var next_wave := Content.catalog.get_wave(StringName("wave/%02d" % (spawner.wave_index + 1)))
-	if next_wave != null:
-		next_wave_label.text = LocalizedTextService.resolve(&"ui.hud.next_wave", [
-			LocalizedTextService.resolve(RUN_HUD_FORMATTER.encounter_key(next_wave)),
-		])
-	else:
-		next_wave_label.text = ""
-	_refresh_player_status()
 	_refresh_boss_status()
 
 
-func _refresh_player_vitals() -> void:
-	health_hud_label.visible = GameplayCuePresenter.runtime_bool(
-		&"show_player_health_bar", true
-	)
-	if Global.current_run == null or not is_instance_valid(Global.player):
-		health_hud_label.text = ""
-		experience_hud_label.text = ""
-		material_bag_label.text = ""
-		health_hud_bar.value = 0.0
-		experience_hud_bar.value = 0.0
-		return
-	var health := Global.player.health_component
-	health_hud_label.text = LocalizedTextService.resolve(&"ui.hud.health", [
-		roundi(health.current_health), roundi(health.max_health),
-	])
-	health_hud_bar.max_value = maxf(1.0, health.max_health)
-	health_hud_bar.value = clampf(health.current_health, 0.0, health_hud_bar.max_value)
-	var required := Global.reward_service.experience_required_for_level(Global.current_run.level)
-	experience_hud_label.text = LocalizedTextService.resolve(&"ui.hud.experience", [
-		Global.current_run.level, Global.current_run.experience, required,
-	])
-	experience_hud_bar.max_value = maxi(1, required)
-	experience_hud_bar.value = clampi(
-		Global.current_run.experience, 0, int(experience_hud_bar.max_value)
-	)
-	material_bag_label.text = LocalizedTextService.resolve(
-		&"ui.hud.material_bag", [Global.current_run.material_bag]
-	)
-
-
-func _refresh_player_status() -> void:
-	if not is_instance_valid(Global.player):
-		player_status_label.text = ""
-		return
-	var parts: Array[String] = []
-	for entry: Dictionary in RUN_HUD_FORMATTER.status_entries(Global.player.active_effect_statuses):
-		var status_id := str(entry.get("status_id", ""))
-		parts.append("%s ×%d" % [
-			LocalizedTextService.resolve(StringName("status.%s" % status_id)),
-			int(entry.get("stacks", 1)),
-		])
-	player_status_label.text = "  ".join(parts)
-
-
 func _refresh_boss_status() -> void:
-	boss_status_label.visible = GameplayCuePresenter.runtime_bool(
+	var boss_visible := GameplayCuePresenter.runtime_bool(
 		&"show_boss_health_bar", true
 	)
-	if not boss_status_label.visible:
-		boss_status_label.text = ""
+	if not boss_visible:
+		combat_hud.call("update_boss_status", "")
 		return
 	var snapshot := RUN_HUD_FORMATTER.boss_snapshot(spawner.spawned_enemies)
 	if snapshot.is_empty():
-		boss_status_label.text = ""
+		combat_hud.call("update_boss_status", "")
 		return
 	var phase_key := "ui.hud.boss_phase.%s" % str(snapshot.get("phase", "base"))
-	boss_status_label.text = LocalizedTextService.resolve(&"ui.hud.boss_status", [
+	combat_hud.call("update_boss_status", LocalizedTextService.resolve(&"ui.hud.boss_status", [
 		int(snapshot.get("count", 1)),
 		LocalizedTextService.resolve(StringName(phase_key)),
 		roundi(float(snapshot.get("health", 0.0))),
 		roundi(float(snapshot.get("maximum_health", 0.0))),
-	])
-
-
-func _setup_notice_hud() -> void:
-	notice_label = Label.new()
-	notice_label.name = "GameplayNoticeLabel"
-	notice_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	notice_label.position = Vector2(-360.0, 132.0)
-	notice_label.size = Vector2(720.0, 46.0)
-	notice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	notice_label.add_theme_font_size_override(&"font_size", 24)
-	notice_label.add_theme_color_override(&"font_color", Color(1.0, 0.84, 0.34))
-	notice_label.add_theme_color_override(&"font_outline_color", Color(0.04, 0.06, 0.05, 0.95))
-	notice_label.add_theme_constant_override(&"outline_size", 6)
-	notice_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	notice_label.modulate.a = 0.0
-	$GameUI.add_child(notice_label)
-	gameplay_notices.notice_emitted.connect(_on_gameplay_notice)
+	]))
 
 
 func _track_material_notices(hud: HudState) -> void:
@@ -227,17 +136,18 @@ func _track_material_notices(hud: HudState) -> void:
 
 
 func _on_gameplay_notice(text_id: StringName, args: Array, priority: int) -> void:
-	if not is_instance_valid(notice_label):
+	if not is_instance_valid(combat_hud):
 		return
-	notice_label.text = LocalizedTextService.resolve(text_id, args)
-	notice_label.add_theme_color_override(
-		&"font_color",
-		Color(1.0, 0.84, 0.34) if priority == GameplayNoticeBus.Priority.IMPORTANT else Color.WHITE
+	combat_hud.call("show_notice",
+		LocalizedTextService.resolve(text_id, args), priority == GameplayNoticeBus.Priority.IMPORTANT
 	)
-	notice_label.modulate.a = 1.0
-	var tween := notice_label.create_tween()
+	var notice := combat_hud.get_node_or_null("Notice") as Label
+	if notice == null:
+		return
+	notice.modulate.a = 1.0
+	var tween: Tween = notice.create_tween()
 	tween.tween_interval(1.35)
-	tween.tween_property(notice_label, "modulate:a", 0.0, 0.35)
+	tween.tween_property(notice, "modulate:a", 0.0, 0.35)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -266,6 +176,7 @@ func show_upgrades() -> void:
 
 
 func start_new_wave() -> void:
+	_clear_post_wave_snapshot()
 	Global.player.update_player_new_wave()
 	Global.shop_service.prepare_next_wave(Global.current_run)
 	spawner.wave_index += 1
@@ -447,6 +358,7 @@ func _on_upgrade_selected() -> void:
 
 func _on_spawner_on_wave_completed() -> void:
 	if not Global.player: return
+	_capture_post_wave_snapshot()
 	clean_arena()
 	Global.dispatch_gameplay_event(GameplayEvent.Type.WAVE_ENDED, {"wave": spawner.wave_index})
 	var next_phase := RunPhase.UPGRADE
@@ -555,7 +467,7 @@ func _on_difficulty_panel_difficulty_selected(level: int) -> void:
 func launch_run(request: RunLaunchRequest) -> bool:
 	if request == null or not request.is_valid() or is_instance_valid(Global.player):
 		return false
-	if request.profile_id != Global.active_profile_id() and not Global.switch_profile(request.profile_id):
+	if not Global.activate_profile_for_run(request.profile_id):
 		return false
 	var character := Content.catalog.get_character(request.character_id)
 	var weapon := Content.catalog.get_weapon(request.weapon_id)
@@ -661,6 +573,7 @@ func _begin_selected_combat(
 	seed_value: int,
 	run_mode: int = RunMode.STANDARD
 ) -> bool:
+	_clear_post_wave_snapshot()
 	if not Global.begin_selected_run(seed_value):
 		return false
 	Global.current_run.difficulty = clampi(level, 1, 5)
@@ -727,6 +640,8 @@ func finish_run(victory: bool) -> void:
 			return
 	if is_instance_valid(settlement_panel) and settlement_panel.visible:
 		return
+	# Capture before timers/enemies are stopped so settlement shows the actual last combat frame.
+	_capture_post_wave_snapshot()
 	if is_instance_valid(spawner):
 		if is_instance_valid(spawner.spawn_timer):
 			spawner.spawn_timer.stop()
@@ -761,6 +676,7 @@ func _on_spawner_on_run_victory() -> void:
 func _pause_game() -> void:
 	if not Global.is_combat_active():
 		return
+	pause_panel.refresh_from_run(Global.current_run)
 	pause_panel.show()
 	get_tree().paused = true
 
@@ -796,7 +712,7 @@ func refresh_presentation_settings() -> void:
 		for projectile: Node in get_tree().get_nodes_in_group(&"presentation_projectiles"):
 			if projectile.has_method("refresh_presentation_settings"):
 				projectile.call("refresh_presentation_settings")
-	if is_instance_valid(health_hud_label) and is_instance_valid(boss_status_label):
+	if is_instance_valid(combat_hud):
 		_refresh_runtime_hud()
 
 
@@ -820,6 +736,7 @@ func reset_to_title() -> void:
 
 func _reset_runtime_run() -> void:
 	get_tree().paused = false
+	_clear_post_wave_snapshot()
 	for panel: Control in [selection_panel, difficulty_panel, upgrade_panel, reward_panel, shop_panel, pause_panel, settlement_panel, settings_panel]:
 		panel.hide()
 	if is_instance_valid(spawner):
@@ -835,3 +752,28 @@ func _reset_runtime_run() -> void:
 	spawner.wave_index = 1
 	Global.end_run()
 	selection_panel.reset_selection()
+
+
+func _capture_post_wave_snapshot(source_image: Image = null) -> bool:
+	if not is_instance_valid(post_wave_snapshot):
+		return false
+	var image := source_image
+	if image == null:
+		if get_viewport() == null or DisplayServer.get_name() == "headless":
+			return false
+		var viewport_texture := get_viewport().get_texture()
+		if viewport_texture == null:
+			return false
+		image = viewport_texture.get_image()
+	if image == null or image.is_empty():
+		return false
+	post_wave_snapshot.texture = ImageTexture.create_from_image(image)
+	post_wave_snapshot.show()
+	return post_wave_snapshot.texture != null
+
+
+func _clear_post_wave_snapshot() -> void:
+	if not is_instance_valid(post_wave_snapshot):
+		return
+	post_wave_snapshot.hide()
+	post_wave_snapshot.texture = null

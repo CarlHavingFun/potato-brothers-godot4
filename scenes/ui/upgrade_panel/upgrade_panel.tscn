@@ -5,16 +5,15 @@
 [ext_resource type="PackedScene" uid="uid://b6bse8wisg38j" path="res://scenes/ui/stats_container/stats_container.tscn" id="3_oi75p"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_oekas"]
+anti_aliasing = true
+anti_aliasing_size = 1.25
+border_blend = true
+corner_detail = 12
 content_margin_left = 0.0
 content_margin_top = 0.0
 content_margin_right = 0.0
 content_margin_bottom = 0.0
-bg_color = Color(0.203922, 0.203922, 0.203922, 1)
-corner_radius_top_left = 3
-corner_radius_top_right = 3
-corner_radius_bottom_right = 3
-corner_radius_bottom_left = 3
-corner_detail = 5
+bg_color = Color(0.015, 0.015, 0.015, 0.72)
 
 [sub_resource type="LabelSettings" id="LabelSettings_mfnog"]
 font_size = 120
@@ -48,6 +47,8 @@ alignment = 1
 
 [node name="Label" type="Label" parent="MarginContainer/HBoxContainer/VBoxContainer"]
 layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.01, 0.01, 0.01, 1)
+theme_override_constants/outline_size = 4
 text = "ui.upgrade.completed"
 label_settings = SubResource("LabelSettings_mfnog")
 horizontal_alignment = 1

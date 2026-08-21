@@ -4,8 +4,13 @@ class_name ItemCard
 signal on_item_card_selected(card: ItemCard)
 
 @export var item: ItemBase: set = _set_item
+var inventory_slot := -1
 
 @onready var item_icon: TextureRect = $ItemIcon
+
+
+func _ready() -> void:
+	item_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
 func _set_item(value: ItemBase) -> void:
 	item = value

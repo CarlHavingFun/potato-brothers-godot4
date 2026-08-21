@@ -1,4 +1,4 @@
-# LET'S GOOOOO Windows playtest
+# Game Prototype Windows playtest
 
 This is an internal playtest build. It is not a public or commercial release.
 

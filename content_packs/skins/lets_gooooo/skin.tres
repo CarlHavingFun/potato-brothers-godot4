@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://core/presentation/skin_pack_def.gd" id="1_skin"]
 [ext_resource type="Texture2D" path="res://content_packs/skins/lets_gooooo/assets/ui/logo.svg" id="2_logo"]
 [ext_resource type="Texture2D" path="res://content_packs/skins/lets_gooooo/assets/ui/title_background.png" id="3_background"]
-[ext_resource type="FontFile" path="res://assets/font/Bake Soda.otf" id="4_font"]
+[ext_resource type="FontVariation" path="res://assets/font/brotato_font_stack.tres" id="4_font"]
 [ext_resource type="Theme" path="res://content_packs/skins/lets_gooooo/assets/ui/lets_gooooo_theme.tres" id="5_theme"]
 
 [resource]
@@ -11,7 +11,8 @@ script = ExtResource("1_skin")
 skin_id = &"lets_gooooo"
 skin_version = "0.3.0"
 skin_api_version = 2
-product_name = "LET'S GOOOOO"
+product_name = "Game Prototype"
+show_product_branding = false
 logo = ExtResource("2_logo")
 background = ExtResource("3_background")
 font = ExtResource("4_font")
@@ -279,8 +280,8 @@ asset_tables = {
 &"scene.arena.floor": "res://content_packs/skins/lets_gooooo/assets/scenes/arena_floor.png"
 },
 &"ui/logo": {&"ui.logo": "res://content_packs/skins/lets_gooooo/assets/ui/logo.svg"},
-&"ui/app_icon": {&"ui.app_icon": "res://content_packs/skins/lets_gooooo/assets/ui/app_icon.svg"},
-&"ui/fallback": {&"ui.fallback": "res://content_packs/skins/lets_gooooo/assets/ui/app_icon.svg"}
+&"ui/app_icon": {&"ui.app_icon": "res://content_packs/skins/lets_gooooo/assets/ui/app_icon.png"},
+&"ui/fallback": {&"ui.fallback": "res://content_packs/skins/lets_gooooo/assets/ui/app_icon.png"}
 }
 fallback_asset_paths = {
 &"character": "res://assets/sprites/Players/Player_1.png",
@@ -296,8 +297,8 @@ fallback_asset_paths = {
 &"scene/background": "res://content_packs/skins/lets_gooooo/assets/scenes/arena_floor.png",
 &"scene/floor": "res://content_packs/skins/lets_gooooo/assets/scenes/arena_floor.png",
 &"ui/logo": "res://content_packs/skins/lets_gooooo/assets/ui/logo.svg",
-&"ui/app_icon": "res://content_packs/skins/lets_gooooo/assets/ui/app_icon.svg",
-&"ui/fallback": "res://content_packs/skins/lets_gooooo/assets/ui/app_icon.svg"
+&"ui/app_icon": "res://content_packs/skins/lets_gooooo/assets/ui/app_icon.png",
+&"ui/fallback": "res://content_packs/skins/lets_gooooo/assets/ui/app_icon.png"
 }
 animation_maps = {
 &"character": {&"default": {&"dash": &"move", &"death": &"die", &"hit": &"idle", &"idle": &"idle", &"move": &"move", &"spawn": &"idle"}},

@@ -4,6 +4,8 @@ extends GdUnitTestSuite
 const FRONTEND_SCENE := "res://scenes/ui/frontend/frontend_shell.tscn"
 const DEV_SKIN := "res://content_packs/skins/dev_placeholder/skin.tres"
 const ALT_SKIN := "res://content_packs/skins/test_alt/skin.tres"
+const FORMAL_SKIN := "res://content_packs/skins/lets_gooooo/skin.tres"
+const FORMAL_FONT_STACK := "res://assets/font/brotato_font_stack.tres"
 
 var _original_highest_unlocked_difficulty := 1
 var _original_skin_manifest := ""
@@ -55,6 +57,29 @@ func test_character_to_compatible_weapon_to_final_overview_flow() -> void:
 	assert_str(frontend.get_node("Pages/DifficultyPage/Content/Overview/CharacterCard/Name").text).is_not_empty()
 	assert_str(frontend.get_node("Pages/DifficultyPage/Content/Overview/WeaponCard/Name").text).is_not_empty()
 	assert_int(frontend.get_node("Pages/DifficultyPage/Content/DifficultyChoices").get_child_count()).is_equal(5)
+
+
+func test_generated_weapon_choice_buttons_inherit_the_formal_composite_font_stack() -> void:
+	assert_int(Presentation.load_manifest(FORMAL_SKIN)).is_equal(OK)
+	var frontend: FrontendShell = auto_free(load(FRONTEND_SCENE).instantiate())
+	add_child(frontend)
+	await await_idle_frame()
+	var character: CharacterDef = Content.catalog.get_characters()[0]
+	frontend.begin_new_run(1, 0xF07A, AimMode.AUTO_TARGET)
+	assert_bool(frontend.choose_character(
+		character.get_stable_id(Content.catalog.pack_id)
+	)).is_true()
+	await await_idle_frame()
+	var generated_button := frontend.weapon_choices.get_child(1) as Button
+	assert_object(generated_button).is_not_null()
+	if generated_button == null:
+		return
+	var formal_stack := load(FORMAL_FONT_STACK) as Font
+	assert_object(formal_stack).is_not_null()
+	if formal_stack == null:
+		return
+	assert_object(generated_button.get_theme_font(&"font")).is_same(formal_stack)
+	assert_bool(generated_button.has_theme_font_override(&"font")).is_false()
 
 
 func test_back_navigation_preserves_draft_and_restores_page_focus() -> void:
@@ -140,6 +165,27 @@ func test_frontend_branding_is_resolved_from_the_selected_skin_manifest() -> voi
 		LocalizedTextService.resolve(&"ui.frontend.build")
 	)
 	assert_object(frontend.get_node("Background").texture).is_same(Presentation.active_skin.background)
+	assert_bool(Presentation.active_skin.show_product_branding).is_false()
+	assert_bool(frontend.get_node("Pages/TitlePage/SafeArea/Layout/Logo/Name").visible).is_false()
+	assert_bool(frontend.get_node("Pages/TitlePage/SafeArea/Layout/Logo/BrandMark").visible).is_false()
+
+
+func test_frontend_button_states_keep_equal_smooth_borders() -> void:
+	var frontend: Control = auto_free(load(FRONTEND_SCENE).instantiate())
+	add_child(frontend)
+	await await_idle_frame()
+	var button := frontend.get_node("Pages/TitlePage/SafeArea/Layout/Menu/PrimaryButton") as Button
+	var normal := button.get_theme_stylebox(&"normal") as StyleBoxFlat
+	var hover := button.get_theme_stylebox(&"hover") as StyleBoxFlat
+	var pressed := button.get_theme_stylebox(&"pressed") as StyleBoxFlat
+
+	for style: StyleBoxFlat in [normal, hover, pressed]:
+		assert_object(style).is_not_null()
+		assert_bool(style.anti_aliasing).is_true()
+		assert_float(style.anti_aliasing_size).is_between(1.24, 1.26)
+		assert_int(style.corner_detail).is_greater_equal(12)
+	assert_int(normal.get_border_width_min()).is_equal(hover.get_border_width_min())
+	assert_int(hover.get_border_width_min()).is_equal(pressed.get_border_width_min())
 
 
 func test_button_feedback_keeps_visual_and_click_rect_stationary() -> void:

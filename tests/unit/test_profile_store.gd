@@ -19,9 +19,7 @@ func test_profile_store_exposes_three_isolated_slots() -> void:
 	var profiles: Array[Dictionary] = store.list_profiles()
 
 	assert_int(profiles.size()).is_equal(3)
-	assert_str(profiles[0].get("name", "")).is_equal(
-		LocalizedTextService.resolve(&"ui.profile.default_name", [1], "Profile %d")
-	)
+	assert_str(profiles[0].get("name", "unexpected")).is_empty()
 	assert_bool(profiles[0].get("exists", true)).is_false()
 	assert_int(store.save_profile(1, {"materials": 15})).is_equal(OK)
 	assert_int(store.save_profile(2, {"materials": 99})).is_equal(OK)
@@ -174,6 +172,7 @@ func test_profile_save_provider_switches_active_slot_without_cross_contamination
 	var provider := ProfileSaveProvider.new(store, 1)
 
 	assert_int(provider.save_slot({"slot": 1})).is_equal(OK)
+	assert_int(store.save_profile(2, {})).is_equal(OK)
 	assert_bool(provider.set_active_profile(2)).is_true()
 	assert_bool(provider.load_slot().is_empty()).is_true()
 	assert_int(provider.save_slot({"slot": 2})).is_equal(OK)
@@ -187,6 +186,7 @@ func test_active_profile_selection_survives_provider_recreation() -> void:
 	var store := ProfileStore.new(TEST_ROOT, LEGACY_PATH)
 	var provider := ProfileSaveProvider.new(store, 1)
 
+	assert_int(store.save_profile(3, {})).is_equal(OK)
 	assert_bool(provider.set_active_profile(3)).is_true()
 
 	var restored_provider := ProfileSaveProvider.new(ProfileStore.new(TEST_ROOT, LEGACY_PATH))
@@ -229,7 +229,7 @@ func test_deleted_migrated_legacy_profile_does_not_reappear() -> void:
 	index.close()
 
 	var restarted_store := ProfileStore.new(TEST_ROOT, LEGACY_PATH)
-	assert_int(restarted_store.load_active_profile_id()).is_between(1, 3)
+	assert_int(restarted_store.load_active_profile_id()).is_zero()
 	assert_bool(restarted_store.migrate_legacy_to_slot_one()).is_false()
 	assert_bool(restarted_store.profile_summary(1).get("exists", true)).is_false()
 	assert_bool(FileAccess.file_exists(LEGACY_PATH)).is_true()
@@ -302,6 +302,37 @@ func test_renamed_empty_profile_is_created_without_claiming_gameplay_progress() 
 	progressed.highest_unlocked_difficulty = 2
 	assert_int(store.save_profile(3, {"meta_progress": progressed.to_dict()})).is_equal(OK)
 	assert_bool(store.profile_summary(3).get("has_progress", false)).is_true()
+
+
+func test_uncreated_slot_does_not_claim_a_default_profile_name() -> void:
+	var store := ProfileStore.new(TEST_ROOT, LEGACY_PATH)
+	var summary := store.profile_summary(1)
+
+	assert_bool(summary.get("exists", true)).is_false()
+	assert_str(str(summary.get("name", "unexpected"))).is_empty()
+	assert_bool(FileAccess.file_exists(store.profile_path(1))).is_false()
+
+
+func test_fresh_store_has_no_active_profile_and_creates_no_index() -> void:
+	var store := ProfileStore.new(TEST_ROOT, LEGACY_PATH)
+	var provider := ProfileSaveProvider.new(store)
+
+	assert_int(provider.active_profile_id).is_zero()
+	assert_int(store.load_active_profile_id()).is_zero()
+	assert_bool(FileAccess.file_exists(store.profile_index_path())).is_false()
+	assert_bool(FileAccess.file_exists(store.profile_index_path() + ".bak")).is_false()
+
+
+func test_stale_index_is_ignored_and_real_profile_is_recovered() -> void:
+	var store := ProfileStore.new(TEST_ROOT, LEGACY_PATH)
+	assert_int(store.save_profile(2, {"meta_progress": MetaProgress.new().to_dict()})).is_equal(OK)
+	var directory := store.profile_index_path().get_base_dir()
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(directory))
+	var index := FileAccess.open(store.profile_index_path(), FileAccess.WRITE)
+	index.store_string(JSON.stringify({"version": 1, "active_profile_id": 1}))
+	index.close()
+
+	assert_int(store.load_active_profile_id()).is_equal(2)
 
 
 func test_profile_summary_only_offers_continue_for_a_resumable_checkpoint() -> void:

@@ -20,8 +20,11 @@ var _last_resolved_attack_range := -INF
 var _consecutive_recoil_shots := 0
 var _recoil_recovery_remaining := 0.0
 var _scene_sprite_offset := Vector2.ZERO
+var _scene_sprite_position := Vector2.ZERO
+var _scene_sprite_scale := Vector2.ONE
 var _scene_muzzle_position := Vector2.ZERO
 var _has_muzzle_fallback := false
+var _presentation_world_scale := 0.5
 
 func _ready() -> void:
 	presentation_controller = PresentationController.new()
@@ -29,6 +32,9 @@ func _ready() -> void:
 	add_child(presentation_controller)
 	atk_start_pos = sprite.position
 	_scene_sprite_offset = sprite.offset
+	_scene_sprite_position = sprite.position
+	_scene_sprite_scale = sprite.scale
+	_presentation_world_scale = absf(sprite.scale.x)
 	var muzzle := get_node_or_null("%Muzzle") as Marker2D
 	if muzzle != null:
 		_scene_muzzle_position = muzzle.position
@@ -102,11 +108,22 @@ func apply_presentation_anchors(
 		return false
 	var pivot := pivot_value as Vector2
 	var texture_scale := Vector2(sprite.texture.get_size()) / 64.0
+	_presentation_world_scale = clampf(
+		float(anchors.get(&"world_scale", absf(_scene_sprite_scale.x))), 0.05, 1.0
+	)
+	var mount_position: Variant = anchors.get(&"mount_position", null)
+	sprite.position = mount_position as Vector2 if mount_position is Vector2 else _scene_sprite_position
+	sprite.scale = Vector2.ONE * _presentation_world_scale
+	atk_start_pos = sprite.position
 	sprite.offset = (Vector2(32.0, 32.0) - pivot) * texture_scale
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	var origin_value: Variant = _attack_origin_anchor(anchors)
 	if muzzle != null and origin_value is Vector2:
-		muzzle.position = ((origin_value as Vector2) - pivot) * texture_scale
+		muzzle.position = (
+			((origin_value as Vector2) - pivot)
+			* texture_scale
+			* _presentation_world_scale
+		)
 	elif muzzle != null and _has_muzzle_fallback:
 		muzzle.position = _scene_muzzle_position
 	return true
@@ -123,6 +140,10 @@ func _attack_origin_anchor(anchors: Dictionary) -> Variant:
 
 func _restore_scene_anchor_fallbacks(muzzle: Marker2D) -> void:
 	sprite.offset = _scene_sprite_offset
+	sprite.position = _scene_sprite_position
+	sprite.scale = _scene_sprite_scale
+	_presentation_world_scale = absf(_scene_sprite_scale.x)
+	atk_start_pos = sprite.position
 	if muzzle != null and _has_muzzle_fallback:
 		muzzle.position = _scene_muzzle_position
 
@@ -266,9 +287,9 @@ func _manual_aim_position() -> Vector2:
 
 func update_visuals() -> void:
 	if abs(rotation) > PI / 2:
-		sprite.scale.y = -0.5
+		sprite.scale.y = -_presentation_world_scale
 	else:
-		sprite.scale.y = 0.5
+		sprite.scale.y = _presentation_world_scale
 
 
 func calculate_spread() -> void:

@@ -16,9 +16,10 @@ func test_settings_panel_has_five_scrollable_pages_and_fixed_footer() -> void:
 	assert_object(panel.get_node("SafeArea/Layout/Footer/ApplyButton")).is_not_null()
 	assert_object(panel.get_node("SafeArea/Layout/Footer/CancelButton")).is_not_null()
 	assert_object(panel.get_node("SafeArea/Layout/Footer/ResetButton")).is_not_null()
-	for dialog: ConfirmationDialog in [panel.conflict_dialog, panel.display_confirm_dialog]:
-		assert_object(dialog.get_ok_button().custom_minimum_size).is_equal(Vector2(150, 48))
-		assert_object(dialog.get_cancel_button().custom_minimum_size).is_equal(Vector2(150, 48))
+	assert_object(panel.conflict_dialog.get_ok_button().custom_minimum_size).is_equal(Vector2(150, 48))
+	assert_object(panel.conflict_dialog.get_cancel_button().custom_minimum_size).is_equal(Vector2(150, 48))
+	assert_object(panel.get_node_or_null("DisplayConfirmDialog")).is_null()
+	assert_object(panel.get_node_or_null("DisplayConfirmTimer")).is_null()
 
 
 func test_settings_panel_value_labels_follow_sliders() -> void:
@@ -55,7 +56,7 @@ func test_only_windowed_mode_enables_resolution_and_tabs_wrap() -> void:
 	assert_int(panel.active_tab).is_equal(0)
 
 
-func test_dynamic_resolution_provider_and_display_timeout_restore_snapshot() -> void:
+func test_display_changes_preview_immediately_and_cancel_restores_snapshot() -> void:
 	var original := Global.product_settings.copy()
 	var panel: SettingsPanel = auto_free(load(SETTINGS_SCENE).instantiate()) as SettingsPanel
 	add_child(panel)
@@ -68,11 +69,26 @@ func test_dynamic_resolution_provider_and_display_timeout_restore_snapshot() -> 
 	assert_array(listed_resolutions).contains([Vector2i(1024, 576), Vector2i(1366, 768)])
 
 	panel.vsync_check.button_pressed = not original.vsync_enabled
-	panel.call("_on_apply_button_pressed")
-	assert_bool(panel.get("_display_confirmation_active")).is_true()
+	panel.call("_on_vsync_toggled", panel.vsync_check.button_pressed)
 	assert_bool(Global.product_settings.vsync_enabled).is_equal(not original.vsync_enabled)
-	panel.call("_on_display_revert_requested")
+	panel.call("_on_cancel_button_pressed")
 	assert_bool(Global.product_settings.is_equal_to(original)).is_true()
+
+
+func test_apply_saves_immediate_display_without_confirmation() -> void:
+	var original := Global.product_settings.copy()
+	var panel: SettingsPanel = auto_free(load(SETTINGS_SCENE).instantiate()) as SettingsPanel
+	add_child(panel)
+	await await_idle_frame()
+	panel.show()
+	panel.vsync_check.button_pressed = not original.vsync_enabled
+	panel.call("_on_vsync_toggled", panel.vsync_check.button_pressed)
+
+	panel.call("_on_apply_button_pressed")
+
+	assert_bool(Global.product_settings.vsync_enabled).is_equal(not original.vsync_enabled)
+	assert_bool(panel.visible).is_false()
+	Global.restore_product_settings(original)
 
 
 func test_fixed_header_pages_and_footer_fit_720p_and_1080p() -> void:

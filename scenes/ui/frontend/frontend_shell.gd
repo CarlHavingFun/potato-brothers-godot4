@@ -82,6 +82,7 @@ var _character_buttons_by_id: Dictionary = {}
 var _random_character_button: Button
 var _weapon_stats_return_focus: Button
 var _fallback_theme: Theme
+var _page_transition: Tween
 
 
 func _ready() -> void:
@@ -130,17 +131,18 @@ func _apply_skin_branding() -> void:
 	product_name_label.text = LocalizedTextService.resolve(
 		&"ui.title.name", [], skin.product_name
 	)
+	product_name_label.visible = skin.show_product_branding
 	# These two labels are skin-owned copy. Godot's global TranslationServer does
 	# not define deterministic precedence when the core and skin catalogs expose
 	# the same key, so resolve them explicitly through the skin-first service.
 	tagline_label.text = LocalizedTextService.resolve(&"ui.frontend.subtitle")
 	build_label.text = LocalizedTextService.resolve(&"ui.frontend.build")
 	brand_mark.texture = skin.logo
-	brand_mark.visible = brand_mark.texture != null
-	brand_mark.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	brand_mark.visible = skin.show_product_branding and brand_mark.texture != null
+	brand_mark.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	if skin.background != null:
 		background.texture = skin.background
-		background.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		background.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	if skin.font != null and theme != null:
 		theme.default_font = skin.font
 
@@ -165,12 +167,22 @@ func begin_new_run(
 	run_mode: int = RunMode.STANDARD
 ) -> bool:
 	var target_profile := profile_id if profile_id > 0 else Global.active_profile_id()
+	if target_profile == 0:
+		target_profile = _first_empty_profile_slot()
+	if target_profile == 0:
+		return false
 	var target_seed := random_seed if random_seed != 0 else _make_prerun_seed()
 	var target_aim := (
 		aim_mode if AimMode.is_valid(aim_mode) else Global.product_settings.aim_mode
 	)
-	if target_profile != Global.active_profile_id() and not Global.switch_profile(target_profile):
-		return false
+	if target_profile != Global.active_profile_id():
+		var summaries := Global.profile_summaries()
+		var summary: Dictionary = summaries[target_profile - 1] if target_profile <= summaries.size() else {}
+		if bool(summary.get("exists", false)):
+			if not Global.switch_profile(target_profile):
+				return false
+		elif not Global.stage_profile_for_new_run(target_profile):
+			return false
 	var target_run_mode := run_mode if RunMode.is_valid(run_mode) else RunMode.STANDARD
 	return selection_flow.begin_new_run(target_profile, target_seed, target_aim, target_run_mode)
 
@@ -260,9 +272,14 @@ func _on_flow_run_requested(request: RunLaunchRequest) -> void:
 
 
 func _show_step(step: int, animate := true) -> void:
+	if is_instance_valid(_page_transition):
+		_page_transition.kill()
+		_page_transition = null
 	current_step = step
 	var target := _page_for_step(step)
 	for page: Control in pages.get_children():
+		page.modulate.a = 1.0
+		page.position.x = 0.0
 		page.visible = page == target
 	last_focus_restored = false
 	if target == null:
@@ -272,10 +289,10 @@ func _show_step(step: int, animate := true) -> void:
 	if animate and is_inside_tree():
 		target.modulate.a = 0.0
 		target.position.x = 30.0
-		var tween := create_tween().set_parallel(true)
-		tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tween.tween_property(target, "modulate:a", 1.0, TRANSITION_SECONDS)
-		tween.tween_property(target, "position:x", 0.0, TRANSITION_SECONDS)
+		_page_transition = create_tween().set_parallel(true)
+		_page_transition.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		_page_transition.tween_property(target, "modulate:a", 1.0, TRANSITION_SECONDS)
+		_page_transition.tween_property(target, "position:x", 0.0, TRANSITION_SECONDS)
 	_restore_focus(step, target)
 
 
@@ -580,10 +597,6 @@ func _make_choice_button(label: String, icon_texture: Texture2D) -> Button:
 	button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	button.clip_text = true
 	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	# Bake Soda is a display face whose lowercase Latin glyphs read as caps.
-	# Weapon model names use the engine fallback so "Glock-18" retains its
-	# intentional casing while Chinese names remain readable.
-	button.add_theme_font_override(&"font", ThemeDB.fallback_font)
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.focus_mode = Control.FOCUS_ALL
 	_apply_weapon_choice_size(button)
@@ -640,10 +653,13 @@ func _apply_weapon_stats_focus_style() -> void:
 	style.border_width_top = 2
 	style.border_width_right = 2
 	style.border_width_bottom = 2
-	style.corner_radius_top_left = 5
-	style.corner_radius_top_right = 5
-	style.corner_radius_bottom_left = 5
-	style.corner_radius_bottom_right = 5
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	style.anti_aliasing = true
+	style.anti_aliasing_size = 1.25
+	style.corner_detail = 12
 	style.content_margin_left = 6.0
 	style.content_margin_top = 4.0
 	style.content_margin_right = 6.0
@@ -817,10 +833,13 @@ func _character_choice_style(
 	style.border_width_top = 2
 	style.border_width_right = 2
 	style.border_width_bottom = 2
-	style.corner_radius_top_left = 5
-	style.corner_radius_top_right = 5
-	style.corner_radius_bottom_left = 5
-	style.corner_radius_bottom_right = 5
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	style.anti_aliasing = true
+	style.anti_aliasing_size = 1.25
+	style.corner_detail = 12
 	style.content_margin_left = 4.0
 	style.content_margin_top = 4.0
 	style.content_margin_right = 4.0
@@ -994,7 +1013,7 @@ func _refresh_profiles(focus_slot: int = 0) -> void:
 	for slot in range(1, ProfileStore.MAX_PROFILES + 1):
 		var summary: Dictionary = summaries[slot - 1] if slot <= summaries.size() else {
 			"id": slot,
-			"name": LocalizedTextService.resolve(&"ui.profile.default_name", [slot]),
+			"name": "",
 			"exists": false,
 			"has_progress": false,
 			"has_checkpoint": false,
@@ -1014,12 +1033,17 @@ func _refresh_profiles(focus_slot: int = 0) -> void:
 		var endless_high := int(summary.get("highest_endless_wave", 0))
 		if endless_high > 0:
 			state += LocalizedTextService.resolve(&"ui.profile.state.endless", [endless_high])
-		var summary_name := str(summary.get(
-			"name", LocalizedTextService.resolve(&"ui.profile.default_name", [slot])
-		))
+		var exists := bool(summary.get("exists", false))
+		var summary_name := (
+			str(summary.get("name", ""))
+			if exists
+			else LocalizedTextService.resolve(&"ui.profile.empty_slot", [slot])
+		)
 		var display_name := (
 			LocalizedTextService.resolve(&"ui.profile.active_name", [summary_name])
-			if slot == active_id
+			if slot == active_id and exists
+			else LocalizedTextService.resolve(&"ui.profile.pending_name", [summary_name])
+			if slot == active_id and not exists
 			else summary_name
 		)
 		select_button.text = "%s\n%s" % [display_name, state]
@@ -1029,8 +1053,13 @@ func _refresh_profiles(focus_slot: int = 0) -> void:
 		_profile_buttons_by_slot[slot] = select_button
 		var rename_button := Button.new()
 		rename_button.custom_minimum_size = Vector2(130, 92)
-		rename_button.text = LocalizedTextService.resolve(&"ui.profile.rename")
-		rename_button.pressed.connect(_request_rename_profile.bind(slot, str(summary.get("name", ""))))
+		rename_button.text = LocalizedTextService.resolve(
+			&"ui.profile.rename" if exists else &"ui.profile.create"
+		)
+		if exists:
+			rename_button.pressed.connect(_request_rename_profile.bind(slot, str(summary.get("name", ""))))
+		else:
+			rename_button.pressed.connect(_begin_profile_slot.bind(slot))
 		row.add_child(rename_button)
 		var delete_button := Button.new()
 		delete_button.custom_minimum_size = Vector2(130, 92)
@@ -1053,11 +1082,17 @@ func _refresh_profiles(focus_slot: int = 0) -> void:
 		if current_step == SelectionStep.Value.PROFILE:
 			preferred_profile_button.call_deferred("grab_focus")
 
-	var active_summary: Dictionary = summaries[active_id - 1] if active_id <= summaries.size() else {}
-	var profile_name := str(active_summary.get(
-		"name", LocalizedTextService.resolve(&"ui.profile.default_name", [active_id])
-	))
-	profile_button.text = LocalizedTextService.resolve(&"ui.profile.current", [profile_name])
+	var active_summary: Dictionary = (
+		summaries[active_id - 1]
+		if active_id > 0 and active_id <= summaries.size()
+		else {}
+	)
+	var has_active_profile := bool(active_summary.get("exists", false))
+	profile_button.text = (
+		LocalizedTextService.resolve(&"ui.profile.current", [str(active_summary.get("name", ""))])
+		if has_active_profile
+		else LocalizedTextService.resolve(&"ui.profile.none")
+	)
 	var has_checkpoint := bool(active_summary.get("has_checkpoint", false))
 	primary_button.text = (
 		LocalizedTextService.resolve(&"ui.title.continue")
@@ -1068,6 +1103,11 @@ func _refresh_profiles(focus_slot: int = 0) -> void:
 
 
 func _select_profile(profile_id: int) -> void:
+	var summaries := Global.profile_summaries()
+	var summary: Dictionary = summaries[profile_id - 1] if profile_id <= summaries.size() else {}
+	if not bool(summary.get("exists", false)):
+		_begin_profile_slot(profile_id)
+		return
 	if not Global.switch_profile(profile_id):
 		_show_profile_error(&"ui.profile.error.switch", ERR_CANT_CREATE)
 		return
@@ -1078,6 +1118,12 @@ func _select_profile(profile_id: int) -> void:
 	_refresh_profiles()
 	profile_changed.emit(profile_id)
 	selection_flow.reset_to_title()
+
+
+func _begin_profile_slot(profile_id: int) -> void:
+	profile_status_label.visible = false
+	if not begin_new_run(profile_id):
+		_show_profile_error(&"ui.profile.error.switch", ERR_CANT_CREATE)
 
 
 func _setup_profile_dialogs() -> void:
@@ -1167,6 +1213,13 @@ func _on_primary_pressed() -> void:
 		continue_requested.emit()
 	else:
 		begin_new_run()
+
+
+func _first_empty_profile_slot() -> int:
+	for summary: Dictionary in Global.profile_summaries():
+		if not bool(summary.get("exists", false)):
+			return int(summary.get("id", 0))
+	return 0
 
 
 func _on_new_game_pressed() -> void:
@@ -1338,9 +1391,20 @@ func _emit_hover_cue() -> void:
 
 
 func _animate_button(button: BaseButton, active: bool) -> void:
-	if not is_instance_valid(button) or button.disabled:
+	if not is_instance_valid(button):
+		return
+	var previous_tween: Tween = (
+		button.get_meta(&"semantic_feedback_tween") as Tween
+		if button.has_meta(&"semantic_feedback_tween")
+		else null
+	)
+	if is_instance_valid(previous_tween):
+		previous_tween.kill()
+	if button.disabled:
+		button.self_modulate = Color.WHITE
 		return
 	var tween := button.create_tween()
+	button.set_meta(&"semantic_feedback_tween", tween)
 	tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_property(
 		button,

@@ -3,11 +3,11 @@
 [ext_resource type="Script" path="res://scenes/ui/reward_panel/reward_panel.gd" id="1"]
 
 [sub_resource type="StyleBoxFlat" id="panel"]
-bg_color = Color(0.09, 0.105, 0.13, 0.98)
-corner_radius_top_left = 16
-corner_radius_top_right = 16
-corner_radius_bottom_right = 16
-corner_radius_bottom_left = 16
+anti_aliasing = true
+anti_aliasing_size = 1.25
+border_blend = true
+corner_detail = 12
+bg_color = Color(0.015, 0.015, 0.015, 0.72)
 
 [node name="RewardPanel" type="Panel"]
 anchors_preset = 15
@@ -34,6 +34,8 @@ alignment = 1
 
 [node name="Title" type="Label" parent="Center/Card"]
 layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.01, 0.01, 0.01, 1)
+theme_override_constants/outline_size = 4
 theme_override_font_sizes/font_size = 56
 text = "ui.reward.title"
 horizontal_alignment = 1

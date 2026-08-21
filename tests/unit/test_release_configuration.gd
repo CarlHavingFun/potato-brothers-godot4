@@ -1,14 +1,14 @@
 extends GdUnitTestSuite
 
 
-func test_formal_product_brand_and_skin_are_release_defaults_without_moving_saves() -> void:
+func test_neutral_product_title_and_skin_use_an_isolated_release_save_namespace() -> void:
 	var project := ConfigFile.new()
 	assert_int(project.load("res://project.godot")).is_equal(OK)
 	assert_str(String(project.get_value("application", "config/name", ""))).is_equal(
-		"LET'S GOOOOO"
+		"Game Prototype"
 	)
 	assert_str(String(project.get_value("application", "config/icon", ""))).is_equal(
-		"res://content_packs/skins/lets_gooooo/assets/ui/app_icon.svg"
+		"res://content_packs/skins/lets_gooooo/assets/ui/app_icon.png"
 	)
 	assert_str(String(project.get_value("presentation", "skin_manifest", ""))).is_equal(
 		"res://content_packs/skins/lets_gooooo/skin.tres"
@@ -16,16 +16,16 @@ func test_formal_product_brand_and_skin_are_release_defaults_without_moving_save
 	var global_font_uid := String(project.get_value("gui", "theme/custom_font", ""))
 	assert_bool(global_font_uid.begins_with("uid://")).is_true()
 	assert_str(ResourceUID.get_id_path(ResourceUID.text_to_id(global_font_uid))).is_equal(
-		"res://assets/font/Bake Soda.otf"
+		"res://assets/font/brotato_font_stack.tres"
 	)
-	# Product branding must not strand existing GOBRO profile files in another
-	# Godot user-data directory.
+	# Keep the existing internal namespace so playtest profiles survive visual
+	# naming changes; it is not exposed as the window or package title.
 	assert_bool(bool(project.get_value(
 		"application", "config/use_custom_user_dir", false
 	))).is_true()
 	assert_str(String(project.get_value(
 		"application", "config/custom_user_dir_name", ""
-	))).is_equal("GOBRO")
+	))).is_equal("LETS_GOOOOO")
 
 
 func test_release_presets_cover_all_phase_one_desktop_platforms() -> void:
@@ -39,6 +39,16 @@ func test_release_presets_cover_all_phase_one_desktop_platforms() -> void:
 		if section.begins_with("preset."):
 			platforms.append(String(config.get_value(section, "platform", "")))
 	assert_array(platforms).contains_exactly_in_any_order(["Windows Desktop", "Linux", "macOS"])
+
+
+func test_gdunit_runner_isolates_live_windows_user_data() -> void:
+	var script := FileAccess.get_file_as_string("res://tools/run_tests.ps1")
+
+	assert_str(script).contains("lets-gooooo-gdunit-")
+	assert_str(script).contains("$env:APPDATA = $testAppData")
+	assert_str(script).contains("$env:LOCALAPPDATA = $testLocalAppData")
+	assert_str(script).contains("$env:APPDATA = $previousAppData")
+	assert_str(script).contains("$env:LOCALAPPDATA = $previousLocalAppData")
 
 
 func test_release_filter_keeps_selected_skin_but_excludes_gameplay_content_and_tooling() -> void:
@@ -155,6 +165,13 @@ func test_release_automation_and_ci_configuration_exist() -> void:
 	assert_bool(workflow.contains("potato-brothers")).is_false()
 
 
+func test_acceptance_import_uses_recovery_mode_to_avoid_editor_plugin_side_effects() -> void:
+	var acceptance_script := FileAccess.get_file_as_string(
+		"res://tools/run_phase_one_acceptance.ps1"
+	)
+	assert_str(acceptance_script).contains("--recovery-mode")
+
+
 func test_windows_release_is_a_portable_x86_64_executable_and_external_pcks() -> void:
 	var config := ConfigFile.new()
 	assert_int(config.load("res://export_presets.cfg")).is_equal(OK)
@@ -164,8 +181,11 @@ func test_windows_release_is_a_portable_x86_64_executable_and_external_pcks() ->
 	assert_str(String(config.get_value("preset.0.options", "binary_format/architecture", ""))).is_equal(
 		"x86_64"
 	)
+	assert_str(String(config.get_value("preset.0.options", "application/icon", ""))).is_equal(
+		"res://content_packs/skins/lets_gooooo/assets/ui/app_icon.png"
+	)
 	assert_bool(bool(config.get_value("preset.0.options", "binary_format/embed_pck", true))).is_false()
-	assert_str(String(config.get_value("preset.0", "export_path", ""))).ends_with("LETS_GOOOOO.exe")
+	assert_str(String(config.get_value("preset.0", "export_path", ""))).ends_with("GamePrototype.exe")
 
 
 func test_windows_build_installs_matching_templates_and_smokes_an_isolated_package() -> void:
@@ -182,7 +202,7 @@ func test_windows_build_installs_matching_templates_and_smokes_an_isolated_packa
 	assert_str(installer).contains("--continue-at")
 	assert_str(build_script).contains("Assert-WindowsReleaseDirectory")
 	assert_str(build_script).contains("Assert-WindowsReleaseArchive")
-	assert_str(build_script).contains("LETS-GOOOOO-release-smoke-")
+	assert_str(build_script).contains("game-prototype-release-smoke-")
 	assert_str(build_script).contains("$env:APPDATA = $isolatedAppData")
 	assert_str(build_script).contains("-RedirectStandardOutput")
 	assert_str(build_script).contains("-RedirectStandardError")
@@ -218,7 +238,7 @@ func test_release_staging_imports_the_font_before_enabling_it_globally() -> void
 	assert_int(initial_import_index).is_greater(bootstrap_index)
 	assert_int(formal_font_index).is_greater(initial_import_index)
 	assert_int(verified_import_index).is_greater(formal_font_index)
-	assert_str(build_script).contains("Formal global font imported data is missing")
+	assert_str(build_script).contains("Formal font binary imported data is missing")
 
 
 func test_release_godot_processes_fail_on_logged_errors_and_unicode_corruption() -> void:

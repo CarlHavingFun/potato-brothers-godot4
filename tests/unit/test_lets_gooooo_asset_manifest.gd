@@ -165,9 +165,11 @@ func test_weapon_assets_have_initial_runtime_anchors() -> void:
 		assert_bool(by_id.has(asset_id)).is_true()
 		var anchors := (by_id[asset_id] as Dictionary).get("anchors", {}) as Dictionary
 		assert_str(String(anchors.get("calibration_status", ""))).is_equal(
-			"initial_needs_gameplay_verification"
+			"runtime_calibrated_2026_08_19"
 		)
 		assert_bool(anchors.has("pivot_logical")).is_true()
+		assert_float(float(anchors.get("world_scale", 0.0))).is_between(0.12, 0.35)
+		assert_int((anchors.get("mount_position_world", []) as Array).size()).is_equal(2)
 		if asset_id in [
 			"weapon.ember_staff",
 			"weapon.void_prism",
@@ -329,9 +331,18 @@ func test_curated_world_assets_have_semantic_uses_and_initial_anchors() -> void:
 		var entry := by_id[asset_id] as Dictionary
 		assert_array(entry.get("uses", []) as Array).contains([expected[asset_id]])
 		var source := entry.get("source", {}) as Dictionary
-		assert_array(source.get("pipeline", []) as Array).is_equal(
-			["built_in_image_gen", "sprite_gen_curation"]
+		var normalization := entry.get("normalization", {}) as Dictionary
+		var expected_pipeline := (
+			[
+				"built_in_image_gen",
+				"sprite_gen_component_row",
+				"sprite_gen_pixel_unfake",
+				"sprite_gen_curation",
+			]
+			if String(normalization.get("mode", "")) == "sprite_gen_pixel_unfake_curated"
+			else ["built_in_image_gen", "sprite_gen_curation"]
 		)
+		assert_array(source.get("pipeline", []) as Array).is_equal(expected_pipeline)
 		var anchors := entry.get("anchors", {}) as Dictionary
 		assert_bool(anchors.has("pivot_logical")).is_true()
 		assert_bool(anchors.has("ground_origin_logical")).is_true()
@@ -366,27 +377,131 @@ func test_curated_projectiles_have_center_anchors_and_shipping_provenance() -> v
 		)
 
 
-func test_original_ui_vectors_are_manifested_and_contain_no_external_payloads() -> void:
-	var expected := {
-		"ui.logo": "ui.logo",
-		"ui.app_icon": "ui.app_icon",
-	}
+func test_original_logo_is_manifested_and_contains_no_external_payloads() -> void:
 	var by_id := {}
 	for raw_entry: Variant in (_load_manifest().get("assets", []) as Array):
 		var entry := raw_entry as Dictionary
 		by_id[String(entry.get("id", ""))] = entry
-	for asset_id: String in expected:
-		assert_bool(by_id.has(asset_id)).is_true()
-		var entry := by_id[asset_id] as Dictionary
-		assert_array(entry.get("uses", []) as Array).contains([expected[asset_id]])
-		assert_str(String((entry.get("source", {}) as Dictionary).get("kind", ""))).is_equal(
-			"original_code_native_vector"
+	assert_bool(by_id.has("ui.logo")).is_true()
+	var entry := by_id["ui.logo"] as Dictionary
+	assert_array(entry.get("uses", []) as Array).contains(["ui.logo"])
+	assert_str(String((entry.get("source", {}) as Dictionary).get("kind", ""))).is_equal(
+		"original_code_native_vector"
+	)
+	var svg := FileAccess.get_file_as_string(String(entry.get("path", ""))).to_lower()
+	assert_str(svg).contains("<svg")
+	assert_str(svg).not_contains("<script")
+	assert_str(svg).not_contains("<image")
+	assert_str(svg).not_contains("xlink:href")
+
+
+func test_user_selected_chicken_is_the_curated_pixel_shipping_app_icon() -> void:
+	var by_id := {}
+	for raw_entry: Variant in (_load_manifest().get("assets", []) as Array):
+		var entry := raw_entry as Dictionary
+		by_id[String(entry.get("id", ""))] = entry
+	assert_bool(by_id.has("ui.app_icon")).is_true()
+	var entry := by_id["ui.app_icon"] as Dictionary
+	assert_str(String(entry.get("path", ""))).ends_with("/assets/ui/app_icon.png")
+	assert_str(String(entry.get("format", ""))).is_equal("png")
+	assert_array(entry.get("uses", []) as Array).contains(["ui.app_icon"])
+	assert_str(String((entry.get("source", {}) as Dictionary).get("kind", ""))).is_equal(
+		"user_provided_art"
+	)
+	assert_str(String((entry.get("approval", {}) as Dictionary).get("basis", ""))).is_equal(
+		"user_explicit_selection"
+	)
+	var normalization := entry.get("normalization", {}) as Dictionary
+	assert_str(String(normalization.get("mode", ""))).is_equal(
+		"sprite_gen_pixel_unfake_curated"
+	)
+	assert_array(normalization.get("logical_canvas", []) as Array).contains_exactly([64.0, 64.0])
+	assert_int(int(normalization.get("nearest_scale", 0))).is_equal(4)
+	assert_float(float(normalization.get("edge_dark_fraction", 0.0))).is_greater_equal(0.85)
+	assert_str(FileAccess.get_sha256(String(entry.get("path", "")))).is_equal(
+		"677d1fc236182d09d879085b047b91eff996ac4565584d025ebb7c62218cdd92"
+	)
+
+
+func test_pickup_material_is_a_single_warm_gold_shard_with_hard_sparse_glints() -> void:
+	var material: Dictionary = {}
+	for raw_entry: Variant in (_load_manifest().get("assets", []) as Array):
+		var entry := raw_entry as Dictionary
+		if String(entry.get("id", "")) == "pickup.material":
+			material = entry
+			break
+	assert_bool(material.is_empty()).is_false()
+	var source := material.get("source", {}) as Dictionary
+	assert_str(String(source.get("asset_ref", ""))).is_equal(
+		"pickup-material-gold-shard-v2"
+	)
+	assert_array(source.get("pipeline", []) as Array).contains_exactly(
+		[
+			"built_in_image_gen",
+			"sprite_gen_component_row",
+			"sprite_gen_pixel_unfake",
+			"sprite_gen_curation",
+		]
+	)
+	var normalization := material.get("normalization", {}) as Dictionary
+	assert_str(String(normalization.get("mode", ""))).is_equal(
+		"sprite_gen_pixel_unfake_curated"
+	)
+	var declared_bbox := normalization.get("logical_bbox_xywh", []) as Array
+	assert_int(declared_bbox.size()).is_equal(4)
+	assert_int(int(declared_bbox[2])).is_between(44, 48)
+	assert_int(int(declared_bbox[3])).is_between(28, 34)
+	assert_float(float(declared_bbox[2]) * 30.0 / 64.0).is_between(20.5, 22.5)
+	assert_int(int(declared_bbox[0])).is_greater_equal(6)
+	assert_int(int(declared_bbox[1])).is_greater_equal(6)
+	assert_int(int(declared_bbox[0]) + int(declared_bbox[2])).is_less_equal(58)
+	assert_int(int(declared_bbox[1]) + int(declared_bbox[3])).is_less_equal(58)
+	var image := Image.new()
+	assert_int(
+		image.load_png_from_buffer(
+			FileAccess.get_file_as_bytes(String(material.get("path", "")))
 		)
-		var svg := FileAccess.get_file_as_string(String(entry.get("path", ""))).to_lower()
-		assert_str(svg).contains("<svg")
-		assert_str(svg).not_contains("<script")
-		assert_str(svg).not_contains("<image")
-		assert_str(svg).not_contains("xlink:href")
+	).is_equal(OK)
+	image.convert(Image.FORMAT_RGBA8)
+	image.resize(64, 64, Image.INTERPOLATE_NEAREST)
+	var opaque := 0
+	var warm_gold := 0
+	var neutral := 0
+	var min_x := 64
+	var min_y := 64
+	var max_x := -1
+	var max_y := -1
+	for y: int in range(64):
+		for x: int in range(64):
+			var pixel := image.get_pixel(x, y)
+			if pixel.a < 1.0:
+				assert_bool(
+					is_zero_approx(pixel.r)
+					and is_zero_approx(pixel.g)
+					and is_zero_approx(pixel.b)
+				).is_true()
+				continue
+			opaque += 1
+			min_x = mini(min_x, x)
+			min_y = mini(min_y, y)
+			max_x = maxi(max_x, x)
+			max_y = maxi(max_y, y)
+			if pixel.r >= 0.28 and pixel.r > pixel.g * 1.08 and pixel.g > pixel.b * 1.35:
+				warm_gold += 1
+			if absf(pixel.r - pixel.g) <= 0.06 and absf(pixel.g - pixel.b) <= 0.06:
+				neutral += 1
+	var bbox_width := max_x - min_x + 1
+	var bbox_height := max_y - min_y + 1
+	assert_int(opaque).is_between(600, 1000)
+	assert_int(bbox_width).is_between(44, 48)
+	assert_int(bbox_height).is_between(28, 34)
+	assert_float(float(bbox_width) * 30.0 / 64.0).is_between(20.5, 22.5)
+	assert_int(min_x).is_greater_equal(6)
+	assert_int(min_y).is_greater_equal(6)
+	assert_int(max_x).is_less_equal(57)
+	assert_int(max_y).is_less_equal(57)
+	assert_float(float(warm_gold) / float(opaque)).is_greater_equal(0.65)
+	assert_float(float(neutral) / float(opaque)).is_less_equal(0.10)
 
 
 func test_pngs_are_true_64_pixel_logical_assets_upscaled_nearest_to_256() -> void:
@@ -419,6 +534,13 @@ func test_pngs_are_true_64_pixel_logical_assets_upscaled_nearest_to_256() -> voi
 			for logical_x: int in range(64):
 				var expected: Color = logical.get_pixel(logical_x, logical_y)
 				assert_bool(expected.a == 0.0 or expected.a == 1.0).is_true()
+
+
+func test_release_validator_accepts_the_curated_gold_shard_pipeline() -> void:
+	var report := "\n".join(
+		VALIDATOR.validate_skin_root("res://content_packs/skins/lets_gooooo")
+	)
+	assert_str(report).is_empty()
 
 
 func test_release_validator_rejects_unapproved_review_artifacts() -> void:

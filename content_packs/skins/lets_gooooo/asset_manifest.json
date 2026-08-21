@@ -16,7 +16,7 @@
       "presentation_id": "ally.drone",
       "category": "ally_world",
       "path": "res://content_packs/skins/lets_gooooo/assets/allies/drone.png",
-      "sha256": "94d609c66636a9da84511e75cc1069a032caca7df169ffa82e49f8e1f7634b48",
+      "sha256": "ea51fffdb08d44c3f1de75ed7fbebc3a259d4727f2df192a04f5481a5b75d762",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-world-assets-2026-08-18",
@@ -56,7 +56,7 @@
           50,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -94,7 +94,7 @@
       "presentation_id": "ally.turret",
       "category": "ally_world",
       "path": "res://content_packs/skins/lets_gooooo/assets/allies/turret.png",
-      "sha256": "ca4cddbba446323315097d3533c66351e81e7deb3e24ebd6e5142b6e4f63bf85",
+      "sha256": "00181b6a757d34b28fa641d260b839fd5f062f5a85092ceb9363d0e5ed50a06d",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-world-assets-2026-08-18",
@@ -134,7 +134,7 @@
           50,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -4249,7 +4249,7 @@
       "presentation_id": "pickup.chest",
       "category": "pickup_world",
       "path": "res://content_packs/skins/lets_gooooo/assets/pickups/chest.png",
-      "sha256": "1ee3710d2d1fec55e76a9da2061772efeee5a5e0d4b5617f0cc8314452466824",
+      "sha256": "8302c2df755c55155269abe3e21dcc90647e1f92fa69e354d92fdc5a09731188",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-world-assets-2026-08-18",
@@ -4282,14 +4282,14 @@
         "logical_bbox_xywh": [
           7,
           9,
-          49,
-          46
+          50,
+          45
         ],
         "content_limit": [
           50,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -4310,7 +4310,7 @@
         ],
         "ground_origin_logical": [
           32,
-          54
+          53
         ],
         "anchor_kind": "pickup",
         "calibration_status": "initial_needs_gameplay_verification",
@@ -4326,7 +4326,7 @@
       "presentation_id": "pickup.heal",
       "category": "pickup_world",
       "path": "res://content_packs/skins/lets_gooooo/assets/pickups/heal.png",
-      "sha256": "e59da0b755e987d832a290d0d4d0bf1ce8d48594cc1dd664ecbce70eb9721446",
+      "sha256": "cb05e8e69b026d0fcecad71b4d2514dd2aebfe9df342fc21eb6e547fc21e3a56",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-world-assets-2026-08-18",
@@ -4360,13 +4360,13 @@
           7,
           8,
           50,
-          47
+          48
         ],
         "content_limit": [
           50,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -4387,7 +4387,7 @@
         ],
         "ground_origin_logical": [
           32,
-          54
+          55
         ],
         "anchor_kind": "pickup",
         "calibration_status": "initial_needs_gameplay_verification",
@@ -4403,21 +4403,23 @@
       "presentation_id": "pickup.material",
       "category": "pickup_world",
       "path": "res://content_packs/skins/lets_gooooo/assets/pickups/material.png",
-      "sha256": "3399508c3ed16c1adf4b845dd01bce462428eabc0971db425a426dfda2b54bec",
+      "sha256": "f962398c4fddecdd00e619be66aee49507435965f38331a41a5e45286efd08a5",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-world-assets-2026-08-18",
-        "asset_ref": "curated-world-02",
-        "sha256": "fda62a8b5414274f08c29b33b098ccfd44d466565497aa3a5ce75cc8c743c000",
+        "asset_ref": "pickup-material-gold-shard-v2",
+        "sha256": "f962398c4fddecdd00e619be66aee49507435965f38331a41a5e45286efd08a5",
         "pipeline": [
           "built_in_image_gen",
+          "sprite_gen_component_row",
+          "sprite_gen_pixel_unfake",
           "sprite_gen_curation"
         ]
       },
       "approval": {
         "status": "approved",
-        "basis": "agent_visual_qa",
-        "date": "2026-08-18"
+        "basis": "agent_visual_qa_sprite_gen_curation",
+        "date": "2026-08-21"
       },
       "rights": {
         "status": "cleared",
@@ -4433,17 +4435,17 @@
         "pickup.world"
       ],
       "normalization": {
+        "mode": "sprite_gen_pixel_unfake_curated",
         "logical_bbox_xywh": [
-          8,
-          12,
+          9,
+          16,
           47,
-          39
+          32
         ],
         "content_limit": [
           48,
-          44
+          34
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -4453,6 +4455,7 @@
           256
         ],
         "alpha": "binary",
+        "transparent_rgb": "zero",
         "resampler": "nearest",
         "nearest_scale": 4
       },
@@ -4464,7 +4467,7 @@
         ],
         "ground_origin_logical": [
           32,
-          50
+          47
         ],
         "anchor_kind": "pickup",
         "calibration_status": "initial_needs_gameplay_verification",
@@ -4480,7 +4483,7 @@
       "presentation_id": "projectile.enemy",
       "category": "projectile_world",
       "path": "res://content_packs/skins/lets_gooooo/assets/projectiles/enemy.png",
-      "sha256": "66a90fc14306852ea8f88f8644ee407ff2b1a7ca2641f5f06938152f86114143",
+      "sha256": "b665453033f011b8a58caa7f6eeceb1d54208541443c36cad24ea06749233bad",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-projectiles-2026-08-18",
@@ -4520,7 +4523,7 @@
           32,
           18
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_significant_group",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_significant_group",
         "logical_canvas": [
           64,
           64
@@ -4553,7 +4556,7 @@
       "presentation_id": "projectile.pistol",
       "category": "projectile_world",
       "path": "res://content_packs/skins/lets_gooooo/assets/projectiles/pistol.png",
-      "sha256": "1f1fc5d312ae1fc28df13d004910df977aca1c51f15b3bd79bece0b012442049",
+      "sha256": "2439731d34b33cd73b7f3d256ce4d7162ec529aa4e0e29cdc44629af94d4654a",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-projectiles-2026-08-18",
@@ -4593,7 +4596,7 @@
           36,
           18
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_significant_group",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_significant_group",
         "logical_canvas": [
           64,
           64
@@ -4626,7 +4629,7 @@
       "presentation_id": "projectile.rifle",
       "category": "projectile_world",
       "path": "res://content_packs/skins/lets_gooooo/assets/projectiles/rifle.png",
-      "sha256": "95e8dde4c1c9cadfa0f5763312f45e886d1cd7de50d4f322be23d72ddefb863f",
+      "sha256": "ba196f6812fe95be48e6c9d80e694231dc1d7bc1c7dfe741c56fe70f899607af",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-projectiles-2026-08-18",
@@ -4666,7 +4669,7 @@
           48,
           18
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_significant_group",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_significant_group",
         "logical_canvas": [
           64,
           64
@@ -4699,7 +4702,7 @@
       "presentation_id": "projectile.sniper",
       "category": "projectile_world",
       "path": "res://content_packs/skins/lets_gooooo/assets/projectiles/sniper.png",
-      "sha256": "825dc26d9f2063cdf2232f45355d5f2f0a9b7165a866ef053a4fc35810ebb76a",
+      "sha256": "1a6deac6ac3e4482196e5fc479ce13fbec3b72804a8e362d992a4cce839ab21e",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-projectiles-2026-08-18",
@@ -4733,13 +4736,13 @@
           5,
           24,
           54,
-          16
+          15
         ],
         "content_limit": [
           54,
           18
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_significant_group",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_significant_group",
         "logical_canvas": [
           64,
           64
@@ -4772,7 +4775,7 @@
       "presentation_id": "prop.hazard_beacon",
       "category": "prop_world",
       "path": "res://content_packs/skins/lets_gooooo/assets/props/hazard_beacon.png",
-      "sha256": "15ed2ceeb8b6776169c451f87f9e2ce57dcd158a8a84162fd54d535fa62d8c7a",
+      "sha256": "50a604916d94814db874ba7d30dea19beaef06dc84cfe63b2b18df4943edf031",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-world-assets-2026-08-18",
@@ -4803,16 +4806,16 @@
       ],
       "normalization": {
         "logical_bbox_xywh": [
-          12,
+          11,
           7,
-          40,
-          49
+          41,
+          50
         ],
         "content_limit": [
           50,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -4833,7 +4836,7 @@
         ],
         "ground_origin_logical": [
           32,
-          55
+          56
         ],
         "anchor_kind": "prop",
         "calibration_status": "initial_needs_gameplay_verification",
@@ -4849,7 +4852,7 @@
       "presentation_id": "prop.supply_crate",
       "category": "prop_world",
       "path": "res://content_packs/skins/lets_gooooo/assets/props/supply_crate.png",
-      "sha256": "5176d841e017878c0330319bb143d8814801b4c1a3990d0192aa8cf1d132d402",
+      "sha256": "61dd13a04c20f62719dc6744eadaf063a15887d943ee867b2ee2dc65dd64adda",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-world-assets-2026-08-18",
@@ -4889,7 +4892,7 @@
           50,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -4926,7 +4929,7 @@
       "presentation_id": "prop.weapon_rack",
       "category": "prop_world",
       "path": "res://content_packs/skins/lets_gooooo/assets/props/weapon_rack.png",
-      "sha256": "10336297e2f8b50b20417c9bb1122002f2c9711c733b36c5a3894840ed72e42f",
+      "sha256": "13f20ae517d2b84c27c074a912b2a8e74f86d9baac3d5850728952a52970a681",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-world-assets-2026-08-18",
@@ -4966,7 +4969,7 @@
           50,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -5028,10 +5031,10 @@
         ]
       },
       "shipping_allowed": true,
-    "uses": [
-      "scene.floor",
-      "scene.background"
-    ],
+      "uses": [
+        "scene.floor",
+        "scene.background"
+      ],
       "normalization": {
         "mode": "lossless_copy",
         "source_canvas": [
@@ -5104,31 +5107,56 @@
       "id": "ui.app_icon",
       "presentation_id": "ui.app_icon",
       "category": "ui_app_icon",
-      "path": "res://content_packs/skins/lets_gooooo/assets/ui/app_icon.svg",
-      "sha256": "0502790f2d920f4590d62d7944b6bde927c3106beb5d3289ba69e52fe02903f4",
+      "path": "res://content_packs/skins/lets_gooooo/assets/ui/app_icon.png",
+      "sha256": "677d1fc236182d09d879085b047b91eff996ac4565584d025ebb7c62218cdd92",
       "source": {
-        "kind": "original_code_native_vector",
-        "collection": "original-code-native-vectors-2026-08-18",
-        "asset_ref": "original-vector-02",
-        "sha256": "0502790f2d920f4590d62d7944b6bde927c3106beb5d3289ba69e52fe02903f4"
+        "kind": "user_provided_art",
+        "collection": "user-selected-product-identity-2026-08-19",
+        "asset_ref": "conversation-attachment-chicken-pixel",
+        "sha256": "3a300e6897c38dbcd5d7d5f1ca70b4f650365195155ff005976742ac31179504",
+        "pipeline": [
+          "sprite_gen_pixel_unfake",
+          "sprite_gen_curation"
+        ]
       },
       "approval": {
         "status": "approved",
-        "basis": "repository_authored_original_vector",
-        "date": "2026-08-18"
+        "basis": "user_explicit_selection",
+        "date": "2026-08-19"
       },
       "rights": {
         "status": "cleared",
-        "basis": "original_project_authorship",
+        "basis": "user_provided_for_project",
         "restrictions": [
-          "no_external_embedded_payloads"
+          "project_use_only"
         ]
       },
       "shipping_allowed": true,
       "uses": [
         "ui.app_icon"
       ],
-      "format": "svg"
+      "format": "png",
+      "normalization": {
+        "mode": "sprite_gen_pixel_unfake_curated",
+        "source_canvas": [
+          1254,
+          1254
+        ],
+        "output_canvas": [
+          256,
+          256
+        ],
+        "logical_canvas": [
+          64,
+          64
+        ],
+        "nearest_scale": 4,
+        "palette_size": 48,
+        "outline_strength": 1.0,
+        "edge_dark_fraction": 0.9067524115755627,
+        "alpha": "binary",
+        "transparent_rgb": "zero"
+      }
     },
     {
       "id": "ui.logo",
@@ -5165,7 +5193,7 @@
       "presentation_id": "weapon.axe",
       "category": "weapon_icon",
       "path": "res://content_packs/skins/lets_gooooo/assets/weapons/axe.png",
-      "sha256": "ee318ac676fd8ca26f03dbee36147571046a9f068771cec9264579a2ea4ba4c1",
+      "sha256": "39a492ce9ac96d79c9d8c8d58e749bd1e2c13f0435e75932dfb794f0bccca295",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-weapons-2026-08-18",
@@ -5206,7 +5234,7 @@
           58,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -5226,9 +5254,14 @@
           27,
           35
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "melee",
+        "world_scale": 0.22,
+        "mount_position_world": [
+          23,
+          2
+        ],
         "strike_origin_logical": [
           48,
           31
@@ -5297,9 +5330,14 @@
           27,
           38
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "muzzle",
+        "world_scale": 0.22,
+        "mount_position_world": [
+          19,
+          -2
+        ],
         "muzzle_logical": [
           60,
           29
@@ -5368,9 +5406,14 @@
           27,
           35
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "muzzle",
+        "world_scale": 0.27,
+        "mount_position_world": [
+          22,
+          -2
+        ],
         "muzzle_logical": [
           60,
           30
@@ -5382,7 +5425,7 @@
       "presentation_id": "weapon.chainsaw",
       "category": "weapon_icon",
       "path": "res://content_packs/skins/lets_gooooo/assets/weapons/chainsaw.png",
-      "sha256": "2d9e97da529e910379e057395b8590017d375744041fc54488d1a3dabae19846",
+      "sha256": "6bc4ce8da32a2f0a33fab4d2b9b4183c57e5474fa3d74ec5c2be3022c0d14a90",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-weapons-2026-08-18",
@@ -5423,7 +5466,7 @@
           58,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -5443,9 +5486,14 @@
           27,
           35
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "melee",
+        "world_scale": 0.21,
+        "mount_position_world": [
+          22,
+          0
+        ],
         "strike_origin_logical": [
           48,
           30
@@ -5457,7 +5505,7 @@
       "presentation_id": "weapon.cleaver",
       "category": "weapon_icon",
       "path": "res://content_packs/skins/lets_gooooo/assets/weapons/cleaver.png",
-      "sha256": "e39fcecb34d1f7b1ff63839e1b2c8b01e4ddb449f6f00423bb56af868cecce96",
+      "sha256": "66ae2bde66957e7a7986556c0c2c756d660330058ea1a2d8992fe60557581b0e",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-weapons-2026-08-18",
@@ -5498,7 +5546,7 @@
           58,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -5518,9 +5566,14 @@
           27,
           34
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "melee",
+        "world_scale": 0.21,
+        "mount_position_world": [
+          22,
+          0
+        ],
         "strike_origin_logical": [
           48,
           31
@@ -5589,9 +5642,14 @@
           27,
           36
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "muzzle",
+        "world_scale": 0.19,
+        "mount_position_world": [
+          18,
+          -1
+        ],
         "muzzle_logical": [
           60,
           29
@@ -5660,9 +5718,14 @@
           28,
           41
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "throw",
+        "world_scale": 0.17,
+        "mount_position_world": [
+          16,
+          0
+        ],
         "throw_origin_logical": [
           32,
           32
@@ -5674,7 +5737,7 @@
       "presentation_id": "weapon.frost_orb",
       "category": "weapon_icon",
       "path": "res://content_packs/skins/lets_gooooo/assets/weapons/frost_orb.png",
-      "sha256": "fcc7a1b188c3bd6aa745bc3e9053cb7ade1397cdeefe5571347539b8deef1f34",
+      "sha256": "ff585aa4e1e5ec33929b71a9ac82fc4abe28c25601d1a75d996ab733655080f1",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-weapons-2026-08-18",
@@ -5709,13 +5772,13 @@
           18,
           7,
           28,
-          49
+          50
         ],
         "content_limit": [
           50,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -5733,11 +5796,16 @@
         "facing": "screen_right",
         "pivot_logical": [
           30,
-          40
+          41
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "throw",
+        "world_scale": 0.2,
+        "mount_position_world": [
+          16,
+          0
+        ],
         "throw_origin_logical": [
           32,
           32
@@ -5806,9 +5874,14 @@
           27,
           35
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "muzzle",
+        "world_scale": 0.3,
+        "mount_position_world": [
+          22,
+          -3
+        ],
         "muzzle_logical": [
           60,
           31
@@ -5820,7 +5893,7 @@
       "presentation_id": "weapon.mace",
       "category": "weapon_icon",
       "path": "res://content_packs/skins/lets_gooooo/assets/weapons/mace.png",
-      "sha256": "c17a3b9e11712c11ac9c9c8d2010dc195c91f7eb343d11ad9338dae46399d135",
+      "sha256": "3556f7583e0105df83c0f4357a5d90ca7767ab505fe53237811322f7f34f3dd2",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-weapons-2026-08-18",
@@ -5861,7 +5934,7 @@
           58,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -5881,9 +5954,14 @@
           27,
           36
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "melee",
+        "world_scale": 0.22,
+        "mount_position_world": [
+          23,
+          1
+        ],
         "strike_origin_logical": [
           48,
           31
@@ -5952,9 +6030,14 @@
           27,
           36
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "muzzle",
+        "world_scale": 0.21,
+        "mount_position_world": [
+          19,
+          -2
+        ],
         "muzzle_logical": [
           60,
           29
@@ -6023,9 +6106,14 @@
           27,
           39
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "muzzle",
+        "world_scale": 0.17,
+        "mount_position_world": [
+          17,
+          -1
+        ],
         "muzzle_logical": [
           60,
           28
@@ -6037,7 +6125,7 @@
       "presentation_id": "weapon.punch",
       "category": "weapon_icon",
       "path": "res://content_packs/skins/lets_gooooo/assets/weapons/punch.png",
-      "sha256": "2d3f2b463e1cf39edfb362bcdd0f4fe1950cde943e002d90f6fcde3bf4bc8108",
+      "sha256": "9300dc7fbad103c805377affeccbec67873b62178b9ab3c8b1ee4cc508191317",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-weapons-2026-08-18",
@@ -6071,14 +6159,14 @@
         "logical_bbox_xywh": [
           7,
           9,
-          49,
+          50,
           46
         ],
         "content_limit": [
           50,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -6098,11 +6186,16 @@
           28,
           40
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "melee",
+        "world_scale": 0.18,
+        "mount_position_world": [
+          18,
+          0
+        ],
         "strike_origin_logical": [
-          45,
+          46,
           30
         ]
       }
@@ -6169,9 +6262,14 @@
           27,
           35
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "muzzle",
+        "world_scale": 0.28,
+        "mount_position_world": [
+          22,
+          -2
+        ],
         "muzzle_logical": [
           60,
           31
@@ -6240,9 +6338,14 @@
           27,
           38
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "muzzle",
+        "world_scale": 0.19,
+        "mount_position_world": [
+          18,
+          -1
+        ],
         "muzzle_logical": [
           60,
           29
@@ -6311,9 +6414,14 @@
           27,
           35
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "muzzle",
+        "world_scale": 0.27,
+        "mount_position_world": [
+          22,
+          -2
+        ],
         "muzzle_logical": [
           60,
           30
@@ -6382,9 +6490,14 @@
           27,
           37
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "muzzle",
+        "world_scale": 0.24,
+        "mount_position_world": [
+          20,
+          -2
+        ],
         "muzzle_logical": [
           60,
           29
@@ -6453,9 +6566,14 @@
           27,
           36
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "muzzle",
+        "world_scale": 0.23,
+        "mount_position_world": [
+          20,
+          -2
+        ],
         "muzzle_logical": [
           60,
           30
@@ -6467,7 +6585,7 @@
       "presentation_id": "weapon.spear",
       "category": "weapon_icon",
       "path": "res://content_packs/skins/lets_gooooo/assets/weapons/spear.png",
-      "sha256": "987b9e68fc87a174f7287f379a78cbf345cc944e5223e4efbb3165da3d50d468",
+      "sha256": "75ceeb5d1b47f279c40358fd371b6e78de2b1669d9524ae76e23e6eb66227403",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-weapons-2026-08-18",
@@ -6501,14 +6619,14 @@
         "logical_bbox_xywh": [
           3,
           24,
-          58,
+          57,
           16
         ],
         "content_limit": [
           58,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -6528,11 +6646,16 @@
           27,
           35
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "melee",
+        "world_scale": 0.22,
+        "mount_position_world": [
+          23,
+          0
+        ],
         "strike_origin_logical": [
-          48,
+          47,
           31
         ]
       }
@@ -6542,7 +6665,7 @@
       "presentation_id": "weapon.storm_coil",
       "category": "weapon_icon",
       "path": "res://content_packs/skins/lets_gooooo/assets/weapons/storm_coil.png",
-      "sha256": "d6dec4f8b7a31649db4b22fda24db7b5c9e608415167000e0d91d6122ca95390",
+      "sha256": "57b52c98d19bb5f158feb309578daacd4cd1addcf261b34075cc70cd22ffeeb1",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-weapons-2026-08-18",
@@ -6574,16 +6697,16 @@
       ],
       "normalization": {
         "logical_bbox_xywh": [
-          17,
+          18,
           7,
-          29,
-          49
+          28,
+          50
         ],
         "content_limit": [
           50,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -6600,12 +6723,17 @@
         "coordinate_space": "logical_64",
         "facing": "screen_right",
         "pivot_logical": [
-          29,
-          40
+          30,
+          41
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "throw",
+        "world_scale": 0.2,
+        "mount_position_world": [
+          16,
+          0
+        ],
         "throw_origin_logical": [
           32,
           32
@@ -6617,7 +6745,7 @@
       "presentation_id": "weapon.sword",
       "category": "weapon_icon",
       "path": "res://content_packs/skins/lets_gooooo/assets/weapons/sword.png",
-      "sha256": "e49206aef8ce69a28714947d8303578f00b816f4cccd4ed7f10d17703abd8d86",
+      "sha256": "4568d3f6580f26d5f0f27406af6d68b21fe2ccfdd3b874267e441ea1484520da",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-weapons-2026-08-18",
@@ -6658,7 +6786,7 @@
           50,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -6678,9 +6806,14 @@
           28,
           36
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "melee",
+        "world_scale": 0.21,
+        "mount_position_world": [
+          21,
+          0
+        ],
         "strike_origin_logical": [
           46,
           30
@@ -6692,7 +6825,7 @@
       "presentation_id": "weapon.turret_kit",
       "category": "weapon_icon",
       "path": "res://content_packs/skins/lets_gooooo/assets/weapons/turret_kit.png",
-      "sha256": "eec64d32c2a36f915974f5ea2000ae7a252d2b83ecb7b1ef97191c063aaff7ac",
+      "sha256": "85e278d73469a2be4f3907a91aa96475459919f3475a29c42fd8362c9fef376c",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-weapons-2026-08-18",
@@ -6724,16 +6857,16 @@
       ],
       "normalization": {
         "logical_bbox_xywh": [
-          12,
+          11,
           7,
-          40,
+          41,
           50
         ],
         "content_limit": [
           50,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -6750,12 +6883,17 @@
         "coordinate_space": "logical_64",
         "facing": "screen_right",
         "pivot_logical": [
-          29,
+          28,
           41
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "place",
+        "world_scale": 0.18,
+        "mount_position_world": [
+          16,
+          1
+        ],
         "placement_origin_logical": [
           32,
           43
@@ -6767,7 +6905,7 @@
       "presentation_id": "weapon.void_prism",
       "category": "weapon_icon",
       "path": "res://content_packs/skins/lets_gooooo/assets/weapons/void_prism.png",
-      "sha256": "d2f7db3604b0bd0b0e4a73e9e6e3e99294f3a511c72af1ddbcb21ada0c4559dd",
+      "sha256": "f37a000a7b3420969a5498ef9c565bcd844ae67634d1e65bea39c2c1406943e5",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-weapons-2026-08-18",
@@ -6808,7 +6946,7 @@
           50,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -6828,9 +6966,14 @@
           29,
           41
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "throw",
+        "world_scale": 0.2,
+        "mount_position_world": [
+          16,
+          0
+        ],
         "throw_origin_logical": [
           32,
           32
@@ -6842,7 +6985,7 @@
       "presentation_id": "weapon.wand",
       "category": "weapon_icon",
       "path": "res://content_packs/skins/lets_gooooo/assets/weapons/wand.png",
-      "sha256": "01dafc6102edd269ac151fbb9f5e51f5808d8b6891b3b95081cd0184e93ae6f1",
+      "sha256": "ac769f6df30f713040f8627446e3c0d16e394e209e134cc3adf53616b9836a73",
       "source": {
         "kind": "generated_and_curated_art",
         "collection": "sprite-gen-curated-weapons-2026-08-18",
@@ -6875,15 +7018,15 @@
       "normalization": {
         "logical_bbox_xywh": [
           6,
-          15,
+          14,
           52,
-          34
+          35
         ],
         "content_limit": [
           52,
           50
         ],
-        "chroma_cleanup": "sprite_gen_ycbcr_largest_subject",
+        "chroma_cleanup": "sprite_gen_rgb_exact_unmix_largest_subject",
         "logical_canvas": [
           64,
           64
@@ -6903,12 +7046,17 @@
           28,
           38
         ],
-        "calibration_status": "initial_needs_gameplay_verification",
-        "method": "alpha_bbox_heuristic",
+        "calibration_status": "runtime_calibrated_2026_08_19",
+        "method": "manual_category_scale_plus_alpha_anchor",
         "anchor_kind": "muzzle",
+        "world_scale": 0.2,
+        "mount_position_world": [
+          19,
+          0
+        ],
         "muzzle_logical": [
           57,
-          29
+          28
         ]
       }
     }

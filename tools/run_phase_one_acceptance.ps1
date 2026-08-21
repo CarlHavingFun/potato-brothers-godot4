@@ -14,7 +14,7 @@ if (-not $GodotBinary.EndsWith("_console.exe", [System.StringComparison]::Ordina
 	$GodotBinary = $consoleBinary
 }
 
-& $GodotBinary --headless --editor --path $projectRoot --import --quit
+& $GodotBinary --headless --recovery-mode --path $projectRoot --import
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 & "$PSScriptRoot\build_content_pack.ps1" -GodotBinary $GodotBinary
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

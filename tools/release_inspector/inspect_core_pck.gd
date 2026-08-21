@@ -74,7 +74,10 @@ const ALLOWED_CORE_ART_FILES := [
 	"res://assets/sprites/shadow.png",
 ]
 const EXPORTED_PROJECT_BINARY := "res://project.binary"
-const FORMAL_GLOBAL_FONT_PATH := "res://assets/font/Bake Soda.otf"
+const FORMAL_GLOBAL_FONT_PATH := "res://assets/font/brotato_font_stack.tres"
+const FORMAL_PRIMARY_FONT_PATH := "res://assets/font/Anybody-Medium.ttf"
+const FORMAL_FALLBACK_FONT_PATH := "res://assets/font/NotoSansCJKsc-Medium.otf"
+const FORMAL_SKIN_THEME_PATH := "res://content_packs/skins/lets_gooooo/assets/ui/lets_gooooo_theme.tres"
 const GLOBAL_FONT_SETTING := "gui/theme/custom_font"
 
 
@@ -224,8 +227,20 @@ func _validate_exported_global_font() -> String:
 	if not ResourceLoader.exists(FORMAL_GLOBAL_FONT_PATH):
 		return "Core PCK is missing the formal global font: %s" % FORMAL_GLOBAL_FONT_PATH
 	var font_resource: Resource = ResourceLoader.load(FORMAL_GLOBAL_FONT_PATH)
-	if not font_resource is Font:
-		return "Formal global font resource is not a Font: %s" % FORMAL_GLOBAL_FONT_PATH
+	if not font_resource is FontVariation:
+		return "Formal global font resource is not a FontVariation: %s" % FORMAL_GLOBAL_FONT_PATH
+	var stack := font_resource as FontVariation
+	if stack.base_font == null or stack.base_font.resource_path != FORMAL_PRIMARY_FONT_PATH:
+		return "Formal font stack primary is not Anybody Medium: %s" % FORMAL_PRIMARY_FONT_PATH
+	var fallbacks := stack.get_fallbacks()
+	if fallbacks.size() != 1 or fallbacks[0].resource_path != FORMAL_FALLBACK_FONT_PATH:
+		return "Formal font stack fallback is not Noto Sans SC Medium: %s" % FORMAL_FALLBACK_FONT_PATH
+	for glyph: String in ["A", "7", "中"]:
+		if not stack.has_char(glyph.unicode_at(0)):
+			return "Formal font stack cannot resolve glyph: %s" % glyph
+	var formal_theme := ResourceLoader.load(FORMAL_SKIN_THEME_PATH) as Theme
+	if formal_theme == null or formal_theme.get_default_font().resource_path != FORMAL_GLOBAL_FONT_PATH:
+		return "Formal skin theme does not use the composite font stack."
 	var font_uid := ResourceLoader.get_resource_uid(FORMAL_GLOBAL_FONT_PATH)
 	if font_uid == ResourceUID.INVALID_ID:
 		return "Formal global font has no exported resource UID: %s" % FORMAL_GLOBAL_FONT_PATH

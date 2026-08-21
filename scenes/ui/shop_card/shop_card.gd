@@ -2,7 +2,10 @@ extends Panel
 class_name ShopCard
 
 signal on_item_purchased(item: ItemBase, slot_index: int)
+signal on_item_purchased_detailed(item: ItemBase, slot_index: int, result: Dictionary)
 signal lock_toggled(slot_index: int, locked: bool)
+
+const UNAFFORDABLE_PRICE_COLOR := Color(1.0, 0.25, 0.25, 1.0)
 
 @export var shop_item: ItemBase: set = _set_shop_item
 var slot_index := -1
@@ -18,7 +21,17 @@ var slot_index := -1
 
 
 func _ready() -> void:
+	item_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	material_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	material_icon.texture = Presentation.resolve_texture(&"pickup", &"pickup.material")
+	if not Global.materials_changed.is_connected(_on_materials_changed):
+		Global.materials_changed.connect(_on_materials_changed)
+	_update_price_feedback()
+
+
+func _exit_tree() -> void:
+	if Global.materials_changed.is_connected(_on_materials_changed):
+		Global.materials_changed.disconnect(_on_materials_changed)
 
 
 func _notification(what: int) -> void:
@@ -48,11 +61,7 @@ func _set_shop_item(value: ItemBase) -> void:
 	item_name.text = ItemDescriptionFormatter.item_display_name(value)
 	item_type.text = ItemDescriptionFormatter.item_type_display_name(value.item_type)
 	item_description.text = _build_detail_text(value)
-	coins_label.text = str(
-		Global.shop_service.purchase_price(Global.current_run, value)
-		if Global.shop_service != null
-		else value.item_cost
-	)
+	_update_price_feedback()
 	
 	var style := Global.get_tier_style(value.item_tier)
 	add_theme_stylebox_override("panel", style)
@@ -61,11 +70,12 @@ func _set_shop_item(value: ItemBase) -> void:
 func _on_buy_buttom_pressed() -> void:
 	GameplayCues.emit_cue(&"ui.purchase")
 
-	var result := Global.try_purchase_shop_slot(slot_index)
-	if result != InventoryService.OK:
-		status_label.text = _purchase_failure_message(result)
+	var result := Global.try_purchase_shop_slot_detailed(slot_index)
+	if int(result.get("code", InventoryService.INVALID_REQUEST)) != InventoryService.OK:
+		status_label.text = _purchase_failure_message(int(result.get("code", InventoryService.INVALID_REQUEST)))
 		return
 	on_item_purchased.emit(shop_item, slot_index)
+	on_item_purchased_detailed.emit(shop_item, slot_index, result)
 	queue_free()
 
 
@@ -85,9 +95,33 @@ func _build_detail_text(value: ItemBase) -> String:
 	var stable_id := Content.catalog.get_item_stable_id(value)
 	if value is ItemWeapon and Global.current_run != null:
 		var tier := int(value.item_tier) + 1
-		if not Global.current_run.inventory.find_weapon_slots(stable_id, tier).is_empty() and tier < InventoryState.MAX_WEAPON_TIER:
+		if Global.current_run.inventory.find_auto_merge_slot(stable_id, tier) >= 0:
 			lines.append(LocalizedTextService.resolve(&"ui.shop.merge_preview", [tier + 1]))
 	return "\n".join(lines)
+
+
+func _on_materials_changed(_materials: int) -> void:
+	_update_price_feedback()
+
+
+func refresh_purchase_context() -> void:
+	if shop_item == null or not is_node_ready():
+		return
+	item_description.text = _build_detail_text(shop_item)
+	_update_price_feedback()
+
+
+func _update_price_feedback() -> void:
+	if not is_instance_valid(coins_label) or shop_item == null:
+		return
+	var price := (
+		Global.shop_service.purchase_price(Global.current_run, shop_item)
+		if Global.shop_service != null
+		else shop_item.item_cost
+	)
+	coins_label.text = str(price)
+	var materials := Global.current_run.materials if Global.current_run != null else 0
+	coins_label.modulate = Color.WHITE if materials >= price else UNAFFORDABLE_PRICE_COLOR
 
 
 func _purchase_failure_message(result: int) -> String:

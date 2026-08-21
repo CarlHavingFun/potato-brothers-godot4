@@ -4,6 +4,7 @@ extends GdUnitTestSuite
 const DEV_SKIN := "res://content_packs/skins/dev_placeholder/skin.tres"
 const ALT_SKIN := "res://content_packs/skins/test_alt/skin.tres"
 const FORMAL_SKIN := "res://content_packs/skins/lets_gooooo/skin.tres"
+const FORMAL_FONT_STACK := "res://assets/font/brotato_font_stack.tres"
 const TEST_SKIN := "user://tests/skin_presentation/cache_isolation_skin.tres"
 
 
@@ -22,7 +23,8 @@ func test_lets_gooooo_formal_skin_resolves_every_weapon_and_static_world_role() 
 	var resolver: SkinResolver = auto_free(SkinResolver.new())
 	assert_int(resolver.load_manifest(FORMAL_SKIN)).is_equal(OK)
 	assert_str(String(resolver.active_skin.skin_id)).is_equal("lets_gooooo")
-	assert_str(resolver.active_skin.product_name).is_equal("LET'S GOOOOO")
+	assert_str(resolver.active_skin.product_name).is_equal("Game Prototype")
+	assert_bool(resolver.active_skin.show_product_branding).is_false()
 	assert_array(resolver.active_skin.validate()).is_empty()
 	for definition: WeaponDef in Content.catalog.get_weapons():
 		var presentation_id := definition.get_presentation_id(Content.catalog.pack_id)
@@ -59,6 +61,50 @@ func test_lets_gooooo_formal_skin_resolves_every_weapon_and_static_world_role() 
 	assert_bool(resolver.resolve_path(
 		&"scene", &"scene.arena.background", &"background"
 	).contains("title_background")).is_false()
+
+
+func test_formal_skin_theme_uses_anybody_medium_with_noto_sans_sc_fallback_at_runtime() -> void:
+	var skin := load(FORMAL_SKIN) as SkinPackDef
+	assert_object(skin).is_not_null()
+	if skin == null:
+		return
+	assert_str(skin.font.resource_path).is_equal(FORMAL_FONT_STACK)
+	assert_object(skin.theme).is_not_null()
+	if skin.theme == null:
+		return
+	var theme_font := skin.theme.get_default_font()
+	assert_object(theme_font).is_not_null()
+	if theme_font == null:
+		return
+	assert_str(theme_font.resource_path).is_equal(FORMAL_FONT_STACK)
+	var stack := load(FORMAL_FONT_STACK) as Font
+	assert_object(stack).is_not_null()
+	if stack == null:
+		return
+	assert_bool(stack.has_char("A".unicode_at(0))).is_true()
+	assert_bool(stack.has_char("7".unicode_at(0))).is_true()
+	assert_bool(stack.has_char("中".unicode_at(0))).is_true()
+	var fallbacks := stack.get_fallbacks()
+	assert_int(fallbacks.size()).is_equal(1)
+	assert_str(fallbacks[0].resource_path).is_equal(
+		"res://assets/font/NotoSansCJKsc-Medium.otf"
+	)
+
+
+func test_formal_theme_centralizes_brotato_text_outline_tokens() -> void:
+	var skin := load(FORMAL_SKIN) as SkinPackDef
+	assert_object(skin).is_not_null()
+	if skin == null or skin.theme == null:
+		return
+	var theme := skin.theme
+	assert_int(theme.get_constant(&"outline_size", &"Label")).is_equal(2)
+	assert_int(theme.get_constant(&"outline_size", &"Button")).is_equal(2)
+	assert_int(theme.get_constant(&"outline_size", &"BrotatoTitle")).is_equal(4)
+	assert_int(theme.get_constant(&"outline_size", &"BrotatoCombatNumber")).is_equal(6)
+	for type_name: StringName in [&"Label", &"Button", &"BrotatoTitle", &"BrotatoCombatNumber"]:
+		assert_bool(theme.get_color(&"font_outline_color", type_name).is_equal_approx(
+			Color(0.01, 0.01, 0.01, 1.0)
+		)).is_true()
 
 
 func test_frontend_applies_skin_theme_and_restores_scene_fallback_for_theme_less_skin() -> void:

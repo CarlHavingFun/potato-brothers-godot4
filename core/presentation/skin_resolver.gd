@@ -233,6 +233,19 @@ func _index_logical_anchor_entry(entry: Dictionary) -> void:
 		anchors[StringName(schema_key.trim_suffix(LOGICAL_ANCHOR_SUFFIX))] = Vector2(
 			float(position_values[0]), float(position_values[1])
 		)
+	var raw_world_scale: Variant = anchor_metadata.get("world_scale", null)
+	if raw_world_scale is float or raw_world_scale is int:
+		anchors[&"world_scale"] = float(raw_world_scale)
+	var raw_mount_position: Variant = anchor_metadata.get("mount_position_world", null)
+	if raw_mount_position is Array and (raw_mount_position as Array).size() == 2:
+		var mount_values := raw_mount_position as Array
+		if (
+			(mount_values[0] is float or mount_values[0] is int)
+			and (mount_values[1] is float or mount_values[1] is int)
+		):
+			anchors[&"mount_position"] = Vector2(
+				float(mount_values[0]), float(mount_values[1])
+			)
 	if anchors.is_empty():
 		return
 	var raw_uses: Variant = entry.get("uses", [])

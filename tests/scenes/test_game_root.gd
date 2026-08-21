@@ -37,6 +37,93 @@ func test_game_root_owns_frontend_and_keeps_legacy_arena_frontend_hidden() -> vo
 	assert_object(root.get_node("FrontendLayer/CodexPanel")).is_not_null()
 
 
+func test_active_skin_theme_reaches_every_top_level_ui_surface() -> void:
+	var root: Node = auto_free(load(GAME_ROOT_SCENE).instantiate())
+	add_child(root)
+	await await_idle_frame()
+	await await_idle_frame()
+	var controls: Array[Control] = [
+		root.get_node("FrontendLayer/FrontendShell") as Control,
+		root.get_node("FrontendLayer/CodexPanel") as Control,
+	]
+	for child: Node in root.get_node("Arena/GameUI").get_children():
+		if child is Control:
+			controls.append(child as Control)
+	for control: Control in controls:
+		assert_object(control.theme).is_not_null()
+		if control.theme != null:
+			assert_object(control.theme.default_font).is_not_null()
+
+
+func test_reference_theme_has_smooth_dark_edges_and_text_outlines() -> void:
+	var theme := Presentation.active_skin.theme
+	assert_object(theme).is_not_null()
+	if theme == null:
+		return
+	assert_int(theme.get_constant("outline_size", "Label")).is_equal(2)
+	assert_int(theme.get_constant("outline_size", "Button")).is_equal(2)
+	for state in [&"normal", &"hover", &"focus", &"pressed"]:
+		var style := theme.get_stylebox(state, &"Button") as StyleBoxFlat
+		assert_object(style).is_not_null()
+		if style == null:
+			continue
+		assert_bool(style.anti_aliasing).is_true()
+		assert_float(style.anti_aliasing_size).is_equal_approx(1.25, 0.001)
+		assert_int(style.border_width_left).is_equal(2)
+		assert_int(style.corner_radius_top_left).is_equal(6)
+		assert_bool(style.bg_color.r < 0.12).is_true()
+	var panel_style := theme.get_stylebox(&"panel", &"Panel") as StyleBoxFlat
+	assert_object(panel_style).is_not_null()
+	if panel_style != null:
+		assert_int(panel_style.border_width_left).is_equal(2)
+		assert_int(panel_style.corner_radius_top_left).is_equal(6)
+
+
+func test_post_wave_panels_are_translucent_and_fullscreen_images_use_linear_filtering() -> void:
+	var root: Node = auto_free(load(GAME_ROOT_SCENE).instantiate())
+	add_child(root)
+	await await_idle_frame()
+	await await_idle_frame()
+	var arena := root.get_node("Arena") as Arena
+	assert_int(arena.background.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_LINEAR)
+	assert_int(arena.floor_background.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_LINEAR)
+	assert_int(
+		(root.get_node("FrontendLayer/FrontendShell/Background") as TextureRect).texture_filter
+	).is_equal(CanvasItem.TEXTURE_FILTER_LINEAR)
+	for panel_path in ["UpgradePanel", "RewardPanel", "ShopPanel"]:
+		var panel := root.get_node("Arena/GameUI/%s" % panel_path) as Panel
+		var style := panel.get_theme_stylebox("panel") as StyleBoxFlat
+		assert_object(style).is_not_null()
+		if style != null:
+			assert_float(style.bg_color.a).is_between(0.55, 0.82)
+
+
+func test_headings_and_combat_numbers_use_reference_outline_hierarchy() -> void:
+	var root: Node = auto_free(load(GAME_ROOT_SCENE).instantiate())
+	add_child(root)
+	await await_idle_frame()
+	await await_idle_frame()
+	for label_path in [
+		"Arena/GameUI/UpgradePanel/MarginContainer/HBoxContainer/VBoxContainer/Label",
+		"Arena/GameUI/ShopPanel/MarginContainer/Control/Title",
+		"Arena/GameUI/RewardPanel/Center/Card/Title",
+		"Arena/GameUI/PausePanel/Content/LeftMenu/Title",
+		"Arena/GameUI/SettlementPanel/Center/Content/ResultLabel",
+		"Arena/GameUI/SettingsPanel/SafeArea/Layout/Header/Title",
+		"FrontendLayer/CodexPanel/SafeArea/Layout/Header/Title",
+	]:
+		var label := root.get_node(label_path) as Label
+		assert_int(label.get_theme_constant("outline_size")).is_equal(4)
+	for label_path in ["Arena/GameUI/CombatHud/TopCenter/Wave", "Arena/GameUI/CombatHud/TopCenter/Countdown"]:
+		var label := root.get_node(label_path) as Label
+		assert_int(label.label_settings.outline_size).is_equal(6)
+	var floating: Node = auto_free(
+		(load("res://scenes/ui/floating_text/floating_text.tscn") as PackedScene).instantiate()
+	)
+	add_child(floating)
+	assert_int((floating.get_node("ValueLabel") as Label).label_settings.outline_size).is_equal(6)
+
+
 func test_codex_builds_all_four_discovery_categories_and_returns_to_title() -> void:
 	var root: Node = auto_free(load(GAME_ROOT_SCENE).instantiate())
 	add_child(root)
@@ -81,6 +168,8 @@ func test_run_launch_request_is_the_only_frontend_to_combat_bridge() -> void:
 	assert_int(Global.current_run.run_mode).is_equal(RunMode.ENDLESS)
 	assert_int(Global.current_run.phase).is_equal(RunPhase.COMBAT)
 	assert_bool(Global.save_provider.load_slot().has("run_state")).is_true()
+	assert_int(Global.active_profile_id()).is_equal(1)
+	assert_bool(FileAccess.file_exists("%s/1/save_v4.json" % TEST_SAVE_ROOT)).is_true()
 	root.call("return_to_frontend")
 
 
@@ -304,6 +393,81 @@ func test_new_wave_checkpoint_precedes_wave_started_effects_and_rng() -> void:
 	assert_float(saved.player_stats.get_stat(StatId.DAMAGE)).is_equal(before_damage)
 	assert_int(int(saved.rng_states.get("effects", 0))).is_equal(before_effect_rng)
 	root.call("return_to_frontend")
+
+
+func test_post_wave_snapshot_persists_until_the_next_wave_starts() -> void:
+	var root: Node = auto_free(load(GAME_ROOT_SCENE).instantiate())
+	add_child(root)
+	await await_idle_frame()
+	await await_idle_frame()
+	assert_bool(root.call("launch_run", _make_launch_request(616))).is_true()
+	var arena := root.get_node("Arena") as Arena
+	var snapshot := root.get_node_or_null("Arena/GameUI/PostWaveSnapshot") as TextureRect
+	assert_object(snapshot).is_not_null()
+	assert_bool(arena.has_method("_capture_post_wave_snapshot")).is_true()
+	if snapshot == null or not arena.has_method("_capture_post_wave_snapshot"):
+		root.call("return_to_frontend")
+		return
+
+	var source_image := Image.create(8, 8, false, Image.FORMAT_RGBA8)
+	source_image.fill(Color("352f2b"))
+	assert_bool(bool(arena.call("_capture_post_wave_snapshot", source_image))).is_true()
+	assert_bool(snapshot.visible).is_true()
+	assert_object(snapshot.texture).is_not_null()
+	assert_bool(Global.enter_phase(RunPhase.UPGRADE)).is_true()
+	assert_bool(Global.enter_phase(RunPhase.SHOP)).is_true()
+	assert_bool(snapshot.visible).is_true()
+
+	arena.start_new_wave()
+	assert_bool(snapshot.visible).is_false()
+	assert_object(snapshot.texture).is_null()
+	root.call("return_to_frontend")
+
+
+func test_post_wave_snapshot_is_released_on_run_reset() -> void:
+	var root: Node = auto_free(load(GAME_ROOT_SCENE).instantiate())
+	add_child(root)
+	await await_idle_frame()
+	await await_idle_frame()
+	assert_bool(root.call("launch_run", _make_launch_request(617))).is_true()
+	var arena := root.get_node("Arena") as Arena
+	var snapshot := root.get_node_or_null("Arena/GameUI/PostWaveSnapshot") as TextureRect
+	assert_object(snapshot).is_not_null()
+	assert_bool(arena.has_method("_capture_post_wave_snapshot")).is_true()
+	if snapshot == null or not arena.has_method("_capture_post_wave_snapshot"):
+		root.call("return_to_frontend")
+		return
+	var source_image := Image.create(8, 8, false, Image.FORMAT_RGBA8)
+	source_image.fill(Color("352f2b"))
+	arena.call("_capture_post_wave_snapshot", source_image)
+
+	root.call("return_to_frontend")
+	assert_bool(snapshot.visible).is_false()
+	assert_object(snapshot.texture).is_null()
+
+
+func test_settlement_keeps_the_last_combat_snapshot_after_death_or_victory() -> void:
+	# Break caught: settlement cleanup clears the captured last frame before its overlay is shown.
+	for victory: bool in [false, true]:
+		var root: Node = auto_free(load(GAME_ROOT_SCENE).instantiate())
+		add_child(root)
+		await await_idle_frame()
+		await await_idle_frame()
+		assert_bool(root.call("launch_run", _make_launch_request(700 + int(victory)))).is_true()
+		var arena := root.get_node("Arena") as Arena
+		var snapshot := root.get_node("Arena/GameUI/PostWaveSnapshot") as TextureRect
+		var source_image := Image.create(8, 8, false, Image.FORMAT_RGBA8)
+		source_image.fill(Color("352f2b"))
+		assert_bool(bool(arena.call("_capture_post_wave_snapshot", source_image))).is_true()
+
+		arena.finish_run(victory)
+
+		assert_bool(snapshot.visible).is_true()
+		assert_object(snapshot.texture).is_not_null()
+		assert_bool((root.get_node("Arena/GameUI/SettlementPanel") as Control).visible).is_true()
+		root.call("return_to_frontend")
+		root.queue_free()
+		await await_idle_frame()
 
 
 func test_passive_chest_reward_applies_stats_exactly_once_through_arena_signal_chain() -> void:

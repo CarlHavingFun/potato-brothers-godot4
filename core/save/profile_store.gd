@@ -39,7 +39,7 @@ func profile_summary(slot: int) -> Dictionary:
 	if document.is_empty():
 		return {
 			"id": slot,
-			"name": _default_name(slot),
+			"name": "",
 			"exists": false,
 			"has_progress": false,
 			"has_checkpoint": false,
@@ -98,10 +98,10 @@ func legacy_migration_marker_path() -> String:
 func load_active_profile_id() -> int:
 	var path := profile_index_path()
 	var active_id := _read_profile_index(path)
-	if _is_valid_slot(active_id):
+	if _profile_exists(active_id):
 		return active_id
 	active_id = _read_profile_index(path + ".bak")
-	if _is_valid_slot(active_id):
+	if _profile_exists(active_id):
 		# Repairing the small global index is safe and keeps the valid backup. A
 		# failed promotion still returns the recovered selection for this session.
 		save_active_profile_id(active_id)
@@ -109,12 +109,13 @@ func load_active_profile_id() -> int:
 	active_id = _choose_initial_profile_id()
 	# This is a one-time migration for builds that predate the profile index.
 	# Prefer a real resumable run so an older slot-one shell cannot hide it.
-	save_active_profile_id(active_id)
+	if active_id > 0:
+		save_active_profile_id(active_id)
 	return active_id
 
 
 func save_active_profile_id(profile_id: int) -> Error:
-	if not _is_valid_slot(profile_id):
+	if not _profile_exists(profile_id):
 		return ERR_INVALID_PARAMETER
 	var document := _read_profile_index_document(profile_index_path())
 	if document.is_empty():
@@ -122,6 +123,18 @@ func save_active_profile_id(profile_id: int) -> Error:
 	document["version"] = PROFILE_INDEX_VERSION
 	document["active_profile_id"] = profile_id
 	return _write_profile_index_document(document)
+
+
+func clear_active_profile_id() -> Error:
+	var first_error := OK
+	for suffix: String in ["", ".bak", ".tmp"]:
+		var path := profile_index_path() + suffix
+		if not FileAccess.file_exists(path):
+			continue
+		var result := DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+		if result != OK and first_error == OK:
+			first_error = result
+	return first_error
 
 
 func _write_profile_index_document(document: Dictionary) -> Error:
@@ -427,7 +440,7 @@ func _read_profile_index_document(path: String) -> Dictionary:
 
 
 func _choose_initial_profile_id() -> int:
-	var best_slot := 1
+	var best_slot := 0
 	var best_priority := 0
 	var best_updated := -1
 	for slot in range(1, MAX_PROFILES + 1):
@@ -476,10 +489,10 @@ func _mark_legacy_migration_completed() -> Error:
 	if document.is_empty():
 		document = _read_profile_index_document(profile_index_path() + ".bak")
 	if document.is_empty():
-		document = {
-			"version": PROFILE_INDEX_VERSION,
-			"active_profile_id": _choose_initial_profile_id(),
-		}
+		var fallback_id := _choose_initial_profile_id()
+		if fallback_id == 0:
+			return OK
+		document = {"version": PROFILE_INDEX_VERSION, "active_profile_id": fallback_id}
 	document["legacy_migration_completed"] = true
 	return _write_profile_index_document(document)
 
@@ -558,6 +571,10 @@ func _display_profile_name(stored_name: String, slot: int) -> String:
 
 func _is_valid_slot(slot: int) -> bool:
 	return slot in range(1, MAX_PROFILES + 1)
+
+
+func _profile_exists(slot: int) -> bool:
+	return _is_valid_slot(slot) and not _load_or_migrate_document(slot).is_empty()
 
 
 func _migrate_payload(payload: Dictionary) -> Dictionary:

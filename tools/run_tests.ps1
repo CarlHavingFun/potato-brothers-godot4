@@ -33,11 +33,35 @@ $runnerArguments = @(
 	"-rd", $ReportDirectory
 )
 
+$testUserRoot = Join-Path ([System.IO.Path]::GetTempPath()) (
+	"lets-gooooo-gdunit-" + [System.Guid]::NewGuid().ToString("N")
+)
+$testAppData = Join-Path $testUserRoot "Roaming"
+$testLocalAppData = Join-Path $testUserRoot "Local"
+New-Item -ItemType Directory -Path $testAppData, $testLocalAppData -Force | Out-Null
+$previousAppData = $env:APPDATA
+$previousLocalAppData = $env:LOCALAPPDATA
 $previousErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = "Continue"
-$output = @(& $GodotBinary @runnerArguments 2>&1)
-$exitCode = $LASTEXITCODE
-$ErrorActionPreference = $previousErrorActionPreference
+try {
+	# GdUnit exercises real save and settings code. Never let those tests touch a
+	# player's live %APPDATA% profile, even when a test forgets to inject a fake
+	# SaveProvider.
+	$env:APPDATA = $testAppData
+	$env:LOCALAPPDATA = $testLocalAppData
+	$ErrorActionPreference = "Continue"
+	$output = @(& $GodotBinary @runnerArguments 2>&1)
+	$exitCode = $LASTEXITCODE
+}
+finally {
+	$ErrorActionPreference = $previousErrorActionPreference
+	$env:APPDATA = $previousAppData
+	$env:LOCALAPPDATA = $previousLocalAppData
+	$resolvedTemp = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
+	$resolvedTestRoot = [System.IO.Path]::GetFullPath($testUserRoot)
+	if ($resolvedTestRoot.StartsWith($resolvedTemp, [System.StringComparison]::OrdinalIgnoreCase)) {
+		Remove-Item -LiteralPath $resolvedTestRoot -Recurse -Force -ErrorAction SilentlyContinue
+	}
+}
 $output | ForEach-Object { Write-Output $_ }
 
 $leakPattern = "Leaked instance:|ObjectDB instances were leaked|resources still in use at exit"

@@ -8,7 +8,6 @@ signal run_requested(request: RunLaunchRequest)
 
 var current_step: int = SelectionStep.Value.TITLE
 var draft := SelectionDraft.new()
-var _history: Array[int] = []
 
 
 func begin_new_run(
@@ -24,7 +23,6 @@ func begin_new_run(
 	draft.random_seed = random_seed
 	draft.aim_mode = aim_mode
 	draft.run_mode = run_mode
-	_history.clear()
 	_transition_to(SelectionStep.Value.CHARACTER)
 	draft_changed.emit(draft)
 	return true
@@ -83,15 +81,22 @@ func choose_difficulty(level: int, highest_unlocked: int) -> RunLaunchRequest:
 
 
 func go_back() -> bool:
-	if _history.is_empty():
-		return false
-	current_step = _history.pop_back()
+	var previous_step := SelectionStep.Value.TITLE
+	match current_step:
+		SelectionStep.Value.PROFILE, SelectionStep.Value.CHARACTER:
+			previous_step = SelectionStep.Value.TITLE
+		SelectionStep.Value.WEAPON:
+			previous_step = SelectionStep.Value.CHARACTER
+		SelectionStep.Value.DIFFICULTY:
+			previous_step = SelectionStep.Value.WEAPON
+		_:
+			return false
+	current_step = previous_step
 	step_changed.emit(current_step)
 	return true
 
 
 func reset_to_title() -> void:
-	_history.clear()
 	current_step = SelectionStep.Value.TITLE
 	draft = SelectionDraft.new()
 	step_changed.emit(current_step)
@@ -100,6 +105,5 @@ func reset_to_title() -> void:
 
 func _transition_to(next_step: int) -> void:
 	if current_step != next_step:
-		_history.append(current_step)
 		current_step = next_step
 		step_changed.emit(current_step)

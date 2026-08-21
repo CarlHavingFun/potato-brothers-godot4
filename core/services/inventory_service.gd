@@ -13,6 +13,35 @@ enum {
 	MAX_WEAPON_TIER,
 }
 
+const PURCHASE_MODE_NONE := &"none"
+const PURCHASE_MODE_NORMAL_ADD := &"normal_add"
+const PURCHASE_MODE_AUTO_MERGE := &"auto_merge"
+
+
+static func try_purchase_weapon_detailed(
+	run_state: RunState,
+	weapon_id: StringName,
+	tier: int,
+	price: int
+) -> Dictionary:
+	if run_state == null or weapon_id.is_empty() or tier < 1 or tier > InventoryState.MAX_WEAPON_TIER or price < 0:
+		return _weapon_purchase_result(INVALID_REQUEST)
+	if run_state.materials < price:
+		return _weapon_purchase_result(INSUFFICIENT_MATERIALS)
+	if run_state.inventory.has_weapon_slot():
+		var added_slot := run_state.inventory.add_weapon(weapon_id, tier, price)
+		if added_slot < 0:
+			return _weapon_purchase_result(NO_WEAPON_SLOT)
+		run_state.materials -= price
+		return _weapon_purchase_result(OK, PURCHASE_MODE_NORMAL_ADD, added_slot, tier)
+	var merge_slot := run_state.inventory.find_auto_merge_slot(weapon_id, tier)
+	if merge_slot < 0:
+		return _weapon_purchase_result(NO_WEAPON_SLOT)
+	if not run_state.inventory.merge_purchased_weapon(merge_slot, weapon_id, tier, price):
+		return _weapon_purchase_result(NO_WEAPON_SLOT)
+	run_state.materials -= price
+	return _weapon_purchase_result(OK, PURCHASE_MODE_AUTO_MERGE, merge_slot, tier + 1)
+
 
 static func try_purchase_weapon(
 	run_state: RunState,
@@ -20,16 +49,21 @@ static func try_purchase_weapon(
 	tier: int,
 	price: int
 ) -> int:
-	if run_state == null or weapon_id.is_empty() or tier < 1 or tier > InventoryState.MAX_WEAPON_TIER or price < 0:
-		return INVALID_REQUEST
-	if run_state.materials < price:
-		return INSUFFICIENT_MATERIALS
-	if not run_state.inventory.has_weapon_slot():
-		return NO_WEAPON_SLOT
-	if run_state.inventory.add_weapon(weapon_id, tier, price) < 0:
-		return NO_WEAPON_SLOT
-	run_state.materials -= price
-	return OK
+	return int(try_purchase_weapon_detailed(run_state, weapon_id, tier, price).get("code", INVALID_REQUEST))
+
+
+static func _weapon_purchase_result(
+	code: int,
+	mode: StringName = PURCHASE_MODE_NONE,
+	target_slot: int = -1,
+	resulting_tier: int = 0
+) -> Dictionary:
+	return {
+		"code": code,
+		"mode": mode,
+		"target_slot": target_slot,
+		"resulting_tier": resulting_tier,
+	}
 
 
 static func try_purchase_passive(

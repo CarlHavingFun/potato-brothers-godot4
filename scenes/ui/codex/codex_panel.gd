@@ -75,10 +75,13 @@ func _make_entry(definition: ContentDef, discovered: bool) -> PanelContainer:
 	var card := PanelContainer.new()
 	card.custom_minimum_size = Vector2(250, 210)
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.09, 0.11, 0.13, 0.96) if discovered else Color(0.045, 0.05, 0.06, 0.95)
-	style.border_color = Color(0.24, 0.72, 0.66, 0.75) if discovered else Color(0.22, 0.24, 0.25, 0.55)
+	style.bg_color = Color(0.04, 0.04, 0.04, 0.96) if discovered else Color(0.02, 0.02, 0.02, 0.95)
+	style.border_color = Color(0.38, 0.38, 0.38, 0.82) if discovered else Color(0.18, 0.18, 0.18, 0.7)
 	style.set_border_width_all(2)
-	style.set_corner_radius_all(12)
+	style.set_corner_radius_all(6)
+	style.anti_aliasing = true
+	style.anti_aliasing_size = 1.25
+	style.corner_detail = 12
 	style.set_content_margin_all(14)
 	card.add_theme_stylebox_override(&"panel", style)
 	var column := VBoxContainer.new()
@@ -88,6 +91,7 @@ func _make_entry(definition: ContentDef, discovered: bool) -> PanelContainer:
 	icon.custom_minimum_size = Vector2(104, 104)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	icon.modulate = Color.WHITE if discovered else Color(0.08, 0.09, 0.1, 1.0)
 	icon.texture = _definition_icon(definition)
 	column.add_child(icon)

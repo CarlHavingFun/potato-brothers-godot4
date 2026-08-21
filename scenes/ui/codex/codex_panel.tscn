@@ -3,7 +3,11 @@
 [ext_resource type="Script" path="res://scenes/ui/codex/codex_panel.gd" id="1_codex"]
 
 [sub_resource type="StyleBoxFlat" id="Background"]
-bg_color = Color(0.025, 0.032, 0.038, 0.99)
+anti_aliasing = true
+anti_aliasing_size = 1.25
+border_blend = true
+corner_detail = 12
+bg_color = Color(0.018, 0.018, 0.018, 0.99)
 
 [node name="CodexPanel" type="Panel"]
 anchors_preset = 15
@@ -42,6 +46,8 @@ text = "ui.common.back"
 [node name="Title" type="Label" parent="SafeArea/Layout/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_colors/font_outline_color = Color(0.01, 0.01, 0.01, 1)
+theme_override_constants/outline_size = 4
 theme_override_font_sizes/font_size = 48
 text = "ui.codex.title"
 

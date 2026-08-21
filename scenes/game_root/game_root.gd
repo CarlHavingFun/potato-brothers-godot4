@@ -16,9 +16,30 @@ func _ready() -> void:
 	codex.closed.connect(_on_codex_closed)
 	arena.frontend_requested.connect(_show_frontend)
 	arena.settings_panel.closed.connect(_on_settings_closed)
+	if not Presentation.skin_loaded.is_connected(_on_skin_loaded):
+		Presentation.skin_loaded.connect(_on_skin_loaded)
+	_apply_active_ui_theme()
 	_hide_legacy_frontend()
 	_set_combat_hud_visible(false)
 	frontend.show()
+
+
+func _on_skin_loaded(_skin_id: StringName) -> void:
+	_apply_active_ui_theme()
+
+
+func _apply_active_ui_theme() -> void:
+	if Presentation.active_skin == null or Presentation.active_skin.theme == null:
+		return
+	var active_theme := Presentation.active_skin.theme.duplicate(true) as Theme
+	if Presentation.active_skin.font != null:
+		active_theme.default_font = Presentation.active_skin.font
+	var roots: Array[Control] = [frontend, codex]
+	for child: Node in arena.get_node("GameUI").get_children():
+		if child is Control:
+			roots.append(child as Control)
+	for control: Control in roots:
+		control.theme = active_theme
 
 
 func launch_run(request: RunLaunchRequest) -> bool:
@@ -46,9 +67,7 @@ func _hide_legacy_frontend() -> void:
 
 
 func _set_combat_hud_visible(value: bool) -> void:
-	arena.wave_index_label.visible = value
-	arena.wave_time_label.visible = value
-	arena.coins_bag.visible = value
+	arena.combat_hud.visible = value
 
 
 func _continue_run() -> void:

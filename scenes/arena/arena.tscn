@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://xik4iqa2n4lo" path="res://scenes/arena/camera_2d.gd" id="4_aj7ud"]
 [ext_resource type="Script" uid="uid://c1r0p6xkr6l1v" path="res://scenes/arena/spawner.gd" id="7_6w4xk"]
 [ext_resource type="PackedScene" uid="uid://yaqp467r4aub" path="res://scenes/ui/coins_bag/coins_bag.tscn" id="15_rhjlh"]
+[ext_resource type="PackedScene" path="res://scenes/ui/combat_hud/combat_hud.tscn" id="15_combat_hud"]
 [ext_resource type="PackedScene" uid="uid://d88phqluv8gk" path="res://scenes/ui/upgrade_panel/upgrade_panel.tscn" id="15_w4nra"]
 [ext_resource type="PackedScene" uid="uid://ck8hfiuq31k2l" path="res://scenes/ui/shop_panel/shop_panel.tscn" id="16_t3vx8"]
 [ext_resource type="PackedScene" uid="uid://be4y0ch5v7qa5" path="res://scenes/ui/selection_panel/selection_panel.tscn" id="18_tp84n"]
@@ -19,9 +20,13 @@
 
 [sub_resource type="LabelSettings" id="LabelSettings_6w4xk"]
 font_size = 64
+outline_size = 6
+outline_color = Color(0.01, 0.01, 0.01, 1)
 
 [sub_resource type="LabelSettings" id="LabelSettings_2ml6w"]
 font_size = 64
+outline_size = 6
+outline_color = Color(0.01, 0.01, 0.01, 1)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_horizontal"]
 size = Vector2(2200, 100)
@@ -86,148 +91,21 @@ one_shot = true
 
 [node name="GameUI" type="CanvasLayer" parent="."]
 
-[node name="ResourceHud" type="VBoxContainer" parent="GameUI"]
-offset_left = 28.0
-offset_top = 24.0
-offset_right = 420.0
-offset_bottom = 132.0
-mouse_filter = 2
-theme_override_constants/separation = -10
-
-[node name="CoinsBag" parent="GameUI/ResourceHud" instance=ExtResource("15_rhjlh")]
+[node name="CombatHud" parent="GameUI" instance=ExtResource("15_combat_hud")]
 unique_name_in_owner = true
-layout_mode = 2
 
-[node name="PlayerVitals" type="VBoxContainer" parent="GameUI"]
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -310.0
-offset_top = -150.0
-offset_right = 310.0
-offset_bottom = -24.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_filter = 2
-theme_override_constants/separation = 3
-
-[node name="HealthHudLabel" type="Label" parent="GameUI/PlayerVitals"]
+[node name="PostWaveSnapshot" type="TextureRect" parent="GameUI"]
 unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.42, 0.4, 1)
-theme_override_colors/font_outline_color = Color(0.04, 0.06, 0.05, 0.95)
-theme_override_constants/outline_size = 6
-theme_override_font_sizes/font_size = 22
-horizontal_alignment = 1
-
-[node name="HealthHudBar" type="ProgressBar" parent="GameUI/PlayerVitals"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(620, 18)
-layout_mode = 2
-mouse_filter = 2
-show_percentage = false
-
-[node name="ExperienceHudLabel" type="Label" parent="GameUI/PlayerVitals"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.48, 0.94, 0.56, 1)
-theme_override_colors/font_outline_color = Color(0.04, 0.06, 0.05, 0.95)
-theme_override_constants/outline_size = 6
-theme_override_font_sizes/font_size = 20
-horizontal_alignment = 1
-
-[node name="ExperienceHudBar" type="ProgressBar" parent="GameUI/PlayerVitals"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(620, 12)
-layout_mode = 2
-mouse_filter = 2
-show_percentage = false
-
-[node name="MaterialBagLabel" type="Label" parent="GameUI/ResourceHud"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.82, 0.32, 1)
-theme_override_colors/font_outline_color = Color(0.04, 0.06, 0.05, 0.95)
-theme_override_constants/outline_size = 6
-theme_override_font_sizes/font_size = 18
-
-[node name="WaveIndexLabel" type="Label" parent="GameUI"]
-unique_name_in_owner = true
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -27.5
-offset_top = 20.0
-offset_right = 27.5
-offset_bottom = 39.3333
-grow_horizontal = 2
-text = ""
-label_settings = SubResource("LabelSettings_6w4xk")
-
-[node name="WaveTimeLabel" type="Label" parent="GameUI"]
-unique_name_in_owner = true
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -27.5
-offset_top = 100.0
-offset_right = 27.5
-offset_bottom = 119.333
-grow_horizontal = 2
-text = "10"
-label_settings = SubResource("LabelSettings_2ml6w")
-
-[node name="EncounterLabel" type="Label" parent="GameUI"]
-unique_name_in_owner = true
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -220.0
-offset_top = 170.0
-offset_right = 220.0
-offset_bottom = 202.0
-grow_horizontal = 2
-theme_override_colors/font_color = Color(1, 0.78, 0.28, 1)
-theme_override_font_sizes/font_size = 24
-horizontal_alignment = 1
-
-[node name="NextWaveLabel" type="Label" parent="GameUI"]
-unique_name_in_owner = true
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -260.0
-offset_top = 204.0
-offset_right = 260.0
-offset_bottom = 232.0
-grow_horizontal = 2
-theme_override_colors/font_color = Color(0.78, 0.84, 0.92, 0.9)
-theme_override_font_sizes/font_size = 19
-horizontal_alignment = 1
-
-[node name="BossStatusLabel" type="Label" parent="GameUI"]
-unique_name_in_owner = true
-anchors_preset = 10
+visible = false
+anchors_preset = 15
 anchor_right = 1.0
-offset_left = 420.0
-offset_top = 244.0
-offset_right = -420.0
-offset_bottom = 282.0
+anchor_bottom = 1.0
 grow_horizontal = 2
-theme_override_colors/font_color = Color(1, 0.34, 0.3, 1)
-theme_override_font_sizes/font_size = 24
-horizontal_alignment = 1
-
-[node name="PlayerStatusLabel" type="Label" parent="GameUI"]
-unique_name_in_owner = true
-offset_left = 28.0
-offset_top = 198.0
-offset_right = 600.0
-offset_bottom = 238.0
-theme_override_colors/font_color = Color(0.58, 0.86, 1, 1)
-theme_override_font_sizes/font_size = 20
+grow_vertical = 2
+mouse_filter = 2
+texture_filter = 2
+expand_mode = 1
+stretch_mode = 0
 
 [node name="UpgradePanel" parent="GameUI" instance=ExtResource("15_w4nra")]
 unique_name_in_owner = true

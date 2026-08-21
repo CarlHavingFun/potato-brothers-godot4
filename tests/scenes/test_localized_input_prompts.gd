@@ -6,12 +6,14 @@ const SETTINGS_SCENE := "res://scenes/ui/settings_panel/settings_panel.tscn"
 var _original_locale := ""
 var _original_bindings: Dictionary
 var _original_device := InputDeviceManager.Device.KEYBOARD_MOUSE
+var _original_product_settings: ProductSettings
 
 
 func before_test() -> void:
 	_original_locale = TranslationServer.get_locale()
 	_original_bindings = InputRemapService.new().serialize_actions()
 	_original_device = InputDevices.active_device
+	_original_product_settings = Global.product_settings.copy()
 	InputRemapService.new().restore_defaults()
 
 
@@ -19,6 +21,7 @@ func after_test() -> void:
 	InputRemapService.new().apply_actions(_original_bindings)
 	InputDevices.active_device = _original_device
 	TranslationServer.set_locale(_original_locale)
+	Global.product_settings = _original_product_settings
 
 
 func test_settings_binding_buttons_render_localized_tokens_in_both_locales() -> void:
@@ -26,6 +29,8 @@ func test_settings_binding_buttons_render_localized_tokens_in_both_locales() -> 
 	var mouse := InputEventMouseButton.new()
 	mouse.button_index = MOUSE_BUTTON_LEFT
 	assert_bool(InputRemapService.new().rebind(&"move_up", mouse, true)).is_true()
+	Global.product_settings = Global.product_settings.copy()
+	Global.product_settings.input_bindings = InputRemapService.new().serialize_actions()
 	var panel: SettingsPanel = auto_free(load(SETTINGS_SCENE).instantiate())
 	add_child(panel)
 	await await_idle_frame()

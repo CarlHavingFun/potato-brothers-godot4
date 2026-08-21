@@ -80,6 +80,26 @@ func test_selecting_the_active_profile_is_a_noop_for_the_live_run() -> void:
 	assert_int(Global.active_profile_id()).is_equal(1)
 
 
+func test_staging_empty_profile_does_not_write_until_first_checkpoint() -> void:
+	var store := ProfileStore.new(TEST_ROOT, LEGACY_PATH)
+	Global.save_provider = ProfileSaveProvider.new(store)
+	Global.meta_progress = MetaProgress.new()
+	Global.end_run()
+
+	assert_bool(Global.stage_profile_for_new_run(1)).is_true()
+	assert_int(Global.active_profile_id()).is_equal(1)
+	assert_bool(FileAccess.file_exists(store.profile_path(1))).is_false()
+	assert_bool(FileAccess.file_exists(store.profile_index_path())).is_false()
+
+	Global.begin_run(10)
+	Global.current_run.character_id = &"core:character/well_rounded"
+	Global.current_run.starting_weapon_id = &"core:weapon/pistol"
+	Global.current_run.phase = RunPhase.COMBAT
+	assert_int(Global.save_combat_checkpoint()).is_equal(OK)
+	assert_bool(FileAccess.file_exists(store.profile_path(1))).is_true()
+	assert_int(store.load_active_profile_id()).is_equal(1)
+
+
 func _cleanup_files() -> void:
 	for slot in range(1, 4):
 		for suffix in ["", ".tmp", ".bak"]:

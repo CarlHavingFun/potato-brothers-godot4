@@ -27,15 +27,15 @@ const LEGENDARY_STYLE = preload("uid://omjdrwevlaw8")
 const RARE_STYLE = preload("uid://cu7iu2w861ga4")
 
 const UPGRADE_PROBABILITY_CONFIG = {
-	"rare": { "start_wave": 2, "base_multi": 0.06 },
-	"epic": { "start_wave": 4, "base_multi": 0.02 },
-	"legendary": { "start_wave": 7, "base_multi": 0.0023 },
+	"rare": { "start_wave": 2, "base_multi": 0.06, "max_chance": 0.60 },
+	"epic": { "start_wave": 4, "base_multi": 0.02, "max_chance": 0.25 },
+	"legendary": { "start_wave": 8, "base_multi": 0.0023, "max_chance": 0.08 },
 }
 
 const SHOP_PROBABILITY_CONFIG = {
-	"rare": { "start_wave": 2, "base_multi": 0.10 },
-	"epic": { "start_wave": 4, "base_multi": 0.06 },
-	"legendary": { "start_wave": 7, "base_multi": 0.01 },
+	"rare": { "start_wave": 2, "base_multi": 0.06, "max_chance": 0.60 },
+	"epic": { "start_wave": 4, "base_multi": 0.02, "max_chance": 0.25 },
+	"legendary": { "start_wave": 8, "base_multi": 0.0023, "max_chance": 0.08 },
 }
 
 
@@ -98,14 +98,12 @@ var main_weapon_definition_selected: WeaponDef
 var equipped_weapons: Array[ItemWeapon]
 
 
-func _init() -> void:
-	begin_run(0, null, STARTING_MATERIALS)
-
-
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	if save_provider is ProfileSaveProvider:
-		(save_provider as ProfileSaveProvider).migrate_legacy()
+		var provider := save_provider as ProfileSaveProvider
+		provider.migrate_legacy()
+		provider.reload_active_profile()
 	load_progress()
 
 
@@ -426,9 +424,36 @@ func switch_profile(profile_id: int) -> bool:
 	return true
 
 
+func stage_profile_for_new_run(profile_id: int) -> bool:
+	var provider := save_provider as ProfileSaveProvider
+	if provider == null or not provider.stage_profile(profile_id):
+		return false
+	end_run()
+	restored_run = null
+	_combat_checkpoint = null
+	meta_progress = MetaProgress.new()
+	return true
+
+
+func activate_profile_for_run(profile_id: int) -> bool:
+	var provider := save_provider as ProfileSaveProvider
+	if provider == null or profile_id not in range(1, ProfileStore.MAX_PROFILES + 1):
+		return false
+	if profile_id == provider.active_profile_id:
+		return true
+	var profile_exists := false
+	for summary: Dictionary in provider.summaries():
+		if int(summary.get("profile_id", 0)) == profile_id:
+			profile_exists = bool(summary.get("exists", false))
+			break
+	if profile_exists:
+		return switch_profile(profile_id)
+	return stage_profile_for_new_run(profile_id)
+
+
 func active_profile_id() -> int:
 	var provider := save_provider as ProfileSaveProvider
-	return provider.active_profile_id if provider != null else 1
+	return provider.active_profile_id if provider != null else 0
 
 
 func profile_summaries() -> Array[Dictionary]:
@@ -449,10 +474,15 @@ func delete_profile(profile_id: int) -> Error:
 		return ERR_UNAVAILABLE
 	var result := provider.store.delete_profile(profile_id)
 	if result == OK and profile_id == provider.active_profile_id:
+		var clear_result := provider.store.clear_active_profile_id()
+		if clear_result != OK:
+			return clear_result
+		provider.reload_active_profile()
 		end_run()
 		restored_run = null
 		_combat_checkpoint = null
 		meta_progress = MetaProgress.new()
+		load_progress()
 	return result
 
 
@@ -545,6 +575,19 @@ func apply_product_settings(settings: ProductSettings, persist: bool = true) -> 
 	if settings == null:
 		return false
 	var normalized := settings.copy().sanitize()
+	if (
+		normalized.display_mode == DisplayMode.WINDOWED
+		and DisplayServer.get_name() != "headless"
+		and "--wid" not in OS.get_cmdline_args()
+	):
+		var usable_rect := DisplayServer.screen_get_usable_rect(
+			DisplayServer.SCREEN_OF_MAIN_WINDOW
+		)
+		normalized.resolution = WINDOW_MODE_POLICY.resolved_windowed_size(
+			normalized.resolution,
+			usable_rect.size,
+			ProductSettings.MIN_RESOLUTION,
+		)
 	if persist and settings_store.save_settings(normalized) != OK:
 		return false
 	product_settings = normalized
@@ -573,6 +616,8 @@ func restore_product_settings(settings: ProductSettings) -> bool:
 
 func available_resolutions() -> Array[Vector2i]:
 	var candidates: Array[Vector2i] = [
+		Vector2i(1024, 576),
+		Vector2i(1152, 648),
 		Vector2i(1280, 720),
 		Vector2i(1600, 900),
 		Vector2i(1920, 1080),
@@ -650,13 +695,12 @@ func _apply_windowed_geometry() -> void:
 		or "--wid" in OS.get_cmdline_args()
 	):
 		return
-	var window_size := Vector2i(
-		maxi(ProductSettings.MIN_RESOLUTION.x, product_settings.resolution.x),
-		maxi(ProductSettings.MIN_RESOLUTION.y, product_settings.resolution.y),
-	)
 	var usable_rect := DisplayServer.screen_get_usable_rect(DisplayServer.SCREEN_OF_MAIN_WINDOW)
-	window_size.x = mini(window_size.x, usable_rect.size.x)
-	window_size.y = mini(window_size.y, usable_rect.size.y)
+	var window_size := WINDOW_MODE_POLICY.resolved_windowed_size(
+		product_settings.resolution,
+		usable_rect.size,
+		ProductSettings.MIN_RESOLUTION,
+	)
 	DisplayServer.window_set_size(window_size)
 	var centered_position := usable_rect.position + (usable_rect.size - window_size) / 2
 	DisplayServer.window_set_position(centered_position)
@@ -753,33 +797,78 @@ func try_spend_materials(amount: int) -> bool:
 	return true
 
 
-func try_purchase_item(item: ItemBase) -> int:
+func try_purchase_item_detailed(item: ItemBase) -> Dictionary:
 	if item == null:
-		return InventoryService.INVALID_REQUEST
+		return _invalid_purchase_result()
 	_ensure_run()
 	if shop_service == null:
 		shop_service = ShopService.new(current_run.random_seed)
-	var result := shop_service.try_purchase(current_run, item, Content.catalog)
-	if result == InventoryService.OK:
-		meta_progress.mark_discovered(Content.catalog.get_item_stable_id(item))
-		rebuild_run_effects()
-		materials_changed.emit(current_run.materials)
+	var result := shop_service.try_purchase_detailed(current_run, item, Content.catalog)
+	_finalize_purchase(item, result)
 	return result
 
 
-func try_purchase_shop_slot(slot_index: int) -> int:
+func try_purchase_item(item: ItemBase) -> int:
+	return int(try_purchase_item_detailed(item).get("code", InventoryService.INVALID_REQUEST))
+
+
+func try_purchase_shop_slot_detailed(slot_index: int) -> Dictionary:
 	_ensure_run()
 	if shop_service == null:
 		shop_service = ShopService.new(current_run.random_seed)
 	var item := shop_service.resolve_slot_offer(current_run, slot_index, Content.catalog)
 	if item == null:
-		return InventoryService.INVALID_REQUEST
-	var result := shop_service.try_purchase_offer(current_run, slot_index, Content.catalog)
-	if result == InventoryService.OK:
-		meta_progress.mark_discovered(Content.catalog.get_item_stable_id(item))
-		rebuild_run_effects()
-		materials_changed.emit(current_run.materials)
+		return _invalid_purchase_result()
+	var result := shop_service.try_purchase_offer_detailed(current_run, slot_index, Content.catalog)
+	_finalize_purchase(item, result)
 	return result
+
+
+func try_purchase_shop_slot(slot_index: int) -> int:
+	return int(try_purchase_shop_slot_detailed(slot_index).get(
+		"code", InventoryService.INVALID_REQUEST
+	))
+
+
+func _invalid_purchase_result() -> Dictionary:
+	return {
+		"code": InventoryService.INVALID_REQUEST,
+		"mode": InventoryService.PURCHASE_MODE_NONE,
+		"target_slot": -1,
+		"resulting_tier": 0,
+	}
+
+
+func _finalize_purchase(item: ItemBase, result: Dictionary) -> void:
+	if int(result.get("code", InventoryService.INVALID_REQUEST)) != InventoryService.OK:
+		return
+	meta_progress.mark_discovered(Content.catalog.get_item_stable_id(item))
+	rebuild_run_effects()
+	if result.get("mode", InventoryService.PURCHASE_MODE_NONE) == InventoryService.PURCHASE_MODE_AUTO_MERGE:
+		sync_equipped_weapons_from_inventory()
+	materials_changed.emit(current_run.materials)
+
+
+func sync_equipped_weapons_from_inventory() -> void:
+	equipped_weapons.clear()
+	if current_run == null:
+		return
+	var resolved: Array[ItemWeapon] = []
+	for slot in current_run.inventory.weapon_count():
+		var entry := current_run.inventory.weapon_at(slot)
+		var weapon := Content.catalog.get_weapon_tier(
+			StringName(str(entry.get("weapon_id", ""))), int(entry.get("tier", 0))
+		)
+		if weapon != null:
+			resolved.append(weapon)
+	equipped_weapons.assign(resolved)
+	if not is_instance_valid(player):
+		return
+	for weapon: Weapon in player.current_weapons:
+		weapon.queue_free()
+	player.current_weapons.clear()
+	for weapon: ItemWeapon in equipped_weapons:
+		player.add_weapon(weapon)
 
 
 func try_claim_reward_item(item: ItemBase) -> int:
@@ -822,6 +911,16 @@ func try_sell_weapon(weapon: ItemWeapon) -> int:
 	if shop_service == null:
 		shop_service = ShopService.new(current_run.random_seed)
 	var result := shop_service.try_sell_item(current_run, weapon, Content.catalog)
+	if result == InventoryService.OK:
+		rebuild_run_effects()
+		materials_changed.emit(current_run.materials)
+	return result
+
+
+func try_sell_weapon_slot(slot: int) -> int:
+	if current_run == null:
+		return InventoryService.INVALID_WEAPON_SLOT
+	var result := InventoryService.try_sell_weapon(current_run, slot)
 	if result == InventoryService.OK:
 		rebuild_run_effects()
 		materials_changed.emit(current_run.materials)

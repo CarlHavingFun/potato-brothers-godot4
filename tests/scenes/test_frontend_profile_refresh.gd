@@ -5,17 +5,18 @@ const FRONTEND_SCENE := "res://scenes/ui/frontend/frontend_shell.tscn"
 const TEST_SAVE_ROOT := "user://tests/frontend_profile_refresh"
 
 var _original_provider: SaveProvider
+var _store: ProfileStore
 
 
 func before_test() -> void:
 	_original_provider = Global.save_provider
-	var store := ProfileStore.new(TEST_SAVE_ROOT, "")
-	Global.save_provider = ProfileSaveProvider.new(store, 1)
+	_store = ProfileStore.new(TEST_SAVE_ROOT, "")
+	Global.save_provider = ProfileSaveProvider.new(_store, 1)
 	Global.end_run()
 	Global.meta_progress = MetaProgress.new()
 	Global.meta_progress.highest_unlocked_difficulty = 5
 	Global.save_progress(false)
-	Global.switch_profile(2)
+	Global.stage_profile_for_new_run(2)
 	Global.meta_progress.highest_unlocked_difficulty = 1
 	Global.save_progress(false)
 	Global.switch_profile(1)
@@ -77,6 +78,44 @@ func test_profile_labels_use_localized_words_without_unsupported_marker_glyphs()
 		assert_str(active_select_button.text).not_contains(unsupported_marker)
 
 
+func test_fresh_install_shows_no_profile_until_a_run_is_created() -> void:
+	for slot: int in range(1, ProfileStore.MAX_PROFILES + 1):
+		assert_int(_store.delete_profile(slot)).is_equal(OK)
+	Global.end_run()
+	Global.meta_progress = MetaProgress.new()
+
+	var frontend: Control = auto_free(load(FRONTEND_SCENE).instantiate())
+	add_child(frontend)
+	await await_idle_frame()
+
+	var title_profile_button := frontend.get_node(
+		"Pages/TitlePage/SafeArea/Layout/Menu/ProfileButton"
+	) as Button
+	var profile_choices := frontend.get_node("Pages/ProfilePage/Content/ProfileChoices")
+	var first_select := profile_choices.get_child(0).get_child(0) as Button
+	var first_create := profile_choices.get_child(0).get_child(1) as Button
+	var empty_slot_name := LocalizedTextService.resolve(&"ui.profile.empty_slot", [1])
+
+	assert_str(title_profile_button.text).is_equal(
+		LocalizedTextService.resolve(&"ui.profile.none")
+	)
+	assert_str(first_select.text).starts_with(
+		LocalizedTextService.resolve(&"ui.profile.pending_name", [empty_slot_name])
+	)
+	assert_str(first_select.text).not_contains(
+		LocalizedTextService.resolve(&"ui.profile.default_name", [1])
+	)
+	assert_str(first_create.text).is_equal(
+		LocalizedTextService.resolve(&"ui.profile.create")
+	)
+	assert_bool(FileAccess.file_exists(_store.profile_path(1))).is_false()
+
+	frontend.call("_on_primary_pressed")
+	await await_idle_frame()
+	assert_int(int(frontend.get("current_step"))).is_equal(SelectionStep.Value.CHARACTER)
+	assert_bool(FileAccess.file_exists(_store.profile_path(1))).is_false()
+
+
 func test_profile_page_focuses_active_slot_and_has_explicit_row_navigation() -> void:
 	var frontend: Control = auto_free(load(FRONTEND_SCENE).instantiate())
 	add_child(frontend)
@@ -97,6 +136,22 @@ func test_profile_page_focuses_active_slot_and_has_explicit_row_navigation() -> 
 	_push_action(frontend.get_viewport(), &"ui_right")
 	await await_idle_frame()
 	assert_object(frontend.get_viewport().gui_get_focus_owner()).is_same(active_rename)
+
+
+func test_profile_back_button_returns_to_title_and_remains_clickable_after_reentry() -> void:
+	var frontend: Control = auto_free(load(FRONTEND_SCENE).instantiate())
+	add_child(frontend)
+	await await_idle_frame()
+	var back_button := frontend.get_node("Pages/ProfilePage/Content/Header/BackButton") as Button
+
+	for iteration: int in 2:
+		frontend.call("_on_profiles_pressed")
+		await await_idle_frame()
+		assert_int(int(frontend.get("current_step"))).is_equal(SelectionStep.Value.PROFILE)
+		back_button.emit_signal("pressed")
+		await await_idle_frame()
+		assert_int(int(frontend.get("current_step"))).is_equal(SelectionStep.Value.TITLE)
+		assert_bool(frontend.get_node("Pages/TitlePage").visible).is_true()
 
 
 func test_profile_page_distinguishes_created_slot_and_keeps_rename_validation_visible() -> void:

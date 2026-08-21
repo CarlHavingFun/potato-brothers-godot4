@@ -1,10 +1,19 @@
 extends GdUnitTestSuite
 
 
-func test_arena_exposes_persistent_player_vitals_and_material_bag_labels() -> void:
+func test_arena_owns_one_combat_hud_without_legacy_vital_rows() -> void:
 	var scene_text := FileAccess.get_file_as_string("res://scenes/arena/arena.tscn")
-	for node_name: String in ["HealthHudLabel", "ExperienceHudLabel", "MaterialBagLabel"]:
-		assert_str(scene_text).contains(node_name)
+	assert_str(scene_text).contains('[node name="CombatHud"')
+	for legacy_node_name: String in [
+		"HealthHudLabel",
+		"ExperienceHudLabel",
+		"MaterialBagLabel",
+		"BottomVitals",
+		"EncounterPreview",
+		"NextWaveLabel",
+		"PickupHint",
+	]:
+		assert_str(scene_text).not_contains(legacy_node_name)
 
 const RUN_HUD_FORMATTER := preload("res://core/presentation/run_hud_formatter.gd")
 

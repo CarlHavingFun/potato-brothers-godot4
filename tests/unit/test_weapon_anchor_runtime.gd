@@ -38,9 +38,11 @@ func test_formal_ak_and_c4_logical_anchors_are_consumed_by_weapon_runtime() -> v
 	assert_bool(ak.apply_presentation_anchors(&"weapon.carbine", resolver)).is_true()
 	assert_int(ak.sprite.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
 	assert_object(ak.sprite.offset).is_equal(Vector2(20.0, -12.0))
-	assert_object((ak.get_node("%Muzzle") as Marker2D).position).is_equal(
-		Vector2(132.0, -20.0)
-	)
+	assert_object(ak.sprite.position).is_equal(Vector2(22.0, -2.0))
+	assert_object(ak.sprite.scale).is_equal(Vector2(0.27, 0.27))
+	var ak_muzzle := (ak.get_node("%Muzzle") as Marker2D).position
+	assert_float(ak_muzzle.x).is_equal_approx(35.64, 0.001)
+	assert_float(ak_muzzle.y).is_equal_approx(-5.4, 0.001)
 
 	var c4_definition: WeaponDef = Content.catalog.get_weapon(&"weapon/turret_kit")
 	var c4 := auto_free(c4_definition.tiers[0].scene.instantiate() as Weapon) as Weapon
@@ -50,10 +52,12 @@ func test_formal_ak_and_c4_logical_anchors_are_consumed_by_weapon_runtime() -> v
 		&"weapon", &"weapon.turret_kit", c4.sprite.texture, &"world"
 	)
 	assert_bool(c4.apply_presentation_anchors(&"weapon.turret_kit", resolver)).is_true()
-	assert_object(c4.sprite.offset).is_equal(Vector2(12.0, -36.0))
-	assert_object((c4.get_node("%Muzzle") as Marker2D).position).is_equal(
-		Vector2(12.0, 8.0)
-	)
+	assert_object(c4.sprite.offset).is_equal(Vector2(16.0, -36.0))
+	assert_object(c4.sprite.position).is_equal(Vector2(16.0, 1.0))
+	assert_object(c4.sprite.scale).is_equal(Vector2(0.18, 0.18))
+	var c4_origin := (c4.get_node("%Muzzle") as Marker2D).position
+	assert_float(c4_origin.x).is_equal_approx(2.88, 0.001)
+	assert_float(c4_origin.y).is_equal_approx(1.44, 0.001)
 
 
 func test_live_skin_switch_restores_scene_fallback_without_changing_combat_state() -> void:
@@ -71,6 +75,8 @@ func test_live_skin_switch_restores_scene_fallback_without_changing_combat_state
 	var weapon := auto_free(definition.tiers[0].scene.instantiate() as Weapon) as Weapon
 	holder.add_child(weapon)
 	var scene_offset := weapon.sprite.offset
+	var scene_position := weapon.sprite.position
+	var scene_scale := weapon.sprite.scale
 	var scene_muzzle := (weapon.get_node("%Muzzle") as Marker2D).position
 	weapon.setup_weapon(definition.tiers[0])
 	assert_object(weapon.sprite.offset).is_equal(Vector2(20.0, -12.0))
@@ -88,6 +94,8 @@ func test_live_skin_switch_restores_scene_fallback_without_changing_combat_state
 
 	assert_int(Presentation.load_manifest(DEV_SKIN)).is_equal(OK)
 	assert_object(weapon.sprite.offset).is_equal(scene_offset)
+	assert_object(weapon.sprite.position).is_equal(scene_position)
+	assert_object(weapon.sprite.scale).is_equal(scene_scale)
 	assert_object((weapon.get_node("%Muzzle") as Marker2D).position).is_equal(scene_muzzle)
 	assert_object(weapon.data).is_same(combat_snapshot.data)
 	assert_bool(weapon.is_attacking).is_equal(combat_snapshot.is_attacking)
@@ -110,8 +118,10 @@ func test_formal_shadow_daggers_keep_base_visual_scale_separate_from_hitbox_scal
 	)
 	assert_bool(weapon.apply_presentation_anchors(&"weapon.punch", resolver)).is_true()
 
-	assert_object(weapon.sprite.scale).is_equal(Vector2(0.5, 0.5))
+	assert_object(weapon.sprite.scale).is_equal(Vector2(0.18, 0.18))
 	assert_object((weapon.get_node("Sprite2D/HitboxComponent") as Area2D).scale).is_equal(
 		Vector2(2.0, 2.0)
 	)
-	assert_float(weapon.sprite.texture.get_width() * weapon.sprite.scale.x).is_equal(128.0)
+	assert_float(weapon.sprite.texture.get_width() * weapon.sprite.scale.x).is_equal_approx(
+		46.08, 0.001
+	)

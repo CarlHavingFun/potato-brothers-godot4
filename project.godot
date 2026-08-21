@@ -10,16 +10,12 @@ config_version=5
 
 [application]
 
-config/name="LET'S GOOOOO"
+config/name="Game Prototype"
 run/main_scene="res://scenes/game_root/game_root.tscn"
-config/features=PackedStringArray("4.7", "GL Compatibility")
-config/icon="res://content_packs/skins/lets_gooooo/assets/ui/app_icon.svg"
 config/use_custom_user_dir=true
-config/custom_user_dir_name="GOBRO"
-
-[balance]
-
-active_profile="baseline_parity_1_1_15_4"
+config/custom_user_dir_name="LETS_GOOOOO"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="res://content_packs/skins/lets_gooooo/assets/ui/app_icon.png"
 
 [autoload]
 
@@ -33,17 +29,20 @@ InputDevices="*res://core/input/input_device_manager.gd"
 MCPGameInspector="*res://addons/godot_mcp/services/game_inspector.gd"
 MCPGameInput="*res://addons/godot_mcp/services/game_input.gd"
 
+[balance]
+
+active_profile="baseline_parity_1_1_15_4"
+
+[debug]
+
+file_logging/enable_file_logging.pc=false
+file_logging/max_log_files=1
+
 [display]
 
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/stretch/mode="canvas_items"
-
-[debug]
-
-file_logging/enable_file_logging=false
-file_logging/enable_file_logging.pc=false
-file_logging/max_log_files=1
 
 [editor_plugins]
 
@@ -57,7 +56,7 @@ runtime/direct_server=true
 
 [gui]
 
-theme/custom_font="uid://kfh6ooeul77g"
+theme/custom_font="uid://dk7ibdh75qguo"
 
 [input]
 
@@ -135,7 +134,7 @@ skin_manifest="res://content_packs/skins/lets_gooooo/skin.tres"
 
 [rendering]
 
+textures/canvas_textures/default_texture_filter=0
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
-textures/canvas_textures/default_texture_filter=0
 textures/vram_compression/import_etc2_astc=true

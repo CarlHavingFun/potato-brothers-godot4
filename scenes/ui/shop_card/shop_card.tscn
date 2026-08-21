@@ -5,16 +5,24 @@
 [ext_resource type="PackedScene" uid="uid://fbgjpc1m3ig1" path="res://scenes/ui/custom_button/custom_buttom.tscn" id="4_xkf66"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_h66gf"]
+anti_aliasing = true
+anti_aliasing_size = 1.25
+border_blend = true
+corner_detail = 12
 content_margin_left = 0.0
 content_margin_top = 0.0
 content_margin_right = 0.0
 content_margin_bottom = 0.0
-bg_color = Color(0.294118, 0.294118, 0.294118, 0.784314)
-corner_radius_top_left = 3
-corner_radius_top_right = 3
-corner_radius_bottom_right = 3
-corner_radius_bottom_left = 3
-corner_detail = 5
+bg_color = Color(0.035, 0.035, 0.035, 0.82)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.2, 0.2, 0.2, 0.92)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [sub_resource type="LabelSettings" id="LabelSettings_6673v"]
 font_size = 24

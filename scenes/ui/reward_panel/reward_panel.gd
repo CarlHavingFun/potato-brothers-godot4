@@ -12,6 +12,10 @@ signal reward_finished(next_phase: int)
 var reward_item: ItemBase
 
 
+func _ready() -> void:
+	item_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
+
 func load_reward(current_wave: int) -> bool:
 	if Global.current_run == null or Global.current_run.queued_rewards <= 0:
 		return false

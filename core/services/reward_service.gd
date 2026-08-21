@@ -222,6 +222,96 @@ func select_unique(pool: Array, requested_count: int) -> Array:
 	return result
 
 
+func pending_level_up_level(run_state: RunState) -> int:
+	if run_state == null:
+		return 1
+	if run_state.queued_level_ups <= 0:
+		return maxi(1, run_state.level)
+	return maxi(1, run_state.level - run_state.queued_level_ups + 1)
+
+
+func select_level_up_offers(
+	pool: Array[ItemUpgrade],
+	run_state: RunState,
+	requested_count: int = 4,
+	content_catalog: ContentCatalog = null
+) -> Array[ItemUpgrade]:
+	var result: Array[ItemUpgrade] = []
+	if run_state == null or requested_count <= 0 or pool.is_empty():
+		return result
+	var catalog := content_catalog if content_catalog != null else Content.catalog
+	var level := pending_level_up_level(run_state)
+	var forced_tier := _forced_level_up_tier(level)
+	var probabilities: Array[float]
+	if forced_tier >= 0:
+		probabilities = [0.0, 0.0, 0.0, 0.0]
+		probabilities[forced_tier] = 1.0
+	else:
+		probabilities = ShopService.new(0).calculate_tier_probabilities(
+			level,
+			run_state.player_stats.get_stat(StatId.LUCK),
+			Global.UPGRADE_PROBABILITY_CONFIG
+		)
+	var target_count := mini(requested_count, pool.size())
+	var attempts := 0
+	while result.size() < target_count and attempts < maxi(32, pool.size() * 8):
+		attempts += 1
+		var desired_tier := _roll_upgrade_tier(probabilities)
+		var candidates := pool.filter(
+			func(item: ItemUpgrade):
+				return (
+					_upgrade_quality(item, catalog) == desired_tier
+					and not _contains_upgrade_stat(result, item, catalog)
+				)
+		)
+		if candidates.is_empty():
+			continue
+		result.append(candidates[rng.randi_range(0, candidates.size() - 1)])
+	return result
+
+
+func _forced_level_up_tier(level: int) -> int:
+	if level == 1:
+		return Global.UpgradeTier.COMMON
+	if level == 5:
+		return Global.UpgradeTier.RARE
+	if level in [10, 15, 20]:
+		return Global.UpgradeTier.EPIC
+	if level >= 25 and level % 5 == 0:
+		return Global.UpgradeTier.LEGENDARY
+	return -1
+
+
+func _roll_upgrade_tier(probabilities: Array[float]) -> int:
+	var roll := rng.randf()
+	var cumulative := 0.0
+	for tier in probabilities.size():
+		cumulative += probabilities[tier]
+		if roll <= cumulative:
+			return tier
+	return Global.UpgradeTier.COMMON
+
+
+func _upgrade_quality(item: ItemUpgrade, content_catalog: ContentCatalog) -> int:
+	var definition := content_catalog.get_upgrade_definition_for_item(item)
+	return definition.quality if definition != null else int(item.item_tier)
+
+
+func _contains_upgrade_stat(
+	offers: Array[ItemUpgrade],
+	candidate: ItemUpgrade,
+	content_catalog: ContentCatalog
+) -> bool:
+	var candidate_definition := content_catalog.get_upgrade_definition_for_item(candidate)
+	if candidate_definition == null:
+		return candidate in offers
+	for offer: ItemUpgrade in offers:
+		var definition := content_catalog.get_upgrade_definition_for_item(offer)
+		if definition != null and definition.stat_id == candidate_definition.stat_id:
+			return true
+	return false
+
+
 func select_reward(
 	pool: Array[ItemBase],
 	current_wave: int,

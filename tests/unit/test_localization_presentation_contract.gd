@@ -45,7 +45,7 @@ func test_runtime_catalogs_recover_from_the_actual_autoloads_before_ready() -> v
 	LocalizedTextService.configure_core_paths([])
 	LocalizedTextService.clear_skin_paths()
 	assert_str(LocalizedTextService.resolve(&"ui.title.start")).is_equal("开始游戏")
-	assert_str(LocalizedTextService.resolve(&"ui.title.name")).is_equal("LET'S GOOOOO")
+	assert_str(LocalizedTextService.resolve(&"ui.title.name")).is_equal("游戏原型")
 
 
 func test_active_skin_copy_overrides_core_copy_deterministically() -> void:
@@ -110,6 +110,16 @@ func test_release_skin_catalogs_have_matching_keys_and_do_not_mix_languages() ->
 		).is_false()
 
 
+func test_release_skin_names_match_the_visible_community_meme_props() -> void:
+	LocalizedTextService.configure_skin_paths([RELEASE_SKIN_ZH, RELEASE_SKIN_EN])
+	TranslationServer.set_locale("zh_CN")
+	assert_str(LocalizedTextService.resolve(&"passive.echo_round.name")).is_equal("对枪采访麦")
+	assert_str(LocalizedTextService.resolve(&"passive.rapid_loader.name")).is_equal("抬鼠重置垫")
+	assert_str(LocalizedTextService.resolve(&"passive.map.name")).is_equal("道具阵容粉笔")
+	assert_str(LocalizedTextService.resolve(&"passive.sharpshooter_lens.name")).is_equal("空枪挂坠")
+	assert_str(LocalizedTextService.resolve(&"passive.scrap_ledger.name")).is_equal("经济局零钱袋")
+
+
 func test_release_skin_replaces_every_visible_legacy_product_reference() -> void:
 	LocalizedTextService.configure_skin_paths([RELEASE_SKIN_ZH, RELEASE_SKIN_EN])
 	for locale: String in ["zh_CN", "en"]:
@@ -121,7 +131,9 @@ func test_release_skin_replaces_every_visible_legacy_product_reference() -> void
 			assert_str(rendered).override_failure_message(
 				"Legacy brand leaked through %s/%s" % [locale, key]
 			).not_contains("GOBRO")
-		assert_str(LocalizedTextService.resolve(&"ui.title.name")).is_equal("LET'S GOOOOO")
+		assert_bool(
+			LocalizedTextService.resolve(&"ui.title.name") in ["游戏原型", "Game Prototype"]
+		).is_true()
 
 
 func test_every_visible_content_name_exists_in_both_locales() -> void:

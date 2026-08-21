@@ -24,6 +24,43 @@ func test_shop_offers_are_reproducible_for_the_same_run_seed() -> void:
 	assert_int(first_offer.size()).is_equal(4)
 
 
+func test_reference_rarity_curve_uses_cumulative_tier_thresholds() -> void:
+	var service := ShopService.new(701)
+
+	assert_array(service.calculate_tier_probabilities(
+		1, 0.0, Global.SHOP_PROBABILITY_CONFIG
+	)).contains_exactly([1.0, 0.0, 0.0, 0.0])
+	_assert_probabilities_close(
+		service.calculate_tier_probabilities(2, 0.0, Global.SHOP_PROBABILITY_CONFIG),
+		[0.94, 0.06, 0.0, 0.0]
+	)
+	_assert_probabilities_close(
+		service.calculate_tier_probabilities(4, 0.0, Global.SHOP_PROBABILITY_CONFIG),
+		[0.82, 0.16, 0.02, 0.0]
+	)
+	_assert_probabilities_close(
+		service.calculate_tier_probabilities(8, 0.0, Global.SHOP_PROBABILITY_CONFIG),
+		[0.58, 0.32, 0.0977, 0.0023]
+	)
+
+
+func test_luck_changes_only_tiers_already_unlocked() -> void:
+	var service := ShopService.new(702)
+
+	assert_array(service.calculate_tier_probabilities(
+		1, 10000.0, Global.SHOP_PROBABILITY_CONFIG
+	)).contains_exactly([1.0, 0.0, 0.0, 0.0])
+	_assert_probabilities_close(
+		service.calculate_tier_probabilities(4, -100.0, Global.SHOP_PROBABILITY_CONFIG),
+		[1.0, 0.0, 0.0, 0.0]
+	)
+	var neutral := service.calculate_tier_probabilities(4, 0.0, Global.SHOP_PROBABILITY_CONFIG)
+	var lucky := service.calculate_tier_probabilities(4, 100.0, Global.SHOP_PROBABILITY_CONFIG)
+	assert_bool(float(lucky[0]) < float(neutral[0])).is_true()
+	assert_float(float(lucky[2])).is_greater(float(neutral[2]))
+	assert_float(float(lucky[3])).is_zero()
+
+
 func test_shop_purchase_delegates_to_atomic_inventory_transaction() -> void:
 	assert_bool(ResourceLoader.exists(SHOP_SERVICE_PATH)).is_true()
 	if not ResourceLoader.exists(SHOP_SERVICE_PATH):
@@ -38,6 +75,29 @@ func test_shop_purchase_delegates_to_atomic_inventory_transaction() -> void:
 	assert_int(result).is_equal(InventoryService.INSUFFICIENT_MATERIALS)
 	assert_int(run.materials).is_zero()
 	assert_int(run.inventory.weapon_count()).is_zero()
+
+
+func test_shop_slot_purchase_exposes_auto_merge_detail_without_changing_legacy_result() -> void:
+	var service := ShopService.new(13)
+	var run := RunState.new(13)
+	run.materials = 100
+	var pistol: ItemWeapon = Content.catalog.get_weapon(&"weapon/pistol").tiers[0]
+	var pistol_id := Content.catalog.get_item_stable_id(pistol)
+	run.inventory.add_weapon(pistol_id, 1, 20)
+	for weapon_id in [&"axe", &"wand", &"spear", &"smg", &"punch"]:
+		run.inventory.add_weapon(weapon_id, 1, 5)
+	service.store_offers(run, [pistol], Content.catalog)
+
+	var detailed: Variant = service.call("try_purchase_offer_detailed", run, 0, Content.catalog)
+
+	assert_bool(detailed is Dictionary).is_true()
+	if detailed is Dictionary:
+		assert_int(int(detailed.get("code", -1))).is_equal(InventoryService.OK)
+		assert_str(str(detailed.get("mode", ""))).is_equal("auto_merge")
+		assert_int(int(detailed.get("target_slot", -1))).is_equal(0)
+	assert_int(run.materials).is_equal(100 - service.purchase_price(run, pistol))
+	assert_bool(run.shop_slots[0].purchased).is_true()
+	assert_int(int(run.inventory.weapon_at(0).get("tier", 0))).is_equal(2)
 
 
 func test_refresh_price_increases_and_transaction_rolls_back_when_unaffordable() -> void:
@@ -84,6 +144,24 @@ func test_early_shops_guarantee_weapons_without_repeating_a_weapon_family() -> v
 		assert_int(_stable_ids(offers).size()).is_equal(offers.size())
 
 
+func test_first_shop_never_leaks_locked_tiers_through_small_pool_fallbacks() -> void:
+	var pool: Array[ItemBase] = []
+	for tier in Global.UpgradeTier.size():
+		var matching := Content.catalog.get_shop_items().filter(
+			func(item: ItemBase): return int(item.item_tier) == tier
+		)
+		assert_bool(not matching.is_empty()).is_true()
+		pool.append(matching[0])
+
+	for seed in range(710, 730):
+		var offers := ShopService.new(seed).select_offers(
+			pool, 1, 10000.0, Global.SHOP_PROBABILITY_CONFIG, 4, Content.catalog, []
+		)
+		assert_bool(not offers.is_empty()).is_true()
+		for offer: ItemBase in offers:
+			assert_int(int(offer.item_tier)).is_equal(Global.UpgradeTier.COMMON)
+
+
 func test_buying_every_shop_slot_grants_exactly_one_free_refresh() -> void:
 	var service := ShopService.new(812)
 	var run := RunState.new(812)
@@ -113,3 +191,9 @@ func _stable_ids(items: Array) -> Dictionary:
 	for item: ItemBase in items:
 		result[String(Content.catalog.get_item_stable_id(item))] = true
 	return result
+
+
+func _assert_probabilities_close(actual: Array[float], expected: Array[float]) -> void:
+	assert_int(actual.size()).is_equal(expected.size())
+	for index in expected.size():
+		assert_float(actual[index]).is_equal_approx(expected[index], 0.00001)

@@ -12,21 +12,22 @@ func _init(run_seed: int = 0) -> void:
 
 
 func calculate_tier_probabilities(current_wave: int, luck: float, config: Dictionary) -> Array[float]:
-	var rare := _tier_chance(current_wave, config.get("rare", {}), 1)
-	var epic := _tier_chance(current_wave, config.get("epic", {}), 3)
-	var legendary := _tier_chance(current_wave, config.get("legendary", {}), 6)
 	var luck_factor := maxf(0.0, 1.0 + luck / 100.0)
-	rare *= luck_factor
-	epic *= luck_factor
-	legendary *= luck_factor
-	var non_common := rare + epic + legendary
-	if non_common > 1.0:
-		var normalization := 1.0 / non_common
-		rare *= normalization
-		epic *= normalization
-		legendary *= normalization
-		non_common = 1.0
-	return [maxf(0.0, 1.0 - non_common), rare, epic, legendary]
+	var rare := _tier_chance(current_wave, config.get("rare", {}), luck_factor)
+	var epic := _tier_chance(current_wave, config.get("epic", {}), luck_factor)
+	var legendary := _tier_chance(
+		current_wave, config.get("legendary", {}), luck_factor
+	)
+	# The reference curves are cumulative: the Tier-2 threshold includes every
+	# Tier-3/4 result, and the Tier-3 threshold includes Tier-4 results.
+	epic = minf(epic, rare)
+	legendary = minf(legendary, epic)
+	return [
+		maxf(0.0, 1.0 - rare),
+		maxf(0.0, rare - epic),
+		maxf(0.0, epic - legendary),
+		maxf(0.0, legendary),
+	]
 
 
 func select_offers(
@@ -40,16 +41,21 @@ func select_offers(
 	run_state: RunState = null
 ) -> Array:
 	var result: Array = []
+	var probabilities: Array[float] = calculate_tier_probabilities(current_wave, luck, config)
 	var available_pool: Array = item_pool.filter(
 		func(item: Variant):
-			return not item is ItemWeapon or _weapon_allowed_for_run(
-				run_state, item as ItemWeapon, content_catalog
+			return (
+				item is ItemBase
+				and (int((item as ItemBase).item_tier) == Global.UpgradeTier.COMMON
+					or probabilities[int((item as ItemBase).item_tier)] > 0.0)
+				and (not item is ItemWeapon or _weapon_allowed_for_run(
+					run_state, item as ItemWeapon, content_catalog
+				))
 			)
 	)
 	if requested_count <= 0 or available_pool.is_empty():
 		return result
 	var target_count: int = mini(requested_count, available_pool.size())
-	var probabilities: Array[float] = calculate_tier_probabilities(current_wave, luck, config)
 	var weapon_quota: int = mini(_minimum_weapon_offers(current_wave), target_count)
 	while result.size() < weapon_quota:
 		var weapon: Variant = _draw_offer(
@@ -96,13 +102,17 @@ func select_offers(
 	return result
 
 
-func try_purchase(run_state: RunState, item: ItemBase, content_catalog: ContentCatalog) -> int:
+func try_purchase_detailed(
+	run_state: RunState,
+	item: ItemBase,
+	content_catalog: ContentCatalog
+) -> Dictionary:
 	if run_state == null or item == null or content_catalog == null:
-		return InventoryService.INVALID_REQUEST
+		return _purchase_result(InventoryService.INVALID_REQUEST)
 	if item is ItemWeapon:
 		if not _weapon_allowed_for_run(run_state, item as ItemWeapon, content_catalog):
-			return InventoryService.INVALID_REQUEST
-		return InventoryService.try_purchase_weapon(
+			return _purchase_result(InventoryService.INVALID_REQUEST)
+		return InventoryService.try_purchase_weapon_detailed(
 			run_state,
 			content_catalog.get_item_stable_id(item),
 			int(item.item_tier) + 1,
@@ -110,13 +120,28 @@ func try_purchase(run_state: RunState, item: ItemBase, content_catalog: ContentC
 		)
 	if item is ItemPassive:
 		var definition := content_catalog.get_passive_definition_for_item(item)
-		return InventoryService.try_purchase_passive(
+		return _purchase_result(InventoryService.try_purchase_passive(
 			run_state,
 			content_catalog.get_item_stable_id(item),
 			purchase_price(run_state, item),
 			definition.max_stack if definition != null else item.max_stack
-		)
-	return InventoryService.INVALID_REQUEST
+		))
+	return _purchase_result(InventoryService.INVALID_REQUEST)
+
+
+func try_purchase(run_state: RunState, item: ItemBase, content_catalog: ContentCatalog) -> int:
+	return int(try_purchase_detailed(run_state, item, content_catalog).get(
+		"code", InventoryService.INVALID_REQUEST
+	))
+
+
+func _purchase_result(code: int) -> Dictionary:
+	return {
+		"code": code,
+		"mode": InventoryService.PURCHASE_MODE_NONE,
+		"target_slot": -1,
+		"resulting_tier": 0,
+	}
 
 
 func purchase_price(run_state: RunState, item: ItemBase) -> int:
@@ -295,20 +320,30 @@ func resolve_slot_offer(
 	return null
 
 
+func try_purchase_offer_detailed(
+	run_state: RunState,
+	slot_index: int,
+	content_catalog: ContentCatalog
+) -> Dictionary:
+	var item := resolve_slot_offer(run_state, slot_index, content_catalog)
+	if item == null:
+		return _purchase_result(InventoryService.INVALID_REQUEST)
+	var result := try_purchase_detailed(run_state, item, content_catalog)
+	if int(result.get("code", InventoryService.INVALID_REQUEST)) != InventoryService.OK:
+		return result
+	run_state.shop_slots[slot_index].mark_purchased()
+	_sync_legacy_fields(run_state)
+	return result
+
+
 func try_purchase_offer(
 	run_state: RunState,
 	slot_index: int,
 	content_catalog: ContentCatalog
 ) -> int:
-	var item := resolve_slot_offer(run_state, slot_index, content_catalog)
-	if item == null:
-		return InventoryService.INVALID_REQUEST
-	var result := try_purchase(run_state, item, content_catalog)
-	if result != InventoryService.OK:
-		return result
-	run_state.shop_slots[slot_index].mark_purchased()
-	_sync_legacy_fields(run_state)
-	return result
+	return int(try_purchase_offer_detailed(run_state, slot_index, content_catalog).get(
+		"code", InventoryService.INVALID_REQUEST
+	))
 
 
 func prepare_next_wave(run_state: RunState) -> void:
@@ -468,11 +503,16 @@ func _weapon_allowed_for_run(
 	return run_state.allows_weapon_tags(content_catalog.get_tags_for_item(item))
 
 
-func _tier_chance(current_wave: int, tier_config: Dictionary, wave_offset: int) -> float:
+func _tier_chance(current_wave: int, tier_config: Dictionary, luck_factor: float) -> float:
 	var start_wave := int(tier_config.get("start_wave", 999))
 	if current_wave < start_wave:
 		return 0.0
-	return minf(1.0, maxi(0, current_wave - wave_offset) * float(tier_config.get("base_multi", 0.0)))
+	var chance := (
+		maxi(0, current_wave - start_wave + 1)
+		* float(tier_config.get("base_multi", 0.0))
+		* luck_factor
+	)
+	return minf(float(tier_config.get("max_chance", 1.0)), chance)
 
 
 func _roll_tier(probabilities: Array[float]) -> int:
