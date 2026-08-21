@@ -150,7 +150,7 @@ func test_external_manifest_validation_rejects_degraded_missing_hash_cell_and_re
 	_assert_manifest_error(service, fixture["manifest_path"], manifest, "rectangle")
 
 
-func test_external_manifest_validation_rejects_inconsistent_counts_timing_and_static_source() -> void:
+func test_external_manifest_validation_rejects_inconsistent_counts_and_timing_but_accepts_a_real_single_frame() -> void:
 	var fixture := _write_external_fixture("consistency", 2)
 	var service: Variant = _new_service()
 	if service == null:
@@ -178,8 +178,15 @@ func test_external_manifest_validation_rejects_inconsistent_counts_timing_and_st
 	assert_str("\n".join(atlas_result.get("errors", PackedStringArray()))).contains("does not match atlas")
 
 	fixture = _write_external_fixture("static", 1)
-	manifest = _read_json(fixture["manifest_path"])
-	_assert_manifest_error(service, fixture["manifest_path"], manifest, "more than one")
+	var single: Dictionary = service.validate_external_manifest(fixture["manifest_path"])
+	assert_array(single.get("errors", PackedStringArray())).is_empty()
+	var promoted: Dictionary = service.promote_selection({
+		"manifest_path": fixture["manifest_path"], "selection": [0], "fps": 8.0,
+		"loop": false, "config_path": CONFIG_PATH, "character_id": CHARACTER_ID,
+		"action": "dash", "take": "single",
+	})
+	assert_array(promoted.get("errors", PackedStringArray())).is_empty()
+	assert_int(int((_read_json(str(promoted["manifest_path"]))["source"] as Dictionary)["frame_count"])).is_equal(1)
 
 
 func test_external_manifest_rejects_links_at_manifest_atlas_frame_directory_and_png() -> void:
@@ -288,6 +295,30 @@ func test_promotion_packs_unique_cells_reuses_duplicate_rects_and_emits_selected
 	assert_bool(authoring.has_animation(&"dash_down")).is_false()
 	assert_str(FileAccess.get_file_as_string(RUNTIME_MARKER)).is_equal("runtime-must-not-change")
 	assert_bool(FileAccess.file_exists(RUNTIME_ROOT + "/task_2_gdunit_niko_runtime_frames.tres")).is_false()
+
+
+func test_promotion_wraps_seventeen_unique_frames_into_a_sixteen_column_atlas() -> void:
+	var fixture := _write_external_fixture("promote-grid", 17)
+	var service: Variant = _new_service()
+	var selection: Array = range(17)
+	selection.append(16)
+	var result: Dictionary = service.promote_selection({
+		"manifest_path": fixture["manifest_path"], "selection": selection, "fps": 12.0,
+		"loop": true, "config_path": CONFIG_PATH, "character_id": CHARACTER_ID,
+		"action": "dash", "take": "grid",
+	})
+	assert_array(result.get("errors", PackedStringArray())).is_empty()
+	var atlas := Image.load_from_file(ProjectSettings.globalize_path(str(result["atlas_path"])))
+	assert_int(atlas.get_width()).is_equal(4096)
+	assert_int(atlas.get_height()).is_equal(512)
+	var manifest := _read_json(str(result["manifest_path"]))
+	var layout := manifest["frame_layout"] as Dictionary
+	assert_int(int(layout["sheetWidth"])).is_equal(4096)
+	assert_int(int(layout["sheetHeight"])).is_equal(512)
+	var rects := ((layout["rows"] as Dictionary)["source_all"] as Array)
+	assert_int(int((rects[16] as Dictionary)["x"])).is_zero()
+	assert_int(int((rects[16] as Dictionary)["y"])).is_equal(256)
+	assert_dict(rects[17]).is_equal(rects[16])
 
 
 func test_preview_suffixes_repeated_takes_and_resolved_take_refuses_overwrite() -> void:
@@ -601,7 +632,9 @@ func _write_character_config() -> void:
 
 func _files_below(path: String) -> Array[String]:
 	var result: Array[String] = []
-	var directory := DirAccess.open(path)
+	# A preceding integration suite mounts a PCK for the rest of the Godot
+	# process. Enumerate the physical test output, not the mounted res:// view.
+	var directory := DirAccess.open(ProjectSettings.globalize_path(path))
 	if directory == null:
 		return result
 	directory.list_dir_begin()

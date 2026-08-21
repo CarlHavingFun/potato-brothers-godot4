@@ -29,6 +29,10 @@ class FakeOwnershipService extends RefCounted:
 		calls.append({"method": "preview", "params": params.duplicate(true)})
 		return {"errors": PackedStringArray(), "take": "clip_2", "output_path": "res://clip_2"}
 
+	func promote_selection(params: Dictionary) -> Dictionary:
+		calls.append({"method": "promote", "params": params.duplicate(true)})
+		return {"errors": PackedStringArray(), "take": params["resolved_take"]}
+
 	func set_preferred_take(params: Dictionary) -> Dictionary:
 		calls.append({"method": "preferred", "params": params.duplicate(true)})
 		return {"errors": PackedStringArray(), "preferred_take": params["take"]}
@@ -265,6 +269,30 @@ func test_tree_preferred_target_never_overwrites_or_mixes_active_curation_owners
 	assert_str(service.calls[1]["params"]["take"]).is_equal("clip")
 	assert_str(service.calls[2]["params"]["action"]).is_equal("idle")
 	assert_str(service.calls[2]["params"]["take"]).is_equal("calm")
+
+
+func test_take_text_and_resolved_promotion_take_stay_in_the_active_snapshot_and_ui() -> void:
+	var dock: Variant = auto_free(Dock.new())
+	add_child(dock)
+	dock.build_ui()
+	var service := FakeOwnershipService.new()
+	dock.controller.curation_service = service
+	dock.controller.load_config("res://tools/video_sprites/niko_character_sources.json")
+	dock.controller.jobs = {
+		"job-1": {"job_id": "job-1", "action": "walk", "take": "clip", "state": "complete", "curation": _snapshot("walk", "clip")},
+	}
+	dock.controller.job_order.assign(["job-1"])
+	dock.controller.activate_job("job-1")
+	dock.take_edit.text = "edited"
+	dock.take_edit.text_changed.emit("edited")
+	dock.call("_preview_promotion")
+	assert_str(service.calls.back()["params"]["take"]).is_equal("edited")
+	dock.call("_confirm_promotion")
+	assert_str(dock.controller.current_take).is_equal("clip_2")
+	assert_str((dock.controller.jobs["job-1"] as Dictionary)["curation"]["take"]).is_equal("clip_2")
+	assert_str(dock.take_edit.text).is_equal("clip_2")
+	assert_str(dock._preferred_target_action).is_equal("walk")
+	assert_str(dock._preferred_target_take).is_equal("clip_2")
 
 
 func _snapshot(action: String, take: String) -> Dictionary:

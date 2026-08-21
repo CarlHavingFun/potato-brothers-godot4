@@ -13,8 +13,20 @@ const PIPELINE_ROOT_SETTING := "video_sprites/pixelmotion_root"
 const SOURCE_DIRECTORY_SETTING := "video_sprites/niko/source_directory"
 
 var _jobs: Dictionary = {}
-var video_service: Variant = VideoSpriteJobService.new()
-var curation_service: Variant = VideoSpriteCurationService.new()
+var video_service: Variant = VideoSpriteJobService.new():
+	set(value):
+		video_service = value
+		if curation_service != null and "job_service" in curation_service:
+			curation_service.job_service = value
+var curation_service: Variant = VideoSpriteCurationService.new():
+	set(value):
+		curation_service = value
+		if curation_service != null and "job_service" in curation_service:
+			curation_service.job_service = video_service
+
+
+func _init() -> void:
+	curation_service.job_service = video_service
 
 
 func get_commands() -> Dictionary:

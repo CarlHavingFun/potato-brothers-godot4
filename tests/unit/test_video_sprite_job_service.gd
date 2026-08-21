@@ -148,6 +148,23 @@ func test_cancellation_requires_the_receipt_job_token_to_match_the_tracked_job()
 	assert_str("\n".join(cancelled.get("errors", PackedStringArray()))).contains("token")
 
 
+func test_cancellation_uses_the_owned_memory_token_when_the_receipt_has_none() -> void:
+	var service := Service.new()
+	var result: Dictionary = service.start_single_video_job(
+		_dependencies(ProjectSettings.globalize_path("user://video_sprite_workspace/tokenless-receipt")),
+		Callable(self, "_fake_launcher"),
+		"tokenless-receipt"
+	)
+	_write_absolute(ProjectSettings.globalize_path(str(result["receipt_path"])), JSON.stringify({
+		"job_id": "tokenless-receipt", "pid": 4321, "state": "running"
+	}))
+
+	var cancelled: Dictionary = service.cancel_job("tokenless-receipt")
+	assert_array(cancelled.get("errors", PackedStringArray())).is_empty()
+	var request := _read_absolute(ProjectSettings.globalize_path(str(result["cancel_request_path"])))
+	assert_str(request.get("job_token", "")).is_equal(str(result["job_token"]))
+
+
 func test_cancellation_rejects_a_numeric_receipt_job_id_as_corrupt() -> void:
 	var service := Service.new()
 	var result: Dictionary = service.start_single_video_job(

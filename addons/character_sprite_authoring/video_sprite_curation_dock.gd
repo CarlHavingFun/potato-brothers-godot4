@@ -146,6 +146,7 @@ func build_ui() -> void:
 	take_edit = LineEdit.new()
 	take_edit.placeholder_text = "take 名称"
 	take_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	take_edit.text_changed.connect(_on_take_changed)
 	timing.add_child(take_edit)
 
 	var preview := VBoxContainer.new()
@@ -527,6 +528,10 @@ func _on_loop_changed(value: bool) -> void:
 	refresh_preview()
 
 
+func _on_take_changed(value: String) -> void:
+	controller.set_active_take(value)
+
+
 func _save() -> void:
 	show_result("保存挑帧", controller.save_curation())
 
@@ -541,7 +546,12 @@ func _preview_promotion() -> void:
 
 
 func _confirm_promotion() -> void:
-	show_result("提升结果", controller.confirm_promotion())
+	var result := controller.confirm_promotion()
+	show_result("提升结果", result)
+	if _errors(result).is_empty():
+		take_edit.text = controller.current_take
+		_preferred_target_action = controller.current_action
+		_preferred_target_take = controller.current_take
 	refresh_config()
 
 

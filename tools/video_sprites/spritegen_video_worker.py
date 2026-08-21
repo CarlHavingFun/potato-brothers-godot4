@@ -120,8 +120,12 @@ def check_cancellation(
         receipt = json.loads(Path(receipt_path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise WorkerError(f"could not read job receipt for cancellation {receipt_path}: {exc}") from exc
-    if not isinstance(receipt, dict) or receipt.get("job_id") != job_id or receipt.get("job_token") != job_token:
+    if not isinstance(receipt, dict) or receipt.get("job_id") != job_id:
         raise WorkerError("job receipt does not match cooperative cancellation request")
+    receipt_token = receipt.get("job_token")
+    if receipt_token not in (None, "", job_token):
+        raise WorkerError("job receipt does not match cooperative cancellation request")
+    receipt["job_token"] = job_token
     receipt["state"] = "cancelled"
     receipt["cancelled_at_unix"] = time.time()
     atomic_write_json(Path(receipt_path), receipt)
@@ -717,6 +721,7 @@ def configure_pixelmotion(
     sprite_gen_root: Path,
     base_image: Path,
     palette_lock: Path,
+    cancellation_checker: Callable[[], None] = lambda: None,
 ) -> None:
     original_build_manifest = library.build_manifest
     palette = load_palette_lock(palette_lock)
@@ -737,6 +742,7 @@ def configure_pixelmotion(
         subjects: list[Image.Image] = []
         try:
             for index, source_path in enumerate(decoded_frames, start=1):
+                cancellation_checker()
                 try:
                     with Image.open(source_path) as image:
                         subject, _receipt = image_tools.extract_subject(
@@ -749,7 +755,8 @@ def configure_pixelmotion(
                 subjects.append(subject)
             fps = 1000.0 / float(timing[0]["duration_ms"])
             try:
-                return process_subject_frames(
+                cancellation_checker()
+                processed = process_subject_frames(
                     subjects,
                     output_directory,
                     timing,
@@ -759,6 +766,8 @@ def configure_pixelmotion(
                     fps=fps,
                     loop=True,
                 )
+                cancellation_checker()
+                return processed
             except WorkerError as exc:
                 raise library.VideoSpriteError(str(exc)) from exc
         finally:
@@ -897,12 +906,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         config = load_worker_config(args.config, args.palette_lock, args.base_image)
         if args.command == "import-video":
             check_cancellation(args.cancel_request, args.job_receipt, args.job_id, args.job_token)
+        cancellation_checker: Callable[[], None] = lambda: None
+        if args.command == "import-video":
+            cancellation_checker = lambda: check_cancellation(
+                args.cancel_request, args.job_receipt, args.job_id, args.job_token
+            )
         configure_pixelmotion(
             library,
             image_tools,
             sprite_gen_root=args.sprite_gen_root,
             base_image=args.base_image,
             palette_lock=args.palette_lock,
+            cancellation_checker=cancellation_checker,
         )
         if args.command == "import-directory":
             result = library.run_import_directory(

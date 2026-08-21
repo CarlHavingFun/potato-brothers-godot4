@@ -181,6 +181,11 @@ func set_loop(value: bool) -> Dictionary:
 	return {"errors": PackedStringArray(), "loop": model.loop, "preview": preview_sequence()}
 
 
+func set_active_take(value: String) -> void:
+	current_take = value
+	_store_active_snapshot()
+
+
 func preview_sequence() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for source_index: int in model.sequence:
@@ -215,6 +220,7 @@ func confirm_promotion() -> Dictionary:
 	var result := curation_service.promote_selection(params) as Dictionary
 	last_errors = _errors_from(result)
 	if last_errors.is_empty():
+		set_active_take(str(result.get("take", params["resolved_take"])))
 		load_config(config_path)
 		if refresh_callback.is_valid():
 			refresh_callback.call()
@@ -380,6 +386,7 @@ func _store_active_snapshot() -> void:
 	snapshot["selection"] = model.sequence.duplicate()
 	snapshot["fps"] = model.fps
 	snapshot["loop"] = model.loop
+	snapshot["take"] = current_take
 	row["curation"] = snapshot
 	jobs[current_job_id] = row
 

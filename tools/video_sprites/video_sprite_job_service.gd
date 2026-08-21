@@ -320,7 +320,8 @@ func cancel_job(job_id: String) -> Dictionary:
 		_neutralize_pid(job_id)
 		receipt["errors"] = PackedStringArray()
 		return receipt
-	if str(receipt.get("job_token", "")) != str(tracked.get("job_token", "")):
+	var receipt_token := str(receipt.get("job_token", ""))
+	if not receipt_token.is_empty() and receipt_token != str(tracked.get("job_token", "")):
 		return {"errors": PackedStringArray(["job receipt token does not match tracked job"])}
 	var request_path := str(tracked.get("cancel_request_path", ""))
 	if request_path.is_empty():

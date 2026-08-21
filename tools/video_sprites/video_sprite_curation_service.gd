@@ -9,6 +9,7 @@ const DEFAULT_CONFIG := "res://tools/video_sprites/niko_character_sources.json"
 const PROMOTION_ROOT := "res://tools/sprites"
 const STATE := "source_all"
 const CELL_SIZE := Vector2i(256, 256)
+const MAX_ATLAS_COLUMNS := 16
 const VALID_ENGINES := [
 	"pixelmotion2d-video-library",
 	"pixelmotion2d-cutout+sprite-gen-pixel-unfake",
@@ -428,7 +429,9 @@ func _emit_promoted_take(
 		if not atlas_cells.has(source_index):
 			atlas_cells[source_index] = unique_indices.size()
 			unique_indices.append(source_index)
-	var atlas := Image.create(unique_indices.size() * CELL_SIZE.x, CELL_SIZE.y, false, Image.FORMAT_RGBA8)
+	var atlas_columns := mini(unique_indices.size(), MAX_ATLAS_COLUMNS)
+	var atlas_rows := ceili(float(unique_indices.size()) / float(MAX_ATLAS_COLUMNS))
+	var atlas := Image.create(atlas_columns * CELL_SIZE.x, atlas_rows * CELL_SIZE.y, false, Image.FORMAT_RGBA8)
 	atlas.fill(Color(0, 0, 0, 0))
 	var source_frames := manifest["source_frames"] as Array
 	var copied_paths: Dictionary = {}
@@ -440,7 +443,11 @@ func _emit_promoted_take(
 			errors.append("could not decode selected source frame %d" % source_index)
 			continue
 		var cell_index := int(atlas_cells[source_index])
-		atlas.blit_rect(image, Rect2i(Vector2i.ZERO, CELL_SIZE), Vector2i(cell_index * CELL_SIZE.x, 0))
+		var cell_position := Vector2i(
+			(cell_index % MAX_ATLAS_COLUMNS) * CELL_SIZE.x,
+			floori(float(cell_index) / float(MAX_ATLAS_COLUMNS)) * CELL_SIZE.y
+		)
+		atlas.blit_rect(image, Rect2i(Vector2i.ZERO, CELL_SIZE), cell_position)
 		var copied_path := output_path.path_join("frames/source_%03d.png" % (source_index + 1))
 		var copy_error := DirAccess.copy_absolute(source_png, ProjectSettings.globalize_path(copied_path))
 		if copy_error != OK:
@@ -461,9 +468,11 @@ func _emit_promoted_take(
 	for playback_index in selection.size():
 		var source_index := int(selection[playback_index])
 		var source_frame := source_frames[source_index] as Dictionary
+		var cell_index := int(atlas_cells[source_index])
 		var rect := {
-			"x": int(atlas_cells[source_index]) * CELL_SIZE.x,
-			"y": 0, "w": CELL_SIZE.x, "h": CELL_SIZE.y,
+			"x": (cell_index % MAX_ATLAS_COLUMNS) * CELL_SIZE.x,
+			"y": floori(float(cell_index) / float(MAX_ATLAS_COLUMNS)) * CELL_SIZE.y,
+			"w": CELL_SIZE.x, "h": CELL_SIZE.y,
 		}
 		playback_rects.append(rect)
 		durations.append(duration_ms)
@@ -500,8 +509,8 @@ func _emit_promoted_take(
 			"frames": selection.size(), "fps": fps, "durations_ms": durations, "loop": loop,
 		}}},
 		"frame_layout": {
-			"sheetWidth": unique_indices.size() * CELL_SIZE.x,
-			"sheetHeight": CELL_SIZE.y,
+			"sheetWidth": atlas_columns * CELL_SIZE.x,
+			"sheetHeight": atlas_rows * CELL_SIZE.y,
 			"cellWidth": CELL_SIZE.x,
 			"cellHeight": CELL_SIZE.y,
 			"rows": {STATE: playback_rects},
@@ -588,7 +597,10 @@ func _validate_promoted_output(emitted: Dictionary) -> Dictionary:
 		if not FileAccess.file_exists(str(emitted.get(key, ""))):
 			errors.append("promoted output is missing %s" % key)
 	var atlas := Image.load_from_file(ProjectSettings.globalize_path(str(emitted.get("atlas_path", ""))))
-	if atlas.is_empty() or atlas.get_height() != CELL_SIZE.y or atlas.get_width() != int(emitted.get("unique_frame_count", 0)) * CELL_SIZE.x:
+	var unique_count := int(emitted.get("unique_frame_count", 0))
+	var expected_columns := mini(unique_count, MAX_ATLAS_COLUMNS)
+	var expected_rows := ceili(float(unique_count) / float(MAX_ATLAS_COLUMNS))
+	if atlas.is_empty() or atlas.get_height() != expected_rows * CELL_SIZE.y or atlas.get_width() != expected_columns * CELL_SIZE.x:
 		errors.append("promoted atlas dimensions are invalid")
 	var manifest_result := _parse_json_file(str(emitted.get("manifest_path", "")), "promoted manifest")
 	var provenance_result := _parse_json_file(str(emitted.get("provenance_path", "")), "promoted provenance")
@@ -852,8 +864,8 @@ func _validate_manifest_structure(
 		return
 	var source := source_value as Dictionary
 	var frame_count := int(source.get("frame_count", 0))
-	if frame_count <= 1:
-		errors.append("external source must contain more than one frame")
+	if frame_count <= 0:
+		errors.append("external source must contain at least one frame")
 	var video_path := str(source.get("absolute_path", ""))
 	var declared_video_hash := str(source.get("sha256", ""))
 	if not video_path.is_empty() and FileAccess.file_exists(video_path):

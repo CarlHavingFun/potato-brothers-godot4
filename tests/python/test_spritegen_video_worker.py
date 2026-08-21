@@ -112,6 +112,24 @@ class StagingSecurityTests(unittest.TestCase):
 
             self.assertEqual("cancelled", json.loads(receipt.read_text(encoding="utf-8"))["state"])
 
+    def test_worker_restores_a_missing_receipt_token_before_cancelling(self) -> None:
+        worker = load_worker()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            receipt = root / "receipt.json"
+            request = root / "cancel-request.json"
+            receipt.write_text(json.dumps({"job_id": "job-1", "state": "running"}), encoding="utf-8")
+            request.write_text(
+                json.dumps({"job_id": "job-1", "job_token": "token-1"}), encoding="utf-8"
+            )
+
+            with self.assertRaises(worker.WorkerCancelled):
+                worker.check_cancellation(request, receipt, "job-1", "token-1")
+
+            cancelled = json.loads(receipt.read_text(encoding="utf-8"))
+            self.assertEqual("token-1", cancelled["job_token"])
+            self.assertEqual("cancelled", cancelled["state"])
+
 class RawStripTests(unittest.TestCase):
     def test_strip_uses_explicit_native_slots_and_preserves_white_clothing(self) -> None:
         worker = load_worker()
@@ -261,6 +279,64 @@ class PaletteTests(unittest.TestCase):
 
 
 class ManifestAugmentationTests(unittest.TestCase):
+    def test_configured_frame_processing_checks_each_frame_and_around_sprite_gen(self) -> None:
+        worker = load_worker()
+
+        class FakeLibrary:
+            class VideoSpriteError(RuntimeError):
+                pass
+
+            @staticmethod
+            def build_manifest(*_args, **_kwargs):
+                return {"processing": {}, "source_frames": []}
+
+        class FakeImageTools:
+            @staticmethod
+            def extract_subject(image, _config):
+                return image.copy(), {}
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "scripts").mkdir()
+            (root / "scripts" / "prepare_sprite_run.py").write_text(
+                "# prepare\n", encoding="utf-8"
+            )
+            (root / "scripts" / "extract_sprite_row_frames.py").write_text(
+                "# extract\n", encoding="utf-8"
+            )
+            palette_path = root / "palette.lock.json"
+            palette_path.write_text(
+                json.dumps({
+                    "kind": "sprite-gen-palette-lock",
+                    "colors": [[i, i, i] for i in range(32)],
+                }),
+                encoding="utf-8",
+            )
+            frames = []
+            for index in range(2):
+                path = root / f"frame-{index}.png"
+                Image.new("RGBA", (2, 2), (index, index, index, 255)).save(path)
+                frames.append(path)
+            checks = []
+            original = worker.process_subject_frames
+            worker.process_subject_frames = lambda *_args, **_kwargs: []
+            try:
+                library = FakeLibrary()
+                worker.configure_pixelmotion(
+                    library,
+                    FakeImageTools(),
+                    sprite_gen_root=root,
+                    base_image=root / "base.png",
+                    palette_lock=palette_path,
+                    cancellation_checker=lambda: checks.append("check"),
+                )
+                library.process_decoded_frames(
+                    frames, root / "output", {"cutout": {}}, [{"duration_ms": 40.0}] * 2
+                )
+            finally:
+                worker.process_subject_frames = original
+            self.assertEqual(4, len(checks))
+
     def test_manifest_records_the_deterministic_post_alignment_for_each_source_frame(self) -> None:
         worker = load_worker()
 

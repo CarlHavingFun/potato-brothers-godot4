@@ -122,6 +122,12 @@ func test_registers_video_import_and_character_authoring_commands() -> void:
 	commands.free()
 
 
+func test_curation_cleanup_shares_the_owned_video_job_service_instance() -> void:
+	var commands := Commands.new()
+	assert_bool(commands.curation_service.job_service == commands.video_service).is_true()
+	commands.free()
+
+
 func test_output_path_is_confined_below_tools_sprites() -> void:
 	assert_str(Commands.validate_output_path("res://tools/sprites/niko_video_library")).is_empty()
 	assert_str(Commands.validate_output_path("res://content_packs")).is_not_empty()
