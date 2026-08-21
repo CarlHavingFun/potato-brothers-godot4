@@ -38,6 +38,9 @@ func _exit_tree() -> void:
 
 
 func _process(delta: float) -> void:
+	if _job_tracker == null or _job_tracker.active_job_id.is_empty():
+		set_process(false)
+		return
 	_poll_elapsed += delta
 	if _poll_elapsed < POLL_INTERVAL_SECONDS:
 		return
@@ -66,6 +69,9 @@ func _import_all() -> void:
 
 
 func poll_import_job() -> Dictionary:
+	if _job_tracker == null or _job_tracker.active_job_id.is_empty():
+		set_process(false)
+		return {"state": "idle", "errors": PackedStringArray()}
 	var result := _job_tracker.poll_import_job()
 	if not _job_tracker.active_job_id.is_empty():
 		return result

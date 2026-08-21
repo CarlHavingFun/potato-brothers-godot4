@@ -169,6 +169,13 @@ func test_editor_import_retains_and_polls_the_job_until_godot_finalization() -> 
 	assert_str(tracker.active_job_id).is_empty()
 
 
+func test_idle_editor_import_tracker_returns_silently_without_an_error() -> void:
+	var tracker := ImportJobTracker.new()
+	var result := tracker.poll_import_job()
+	assert_array(result.get("errors", PackedStringArray())).is_empty()
+	assert_str(result.get("state", "")).is_equal("idle")
+
+
 func test_editor_import_uses_portable_source_and_pipeline_resolution() -> void:
 	var plugin_source := FileAccess.get_file_as_string(
 		"res://addons/character_sprite_authoring/plugin.gd"

@@ -21,7 +21,7 @@ func track_import_result(command_result: Dictionary) -> bool:
 
 func poll_import_job() -> Dictionary:
 	if active_job_id.is_empty():
-		return {"errors": PackedStringArray(["no active video sprite import job"])}
+		return {"state": "idle", "errors": PackedStringArray()}
 	if commands == null or not commands.has_method("poll_job"):
 		return {"errors": PackedStringArray(["video sprite command runner is unavailable"])}
 	var result: Dictionary = commands.call("poll_job", active_job_id) as Dictionary
