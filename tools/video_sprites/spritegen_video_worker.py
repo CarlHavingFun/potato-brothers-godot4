@@ -132,17 +132,21 @@ def check_cancellation(
     raise WorkerCancelled("cancel requested")
 
 
-def build_sprite_request(frame_count: int, fps: float, loop: bool) -> dict[str, Any]:
+def build_sprite_request(
+    frame_count: int, fps: float, loop: bool, profile: Mapping[str, Any] | None = None
+) -> dict[str, Any]:
     if frame_count <= 0:
         raise WorkerError("frame_count must be positive")
     if fps <= 0:
         raise WorkerError("fps must be positive")
     rounded_fps = int(round(fps))
-    # ffprobe timestamps are serialized to microseconds, so a declared 24 FPS
-    # stream can round-trip through one frame duration as 23.999808. Keep real
-    # fractional rates loud while accepting that bounded timestamp quantization.
-    if abs(fps - rounded_fps) > 0.01:
-        raise WorkerError(f"sprite-gen request requires an integral FPS, got {fps}")
+    # sprite-gen's authoring request uses an integral preview FPS; exact fractional
+    # source timing remains preserved per frame in the PixelMotion manifest.
+    settings = dict(profile or {})
+    logical_size = int(settings.get("logicalSize", 64))
+    align_x = str(settings.get("alignX", "alpha-centroid"))
+    align_y = str(settings.get("alignY", "bottom"))
+    ground_frames = bool(settings.get("groundFrames", True))
     return {
         "cell": {
             "width": CELL_SIZE[0],
@@ -160,16 +164,16 @@ def build_sprite_request(frame_count: int, fps: float, loop: bool) -> dict[str, 
         },
         "fit": {
             "pixel_unfake": True,
-            "logical_height": 64,
+            "logical_height": logical_size,
             "palette_size": 32,
             "resample": "kcentroid",
-            "align_x": "alpha-centroid",
-            "align_y": "bottom",
-            "ground_frames": True,
+            "align_x": align_x,
+            "align_y": align_y,
+            "ground_frames": ground_frames,
             "outline": False,
         },
         "style": (
-            "Preserve the locked Niko identity, costume, proportions, outline density, "
+            "Preserve the locked subject identity, proportions, outline density, "
             "and shared palette. This run derives frames from source video and does not "
             "invent or interpolate poses."
         ),
@@ -237,6 +241,8 @@ def install_extracted_frames(
     output_directory: Path,
     timing: Sequence[Mapping[str, Any]],
     palette: Sequence[tuple[int, int, int]],
+    *,
+    profile: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     extracted = Path(extracted_directory).resolve()
     output = Path(output_directory).resolve()
@@ -261,7 +267,7 @@ def install_extracted_frames(
     for index, frame_timing in enumerate(timing):
         source = extracted / f"frame-{index}.png"
         destination = output / f"frame_{index + 1:03d}.png"
-        alignment = _normalize_registered_frame(source, destination, allowed)
+        alignment = _normalize_registered_frame(source, destination, allowed, profile=profile)
         provenance = {
             "path": str(destination),
             "sha256": _sha256(destination),
@@ -270,6 +276,7 @@ def install_extracted_frames(
             "duration_ms": float(frame_timing["duration_ms"]),
             "processor": "sprite-gen/pixel-unfake",
             "alignment_shift_x": alignment["shift_x"],
+            "alignment_shift_y": alignment.get("shift_y", 0),
         }
         if alignment["cropped_margin_pixels"] > 0:
             provenance["cropped_margin_pixels"] = alignment["cropped_margin_pixels"]
@@ -283,6 +290,8 @@ def _normalize_registered_frame(
     source: Path,
     destination: Path,
     allowed_palette: set[tuple[int, int, int]],
+    *,
+    profile: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Translate a registered sprite-gen cell onto its declared horizontal axis.
 
@@ -300,7 +309,14 @@ def _normalize_registered_frame(
     except OSError as exc:
         raise WorkerError(f"could not open sprite-gen frame {source}: {exc}") from exc
     try:
-        _validate_pixel_image(rgba, source, allowed_palette, require_safe_margins=False)
+        settings = dict(profile or {})
+        ground_frames = bool(settings.get("groundFrames", True))
+        anchor_values = settings.get("anchor", ROOT_ANCHOR)
+        anchor = (int(anchor_values[0]), int(anchor_values[1]))
+        _validate_pixel_image(
+            rgba, source, allowed_palette, require_safe_margins=False,
+            ground_frames=ground_frames, anchor=anchor,
+        )
         alpha = rgba.getchannel("A")
         bbox = alpha.getbbox()
         assert bbox is not None
@@ -332,14 +348,21 @@ def _normalize_registered_frame(
                     alpha_total += value
                     weighted_x += value * (x + 0.5)
         centroid_x = weighted_x / alpha_total
-        desired_shift = round((ROOT_ANCHOR[0] - centroid_x) / PIXEL_SCALE) * PIXEL_SCALE
+        desired_shift = round((anchor[0] - centroid_x) / PIXEL_SCALE) * PIXEL_SCALE
         shift_x = min(max(desired_shift, lower_grid_shift), upper_grid_shift)
+        shift_y = 0
+        if not ground_frames:
+            centroid_y = (bbox[1] + bbox[3]) / 2.0
+            desired_y = round((anchor[1] - centroid_y) / PIXEL_SCALE) * PIXEL_SCALE
+            min_y = SAFE_MARGIN - bbox[1]
+            max_y = CELL_SIZE[1] - SAFE_MARGIN - bbox[3]
+            shift_y = min(max(desired_y, min_y), max_y) if min_y <= max_y else desired_y
 
         normalized = Image.new("RGBA", CELL_SIZE, (0, 0, 0, 0))
         try:
             visible = rgba.crop(bbox)
             try:
-                normalized.alpha_composite(visible, (bbox[0] + shift_x, bbox[1]))
+                normalized.alpha_composite(visible, (bbox[0] + shift_x, bbox[1] + shift_y))
             finally:
                 visible.close()
             before_crop = sum(
@@ -352,7 +375,7 @@ def _normalize_registered_frame(
                         SAFE_MARGIN,
                         SAFE_MARGIN,
                         CELL_SIZE[0] - SAFE_MARGIN,
-                        ROOT_ANCHOR[1],
+                        anchor[1] if ground_frames else CELL_SIZE[1] - SAFE_MARGIN,
                     )
                 )
                 try:
@@ -371,9 +394,12 @@ def _normalize_registered_frame(
             normalized.close()
     finally:
         rgba.close()
-    _validate_pixel_frame(destination, allowed_palette)
+    _validate_pixel_frame(
+        destination, allowed_palette, ground_frames=ground_frames, anchor=anchor
+    )
     return {
         "shift_x": int(shift_x),
+        "shift_y": int(shift_y),
         "cropped_margin_pixels": int(cropped_margin_pixels),
     }
 
@@ -381,6 +407,9 @@ def _normalize_registered_frame(
 def _validate_pixel_frame(
     path: Path,
     allowed_palette: set[tuple[int, int, int]],
+    *,
+    ground_frames: bool = True,
+    anchor: tuple[int, int] = ROOT_ANCHOR,
 ) -> None:
     try:
         with Image.open(path) as opened:
@@ -393,6 +422,8 @@ def _validate_pixel_frame(
             path,
             allowed_palette,
             require_safe_margins=True,
+            ground_frames=ground_frames,
+            anchor=anchor,
         )
     finally:
         rgba.close()
@@ -404,6 +435,8 @@ def _validate_pixel_image(
     allowed_palette: set[tuple[int, int, int]],
     *,
     require_safe_margins: bool,
+    ground_frames: bool = True,
+    anchor: tuple[int, int] = ROOT_ANCHOR,
 ) -> dict[str, int]:
     if rgba.size != CELL_SIZE:
         raise WorkerError(f"sprite-gen frame must be 256x256: {path} is {rgba.size}")
@@ -417,11 +450,11 @@ def _validate_pixel_image(
     bbox = rgba.getchannel("A").getbbox()
     if bbox is None:
         raise WorkerError(f"sprite-gen frame has no visible subject: {path}")
-    if bbox[3] != ROOT_ANCHOR[1]:
+    if ground_frames and bbox[3] != anchor[1]:
         raise WorkerError(
             f"sprite-gen frame violates 24px safety/root contract: {path}: {bbox}"
         )
-    intrusion = _safety_margin_intrusion(bbox)
+    intrusion = _safety_margin_intrusion(bbox, ground_frames=ground_frames, anchor=anchor)
     if require_safe_margins and intrusion:
         raise WorkerError(
             f"sprite-gen frame violates 24px safety/root contract: {path}: {bbox}"
@@ -429,11 +462,15 @@ def _validate_pixel_image(
     return intrusion
 
 
-def _safety_margin_intrusion(bbox: tuple[int, int, int, int]) -> dict[str, int]:
+def _safety_margin_intrusion(
+    bbox: tuple[int, int, int, int], *, ground_frames: bool = True,
+    anchor: tuple[int, int] = ROOT_ANCHOR,
+) -> dict[str, int]:
     values = {
         "left": max(0, SAFE_MARGIN - bbox[0]),
         "top": max(0, SAFE_MARGIN - bbox[1]),
         "right": max(0, bbox[2] - (CELL_SIZE[0] - SAFE_MARGIN)),
+        "bottom": max(0, bbox[3] - (anchor[1] if ground_frames else CELL_SIZE[1] - SAFE_MARGIN)),
     }
     return values if any(values.values()) else {}
 
@@ -441,6 +478,7 @@ def _safety_margin_intrusion(bbox: tuple[int, int, int, int]) -> dict[str, int]:
 def validate_installed_clip(
     path: Path,
     palette: Sequence[tuple[int, int, int]],
+    profile: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     clip = Path(path).resolve()
     manifest_path = clip / "manifest.json"
@@ -512,7 +550,13 @@ def validate_installed_clip(
             raise WorkerError(f"frame PNG not found inside clip: {frame_path}")
         if _sha256(frame_path) != str(frame.get("sha256", "")):
             raise WorkerError(f"frame PNG hash mismatch: {frame_path}")
-        _validate_pixel_frame(frame_path, allowed)
+        settings = dict(profile or {})
+        anchor_values = settings.get("anchor", ROOT_ANCHOR)
+        _validate_pixel_frame(
+            frame_path, allowed,
+            ground_frames=bool(settings.get("groundFrames", True)),
+            anchor=(int(anchor_values[0]), int(anchor_values[1])),
+        )
     result = {
         "clip_id": str(manifest.get("clip_id", "")),
         "frame_count": expected_count,
@@ -566,7 +610,14 @@ def _prepare_run(
     frame_count: int,
     fps: float,
     loop: bool,
+    profile: Mapping[str, Any] | None = None,
 ) -> None:
+    settings = dict(profile or {})
+    logical_size = int(settings.get("logicalSize", 64))
+    align_x = str(settings.get("alignX", "alpha-centroid"))
+    align_y = str(settings.get("alignY", "bottom"))
+    ground_frames = bool(settings.get("groundFrames", True))
+    subject_id = str(settings.get("subjectId", "niko-video-source"))
     base = Path(base_image).resolve()
     palette = Path(palette_lock).resolve()
     if not base.is_file():
@@ -575,7 +626,7 @@ def _prepare_run(
         raise WorkerError(f"locked Niko palette not found: {palette}")
     request_input = run_directory.parent / "source-request.json"
     request_input.write_text(
-        json.dumps(build_sprite_request(frame_count, fps, loop), ensure_ascii=False, indent=2)
+        json.dumps(build_sprite_request(frame_count, fps, loop, settings), ensure_ascii=False, indent=2)
         + "\n",
         encoding="utf-8",
     )
@@ -585,11 +636,11 @@ def _prepare_run(
         "--out-dir",
         str(run_directory),
         "--character-id",
-        "niko-video-source",
+        subject_id,
         "--base-image",
         str(base),
         "--description",
-        "Niko source-video frame library with locked current appearance",
+        "Source-video frame library with locked subject appearance",
         "--cell-size",
         "256",
         "--safe-margin",
@@ -599,13 +650,12 @@ def _prepare_run(
         "--fit-resample",
         "kcentroid",
         "--fit-align-x",
-        "alpha-centroid",
+        align_x,
         "--fit-align-y",
-        "bottom",
-        "--fit-ground-frames",
+        align_y,
         "--fit-pixel-unfake",
         "--fit-logical-height",
-        "64",
+        str(logical_size),
         "--fit-palette-size",
         "32",
         "--fit-outline",
@@ -613,6 +663,8 @@ def _prepare_run(
         "--request",
         str(request_input),
     ]
+    if ground_frames:
+        command.insert(command.index("--fit-pixel-unfake"), "--fit-ground-frames")
     _run_tool(command, "sprite-gen prepare")
     shutil.copy2(palette, run_directory / "palette.lock.json")
 
@@ -654,6 +706,7 @@ def process_subject_frames(
     palette_lock: Path,
     fps: float,
     loop: bool,
+    profile: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     if len(subjects) != len(timing) or not subjects:
         raise WorkerError("cutout subjects and timing must be matching and non-empty")
@@ -669,10 +722,11 @@ def process_subject_frames(
             len(subjects),
             fps,
             loop,
+            profile,
         )
         compose_chroma_strip(subjects, run_directory / "raw" / f"{STATE}.png")
         extracted = _extract_run(run_directory, sprite_gen_root)
-        return install_extracted_frames(extracted, output_directory, timing, palette)
+        return install_extracted_frames(extracted, output_directory, timing, palette, profile=profile)
 
 
 def load_worker_config(path: Path, palette_lock: Path, base_image: Path) -> dict[str, Any]:
@@ -684,6 +738,7 @@ def load_worker_config(path: Path, palette_lock: Path, base_image: Path) -> dict
     if not isinstance(config, dict) or not isinstance(config.get("sprite"), dict):
         raise WorkerError("PixelMotion config must contain a sprite object")
     palette = load_palette_lock(palette_lock)
+    profile = config.get("studioProfile") if isinstance(config.get("studioProfile"), dict) else {}
     config["sprite"] = dict(config["sprite"])
     config["sprite"]["subjectBox"] = [208, 208]
     config["sprite"]["palette"] = [
@@ -691,11 +746,11 @@ def load_worker_config(path: Path, palette_lock: Path, base_image: Path) -> dict
     ]
     config["sprite"]["pixelUnfake"] = {
         "engine": "sprite-gen/component-row",
-        "logicalHeight": 64,
+        "logicalHeight": int(profile.get("logicalSize", 64)),
         "paletteSize": 32,
-        "alignX": "alpha-centroid",
-        "alignY": "bottom",
-        "groundFrames": True,
+        "alignX": str(profile.get("alignX", "alpha-centroid")),
+        "alignY": str(profile.get("alignY", "bottom")),
+        "groundFrames": bool(profile.get("groundFrames", True)),
         "baseSha256": _sha256(Path(base_image).resolve()),
         "paletteLockSha256": _sha256(Path(palette_lock).resolve()),
     }
@@ -722,6 +777,7 @@ def configure_pixelmotion(
     base_image: Path,
     palette_lock: Path,
     cancellation_checker: Callable[[], None] = lambda: None,
+    profile: Mapping[str, Any] | None = None,
 ) -> None:
     original_build_manifest = library.build_manifest
     palette = load_palette_lock(palette_lock)
@@ -765,6 +821,7 @@ def configure_pixelmotion(
                     palette_lock=palette_lock,
                     fps=fps,
                     loop=True,
+                    profile=profile,
                 )
                 cancellation_checker()
                 return processed
@@ -786,11 +843,11 @@ def configure_pixelmotion(
             {
                 "pixel_unfake": True,
                 "pixel_unfake_engine": "sprite-gen/component-row",
-                "logical_height": 64,
+                "logical_height": int((profile or {}).get("logicalSize", 64)),
                 "palette_size": 32,
-                "align_x": "alpha-centroid",
-                "align_y": "bottom",
-                "ground_frames": True,
+                "align_x": str((profile or {}).get("alignX", "alpha-centroid")),
+                "align_y": str((profile or {}).get("alignY", "bottom")),
+                "ground_frames": bool((profile or {}).get("groundFrames", True)),
                 "resample": "kcentroid+NEAREST-integer",
                 "post_alignment": "4px-grid-alpha-centroid-translation+safe-margin-crop",
                 "sprite_gen_palette_lock_sha256": palette_hash,
@@ -812,7 +869,7 @@ def configure_pixelmotion(
 
     library.process_decoded_frames = process_decoded_frames
     library.build_manifest = build_manifest
-    library.validate_clip_directory = lambda path: validate_installed_clip(path, palette)
+    library.validate_clip_directory = lambda path: validate_installed_clip(path, palette, profile)
 
 
 def _add_roots(parser: argparse.ArgumentParser) -> None:
@@ -918,6 +975,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             base_image=args.base_image,
             palette_lock=args.palette_lock,
             cancellation_checker=cancellation_checker,
+            profile=config.get("studioProfile") if isinstance(config.get("studioProfile"), dict) else None,
         )
         if args.command == "import-directory":
             result = library.run_import_directory(

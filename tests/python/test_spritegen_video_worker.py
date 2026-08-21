@@ -69,6 +69,18 @@ class SpriteRequestTests(unittest.TestCase):
         request = worker.build_sprite_request(124, 23.999808001535985, True)
         self.assertEqual(24, request["states"]["source_all"]["fps"])
 
+    def test_object_profile_uses_center_alignment_and_accepts_fractional_source_fps(self) -> None:
+        worker = load_worker()
+        request = worker.build_sprite_request(17, 23.976, True, {
+            "subjectId": "fireball", "logicalSize": 128,
+            "alignX": "alpha-centroid", "alignY": "alpha-centroid",
+            "groundFrames": False, "anchor": [128, 128],
+        })
+        self.assertEqual(24, request["states"]["source_all"]["fps"])
+        self.assertEqual(128, request["fit"]["logical_height"])
+        self.assertEqual("alpha-centroid", request["fit"]["align_y"])
+        self.assertFalse(request["fit"]["ground_frames"])
+
 
 class StagingSecurityTests(unittest.TestCase):
     def test_worker_refuses_output_outside_the_resolved_allowed_staging_root(self) -> None:
