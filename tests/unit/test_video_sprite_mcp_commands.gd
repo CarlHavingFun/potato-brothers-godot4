@@ -58,6 +58,32 @@ class OwnedStatefulVideoService extends RefCounted:
 		return response.duplicate(true)
 
 
+class FakeCurationService extends RefCounted:
+	var calls: Array[Dictionary] = []
+
+	func _record(operation: String, params: Dictionary) -> Dictionary:
+		calls.append({"operation": operation, "params": params.duplicate(true)})
+		return {"errors": PackedStringArray(), "operation": operation}
+
+	func save_curation(params: Dictionary) -> Dictionary:
+		return _record("save", params)
+
+	func load_curation(params: Dictionary) -> Dictionary:
+		return _record("load", params)
+
+	func preview_promotion(params: Dictionary) -> Dictionary:
+		return _record("preview", params)
+
+	func promote_selection(params: Dictionary) -> Dictionary:
+		return _record("promote", params)
+
+	func cleanup_staging(params: Dictionary) -> Dictionary:
+		return _record("cleanup", params)
+
+	func set_preferred_take(params: Dictionary) -> Dictionary:
+		return _record("preferred", params)
+
+
 func before_test() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(PIPELINE_ROOT + "/tools"))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SPRITE_GEN_ROOT + "/scripts"))
@@ -82,10 +108,16 @@ func test_registers_video_import_and_character_authoring_commands() -> void:
 		"video_sprites.job_status",
 		"video_sprites.dependency_status",
 		"video_sprites.cancel_job",
+		"video_sprites.curation_save",
+		"video_sprites.curation_load",
+		"video_sprites.promotion_preview",
+		"video_sprites.promote_selection",
+		"video_sprites.cleanup_staging",
 		"video_sprites.validate_library",
 		"character_sprite.import_all",
 		"character_sprite.publish",
 		"character_sprite.status",
+		"character_sprite.set_preferred_take",
 	])
 	commands.free()
 
@@ -128,6 +160,48 @@ func test_mcp_docs_describe_external_video_staging_and_job_controls() -> void:
 	assert_str((fields["staging_directory"] as Dictionary).get("default", "not-empty")).is_empty()
 	assert_bool(fields.has("output_directory")).is_false()
 	assert_dict(docs).contains_keys(["video_sprites.dependency_status", "video_sprites.cancel_job"])
+	commands.free()
+
+
+func test_curation_mcp_commands_delegate_to_the_shared_service_and_return_the_service_result() -> void:
+	var commands := Commands.new()
+	var service := FakeCurationService.new()
+	commands.curation_service = service
+	var requests := {
+		"video_sprites.curation_save": {"manifest_path": "E:/stage/manifest.json", "selection": [2, 0], "fps": 12.0, "loop": false},
+		"video_sprites.curation_load": {"manifest_path": "E:/stage/manifest.json"},
+		"video_sprites.promotion_preview": {"character_id": "niko", "action": "dash", "take": "one"},
+		"video_sprites.promote_selection": {"manifest_path": "E:/stage/manifest.json", "selection": [2, 0], "fps": 12.0, "loop": false},
+		"video_sprites.cleanup_staging": {"staging_directory": "E:/stage"},
+		"character_sprite.set_preferred_take": {"character_id": "niko", "action": "dash", "take": "one"},
+	}
+	for command_name: String in requests:
+		var response: Dictionary = commands.get_commands()[command_name].call(requests[command_name])
+		assert_str(response.get("result", {}).get("operation", "")).is_not_empty()
+	assert_int(service.calls.size()).is_equal(6)
+	assert_array(service.calls.map(func(call: Dictionary) -> String: return str(call["operation"]))).contains_exactly([
+		"save", "load", "preview", "promote", "cleanup", "preferred",
+	])
+	commands.free()
+
+
+func test_curation_mcp_docs_use_typed_selection_fps_loop_and_registration_parameters() -> void:
+	var commands := Commands.new()
+	var docs := commands.get_command_docs()
+	for command_name: String in ["video_sprites.curation_save", "video_sprites.promote_selection"]:
+		var fields := {}
+		for value: Variant in (docs[command_name] as Dictionary)["params"] as Array:
+			var field := value as Dictionary
+			fields[str(field["name"])] = str(field["type"])
+		assert_str(fields["manifest_path"]).is_equal("String")
+		assert_str(fields["selection"]).is_equal("Array[int]")
+		assert_str(fields["fps"]).is_equal("float")
+		assert_str(fields["loop"]).is_equal("bool")
+	var preferred_fields := {}
+	for value: Variant in (docs["character_sprite.set_preferred_take"] as Dictionary)["params"] as Array:
+		var field := value as Dictionary
+		preferred_fields[str(field["name"])] = field
+	assert_dict(preferred_fields).contains_keys(["config_path", "character_id", "action", "take"])
 	commands.free()
 
 

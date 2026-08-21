@@ -204,6 +204,26 @@ func test_install_character_library_persists_one_editable_resource_and_preserves
 	assert_int(saved.get_frame_count(&"source__walk_down__happy")).is_equal(3)
 
 
+func test_install_character_library_prefers_optional_take_resource_path_and_keeps_legacy_fallback() -> void:
+	var config := _config()
+	var walk_takes := ((config["actions"] as Dictionary)["walk"] as Dictionary)["takes"] as Array
+	(walk_takes[0] as Dictionary)["resource_path"] = "res://tools/sprites/niko/walk/happy/selected_frames.tres"
+	var requested_paths := PackedStringArray()
+	var loader := func(path: String) -> SpriteFrames:
+		requested_paths.append(path)
+		return _source_frames(3, 24.0, 101)
+	var result := Importer.install_character_library(
+		config,
+		"res://tools/sprites/niko_video_library",
+		AUTHORING_PATH,
+		false,
+		loader
+	)
+	assert_array(result.get("errors", PackedStringArray())).is_empty()
+	assert_array(requested_paths).contains("res://tools/sprites/niko/walk/happy/selected_frames.tres")
+	assert_array(requested_paths).contains("res://tools/sprites/niko_video_library/walk_power/source_all_frames.tres")
+
+
 func test_all_walk_facings_resolve_to_the_single_front_walk_animation() -> void:
 	var visual := DirectionalSpriteVisual.new()
 	var frames := SpriteFrames.new()

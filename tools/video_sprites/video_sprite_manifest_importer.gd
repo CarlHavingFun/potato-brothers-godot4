@@ -74,8 +74,14 @@ static func validate_character_config(config: Dictionary) -> PackedStringArray:
 				errors.append("character config action %s has duplicate take name: %s" % [action, name])
 			else:
 				names.append(name)
+			for path_key: String in ["resource_path", "manifest_path"]:
+				var optional_path := str(take.get(path_key, ""))
+				if not optional_path.is_empty() and (
+					not optional_path.begins_with("res://") or optional_path.contains("..")
+				):
+					errors.append("character config action %s take %s must resolve inside res://" % [action, path_key])
 		var preferred := str(action_data.get("preferred_take", ""))
-		if not names.is_empty() and preferred not in names:
+		if not preferred.is_empty() and preferred not in names:
 			errors.append("character config action %s preferred_take does not resolve" % action)
 	return errors
 
@@ -100,6 +106,7 @@ static func parse_manifest_file(path: String) -> Dictionary:
 
 static func validate_manifest(manifest: Dictionary, manifest_path := "") -> PackedStringArray:
 	var errors := PackedStringArray()
+	var curated_selection := bool(manifest.get("curated_selection", false))
 	if manifest_path.is_empty():
 		manifest_path = str(manifest.get("_manifest_path", ""))
 	if str(manifest.get("kind", "")) != KIND:
@@ -151,7 +158,7 @@ static func validate_manifest(manifest: Dictionary, manifest_path := "") -> Pack
 	var fps := float(row.get("fps", 0.0))
 	if fps <= 0.0:
 		errors.append("source_all fps must be positive")
-	if not bool(row.get("loop", false)):
+	if not curated_selection and not bool(row.get("loop", false)):
 		errors.append("source_all loop must be true")
 	var durations_value: Variant = row.get("durations_ms", null)
 	if not durations_value is Array:
@@ -179,14 +186,20 @@ static func validate_manifest(manifest: Dictionary, manifest_path := "") -> Pack
 	var previous_timestamp := -1.0
 	var expected_timestamp := 0.0
 	for index in sources.size():
-		_validate_source_frame(index, sources[index], rects, manifest_path, errors)
+		_validate_source_frame(
+			index, sources[index], rects, manifest_path, errors, curated_selection
+		)
 		if not sources[index] is Dictionary:
 			continue
 		var source_frame := sources[index] as Dictionary
 		var timestamp := float(source_frame.get("timestamp_seconds", -1.0))
-		if index > 0 and timestamp <= previous_timestamp:
+		if not curated_selection and index > 0 and timestamp <= previous_timestamp:
 			errors.append("source frame timestamps must increase at %d" % index)
-		if timestamp >= 0.0 and absf(timestamp - expected_timestamp) > 0.002:
+		if (
+			not curated_selection
+			and timestamp >= 0.0
+			and absf(timestamp - expected_timestamp) > 0.002
+		):
 			errors.append("source frame %d timestamp does not match frame timing" % index)
 		if durations_value is Array and index < (durations_value as Array).size():
 			var layout_duration := float((durations_value as Array)[index])
@@ -407,7 +420,9 @@ static func build_character_sprite_frames(
 				)
 			var source_name := StringName("%s%s_down__%s" % [SOURCE_PREFIX, action, take_name])
 			_copy_animation(source, STATE, frames, source_name)
-			frames.set_animation_loop(source_name, bool(action_data.get("loop", false)))
+			frames.set_animation_loop(
+				source_name, bool(take.get("loop", source.get_animation_loop(STATE)))
+			)
 			source_take_count += 1
 			if take_name == preferred_take:
 				preferred_source_name = source_name
@@ -415,7 +430,7 @@ static func build_character_sprite_frames(
 		if not frames.has_animation(runtime_name) and not preferred_source_name.is_empty():
 			_copy_animation(frames, preferred_source_name, frames, runtime_name)
 			frames.set_animation_loop(runtime_name, bool(action_data.get("loop", false)))
-		elif not (takes_value as Array).is_empty() and preferred_source_name.is_empty():
+		elif not preferred_take.is_empty() and preferred_source_name.is_empty():
 			errors.append("action %s preferred_take does not resolve" % action)
 
 	frames.set_meta("character_id", character_id)
@@ -506,7 +521,9 @@ static func install_character_library(
 			var clip_id := str((take_value as Dictionary).get("clip_id", ""))
 			if clip_id.is_empty() or sources.has(clip_id):
 				continue
-			var source_path := clip_root.path_join(clip_id).path_join("source_all_frames.tres")
+			var source_path := str((take_value as Dictionary).get("resource_path", ""))
+			if source_path.is_empty():
+				source_path = clip_root.path_join(clip_id).path_join("source_all_frames.tres")
 			var source: SpriteFrames = (
 				source_loader.call(source_path) as SpriteFrames
 				if source_loader.is_valid()
@@ -1014,7 +1031,8 @@ static func _validate_source_frame(
 	value: Variant,
 	rects: Array,
 	manifest_path: String,
-	errors: PackedStringArray
+	errors: PackedStringArray,
+	curated_selection := false
 ) -> void:
 	if not value is Dictionary:
 		errors.append("source frame %d must be an object" % index)
@@ -1022,7 +1040,11 @@ static func _validate_source_frame(
 	var source := value as Dictionary
 	if int(source.get("index", -1)) != index:
 		errors.append("source frame indices must be contiguous from zero at %d" % index)
-	if int(source.get("source_frame", 0)) != index + 1:
+	if curated_selection and int(source.get("source_index", -1)) < 0:
+		errors.append("source frame %d source_index must be non-negative" % index)
+	if curated_selection and int(source.get("source_frame", 0)) <= 0:
+		errors.append("source frame %d source_frame must be positive" % index)
+	elif not curated_selection and int(source.get("source_frame", 0)) != index + 1:
 		errors.append("source frame %d source_frame must equal %d" % [index, index + 1])
 	if float(source.get("timestamp_seconds", -1.0)) < 0.0:
 		errors.append("source frame %d timestamp_seconds must be non-negative" % index)

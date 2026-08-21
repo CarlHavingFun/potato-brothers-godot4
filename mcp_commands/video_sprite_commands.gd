@@ -4,6 +4,7 @@ extends "res://addons/godot_mcp/commands/base_command.gd"
 
 const Importer = preload("res://tools/video_sprites/video_sprite_manifest_importer.gd")
 const VideoSpriteJobService = preload("res://tools/video_sprites/video_sprite_job_service.gd")
+const VideoSpriteCurationService = preload("res://tools/video_sprites/video_sprite_curation_service.gd")
 const DEFAULT_OUTPUT := "res://tools/sprites/niko_video_library"
 const JOB_ROOT := "user://video_sprite_jobs"
 const DEFAULT_CHARACTER_CONFIG := "res://tools/video_sprites/niko_character_sources.json"
@@ -13,6 +14,7 @@ const SOURCE_DIRECTORY_SETTING := "video_sprites/niko/source_directory"
 
 var _jobs: Dictionary = {}
 var video_service: Variant = VideoSpriteJobService.new()
+var curation_service: Variant = VideoSpriteCurationService.new()
 
 
 func get_commands() -> Dictionary:
@@ -23,10 +25,16 @@ func get_commands() -> Dictionary:
 		"video_sprites.job_status": _job_status,
 		"video_sprites.dependency_status": _dependency_status,
 		"video_sprites.cancel_job": _cancel_job,
+		"video_sprites.curation_save": _curation_save,
+		"video_sprites.curation_load": _curation_load,
+		"video_sprites.promotion_preview": _promotion_preview,
+		"video_sprites.promote_selection": _promote_selection,
+		"video_sprites.cleanup_staging": _cleanup_staging,
 		"video_sprites.validate_library": _validate_library,
 		"character_sprite.import_all": _character_import_all,
 		"character_sprite.publish": _character_publish,
 		"character_sprite.status": _character_status,
+		"character_sprite.set_preferred_take": _set_preferred_take,
 	}
 
 
@@ -116,6 +124,35 @@ func _cancel_job(params: Dictionary) -> Dictionary:
 	var result: Dictionary = video_service.cancel_job(str(required[0]))
 	var errors := result.get("errors", PackedStringArray()) as PackedStringArray
 	return error_not_found("video sprite job '%s'" % str(required[0]), "\n".join(errors)) if not errors.is_empty() else success(result)
+
+
+func _curation_save(params: Dictionary) -> Dictionary:
+	return _curation_response(curation_service.save_curation(params))
+
+
+func _curation_load(params: Dictionary) -> Dictionary:
+	return _curation_response(curation_service.load_curation(params))
+
+
+func _promotion_preview(params: Dictionary) -> Dictionary:
+	return _curation_response(curation_service.preview_promotion(params))
+
+
+func _promote_selection(params: Dictionary) -> Dictionary:
+	return _curation_response(curation_service.promote_selection(params))
+
+
+func _cleanup_staging(params: Dictionary) -> Dictionary:
+	return _curation_response(curation_service.cleanup_staging(params))
+
+
+func _set_preferred_take(params: Dictionary) -> Dictionary:
+	return _curation_response(curation_service.set_preferred_take(params))
+
+
+func _curation_response(result: Dictionary) -> Dictionary:
+	var errors := result.get("errors", PackedStringArray()) as PackedStringArray
+	return error_invalid_params("\n".join(errors)) if not errors.is_empty() else success(result)
 
 
 func _validate_library(params: Dictionary) -> Dictionary:
@@ -610,6 +647,28 @@ func get_command_docs() -> Dictionary:
 			"description": "Request cooperative cancellation for the exact non-terminal external video job; no process PID is terminated.",
 			"params": [doc_param("job_id", "String", true, "External video job ID to cancel.")],
 		},
+		"video_sprites.curation_save": {
+			"description": "Persist resumable ordered frame curation beside one external staged manifest.",
+			"params": _curation_selection_docs(true),
+		},
+		"video_sprites.curation_load": {
+			"description": "Load curation only when its source manifest and video hashes are current.",
+			"params": [doc_param("manifest_path", "String", true, "Absolute/user external staged manifest path.")],
+		},
+		"video_sprites.promotion_preview": {
+			"description": "Preview sanitized, unique, non-overwriting promoted take paths.",
+			"params": _promotion_registration_docs(),
+		},
+		"video_sprites.promote_selection": {
+			"description": "Promote only explicitly selected frames and atomically register a new take without publishing runtime resources.",
+			"params": _curation_selection_docs(false) + _promotion_registration_docs() + [
+				doc_param("resolved_take", "String", false, "Exact take returned by promotion_preview; refuses if no longer available."),
+			],
+		},
+		"video_sprites.cleanup_staging": {
+			"description": "Safely remove one inactive external staged take cache below the staging root.",
+			"params": [doc_param("staging_directory", "String", true, "Exact external staged take directory.")],
+		},
 		"video_sprites.validate_library": {
 			"description": "Read-only validation of installed manifests and Godot selection resources.",
 			"params": [doc_param("output_directory", "String", false, "Library below res://tools/sprites.")],
@@ -626,7 +685,36 @@ func get_command_docs() -> Dictionary:
 			"description": "Report required actions, imported takes, missing actions, and publish state.",
 			"params": _character_docs(false),
 		},
+		"character_sprite.set_preferred_take": {
+			"description": "Explicitly select a registered preferred take and rebuild authoring SpriteFrames without publishing runtime resources.",
+			"params": _promotion_registration_docs(),
+		},
 	}
+
+
+func _curation_selection_docs(include_intent: bool) -> Array:
+	var docs: Array = [
+		doc_param("manifest_path", "String", true, "Absolute/user external staged manifest path."),
+		doc_param("selection", "Array[int]", true, "Ordered zero-based source indices; duplicates are allowed."),
+		doc_param("fps", "float", true, "Positive curated playback FPS."),
+		doc_param("loop", "bool", true, "Curated playback loop flag."),
+	]
+	if include_intent:
+		docs.append_array([
+			doc_param("character_id", "String", false, "Configured character identifier."),
+			doc_param("action", "String", false, "Configured action intent."),
+			doc_param("take", "String", false, "Human-friendly take intent."),
+		])
+	return docs
+
+
+func _promotion_registration_docs() -> Array:
+	return [
+		doc_param("config_path", "String", false, "Character action/take configuration resource."),
+		doc_param("character_id", "String", false, "Configured character identifier."),
+		doc_param("action", "String", true, "Configured action identifier."),
+		doc_param("take", "String", true, "Human-friendly take identifier."),
+	]
 
 
 func _import_docs(source_name: String, source_description: String) -> Array:

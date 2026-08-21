@@ -122,7 +122,10 @@ func start_single_video_job(
 	# The worker owns subsequent receipt writes and records its PID itself. Never
 	# rewrite this queued receipt after launch: a fast worker may already have
 	# published running/complete state.
-	_jobs[job_id] = {"receipt_path": receipt_path, "cancel_request_path": cancel_request_path, "job_token": job_token, "pid": pid}
+	_jobs[job_id] = {
+		"receipt_path": receipt_path, "cancel_request_path": cancel_request_path,
+		"job_token": job_token, "pid": pid, "staging_directory": staging,
+	}
 	return {
 		"errors": PackedStringArray(),
 		"job_id": job_id,
@@ -141,6 +144,32 @@ func track_job(job_id: String, receipt_path: String, pid: int = 0) -> void:
 
 func owns_job(job_id: String) -> bool:
 	return _jobs.has(job_id)
+
+
+func is_staging_directory_active(path: String) -> bool:
+	var candidate := path.simplify_path()
+	for job_id_value: Variant in _jobs:
+		var tracked := _jobs[job_id_value] as Dictionary
+		var receipt := _read_receipt(str(tracked.get("receipt_path", "")))
+		var staging := str(tracked.get("staging_directory", ""))
+		if staging.is_empty():
+			staging = str(receipt.get("staging_directory", receipt.get("output_directory", "")))
+		if staging.is_empty() or not _paths_overlap(candidate, staging.simplify_path()):
+			continue
+		if receipt.is_empty():
+			return int(tracked.get("pid", 0)) > 0
+		var state := str(receipt.get("state", ""))
+		if state not in ["worker_complete", "complete", "complete_with_errors", "failed", "cancelled"]:
+			return true
+	return false
+
+
+static func _paths_overlap(first: String, second: String) -> bool:
+	return (
+		first == second
+		or first.begins_with(second.trim_suffix("/") + "/")
+		or second.begins_with(first.trim_suffix("/") + "/")
+	)
 
 
 func poll_job(
