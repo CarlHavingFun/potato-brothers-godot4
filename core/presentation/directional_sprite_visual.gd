@@ -74,6 +74,8 @@ func set_action_active(action: StringName, active: bool) -> bool:
 func trigger_action(action: StringName) -> bool:
 	if action not in ACTION_PRIORITY or action == &"idle":
 		return false
+	if not has_action_animation(action):
+		return false
 	_active_actions[action] = true
 	_refresh_animation(true)
 	return true
@@ -111,6 +113,15 @@ func animation_name_for(action: StringName, direction: StringName = last_facing)
 	if sprite_frames.has_animation(idle_facing):
 		return idle_facing
 	return &"idle_down" if sprite_frames.has_animation(&"idle_down") else &""
+
+
+func has_action_animation(action: StringName, direction: StringName = last_facing) -> bool:
+	if sprite_frames == null:
+		return false
+	return (
+		sprite_frames.has_animation(StringName("%s_%s" % [action, direction]))
+		or sprite_frames.has_animation(StringName("%s_down" % action))
+	)
 
 
 func animation_duration(action: StringName, direction: StringName = last_facing) -> float:

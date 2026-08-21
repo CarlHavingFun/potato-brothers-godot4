@@ -30,7 +30,7 @@ func test_arena_music_waits_until_after_the_initial_frame() -> void:
 
 
 func test_tutorial_character_and_weapon_baseline_is_preserved() -> void:
-	assert_int(_count_matching("res://scenes/unit/players", "player_", ".tscn", false)).is_equal(5)
+	assert_int(_count_matching("res://scenes/unit/players", "player_", ".tscn", false)).is_equal(6)
 	assert_int(_count_matching("res://resources/items/weapons", "item_", "_1.tres", true)).is_equal(11)
 	assert_int(_count_matching("res://resources/items/weapons", "item_", ".tres", true)).is_equal(44)
 

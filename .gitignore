@@ -8,6 +8,8 @@
 /.worktrees/
 *.tmp
 *.bak
+__pycache__/
+*.pyc
 
 # Local development tools are installed separately.
 /bin/godot-mcp.exe
