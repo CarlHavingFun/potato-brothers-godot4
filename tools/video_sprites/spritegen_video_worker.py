@@ -599,6 +599,9 @@ def configure_pixelmotion(
                 subject.close()
 
     def build_manifest(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        processed_frames = kwargs.get("processed_frames")
+        if processed_frames is None and len(args) >= 3:
+            processed_frames = args[2]
         manifest = original_build_manifest(*args, **kwargs)
         manifest["pipeline_version"] = 2
         manifest["engine"] = "pixelmotion2d-cutout+sprite-gen-pixel-unfake"
@@ -613,11 +616,19 @@ def configure_pixelmotion(
                 "align_y": "bottom",
                 "ground_frames": True,
                 "resample": "kcentroid+NEAREST-integer",
+                "post_alignment": "4px-grid-alpha-centroid-translation",
                 "sprite_gen_palette_lock_sha256": palette_hash,
                 "sprite_gen_prepare_sha256": prepare_hash,
                 "sprite_gen_extract_sha256": extract_hash,
             }
         )
+        manifest_frames = manifest.get("source_frames")
+        if isinstance(processed_frames, Sequence) and isinstance(manifest_frames, list):
+            for source_frame, processed in zip(manifest_frames, processed_frames):
+                if isinstance(source_frame, dict) and isinstance(processed, Mapping):
+                    source_frame["alignment_shift_x"] = int(
+                        processed.get("alignment_shift_x", 0)
+                    )
         return manifest
 
     library.process_decoded_frames = process_decoded_frames

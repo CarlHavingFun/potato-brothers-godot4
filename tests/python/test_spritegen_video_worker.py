@@ -169,6 +169,65 @@ class PaletteTests(unittest.TestCase):
             self.assertEqual(32, len(worker.load_palette_lock(path)))
 
 
+class ManifestAugmentationTests(unittest.TestCase):
+    def test_manifest_records_the_deterministic_post_alignment_for_each_source_frame(self) -> None:
+        worker = load_worker()
+
+        class FakeLibrary:
+            @staticmethod
+            def build_manifest(*_args, **_kwargs):
+                return {
+                    "pipeline_version": 1,
+                    "engine": "pixelmotion2d-video-library",
+                    "processing": {},
+                    "source_frames": [{"index": 0}, {"index": 1}],
+                }
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            scripts = root / "scripts"
+            scripts.mkdir()
+            (scripts / "prepare_sprite_run.py").write_text("# prepare\n", encoding="utf-8")
+            (scripts / "extract_sprite_row_frames.py").write_text("# extract\n", encoding="utf-8")
+            palette_path = root / "palette.lock.json"
+            palette_path.write_text(
+                json.dumps(
+                    {
+                        "kind": "sprite-gen-palette-lock",
+                        "colors": [[index, index, index] for index in range(32)],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            library = FakeLibrary()
+            worker.configure_pixelmotion(
+                library,
+                object(),
+                sprite_gen_root=root,
+                base_image=root / "base.png",
+                palette_lock=palette_path,
+            )
+
+            manifest = library.build_manifest(
+                "clip",
+                {},
+                [
+                    {"alignment_shift_x": -32},
+                    {"alignment_shift_x": 0},
+                ],
+                [],
+                (0, 0),
+                {},
+            )
+
+            self.assertEqual(-32, manifest["source_frames"][0]["alignment_shift_x"])
+            self.assertEqual(0, manifest["source_frames"][1]["alignment_shift_x"])
+            self.assertEqual(
+                "4px-grid-alpha-centroid-translation",
+                manifest["processing"]["post_alignment"],
+            )
+
+
 class InstalledClipTests(unittest.TestCase):
     def test_validation_uses_sprite_gen_ground_boundary_and_explicit_layout(self) -> None:
         worker = load_worker()
