@@ -100,6 +100,38 @@ class ExtractedFrameTests(unittest.TestCase):
                 self.assertEqual(184 * 128, sum(1 for pixel in pixels if pixel[3]))
                 self.assertEqual({(*palette[0], 255), (0, 0, 0, 0)}, set(pixels))
             self.assertEqual(-32, installed[0]["alignment_shift_x"])
+            self.assertNotIn("safety_margin_intrusion", installed[0])
+
+    def test_install_keeps_a_wide_source_prop_and_records_its_unavoidable_margin_intrusion(self) -> None:
+        worker = load_worker()
+        palette = [(42, 15, 13)]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            extracted = root / "extracted"
+            extracted.mkdir()
+            source = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+            # 212px is one 4px logical pixel wider than the 208px safe area.
+            # The source prop must remain intact and the exception must be visible
+            # in provenance instead of silently resampling or clipping it.
+            source.paste((*palette[0], 255), (44, 92, 256, 232))
+            source.save(extracted / "frame-0.png")
+
+            installed = worker.install_extracted_frames(
+                extracted,
+                root / "frames",
+                [{"source_frame": 8, "timestamp_seconds": 7 / 24.0, "duration_ms": 41.666667}],
+                palette,
+            )
+
+            destination = root / "frames" / "frame_001.png"
+            with Image.open(destination) as opened:
+                self.assertEqual((20, 92, 232, 232), opened.getchannel("A").getbbox())
+                self.assertEqual(212 * 140, sum(1 for px in opened.get_flattened_data() if px[3]))
+            self.assertEqual(-24, installed[0]["alignment_shift_x"])
+            self.assertEqual(
+                {"left": 4, "top": 0, "right": 0},
+                installed[0]["safety_margin_intrusion"],
+            )
 
     def test_install_keeps_one_to_one_source_mapping_including_frame_018(self) -> None:
         worker = load_worker()
@@ -212,7 +244,10 @@ class ManifestAugmentationTests(unittest.TestCase):
                 "clip",
                 {},
                 [
-                    {"alignment_shift_x": -32},
+                    {
+                        "alignment_shift_x": -32,
+                        "safety_margin_intrusion": {"left": 4, "top": 0, "right": 0},
+                    },
                     {"alignment_shift_x": 0},
                 ],
                 [],
@@ -221,6 +256,11 @@ class ManifestAugmentationTests(unittest.TestCase):
             )
 
             self.assertEqual(-32, manifest["source_frames"][0]["alignment_shift_x"])
+            self.assertEqual(
+                {"left": 4, "top": 0, "right": 0},
+                manifest["source_frames"][0]["safety_margin_intrusion"],
+            )
+            self.assertNotIn("safety_margin_intrusion", manifest["source_frames"][1])
             self.assertEqual(0, manifest["source_frames"][1]["alignment_shift_x"])
             self.assertEqual(
                 "4px-grid-alpha-centroid-translation",

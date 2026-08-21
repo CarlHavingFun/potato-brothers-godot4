@@ -162,17 +162,20 @@ def install_extracted_frames(
     for index, frame_timing in enumerate(timing):
         source = extracted / f"frame-{index}.png"
         destination = output / f"frame_{index + 1:03d}.png"
-        alignment_shift_x = _normalize_registered_frame(source, destination, allowed)
+        alignment = _normalize_registered_frame(source, destination, allowed)
+        provenance = {
+            "path": str(destination),
+            "sha256": _sha256(destination),
+            "source_frame": int(frame_timing["source_frame"]),
+            "timestamp_seconds": float(frame_timing["timestamp_seconds"]),
+            "duration_ms": float(frame_timing["duration_ms"]),
+            "processor": "sprite-gen/pixel-unfake",
+            "alignment_shift_x": alignment["shift_x"],
+        }
+        if alignment["safety_margin_intrusion"]:
+            provenance["safety_margin_intrusion"] = alignment["safety_margin_intrusion"]
         results.append(
-            {
-                "path": str(destination),
-                "sha256": _sha256(destination),
-                "source_frame": int(frame_timing["source_frame"]),
-                "timestamp_seconds": float(frame_timing["timestamp_seconds"]),
-                "duration_ms": float(frame_timing["duration_ms"]),
-                "processor": "sprite-gen/pixel-unfake",
-                "alignment_shift_x": alignment_shift_x,
-            }
+            provenance
         )
     return results
 
@@ -181,7 +184,7 @@ def _normalize_registered_frame(
     source: Path,
     destination: Path,
     allowed_palette: set[tuple[int, int, int]],
-) -> int:
+) -> dict[str, Any]:
     """Translate a registered sprite-gen cell onto its declared horizontal axis.
 
     sprite-gen registers a whole row before per-frame alpha-centroid placement.  If
@@ -197,17 +200,26 @@ def _normalize_registered_frame(
     except OSError as exc:
         raise WorkerError(f"could not open sprite-gen frame {source}: {exc}") from exc
     try:
-        _validate_pixel_image(rgba, source, allowed_palette, require_horizontal_safety=False)
+        _validate_pixel_image(rgba, source, allowed_palette, require_safe_margins=False)
         alpha = rgba.getchannel("A")
         bbox = alpha.getbbox()
         assert bbox is not None
-        min_shift = SAFE_MARGIN - bbox[0]
-        max_shift = CELL_SIZE[0] - SAFE_MARGIN - bbox[2]
+        visible_width = bbox[2] - bbox[0]
+        safe_width = CELL_SIZE[0] - SAFE_MARGIN * 2
+        if visible_width <= safe_width:
+            min_shift = SAFE_MARGIN - bbox[0]
+            max_shift = CELL_SIZE[0] - SAFE_MARGIN - bbox[2]
+        else:
+            # sprite-gen defines native logical content entering the margin zone
+            # as informational. Preserve a wide source prop intact and center it
+            # within the physical cell; provenance makes the exception explicit.
+            min_shift = -bbox[0]
+            max_shift = CELL_SIZE[0] - bbox[2]
         lower_grid_shift = math.ceil(min_shift / PIXEL_SCALE) * PIXEL_SCALE
         upper_grid_shift = math.floor(max_shift / PIXEL_SCALE) * PIXEL_SCALE
         if lower_grid_shift > upper_grid_shift:
             raise WorkerError(
-                "sprite-gen visible content is wider than the 24px horizontal safety area: "
+                "sprite-gen visible content cannot fit inside the 256px physical cell: "
                 f"{source}: {bbox}"
             )
 
@@ -237,18 +249,30 @@ def _normalize_registered_frame(
             normalized.close()
     finally:
         rgba.close()
-    _validate_pixel_frame(destination, allowed_palette)
-    return int(shift_x)
+    intrusion = _validate_pixel_frame(
+        destination, allowed_palette, allow_margin_intrusion=True
+    )
+    return {"shift_x": int(shift_x), "safety_margin_intrusion": intrusion}
 
 
-def _validate_pixel_frame(path: Path, allowed_palette: set[tuple[int, int, int]]) -> None:
+def _validate_pixel_frame(
+    path: Path,
+    allowed_palette: set[tuple[int, int, int]],
+    *,
+    allow_margin_intrusion: bool = False,
+) -> dict[str, int]:
     try:
         with Image.open(path) as opened:
             rgba = opened.convert("RGBA")
     except OSError as exc:
         raise WorkerError(f"could not open sprite-gen frame {path}: {exc}") from exc
     try:
-        _validate_pixel_image(rgba, path, allowed_palette, require_horizontal_safety=True)
+        return _validate_pixel_image(
+            rgba,
+            path,
+            allowed_palette,
+            require_safe_margins=not allow_margin_intrusion,
+        )
     finally:
         rgba.close()
 
@@ -258,8 +282,8 @@ def _validate_pixel_image(
     path: Path,
     allowed_palette: set[tuple[int, int, int]],
     *,
-    require_horizontal_safety: bool,
-) -> None:
+    require_safe_margins: bool,
+) -> dict[str, int]:
     if rgba.size != CELL_SIZE:
         raise WorkerError(f"sprite-gen frame must be 256x256: {path} is {rgba.size}")
     alpha_values = set(rgba.getchannel("A").get_flattened_data())
@@ -272,17 +296,25 @@ def _validate_pixel_image(
     bbox = rgba.getchannel("A").getbbox()
     if bbox is None:
         raise WorkerError(f"sprite-gen frame has no visible subject: {path}")
-    if (
-        bbox[1] < SAFE_MARGIN
-        or bbox[3] != ROOT_ANCHOR[1]
-        or (
-            require_horizontal_safety
-            and (bbox[0] < SAFE_MARGIN or bbox[2] > CELL_SIZE[0] - SAFE_MARGIN)
-        )
-    ):
+    if bbox[3] != ROOT_ANCHOR[1]:
         raise WorkerError(
             f"sprite-gen frame violates 24px safety/root contract: {path}: {bbox}"
         )
+    intrusion = _safety_margin_intrusion(bbox)
+    if require_safe_margins and intrusion:
+        raise WorkerError(
+            f"sprite-gen frame violates 24px safety/root contract: {path}: {bbox}"
+        )
+    return intrusion
+
+
+def _safety_margin_intrusion(bbox: tuple[int, int, int, int]) -> dict[str, int]:
+    values = {
+        "left": max(0, SAFE_MARGIN - bbox[0]),
+        "top": max(0, SAFE_MARGIN - bbox[1]),
+        "right": max(0, bbox[2] - (CELL_SIZE[0] - SAFE_MARGIN)),
+    }
+    return values if any(values.values()) else {}
 
 
 def validate_installed_clip(
@@ -345,7 +377,20 @@ def validate_installed_clip(
             raise WorkerError(f"frame PNG not found inside clip: {frame_path}")
         if _sha256(frame_path) != str(frame.get("sha256", "")):
             raise WorkerError(f"frame PNG hash mismatch: {frame_path}")
-        _validate_pixel_frame(frame_path, allowed)
+        declared_intrusion = frame.get("safety_margin_intrusion")
+        if declared_intrusion is not None and not isinstance(declared_intrusion, dict):
+            raise WorkerError(
+                f"frame {expected_index} safety_margin_intrusion must be an object"
+            )
+        actual_intrusion = _validate_pixel_frame(
+            frame_path,
+            allowed,
+            allow_margin_intrusion=declared_intrusion is not None,
+        )
+        if actual_intrusion != (declared_intrusion or {}):
+            raise WorkerError(
+                f"frame {expected_index} safety margin provenance does not match pixels"
+            )
     return {
         "clip_id": str(manifest.get("clip_id", "")),
         "frame_count": expected_count,
@@ -629,6 +674,11 @@ def configure_pixelmotion(
                     source_frame["alignment_shift_x"] = int(
                         processed.get("alignment_shift_x", 0)
                     )
+                    intrusion = processed.get("safety_margin_intrusion")
+                    if isinstance(intrusion, Mapping) and intrusion:
+                        source_frame["safety_margin_intrusion"] = {
+                            str(key): int(value) for key, value in intrusion.items()
+                        }
         return manifest
 
     library.process_decoded_frames = process_decoded_frames
