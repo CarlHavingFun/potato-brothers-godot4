@@ -5,6 +5,7 @@ extends "res://addons/godot_mcp/commands/base_command.gd"
 const Importer = preload("res://tools/video_sprites/video_sprite_manifest_importer.gd")
 const DEFAULT_OUTPUT := "res://tools/sprites/niko_video_library"
 const JOB_ROOT := "user://video_sprite_jobs"
+const DEFAULT_CHARACTER_CONFIG := "res://tools/video_sprites/niko_character_sources.json"
 
 var _jobs: Dictionary = {}
 
@@ -16,6 +17,9 @@ func get_commands() -> Dictionary:
 		"video_sprites.import_video": _import_video,
 		"video_sprites.job_status": _job_status,
 		"video_sprites.validate_library": _validate_library,
+		"character_sprite.import_all": _character_import_all,
+		"character_sprite.publish": _character_publish,
+		"character_sprite.status": _character_status,
 	}
 
 
@@ -86,6 +90,99 @@ func _validate_library(params: Dictionary) -> Dictionary:
 	if not path_error.is_empty():
 		return error_invalid_params(path_error)
 	return success(validate_library_resources(output_path))
+
+
+func _character_import_all(params: Dictionary) -> Dictionary:
+	var context := _character_context(params)
+	var context_errors := context.get("errors", PackedStringArray()) as PackedStringArray
+	if not context_errors.is_empty():
+		return error_invalid_params("\n".join(context_errors))
+	var config := context["config"] as Dictionary
+	var enriched := params.duplicate(true)
+	enriched.erase("config_path")
+	if params.has("worker_config_path"):
+		enriched["config_path"] = params["worker_config_path"]
+	enriched["source_directory"] = str(
+		enriched.get("source_directory", config.get("source_directory", ""))
+	)
+	enriched["output_directory"] = str(config.get("clip_root", DEFAULT_OUTPUT))
+	enriched["character_config_path"] = str(context["config_path"])
+	return _start_import_response("import-directory", enriched)
+
+
+func _character_publish(params: Dictionary) -> Dictionary:
+	var context := _character_context(params)
+	var context_errors := context.get("errors", PackedStringArray()) as PackedStringArray
+	if not context_errors.is_empty():
+		return error_invalid_params("\n".join(context_errors))
+	var config := context["config"] as Dictionary
+	var authoring_path := str(config.get("authoring_path", ""))
+	var authoring := ResourceLoader.load(
+		authoring_path, "SpriteFrames", ResourceLoader.CACHE_MODE_REPLACE
+	) as SpriteFrames
+	if authoring == null:
+		return error_not_found("character authoring SpriteFrames", authoring_path)
+	var result := Importer.publish_character_runtime(
+		authoring,
+		str(config.get("character_id", "")),
+		str(config.get("runtime_root", "")),
+		Callable(self, "_load_published_texture")
+	)
+	var errors := result.get("errors", PackedStringArray()) as PackedStringArray
+	if not errors.is_empty():
+		return error_internal("\n".join(errors))
+	return success(result)
+
+
+func _character_status(params: Dictionary) -> Dictionary:
+	var context := _character_context(params)
+	var context_errors := context.get("errors", PackedStringArray()) as PackedStringArray
+	if not context_errors.is_empty():
+		return error_invalid_params("\n".join(context_errors))
+	var config := context["config"] as Dictionary
+	var authoring_path := str(config.get("authoring_path", ""))
+	var frames := ResourceLoader.load(
+		authoring_path, "SpriteFrames", ResourceLoader.CACHE_MODE_REPLACE
+	) as SpriteFrames
+	var status := Importer.character_status(config, frames)
+	status["authoring_path"] = authoring_path
+	status["authoring_exists"] = frames != null
+	var runtime_root := str(config.get("runtime_root", ""))
+	var runtime_path := runtime_root.path_join(
+		"%s_runtime_frames.tres" % str(config.get("character_id", ""))
+	)
+	status["runtime_path"] = runtime_path
+	status["runtime_exists"] = FileAccess.file_exists(runtime_path)
+	return success(status)
+
+
+func _character_context(params: Dictionary) -> Dictionary:
+	var config_path := str(params.get("config_path", DEFAULT_CHARACTER_CONFIG))
+	var parsed := Importer.parse_character_config_file(config_path)
+	var errors := parsed.get("errors", PackedStringArray()) as PackedStringArray
+	if not errors.is_empty():
+		return {"errors": errors}
+	var config := parsed["config"] as Dictionary
+	var requested_id := str(params.get("character_id", config.get("character_id", "")))
+	if requested_id != str(config.get("character_id", "")):
+		return {"errors": PackedStringArray([
+			"character_id does not match config: %s" % requested_id
+		])}
+	return {"config": config, "config_path": config_path, "errors": PackedStringArray()}
+
+
+func _load_published_texture(path: String) -> Texture2D:
+	var filesystem := EditorInterface.get_resource_filesystem()
+	if filesystem != null:
+		filesystem.update_file(path)
+		filesystem.reimport_files(PackedStringArray([path]))
+	var texture := ResourceLoader.load(
+		path, "Texture2D", ResourceLoader.CACHE_MODE_REPLACE
+	) as Texture2D
+	if texture != null:
+		return texture
+	var image := Image.load_from_file(ProjectSettings.globalize_path(path))
+	return ImageTexture.create_from_image(image) if not image.is_empty() else null
 
 
 static func resolve_pipeline_root(params: Dictionary) -> String:
@@ -167,6 +264,8 @@ func start_import_job(
 		"output_directory": output_absolute,
 		"replace_selection": optional_bool(params, "replace_selection", false),
 	}
+	if not str(params.get("character_config_path", "")).is_empty():
+		queued["character_config_path"] = str(params["character_config_path"])
 	if not _write_receipt(receipt_absolute, queued):
 		_append_result_error(result, "could not create job receipt: %s" % receipt_path)
 		return result
@@ -317,6 +416,21 @@ func _finalize_receipt(receipt: Dictionary, receipt_path: String) -> Dictionary:
 				clip["godot_status"] = "failed"
 				for message in install_errors:
 					finalization_errors.append("%s: %s" % [clip_id, message])
+	var character_config_path := str(receipt.get("character_config_path", ""))
+	if not character_config_path.is_empty() and int(receipt.get("completed_clips", 0)) > 0:
+		var parsed_config := Importer.parse_character_config_file(character_config_path)
+		var character_errors := parsed_config.get("errors", PackedStringArray()) as PackedStringArray
+		if character_errors.is_empty():
+			var character_config := parsed_config["config"] as Dictionary
+			var character_result := Importer.install_character_library(
+				character_config,
+				str(character_config.get("clip_root", output_path)),
+				str(character_config.get("authoring_path", ""))
+			)
+			character_errors = character_result.get("errors", PackedStringArray()) as PackedStringArray
+			receipt["character_authoring"] = character_result
+		for message in character_errors:
+			finalization_errors.append("character: %s" % message)
 	receipt["godot_finalized"] = true
 	receipt["finalization_errors"] = finalization_errors
 	if finalization_errors.is_empty() and int(receipt.get("failed_clips", 0)) == 0:
@@ -384,6 +498,18 @@ func get_command_docs() -> Dictionary:
 			"description": "Read-only validation of installed manifests and Godot selection resources.",
 			"params": [doc_param("output_directory", "String", false, "Library below res://tools/sprites.")],
 		},
+		"character_sprite.import_all": {
+			"description": "Import every configured source video and refresh one character authoring library.",
+			"params": _character_docs(true),
+		},
+		"character_sprite.publish": {
+			"description": "Publish edited runtime tracks into compact atlases and SpriteFrames.",
+			"params": _character_docs(false),
+		},
+		"character_sprite.status": {
+			"description": "Report required actions, imported takes, missing actions, and publish state.",
+			"params": _character_docs(false),
+		},
 	}
 
 
@@ -397,3 +523,18 @@ func _import_docs(source_name: String, source_description: String) -> Array:
 		doc_param("force_generated", "bool", false, "Rebuild generated PNG/atlas/manifest files."),
 		doc_param("replace_selection", "bool", false, "Explicitly replace selection.tres during finalization."),
 	]
+
+
+func _character_docs(include_worker: bool) -> Array:
+	var docs: Array = [
+		doc_param("character_id", "String", false, "Configured character ID; defaults to niko."),
+		doc_param("config_path", "String", false, "Character action/take configuration resource."),
+	]
+	if include_worker:
+		docs.append_array([
+			doc_param("source_directory", "String", false, "Optional source video directory override."),
+			doc_param("pipeline_root", "String", false, "PixelMotion 2D root."),
+			doc_param("python_executable", "String", false, "Python executable override."),
+			doc_param("force_generated", "bool", false, "Rebuild generated full-frame artifacts."),
+		])
+	return docs

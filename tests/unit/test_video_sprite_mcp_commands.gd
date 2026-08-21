@@ -22,7 +22,7 @@ func after_test() -> void:
 	launched_arguments = PackedStringArray()
 
 
-func test_registers_exactly_the_five_video_sprite_commands() -> void:
+func test_registers_video_import_and_character_authoring_commands() -> void:
 	var commands := Commands.new()
 	assert_array(commands.get_commands().keys()).contains_exactly_in_any_order([
 		"video_sprites.scan_directory",
@@ -30,6 +30,9 @@ func test_registers_exactly_the_five_video_sprite_commands() -> void:
 		"video_sprites.import_video",
 		"video_sprites.job_status",
 		"video_sprites.validate_library",
+		"character_sprite.import_all",
+		"character_sprite.publish",
+		"character_sprite.status",
 	])
 	commands.free()
 
@@ -49,6 +52,9 @@ func test_readme_explains_all_commands_and_non_destructive_selection_workflow() 
 		"video_sprites.import_video",
 		"video_sprites.job_status",
 		"video_sprites.validate_library",
+		"character_sprite.import_all",
+		"character_sprite.publish",
+		"character_sprite.status",
 	]:
 		assert_str(readme).contains(command)
 	assert_str(readme).contains("source_all_frames.tres")

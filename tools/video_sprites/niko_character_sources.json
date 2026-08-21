@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "character_id": "niko",
+  "display_name": "Niko",
+  "source_directory": "E:/01_gobro/MINIMAX_OK/niko",
+  "clip_root": "res://tools/sprites/niko_video_library",
+  "authoring_path": "res://tools/sprites/niko_character_library/authoring/niko_all_actions.tres",
+  "runtime_root": "res://tools/sprites/niko_character_library/runtime",
+  "required_actions": [
+    "spawn",
+    "idle",
+    "walk",
+    "dash",
+    "hit",
+    "death",
+    "victory"
+  ],
+  "actions": {
+    "spawn": {
+      "loop": false,
+      "preferred_take": "born",
+      "takes": [
+        {"name": "born", "clip_id": "born_niko_born_00006"}
+      ]
+    },
+    "idle": {
+      "loop": true,
+      "preferred_take": "calm",
+      "takes": [
+        {"name": "calm", "clip_id": "idle_minimax_h3_00018"}
+      ]
+    },
+    "walk": {
+      "loop": true,
+      "preferred_take": "happy",
+      "takes": [
+        {"name": "happy", "clip_id": "walk_happy"},
+        {"name": "power", "clip_id": "walk_power"},
+        {"name": "strong", "clip_id": "walk_strong"}
+      ]
+    },
+    "dash": {
+      "loop": false,
+      "preferred_take": "",
+      "takes": []
+    },
+    "hit": {
+      "loop": false,
+      "preferred_take": "hit",
+      "takes": [
+        {"name": "hit", "clip_id": "hit_niko_born_00015"}
+      ]
+    },
+    "death": {
+      "loop": false,
+      "preferred_take": "niko_die",
+      "takes": [
+        {"name": "die", "clip_id": "die_die"},
+        {"name": "niko_die", "clip_id": "die_niko_die"}
+      ]
+    },
+    "victory": {
+      "loop": false,
+      "preferred_take": "happy_jump",
+      "takes": [
+        {"name": "happy_jump", "clip_id": "happy_jump_minimax_h3_00026"}
+      ]
+    }
+  }
+}

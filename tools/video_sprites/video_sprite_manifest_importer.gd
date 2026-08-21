@@ -7,6 +7,74 @@ const KIND := "pixelmotion-video-sprite-library"
 const STATE := &"source_all"
 const EXPECTED_CELL := Vector2i(256, 256)
 const EXPECTED_ROOT := Vector2i(128, 232)
+const SOURCE_PREFIX := "source__"
+
+
+static func parse_character_config_file(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {"errors": PackedStringArray(["character config not found: %s" % path])}
+	var parser := JSON.new()
+	var parse_error := parser.parse(FileAccess.get_file_as_string(path))
+	if parse_error != OK:
+		return {"errors": PackedStringArray([
+			"character config JSON parse failed at line %d: %s" % [
+				parser.get_error_line(), parser.get_error_message()
+			]
+		])}
+	if not parser.data is Dictionary:
+		return {"errors": PackedStringArray(["character config must be a JSON object"])}
+	var config := parser.data as Dictionary
+	var errors := validate_character_config(config)
+	return {"config": config, "errors": errors}
+
+
+static func validate_character_config(config: Dictionary) -> PackedStringArray:
+	var errors := PackedStringArray()
+	if int(config.get("schema_version", 0)) != 1:
+		errors.append("character config schema_version must be 1")
+	if str(config.get("character_id", "")).is_empty():
+		errors.append("character config character_id must be non-empty")
+	var required_value: Variant = config.get("required_actions", null)
+	if not required_value is Array or (required_value as Array).is_empty():
+		errors.append("character config required_actions must be a non-empty array")
+	var actions_value: Variant = config.get("actions", null)
+	if not actions_value is Dictionary:
+		errors.append("character config actions must be an object")
+		return errors
+	if required_value is Array:
+		for required_action: Variant in required_value as Array:
+			var required_name := str(required_action)
+			if not (actions_value as Dictionary).has(required_name):
+				errors.append("missing required action: %s" % required_name)
+	for action_value: Variant in actions_value as Dictionary:
+		var action := str(action_value)
+		var action_data_value: Variant = (actions_value as Dictionary)[action_value]
+		if not action_data_value is Dictionary:
+			errors.append("character config action %s must be an object" % action)
+			continue
+		var action_data := action_data_value as Dictionary
+		var takes_value: Variant = action_data.get("takes", null)
+		if not takes_value is Array:
+			errors.append("character config action %s takes must be an array" % action)
+			continue
+		var names := PackedStringArray()
+		for take_value: Variant in takes_value as Array:
+			if not take_value is Dictionary:
+				errors.append("character config action %s take must be an object" % action)
+				continue
+			var take := take_value as Dictionary
+			var name := str(take.get("name", ""))
+			var clip_id := str(take.get("clip_id", ""))
+			if name.is_empty() or clip_id.is_empty():
+				errors.append("character config action %s take name and clip_id must be non-empty" % action)
+			elif name in names:
+				errors.append("character config action %s has duplicate take name: %s" % [action, name])
+			else:
+				names.append(name)
+		var preferred := str(action_data.get("preferred_take", ""))
+		if not names.is_empty() and preferred not in names:
+			errors.append("character config action %s preferred_take does not resolve" % action)
+	return errors
 
 
 static func parse_manifest_file(path: String) -> Dictionary:
@@ -151,6 +219,414 @@ static func build_sprite_frames(
 		)
 		frames.add_frame(STATE, atlas_frame, float(durations[index]) / 1000.0 * fps)
 	return {"sprite_frames": frames, "errors": errors, "atlas_path": atlas_path}
+
+
+static func build_character_sprite_frames(
+	config: Dictionary,
+	sources: Dictionary,
+	existing: SpriteFrames = null
+) -> Dictionary:
+	var errors := PackedStringArray()
+	var character_id := str(config.get("character_id", ""))
+	if character_id.is_empty():
+		errors.append("character_id must be non-empty")
+	var actions_value: Variant = config.get("actions", {})
+	if not actions_value is Dictionary:
+		errors.append("actions must be an object")
+		return {"errors": errors}
+	var frames := SpriteFrames.new()
+	frames.remove_animation(&"default")
+	if existing != null:
+		for animation_name: StringName in existing.get_animation_names():
+			if not String(animation_name).begins_with(SOURCE_PREFIX):
+				_copy_animation(existing, animation_name, frames, animation_name)
+
+	var source_take_count := 0
+	var actions := actions_value as Dictionary
+	for action_value: Variant in actions:
+		var action := str(action_value)
+		var action_value_data: Variant = actions[action_value]
+		if not action_value_data is Dictionary:
+			errors.append("action %s must be an object" % action)
+			continue
+		var action_data := action_value_data as Dictionary
+		var takes_value: Variant = action_data.get("takes", [])
+		if not takes_value is Array:
+			errors.append("action %s takes must be an array" % action)
+			continue
+		var preferred_take := str(action_data.get("preferred_take", ""))
+		var preferred_source_name := StringName()
+		for take_value: Variant in takes_value as Array:
+			if not take_value is Dictionary:
+				errors.append("action %s take must be an object" % action)
+				continue
+			var take := take_value as Dictionary
+			var take_name := str(take.get("name", ""))
+			var clip_id := str(take.get("clip_id", ""))
+			if take_name.is_empty() or clip_id.is_empty():
+				errors.append("action %s take name and clip_id must be non-empty" % action)
+				continue
+			var source_value: Variant = sources.get(clip_id)
+			if not source_value is SpriteFrames:
+				errors.append("missing source SpriteFrames for clip: %s" % clip_id)
+				continue
+			var source := source_value as SpriteFrames
+			if not source.has_animation(STATE) or source.get_frame_count(STATE) <= 0:
+				errors.append("clip %s is missing source_all frames" % clip_id)
+				continue
+			var source_name := StringName("%s%s_down__%s" % [SOURCE_PREFIX, action, take_name])
+			_copy_animation(source, STATE, frames, source_name)
+			frames.set_animation_loop(source_name, bool(action_data.get("loop", false)))
+			source_take_count += 1
+			if take_name == preferred_take:
+				preferred_source_name = source_name
+		var runtime_name := StringName("%s_down" % action)
+		if not frames.has_animation(runtime_name) and not preferred_source_name.is_empty():
+			_copy_animation(frames, preferred_source_name, frames, runtime_name)
+			frames.set_animation_loop(runtime_name, bool(action_data.get("loop", false)))
+		elif not (takes_value as Array).is_empty() and preferred_source_name.is_empty():
+			errors.append("action %s preferred_take does not resolve" % action)
+
+	frames.set_meta("character_id", character_id)
+	frames.set_meta("source_take_count", source_take_count)
+	frames.set_meta("degraded_static_fallback", false)
+	return {"sprite_frames": frames, "errors": errors}
+
+
+static func character_status(config: Dictionary, frames: SpriteFrames) -> Dictionary:
+	var required := PackedStringArray()
+	var required_value: Variant = config.get("required_actions", [])
+	if required_value is Array:
+		for action: Variant in required_value as Array:
+			required.append(str(action))
+	var missing := PackedStringArray()
+	var source_take_count := 0
+	if frames != null:
+		for animation_name: StringName in frames.get_animation_names():
+			if String(animation_name).begins_with(SOURCE_PREFIX):
+				source_take_count += 1
+		for action: String in required:
+			var animation_name := StringName("%s_down" % action)
+			if not frames.has_animation(animation_name) or frames.get_frame_count(animation_name) <= 0:
+				missing.append(action)
+	else:
+		missing = required.duplicate()
+	return {
+		"character_id": str(config.get("character_id", "")),
+		"required_actions": required,
+		"missing_actions": missing,
+		"source_take_count": source_take_count,
+		"degraded_static_fallback": false,
+	}
+
+
+static func install_character_library(
+	config: Dictionary,
+	clip_root: String,
+	authoring_path: String,
+	replace_runtime := false,
+	source_loader: Callable = Callable()
+) -> Dictionary:
+	var errors := PackedStringArray()
+	if not clip_root.begins_with("res://") or clip_root.contains(".."):
+		errors.append("clip_root must resolve inside res://")
+	if not authoring_path.begins_with("res://") or authoring_path.contains(".."):
+		errors.append("authoring_path must resolve inside res://")
+	elif authoring_path.get_extension().to_lower() != "tres":
+		errors.append("authoring_path must be a .tres resource")
+	if not errors.is_empty():
+		return {"errors": errors}
+	var sources: Dictionary = {}
+	var actions_value: Variant = config.get("actions", {})
+	if not actions_value is Dictionary:
+		return {"errors": PackedStringArray(["actions must be an object"])}
+	for action_value: Variant in actions_value as Dictionary:
+		var action_data_value: Variant = (actions_value as Dictionary)[action_value]
+		if not action_data_value is Dictionary:
+			continue
+		var takes_value: Variant = (action_data_value as Dictionary).get("takes", [])
+		if not takes_value is Array:
+			continue
+		for take_value: Variant in takes_value as Array:
+			if not take_value is Dictionary:
+				continue
+			var clip_id := str((take_value as Dictionary).get("clip_id", ""))
+			if clip_id.is_empty() or sources.has(clip_id):
+				continue
+			var source_path := clip_root.path_join(clip_id).path_join("source_all_frames.tres")
+			var source: SpriteFrames = (
+				source_loader.call(source_path) as SpriteFrames
+				if source_loader.is_valid()
+				else ResourceLoader.load(
+					source_path, "SpriteFrames", ResourceLoader.CACHE_MODE_REPLACE
+				) as SpriteFrames
+			)
+			if source == null:
+				errors.append("source SpriteFrames not found: %s" % source_path)
+			else:
+				sources[clip_id] = source
+	if not errors.is_empty():
+		return {"errors": errors}
+	var existing: SpriteFrames = null
+	if not replace_runtime and FileAccess.file_exists(authoring_path):
+		existing = ResourceLoader.load(
+			authoring_path, "SpriteFrames", ResourceLoader.CACHE_MODE_REPLACE
+		) as SpriteFrames
+		if existing == null:
+			return {"errors": PackedStringArray(["could not load authoring resource: %s" % authoring_path])}
+	var built := build_character_sprite_frames(config, sources, existing)
+	errors = built.get("errors", PackedStringArray()) as PackedStringArray
+	if not errors.is_empty():
+		return {"errors": errors}
+	var absolute_directory := ProjectSettings.globalize_path(authoring_path.get_base_dir())
+	var directory_error := DirAccess.make_dir_recursive_absolute(absolute_directory)
+	if directory_error != OK:
+		return {"errors": PackedStringArray([
+			"could not create authoring directory: %s" % error_string(directory_error)
+		])}
+	var frames := built["sprite_frames"] as SpriteFrames
+	frames.set_meta("clip_root", clip_root)
+	frames.set_meta("authoring_path", authoring_path)
+	var save_error := ResourceSaver.save(frames, authoring_path)
+	if save_error != OK:
+		return {"errors": PackedStringArray([
+			"could not save authoring SpriteFrames: %s" % error_string(save_error)
+		])}
+	var status := character_status(config, frames)
+	status["errors"] = PackedStringArray()
+	status["authoring_path"] = authoring_path
+	status["runtime_preserved"] = existing != null
+	return status
+
+
+static func publish_character_runtime(
+	authoring: SpriteFrames,
+	character_id: String,
+	output_root: String,
+	page_texture_loader: Callable = Callable(),
+	page_columns := 16,
+	page_rows := 16
+) -> Dictionary:
+	var errors := PackedStringArray()
+	if authoring == null:
+		errors.append("authoring SpriteFrames is required")
+	if character_id.is_empty():
+		errors.append("character_id must be non-empty")
+	if not output_root.begins_with("res://") or output_root.contains(".."):
+		errors.append("output_root must resolve inside res://")
+	if page_columns <= 0 or page_rows <= 0:
+		errors.append("runtime atlas page dimensions must be positive")
+	if authoring != null and (
+		not authoring.has_animation(&"idle_down")
+		or authoring.get_frame_count(&"idle_down") <= 0
+	):
+		errors.append("idle_down must contain at least one frame before publishing")
+	if not errors.is_empty():
+		return {"errors": errors}
+
+	var animation_names := PackedStringArray()
+	var total_frames := 0
+	for animation_name: StringName in authoring.get_animation_names():
+		if String(animation_name).begins_with(SOURCE_PREFIX):
+			continue
+		var count := authoring.get_frame_count(animation_name)
+		if count <= 0:
+			continue
+		animation_names.append(String(animation_name))
+		total_frames += count
+	if total_frames <= 0:
+		return {"errors": PackedStringArray(["no runtime animation frames to publish"])}
+	animation_names.sort()
+
+	var capacity := page_columns * page_rows
+	var page_count := ceili(float(total_frames) / float(capacity))
+	var page_size := Vector2i(page_columns * EXPECTED_CELL.x, page_rows * EXPECTED_CELL.y)
+	var page_images: Array[Image] = []
+	for _page_index in page_count:
+		var page := Image.create(page_size.x, page_size.y, false, Image.FORMAT_RGBA8)
+		page.fill(Color(0, 0, 0, 0))
+		page_images.append(page)
+
+	var layout_rows: Dictionary = {}
+	var animation_rows: Dictionary = {}
+	var frame_records: Dictionary = {}
+	var global_index := 0
+	for animation_name_text: String in animation_names:
+		var animation_name := StringName(animation_name_text)
+		var rects: Array = []
+		var records: Array = []
+		var durations_ms: Array = []
+		var fps := authoring.get_animation_speed(animation_name)
+		if fps <= 0.0:
+			return {"errors": PackedStringArray([
+				"%s animation FPS must be positive" % animation_name_text
+			])}
+		for frame_index in authoring.get_frame_count(animation_name):
+			var frame_texture := authoring.get_frame_texture(animation_name, frame_index)
+			var frame_image := _texture_region_image(frame_texture)
+			if frame_image == null or Vector2i(frame_image.get_width(), frame_image.get_height()) != EXPECTED_CELL:
+				return {"errors": PackedStringArray([
+					"%s frame %d must resolve to a 256x256 image" % [animation_name_text, frame_index]
+				])}
+			var page_index := global_index / capacity
+			var page_cell := global_index % capacity
+			var position := Vector2i(
+				(page_cell % page_columns) * EXPECTED_CELL.x,
+				(page_cell / page_columns) * EXPECTED_CELL.y
+			)
+			page_images[page_index].blit_rect(
+				frame_image,
+				Rect2i(Vector2i.ZERO, EXPECTED_CELL),
+				position
+			)
+			var rect := {
+				"page": page_index,
+				"x": position.x,
+				"y": position.y,
+				"w": EXPECTED_CELL.x,
+				"h": EXPECTED_CELL.y,
+			}
+			rects.append(rect)
+			var duration_scale := authoring.get_frame_duration(animation_name, frame_index)
+			var duration_ms := duration_scale / fps * 1000.0
+			durations_ms.append(duration_ms)
+			records.append({
+				"index": frame_index,
+				"duration_ms": duration_ms,
+				"rect": rect.duplicate(true),
+			})
+			global_index += 1
+		layout_rows[animation_name_text] = rects
+		frame_records[animation_name_text] = records
+		animation_rows[animation_name_text] = {
+			"frames": rects.size(),
+			"fps": fps,
+			"loop": authoring.get_animation_loop(animation_name),
+			"durations_ms": durations_ms,
+		}
+
+	var absolute_root := ProjectSettings.globalize_path(output_root)
+	var directory_error := DirAccess.make_dir_recursive_absolute(absolute_root)
+	if directory_error != OK:
+		return {"errors": PackedStringArray([
+			"could not create runtime output directory: %s" % error_string(directory_error)
+		])}
+	var page_paths := PackedStringArray()
+	for page_index in page_count:
+		var page_path := output_root.path_join("runtime_atlas_%03d.png" % (page_index + 1))
+		var save_image_error := page_images[page_index].save_png(
+			ProjectSettings.globalize_path(page_path)
+		)
+		if save_image_error != OK:
+			return {"errors": PackedStringArray([
+				"could not save runtime atlas page: %s" % error_string(save_image_error)
+			])}
+		page_paths.append(page_path)
+
+	var page_textures: Array[Texture2D] = []
+	for page_path: String in page_paths:
+		var texture: Texture2D = (
+			page_texture_loader.call(page_path) as Texture2D
+			if page_texture_loader.is_valid()
+			else ResourceLoader.load(page_path, "Texture2D", ResourceLoader.CACHE_MODE_REPLACE) as Texture2D
+		)
+		if texture == null:
+			return {"errors": PackedStringArray(["could not load runtime atlas page: %s" % page_path])}
+		page_textures.append(texture)
+
+	var runtime := SpriteFrames.new()
+	runtime.remove_animation(&"default")
+	for animation_name_text: String in animation_names:
+		var animation_name := StringName(animation_name_text)
+		runtime.add_animation(animation_name)
+		runtime.set_animation_speed(animation_name, authoring.get_animation_speed(animation_name))
+		runtime.set_animation_loop(animation_name, authoring.get_animation_loop(animation_name))
+		var rects := layout_rows[animation_name_text] as Array
+		for frame_index in rects.size():
+			var rect_value := rects[frame_index] as Dictionary
+			var atlas_frame := AtlasTexture.new()
+			atlas_frame.atlas = page_textures[int(rect_value["page"])]
+			atlas_frame.region = Rect2i(
+				int(rect_value["x"]), int(rect_value["y"]),
+				int(rect_value["w"]), int(rect_value["h"])
+			)
+			runtime.add_frame(
+				animation_name,
+				atlas_frame,
+				authoring.get_frame_duration(animation_name, frame_index)
+			)
+	var runtime_path := output_root.path_join("%s_runtime_frames.tres" % character_id)
+	var save_error := ResourceSaver.save(runtime, runtime_path)
+	if save_error != OK:
+		return {"errors": PackedStringArray([
+			"could not save runtime SpriteFrames: %s" % error_string(save_error)
+		])}
+	var manifest := {
+		"schema_version": 1,
+		"kind": "character-sprite-runtime",
+		"character_id": character_id,
+		"degraded_static_fallback": false,
+		"cell": {"width": EXPECTED_CELL.x, "height": EXPECTED_CELL.y},
+		"root": {"x": EXPECTED_ROOT.x, "y": EXPECTED_ROOT.y},
+		"pages": Array(page_paths),
+		"animation": {"rows": animation_rows},
+		"frame_layout": {
+			"pageWidth": page_size.x,
+			"pageHeight": page_size.y,
+			"rows": layout_rows,
+		},
+		"frames": frame_records,
+		"sprite_frames": runtime_path,
+	}
+	var manifest_path := output_root.path_join("manifest.json")
+	var manifest_file := FileAccess.open(manifest_path, FileAccess.WRITE)
+	if manifest_file == null:
+		return {"errors": PackedStringArray(["could not write runtime manifest: %s" % manifest_path])}
+	manifest_file.store_string(JSON.stringify(manifest, "  "))
+	manifest_file.close()
+	return {
+		"errors": PackedStringArray(),
+		"character_id": character_id,
+		"frame_count": total_frames,
+		"animation_count": animation_names.size(),
+		"page_count": page_count,
+		"runtime_path": runtime_path,
+		"manifest_path": manifest_path,
+		"pages": page_paths,
+	}
+
+
+static func _texture_region_image(texture: Texture2D) -> Image:
+	if texture == null:
+		return null
+	if texture is AtlasTexture:
+		var atlas_texture := texture as AtlasTexture
+		if atlas_texture.atlas == null:
+			return null
+		var atlas_image := atlas_texture.atlas.get_image()
+		if atlas_image == null or atlas_image.is_empty():
+			return null
+		return atlas_image.get_region(Rect2i(atlas_texture.region))
+	return texture.get_image()
+
+
+static func _copy_animation(
+	source: SpriteFrames,
+	source_name: StringName,
+	destination: SpriteFrames,
+	destination_name: StringName
+) -> void:
+	if destination.has_animation(destination_name):
+		destination.remove_animation(destination_name)
+	destination.add_animation(destination_name)
+	destination.set_animation_speed(destination_name, source.get_animation_speed(source_name))
+	destination.set_animation_loop(destination_name, source.get_animation_loop(source_name))
+	for index in source.get_frame_count(source_name):
+		destination.add_frame(
+			destination_name,
+			source.get_frame_texture(source_name, index),
+			source.get_frame_duration(source_name, index)
+		)
 
 
 static func install_clip(manifest_path: String, replace_selection := false) -> Dictionary:

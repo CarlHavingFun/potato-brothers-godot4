@@ -9,6 +9,9 @@
 - `video_sprites.import_video`：异步重试或新增单个视频。
 - `video_sprites.job_status`：查看进度；Python 完成后生成 Godot 资源和预览场景。
 - `video_sprites.validate_library`：只读验证 PNG、图集、manifest、SpriteFrames 和预览场景。
+- `character_sprite.import_all`：按角色配置导入全部视频，并刷新一个集中展示所有动作/take 的母资源。
+- `character_sprite.publish`：把人工编辑后的运行轨重新打包为轻量 Godot 图集和 SpriteFrames。
+- `character_sprite.status`：列出统一动作模板、已导入 take、缺失动作及最近发布状态。
 
 当前机器的完整目录导入参数示例：
 
@@ -26,6 +29,18 @@
 导入立即返回 `job_id`，随后用 `video_sprites.job_status` 轮询。默认输出位置严格限制在 `res://tools/sprites` 下。
 
 ## 在 Godot 中选帧
+
+Niko 的集中编辑入口是：
+
+`res://tools/sprites/niko_character_library/authoring/niko_all_actions.tres`
+
+其中 `source__动作_down__take` 动画永久保留每段视频的 124 帧；没有 `source__` 前缀的
+`idle_down`、`walk_down` 等动画是人工运行轨。首次导入会从配置的首选 take 完整复制
+124 帧、24 FPS。你可以直接在 Godot 原生 SpriteFrames 面板删除、排序、从图集补回帧，
+并修改 selected FPS、逐帧时长和循环设置。
+
+编辑完成后执行 `character_sprite.publish` 或编辑器菜单“角色精灵/发布当前角色动画”。
+游戏只加载发布后的轻量资源，不加载全部 source 轨。
 
 每个 clip 包含：
 
