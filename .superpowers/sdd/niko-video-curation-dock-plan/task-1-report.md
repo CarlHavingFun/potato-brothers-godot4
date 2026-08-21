@@ -138,3 +138,49 @@ Final output: service 16/16, MCP 11/11, Python 16/16; all commands exited `0` an
 
 - No production path uses PID termination. Cooperative cancellation is intentionally delayed until the worker reaches a checkpoint; it cannot interrupt an opaque PixelMotion call mid-function, but it cannot kill an unrelated reused PID.
 - Windows junction behavior is covered through the Godot and Python detector seams; the focused test suite does not create a real privileged junction.
+
+## Fix Round 3
+
+### Coverage added
+
+- `tests/unit/test_character_sprite_library.gd`: a three-frame source take is retained and installed while legacy metadata says 124 frames; a complete 124-frame take remains accepted when metadata says three.
+- `tests/unit/test_video_sprite_job_service.gd`: valid JSON receipts with wrong/missing `job_id`, missing `state`, or bad PID types recover through the stateful corrupt-receipt path; terminal receipt persistence failure is surfaced and cached.
+- `tests/unit/test_video_sprite_mcp_commands.gd`: `staging_directory` has the exact optional `String` schema and literal empty-string default.
+
+### RED
+
+```powershell
+.\tools\run_tests.ps1 -GodotBinary 'E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64_console.exe' -TestPath 'res://tests/unit/test_character_sprite_library.gd' -ReportDirectory 'res://reports/gdunit-task1-fix3-red-character'
+.\tools\run_tests.ps1 -GodotBinary 'E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64_console.exe' -TestPath 'res://tests/unit/test_video_sprite_job_service.gd' -ReportDirectory 'res://reports/gdunit-task1-fix3-red-service'
+.\tools\run_tests.ps1 -GodotBinary 'E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64_console.exe' -TestPath 'res://tests/unit/test_video_sprite_mcp_commands.gd' -ReportDirectory 'res://reports/gdunit-task1-fix3-red-mcp'
+```
+
+Observed expected RED: source takes with 3 and 124 frames were rejected solely because they differed from `expected_source_frame_count`; service discovery rejected the five-argument `poll_job` call because no injectable terminal-receipt writer existed; and the MCP schema exposed a prose `staging_directory.default` instead of the literal empty string.
+
+### GREEN
+
+```powershell
+git diff --check
+.\tools\run_tests.ps1 -GodotBinary 'E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64_console.exe' -TestPath 'res://tests/unit/test_character_sprite_library.gd' -ReportDirectory 'res://reports/gdunit-task1-fix3-green-character'
+.\tools\run_tests.ps1 -GodotBinary 'E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64_console.exe' -TestPath 'res://tests/unit/test_video_sprite_job_service.gd' -ReportDirectory 'res://reports/gdunit-task1-fix3-green-service'
+.\tools\run_tests.ps1 -GodotBinary 'E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64_console.exe' -TestPath 'res://tests/unit/test_video_sprite_mcp_commands.gd' -ReportDirectory 'res://reports/gdunit-task1-fix3-green-mcp'
+py -3 tests\python\test_spritegen_video_worker.py
+```
+
+Final output: character library 11/11, job service 20/20, MCP 11/11, and Python worker 16/16; every command exited `0` and `git diff --check` was clean.
+
+### Commit
+
+`04c06b871213f80a0c67a5663bfaf4a8575d4a03` — `fix: harden video curation job polling`
+
+### Review fixes
+
+- Character source takes now accept every non-empty internally consistent `SpriteFrames` animation. `expected_source_frame_count` remains resource metadata and emits a compatibility warning instead of blocking aggregation or installation.
+- Receipt structural validation treats missing/wrong IDs, missing/empty state, malformed PID values, and malformed token values like a parse failure. A live worker reports `state: running` plus a clear error; an exited worker produces a failed terminal result.
+- Failure-receipt persistence can use an injected writer in tests. If neither original nor fallback receipt can be recorded, polling returns `failed`, `receipt_persisted: false`, and a non-empty error list, then retains that exact terminal result in the in-memory tracker for later polls.
+- MCP `staging_directory` documentation now uses the literal `""` default to mean automatic unique job staging.
+
+### Self-review and concerns
+
+- JSON numbers deserialize as floating-point values in Godot, so receipt validation explicitly accepts only integral numeric PID values; strings and fractions are corrupt.
+- The in-memory fallback intentionally lasts only for the active service process when receipt persistence is unavailable. It fails loudly rather than claiming persistence or losing the known terminal result.
