@@ -19,6 +19,7 @@ var config_restorer: Callable = Callable()
 var authoring_installer: Callable = Callable()
 var output_mutator: Callable = Callable()
 var output_cleaner: Callable = Callable()
+var directory_maker: Callable = Callable()
 var path_is_link: Callable = Callable()
 var job_service: Variant = JobService.new()
 
@@ -212,9 +213,19 @@ func promote_selection(params: Dictionary) -> Dictionary:
 	var output_path := str(preview["output_path"])
 	if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(output_path)):
 		return {"errors": PackedStringArray(["take output already exists: %s" % output_path])}
-	var directory_error := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(output_path.path_join("frames")))
+	var frames_directory := ProjectSettings.globalize_path(output_path.path_join("frames"))
+	var directory_error: int = (
+		int(directory_maker.call(frames_directory))
+		if directory_maker.is_valid()
+		else DirAccess.make_dir_recursive_absolute(frames_directory)
+	)
 	if directory_error != OK:
-		return {"errors": PackedStringArray(["could not create promoted take directory: %s" % error_string(directory_error)])}
+		var mkdir_errors := PackedStringArray(["could not create promoted take directory: %s" % error_string(directory_error)])
+		return (
+			_failure_after_output(mkdir_errors, output_path)
+			if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(output_path))
+			else {"errors": mkdir_errors}
+		)
 	var emitted := _emit_promoted_take(
 		validated["manifest"] as Dictionary,
 		str(validated["manifest_path"]),
@@ -592,6 +603,12 @@ func _validate_promoted_output(emitted: Dictionary) -> Dictionary:
 		var original_source := original.get("source", {}) as Dictionary
 		if _json_integer_array(provenance.get("ordered_source_indices", null)) != expected_selection:
 			errors.append("promoted provenance ordered selection failed readback")
+		var expected_unique: Array = []
+		for selected: Variant in expected_selection:
+			if selected not in expected_unique:
+				expected_unique.append(selected)
+		if _json_integer_array(provenance.get("unique_source_indices", null)) != expected_unique:
+			errors.append("promoted provenance unique source indices failed readback")
 		if str(provenance.get("source_manifest_sha256", "")) != FileAccess.get_sha256(str(emitted.get("source_manifest_path", ""))) or str(provenance.get("source_video_sha256", "")) != str(original_source.get("sha256", "")):
 			errors.append("promoted provenance source hashes failed readback")
 		if not is_equal_approx(float(provenance.get("fps", 0.0)), float(emitted.get("fps", 0.0))) or bool(provenance.get("loop", false)) != bool(emitted.get("loop", false)):
@@ -603,6 +620,13 @@ func _validate_promoted_output(emitted: Dictionary) -> Dictionary:
 		if not is_equal_approx(float(row.get("fps", 0.0)), float(emitted.get("fps", 0.0))) or bool(row.get("loop", false)) != bool(emitted.get("loop", false)):
 			errors.append("promoted manifest FPS/loop failed readback")
 		var source_frames := manifest.get("source_frames", []) as Array
+		var rects := (((manifest.get("frame_layout", {}) as Dictionary).get("rows", {}) as Dictionary).get(STATE, []) as Array)
+		var durations := row.get("durations_ms", []) as Array
+		if int(row.get("frames", 0)) != expected_selection.size() or durations.size() != expected_selection.size() or rects.size() != expected_selection.size():
+			errors.append("promoted animation/layout counts failed readback")
+		for duration: Variant in durations:
+			if not is_equal_approx(float(duration), 1000.0 / float(emitted.get("fps", 1.0))):
+				errors.append("promoted animation durations failed readback")
 		if source_frames.size() != expected_selection.size():
 			errors.append("promoted manifest frame count failed readback")
 		var seen_rects: Dictionary = {}
@@ -612,6 +636,8 @@ func _validate_promoted_output(emitted: Dictionary) -> Dictionary:
 				errors.append("promoted manifest frame failed readback")
 				continue
 			var frame := frame_value as Dictionary
+			if playback_index >= rects.size() or frame.get("rect", null) != rects[playback_index]:
+				errors.append("promoted manifest/frame_layout rect failed readback")
 			var source_index := int(expected_selection[playback_index]) if playback_index < expected_selection.size() else -1
 			if source_index < 0 or source_index >= original_frames.size():
 				errors.append("promoted manifest source index failed readback")
@@ -626,7 +652,16 @@ func _validate_promoted_output(emitted: Dictionary) -> Dictionary:
 				errors.append("promoted PNG hash failed readback")
 			if not frame.get("rect", null) is Dictionary or Vector2i(int((frame["rect"] as Dictionary).get("w", 0)), int((frame["rect"] as Dictionary).get("h", 0))) != CELL_SIZE:
 				errors.append("promoted manifest region failed readback")
-			elif seen_rects.has(source_index) and seen_rects[source_index] != frame["rect"]:
+			else:
+				var rv := frame["rect"] as Dictionary
+				var rect := Rect2i(int(rv.get("x", -1)), int(rv.get("y", -1)), int(rv.get("w", 0)), int(rv.get("h", 0)))
+				if rect.position.x < 0 or rect.position.y < 0 or rect.end.x > atlas.get_width() or rect.end.y > atlas.get_height():
+					errors.append("promoted manifest region out of bounds")
+				else:
+					var selected_png := Image.load_from_file(ProjectSettings.globalize_path(png_path))
+					if selected_png.is_empty() or atlas.get_region(rect).get_data() != selected_png.get_data():
+						errors.append("promoted atlas rect pixels do not match selected PNG")
+			if seen_rects.has(source_index) and seen_rects[source_index] != frame["rect"]:
 				errors.append("promoted manifest unique mapping failed readback")
 			else:
 				seen_rects[source_index] = frame["rect"]

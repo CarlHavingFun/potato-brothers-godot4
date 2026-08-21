@@ -314,6 +314,21 @@ func test_preview_suffixes_repeated_takes_and_resolved_take_refuses_overwrite() 
 	)
 
 
+func test_partial_mkdir_failure_uses_checked_cleanup_and_reports_cleanup_failure() -> void:
+	var fixture := _write_external_fixture("mkdir-failure", 2)
+	var service: Variant = _new_service()
+	assert_bool("directory_maker" in service).is_true()
+	if not "directory_maker" in service:
+		return
+	service.directory_maker = func(path: String) -> Error:
+		DirAccess.make_dir_recursive_absolute(path)
+		return ERR_CANT_CREATE
+	service.output_cleaner = func(_path: String) -> bool: return false
+	var result: Dictionary = service.promote_selection(_promotion_params(fixture["manifest_path"], "mkdir_fail"))
+	assert_str("\n".join(result.get("errors", PackedStringArray()))).contains("cleanup failed")
+	assert_bool(result.get("cleanup_failed", false)).is_true()
+
+
 func test_failed_atomic_config_replacement_keeps_original_bytes_and_reports_failure() -> void:
 	var fixture := _write_external_fixture("atomic", 2)
 	var service: Variant = _new_service()
@@ -372,6 +387,41 @@ func test_promotion_readback_rejects_spriteframes_wrong_region_before_registrati
 	var result: Dictionary = service.promote_selection(_promotion_params(fixture["manifest_path"], "wrong_region"))
 	assert_str("\n".join(result.get("errors", PackedStringArray()))).contains("region")
 	assert_int((_read_json(CONFIG_PATH)["actions"]["dash"]["takes"] as Array).size()).is_equal(0)
+
+
+func test_readback_rejects_synchronized_manifest_and_spriteframes_rect_tamper_against_png_pixels() -> void:
+	var fixture := _write_external_fixture("sync-rect", 2)
+	var service: Variant = _new_service()
+	service.output_mutator = func(emitted: Dictionary) -> void:
+		var manifest := _read_json(str(emitted["manifest_path"]))
+		var rects := ((manifest["frame_layout"] as Dictionary)["rows"] as Dictionary)["source_all"] as Array
+		var wrong_rect := (rects[1] as Dictionary).duplicate(true)
+		rects[0] = wrong_rect
+		((manifest["source_frames"] as Array)[0] as Dictionary)["rect"] = wrong_rect.duplicate(true)
+		_write_json(str(emitted["manifest_path"]), manifest)
+		var frames := ResourceLoader.load(str(emitted["resource_path"]), "SpriteFrames", ResourceLoader.CACHE_MODE_REPLACE) as SpriteFrames
+		(frames.get_frame_texture(&"source_all", 0) as AtlasTexture).region = Rect2(wrong_rect.x, wrong_rect.y, wrong_rect.w, wrong_rect.h)
+		ResourceSaver.save(frames, str(emitted["resource_path"]))
+	var result: Dictionary = service.promote_selection(_promotion_params(fixture["manifest_path"], "sync_rect"))
+	assert_str("\n".join(result.get("errors", PackedStringArray()))).contains("pixels")
+
+
+func test_readback_rejects_animation_timing_and_unique_indices_tamper() -> void:
+	var fixture := _write_external_fixture("timing-unique", 2)
+	var service: Variant = _new_service()
+	service.output_mutator = func(emitted: Dictionary) -> void:
+		var manifest := _read_json(str(emitted["manifest_path"]))
+		var row := ((manifest["animation"] as Dictionary)["rows"] as Dictionary)["source_all"] as Dictionary
+		row["frames"] = 99
+		row["durations_ms"] = [1.0]
+		_write_json(str(emitted["manifest_path"]), manifest)
+		var provenance := _read_json(str(emitted["provenance_path"]))
+		provenance["unique_source_indices"] = [0, 1]
+		_write_json(str(emitted["provenance_path"]), provenance)
+	var result: Dictionary = service.promote_selection(_promotion_params(fixture["manifest_path"], "timing_unique"))
+	var errors := "\n".join(result.get("errors", PackedStringArray()))
+	assert_str(errors).contains("animation")
+	assert_str(errors).contains("unique")
 
 
 func test_authoring_failure_restores_config_and_removes_only_new_output() -> void:
