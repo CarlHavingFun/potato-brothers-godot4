@@ -18,6 +18,7 @@ var config_replacer: Callable = Callable()
 var config_restorer: Callable = Callable()
 var authoring_installer: Callable = Callable()
 var output_mutator: Callable = Callable()
+var output_cleaner: Callable = Callable()
 var path_is_link: Callable = Callable()
 var job_service: Variant = JobService.new()
 
@@ -224,14 +225,13 @@ func promote_selection(params: Dictionary) -> Dictionary:
 	)
 	errors = emitted.get("errors", PackedStringArray()) as PackedStringArray
 	if not errors.is_empty():
-		return {"errors": errors, "output_path": output_path}
+		return _failure_after_output(errors, output_path)
 	if output_mutator.is_valid():
 		output_mutator.call(emitted)
 	var output_validation := _validate_promoted_output(emitted)
 	errors = output_validation.get("errors", PackedStringArray()) as PackedStringArray
 	if not errors.is_empty():
-		_discard_promoted_output(output_path)
-		return {"errors": errors, "output_path": output_path}
+		return _failure_after_output(errors, output_path)
 
 	var config := (context["config"] as Dictionary).duplicate(true)
 	var action_data := ((config["actions"] as Dictionary)[str(context["action"])] as Dictionary)
@@ -246,18 +246,17 @@ func promote_selection(params: Dictionary) -> Dictionary:
 	action_data["takes"] = takes
 	var config_errors := Importer.validate_character_config(config)
 	if not config_errors.is_empty():
-		return {"errors": config_errors, "output_path": output_path}
+		return _failure_after_output(config_errors, output_path)
 	var original_config := FileAccess.get_file_as_bytes(str(context["config_path"]))
 	if not _commit_config(str(context["config_path"]), config):
-		_discard_promoted_output(output_path)
-		return {"errors": PackedStringArray(["could not atomically register promoted take"]), "output_path": output_path}
+		return _failure_after_output(PackedStringArray(["could not atomically register promoted take"]), output_path)
 	var installed := _install_authoring(config)
 	errors = installed.get("errors", PackedStringArray()) as PackedStringArray
 	if not errors.is_empty():
-		if not _restore_config(str(context["config_path"]), original_config):
+		var restored := _restore_config(str(context["config_path"]), original_config)
+		if not restored:
 			errors.append("config rollback failed; original bytes could not be restored")
-		_discard_promoted_output(output_path)
-		return {"errors": errors, "output_path": output_path}
+		return _failure_after_output(errors, output_path, restored)
 	var result := preview.duplicate(true)
 	result.merge(emitted, true)
 	result["authoring_path"] = str(config.get("authoring_path", ""))
@@ -511,6 +510,9 @@ func _emit_promoted_take(
 		"unique_source_indices": unique_indices,
 		"fps": fps,
 		"loop": loop,
+		"character_id": str(preview.get("character_id", "")),
+		"action": str(preview.get("action", "")),
+		"take": str(preview.get("take", "")),
 		"promoted_at_unix": Time.get_unix_time_from_system(),
 	}
 	if not _write_json_replacing(provenance_path, provenance):
@@ -560,6 +562,10 @@ centered = false
 		"selection": selection.duplicate(),
 		"fps": fps,
 		"loop": loop,
+		"source_manifest": manifest.duplicate(true),
+		"source_manifest_path": manifest_path,
+		"character_id": preview.get("character_id", ""),
+		"action": preview.get("action", ""),
 		"output_path": output_path,
 		"take": preview["take"],
 	}
@@ -581,24 +587,49 @@ func _validate_promoted_output(emitted: Dictionary) -> Dictionary:
 		var manifest := manifest_result["value"] as Dictionary
 		var provenance := provenance_result["value"] as Dictionary
 		var expected_selection := emitted.get("selection", []) as Array
+		var original := emitted.get("source_manifest", {}) as Dictionary
+		var original_frames := original.get("source_frames", []) as Array
+		var original_source := original.get("source", {}) as Dictionary
 		if _json_integer_array(provenance.get("ordered_source_indices", null)) != expected_selection:
 			errors.append("promoted provenance ordered selection failed readback")
+		if str(provenance.get("source_manifest_sha256", "")) != FileAccess.get_sha256(str(emitted.get("source_manifest_path", ""))) or str(provenance.get("source_video_sha256", "")) != str(original_source.get("sha256", "")):
+			errors.append("promoted provenance source hashes failed readback")
+		if not is_equal_approx(float(provenance.get("fps", 0.0)), float(emitted.get("fps", 0.0))) or bool(provenance.get("loop", false)) != bool(emitted.get("loop", false)):
+			errors.append("promoted provenance timing failed readback")
+		for key: String in ["character_id", "action", "take"]:
+			if str(provenance.get(key, "")) != str(emitted.get(key, "")):
+				errors.append("promoted provenance intent failed readback")
 		var row := ((manifest.get("animation", {}) as Dictionary).get("rows", {}) as Dictionary).get(STATE, {}) as Dictionary
 		if not is_equal_approx(float(row.get("fps", 0.0)), float(emitted.get("fps", 0.0))) or bool(row.get("loop", false)) != bool(emitted.get("loop", false)):
 			errors.append("promoted manifest FPS/loop failed readback")
 		var source_frames := manifest.get("source_frames", []) as Array
 		if source_frames.size() != expected_selection.size():
 			errors.append("promoted manifest frame count failed readback")
-		for frame_value: Variant in source_frames:
+		var seen_rects: Dictionary = {}
+		for playback_index in source_frames.size():
+			var frame_value: Variant = source_frames[playback_index]
 			if not frame_value is Dictionary:
 				errors.append("promoted manifest frame failed readback")
 				continue
 			var frame := frame_value as Dictionary
+			var source_index := int(expected_selection[playback_index]) if playback_index < expected_selection.size() else -1
+			if source_index < 0 or source_index >= original_frames.size():
+				errors.append("promoted manifest source index failed readback")
+				continue
+			var source_frame := original_frames[source_index] as Dictionary
+			if int(frame.get("source_index", -1)) != source_index or int(frame.get("source_frame", 0)) != int(source_frame.get("source_frame", 0)) or not is_equal_approx(float(frame.get("timestamp_seconds", -1.0)), float(source_frame.get("timestamp_seconds", -2.0))) or str(frame.get("sha256", "")) != str(source_frame.get("sha256", "")):
+				errors.append("promoted manifest source provenance failed readback")
+			if not is_equal_approx(float(frame.get("source_duration_ms", 0.0)), float(source_frame.get("duration_ms", -1.0))) or not is_equal_approx(float(frame.get("duration_ms", 0.0)), 1000.0 / float(emitted.get("fps", 1.0))):
+				errors.append("promoted manifest duration failed readback")
 			var png_path := str(emitted.get("output_path", "")).path_join(str(frame.get("png", "")))
 			if not FileAccess.file_exists(png_path) or FileAccess.get_sha256(png_path) != str(frame.get("sha256", "")):
 				errors.append("promoted PNG hash failed readback")
 			if not frame.get("rect", null) is Dictionary or Vector2i(int((frame["rect"] as Dictionary).get("w", 0)), int((frame["rect"] as Dictionary).get("h", 0))) != CELL_SIZE:
 				errors.append("promoted manifest region failed readback")
+			elif seen_rects.has(source_index) and seen_rects[source_index] != frame["rect"]:
+				errors.append("promoted manifest unique mapping failed readback")
+			else:
+				seen_rects[source_index] = frame["rect"]
 	var frames := ResourceLoader.load(
 		str(emitted.get("resource_path", "")), "SpriteFrames", ResourceLoader.CACHE_MODE_REPLACE
 	) as SpriteFrames
@@ -607,10 +638,21 @@ func _validate_promoted_output(emitted: Dictionary) -> Dictionary:
 	elif not is_equal_approx(frames.get_animation_speed(&"source_all"), float(emitted.get("fps", 0.0))) or frames.get_animation_loop(&"source_all") != bool(emitted.get("loop", false)):
 		errors.append("promoted selected SpriteFrames timing failed validation")
 	else:
+		var manifest := manifest_result.get("value", {}) as Dictionary
+		var rects := (((manifest.get("frame_layout", {}) as Dictionary).get("rows", {}) as Dictionary).get(STATE, []) as Array)
+		var atlas_data := atlas.get_data() if not atlas.is_empty() else PackedByteArray()
 		for index in frames.get_frame_count(&"source_all"):
 			var texture := frames.get_frame_texture(&"source_all", index)
-			if not texture is AtlasTexture or (texture as AtlasTexture).region.size != Vector2(CELL_SIZE):
+			if not texture is AtlasTexture or index >= rects.size():
 				errors.append("promoted selected SpriteFrames region failed validation")
+				continue
+			var expected_rect_value := rects[index] as Dictionary
+			var expected_rect := Rect2(int(expected_rect_value["x"]), int(expected_rect_value["y"]), int(expected_rect_value["w"]), int(expected_rect_value["h"]))
+			var atlas_texture := texture as AtlasTexture
+			if atlas_texture.region != expected_rect or atlas_texture.atlas == null or atlas_texture.atlas.get_image().get_data() != atlas_data:
+				errors.append("promoted selected SpriteFrames region/atlas failed validation")
+			if not is_equal_approx(frames.get_frame_duration(&"source_all", index), 1.0):
+				errors.append("promoted selected SpriteFrames duration failed validation")
 	return {"errors": errors}
 
 
@@ -657,6 +699,8 @@ func _install_authoring(config: Dictionary) -> Dictionary:
 
 
 func _discard_promoted_output(path: String) -> bool:
+	if output_cleaner.is_valid():
+		return bool(output_cleaner.call(path))
 	var absolute := ProjectSettings.globalize_path(path).simplify_path()
 	var root := ProjectSettings.globalize_path(PROMOTION_ROOT).simplify_path()
 	var compared := absolute.to_lower() if OS.get_name() == "Windows" else absolute
@@ -664,6 +708,17 @@ func _discard_promoted_output(path: String) -> bool:
 	if not compared.begins_with(compared_root.trim_suffix("/") + "/"):
 		return false
 	return not DirAccess.dir_exists_absolute(absolute) or _remove_tree_exact(absolute)
+
+
+func _failure_after_output(errors: PackedStringArray, output_path: String, cleanup_allowed := true) -> Dictionary:
+	var result := {"errors": errors, "output_path": output_path}
+	if not cleanup_allowed:
+		result["output_retained"] = true
+		return result
+	if not _discard_promoted_output(output_path):
+		errors.append("promoted output cleanup failed: %s" % output_path)
+		result["cleanup_failed"] = true
+	return result
 
 
 static func _write_json_new_absolute(path: String, value: Dictionary) -> bool:

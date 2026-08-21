@@ -327,6 +327,20 @@ func test_failed_atomic_config_replacement_keeps_original_bytes_and_reports_fail
 	assert_array(FileAccess.get_file_as_bytes(CONFIG_PATH)).contains_exactly(original)
 	assert_int((_read_json(CONFIG_PATH)["actions"]["dash"]["takes"] as Array).size()).is_equal(0)
 	assert_bool(FileAccess.file_exists(AUTHORING_PATH)).is_false()
+	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(OUTPUT_ROOT + "/dash/atomic"))).is_false()
+
+
+func test_cleanup_failure_is_reported_instead_of_silently_discarded() -> void:
+	var fixture := _write_external_fixture("cleanup-failure", 2)
+	var service: Variant = _new_service()
+	assert_bool("output_cleaner" in service).is_true()
+	if not "output_cleaner" in service:
+		return
+	service.config_replacer = func(_temporary: String, _destination: String) -> bool: return false
+	service.output_cleaner = func(_path: String) -> bool: return false
+	var result: Dictionary = service.promote_selection(_promotion_params(fixture["manifest_path"], "cleanup_fail"))
+	assert_str("\n".join(result.get("errors", PackedStringArray()))).contains("cleanup failed")
+	assert_bool(result.get("cleanup_failed", false)).is_true()
 
 
 func test_promotion_readback_rejects_tampered_provenance_before_registration() -> void:
@@ -337,10 +351,26 @@ func test_promotion_readback_rejects_tampered_provenance_before_registration() -
 		return
 	service.output_mutator = func(emitted: Dictionary) -> void:
 		var provenance := _read_json(str(emitted["provenance_path"]))
-		provenance["ordered_source_indices"] = [0]
+		provenance["source_manifest_sha256"] = "0".repeat(64)
 		_write_json(str(emitted["provenance_path"]), provenance)
+		var manifest := _read_json(str(emitted["manifest_path"]))
+		((manifest["source_frames"] as Array)[0] as Dictionary)["source_frame"] = 999
+		_write_json(str(emitted["manifest_path"]), manifest)
 	var result: Dictionary = service.promote_selection(_promotion_params(fixture["manifest_path"], "readback"))
 	assert_str("\n".join(result.get("errors", PackedStringArray()))).contains("provenance")
+	assert_int((_read_json(CONFIG_PATH)["actions"]["dash"]["takes"] as Array).size()).is_equal(0)
+
+
+func test_promotion_readback_rejects_spriteframes_wrong_region_before_registration() -> void:
+	var fixture := _write_external_fixture("readback-region", 2)
+	var service: Variant = _new_service()
+	service.output_mutator = func(emitted: Dictionary) -> void:
+		var frames := ResourceLoader.load(str(emitted["resource_path"]), "SpriteFrames", ResourceLoader.CACHE_MODE_REPLACE) as SpriteFrames
+		var texture := frames.get_frame_texture(&"source_all", 0) as AtlasTexture
+		texture.region.position.x += 256
+		ResourceSaver.save(frames, str(emitted["resource_path"]))
+	var result: Dictionary = service.promote_selection(_promotion_params(fixture["manifest_path"], "wrong_region"))
+	assert_str("\n".join(result.get("errors", PackedStringArray()))).contains("region")
 	assert_int((_read_json(CONFIG_PATH)["actions"]["dash"]["takes"] as Array).size()).is_equal(0)
 
 
@@ -359,7 +389,7 @@ func test_authoring_failure_restores_config_and_removes_only_new_output() -> voi
 	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(OUTPUT_ROOT + "/dash/rollback"))).is_false()
 
 
-func test_restore_failure_is_reported_loudly_and_new_output_is_removed() -> void:
+func test_restore_failure_is_reported_loudly_and_referenced_output_is_retained() -> void:
 	var fixture := _write_external_fixture("restore-failure", 2)
 	var service: Variant = _new_service()
 	assert_bool("authoring_installer" in service).is_true()
@@ -371,7 +401,8 @@ func test_restore_failure_is_reported_loudly_and_new_output_is_removed() -> void
 	service.config_restorer = func(_path: String, _bytes: PackedByteArray) -> bool: return false
 	var result: Dictionary = service.promote_selection(_promotion_params(fixture["manifest_path"], "restore_fail"))
 	assert_str("\n".join(result.get("errors", PackedStringArray()))).contains("rollback failed")
-	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(OUTPUT_ROOT + "/dash/restore_fail"))).is_false()
+	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(OUTPUT_ROOT + "/dash/restore_fail"))).is_true()
+	assert_bool(result.get("output_retained", false)).is_true()
 
 
 func test_preferred_take_changes_only_explicitly_and_rebuilds_authoring_without_runtime_publish() -> void:
