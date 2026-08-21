@@ -375,6 +375,8 @@ def validate_installed_clip(
         if atlas.size != (sheet_width, sheet_height):
             raise WorkerError("atlas dimensions do not match manifest")
     allowed = set(palette)
+    cropped_frame_count = 0
+    cropped_pixel_count = 0
     for expected_index, (frame, rect) in enumerate(zip(source_frames, rects)):
         if not isinstance(frame, dict) or not isinstance(rect, dict):
             raise WorkerError(f"frame {expected_index} provenance must be an object")
@@ -382,6 +384,18 @@ def validate_installed_clip(
             raise WorkerError(f"frame {expected_index} provenance does not match layout")
         if int(frame.get("source_frame", 0)) <= 0 or float(frame.get("duration_ms", 0)) <= 0:
             raise WorkerError(f"frame {expected_index} source timing is invalid")
+        cropped_value = frame.get("cropped_margin_pixels", 0)
+        if (
+            isinstance(cropped_value, bool)
+            or not isinstance(cropped_value, int)
+            or cropped_value < 0
+        ):
+            raise WorkerError(
+                f"frame {expected_index} cropped_margin_pixels must be a non-negative integer"
+            )
+        if cropped_value > 0:
+            cropped_frame_count += 1
+            cropped_pixel_count += cropped_value
         values = [int(rect.get(key, -1)) for key in ("x", "y", "w", "h")]
         x, y, width, height = values
         if (
@@ -400,11 +414,15 @@ def validate_installed_clip(
         if _sha256(frame_path) != str(frame.get("sha256", "")):
             raise WorkerError(f"frame PNG hash mismatch: {frame_path}")
         _validate_pixel_frame(frame_path, allowed)
-    return {
+    result = {
         "clip_id": str(manifest.get("clip_id", "")),
         "frame_count": expected_count,
         "valid": True,
     }
+    if cropped_frame_count:
+        result["cropped_frame_count"] = cropped_frame_count
+        result["cropped_pixel_count"] = cropped_pixel_count
+    return result
 
 
 def _sha256(path: Path) -> str:

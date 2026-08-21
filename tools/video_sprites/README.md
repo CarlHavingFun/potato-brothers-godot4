@@ -1,6 +1,8 @@
 # Niko 视频全帧精灵库
 
-这套工具把视频的每一帧转为 Godot 可用的 256×256 像素精灵，并把“完整来源”和“人工选择”分开保存。它不会伪造缺失方向，也不会接入正式玩家角色资源。
+这套工具把视频的每一帧转为 Godot 可用的 256×256 像素精灵，并把“完整来源”、
+“人工选择”和“游戏发布”分开保存。它不会伪造缺失方向；游戏只连接人工确认后发布的
+轻量运行资源，不直接加载全帧母资源。
 
 每一帧先由 PixelMotion 的边缘连通算法安全移除背景（保留白衣），再由 sprite-gen
 官方 component-row extractor 完成 pixel-unfake、32 色共享调色板、alpha-centroid
@@ -55,7 +57,24 @@ Niko 的集中编辑入口是：
 编辑完成后执行 `character_sprite.publish` 或编辑器菜单“角色精灵/发布当前角色动画”。
 游戏只加载发布后的轻量资源，不加载全部 source 轨。
 
-统一动作模板如下；`dash_down` 当前明确缺失，不会用静态图冒充：
+## 每个可玩角色需要的动作
+
+当前项目的 12 个可玩角色使用同一个人工友好动作模板：`well_rounded`、`brawler`、
+`bunny`、`crazy`、`knight`、`almighty`、`ember_sage`、`scrapwright`、`dash_raider`、
+`bloodbound`、`scrap_broker`、`glass_cannon`。每个人物的集中 SpriteFrames 都应一览
+以下 7 个运行动作；每个动作还可以有任意数量的 `source__动作_down__take` 全帧来源轨：
+
+| 必需动作 | 用途 | 默认循环 | 当前方向规则 |
+| --- | --- | --- | --- |
+| `spawn_down` | 出生 / 入场 | 否 | 仅正面 |
+| `idle_down` | 待机 | 是 | 缺方向时回退正面 |
+| `walk_down` | 普通移动 | 是 | 8 方向请求全部回退正面 |
+| `dash_down` | 冲刺 | 否 | 缺失时回退待机，不伪造资源 |
+| `hit_down` | 受击 | 否 | 缺方向时回退正面 |
+| `death_down` | 死亡 | 否 | 缺方向时回退正面 |
+| `victory_down` | 胜利 | 否 | 缺方向时回退正面 |
+
+Niko 当前视频与模板的映射如下；`dash_down` 明确缺失，不会用静态图冒充：
 
 | Godot 动作 | 视频来源 / take | 默认循环 |
 | --- | --- | --- |
@@ -83,4 +102,7 @@ Niko 的集中编辑入口是：
 
 普通重导入 never overwrites `selection.tres`。只有显式传入 `replace_selection: true` 才会用全部来源帧重置人工选择；该操作会丢弃当前选择，因此不要作为日常重导入选项。
 
-`source_all_frames.tres` 始终是不可编辑来源基线；游戏或样片应引用 `selection.tres`。所有贴图使用最近邻过滤，不应启用平滑、mipmap 或有损压缩。
+`source_all_frames.tres` 始终是不可编辑来源基线；单 clip 样片可以引用
+`selection.tres`。正式人物游戏场景只引用由集中母资源发布出的
+`runtime/<character>_runtime_frames.tres`。所有贴图使用最近邻过滤，不应启用平滑、
+mipmap 或有损压缩。

@@ -306,7 +306,13 @@ class InstalledClipTests(unittest.TestCase):
             result = worker.validate_installed_clip(clip, palette)
 
             self.assertEqual(
-                {"clip_id": "born_test", "frame_count": 1, "valid": True},
+                {
+                    "clip_id": "born_test",
+                    "frame_count": 1,
+                    "valid": True,
+                    "cropped_frame_count": 1,
+                    "cropped_pixel_count": 560,
+                },
                 result,
             )
 
