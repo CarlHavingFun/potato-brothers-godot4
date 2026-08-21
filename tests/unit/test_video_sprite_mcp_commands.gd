@@ -4,6 +4,7 @@ extends GdUnitTestSuite
 const Commands = preload("res://mcp_commands/video_sprite_commands.gd")
 const TEMP_ROOT := "res://reports/video_sprite_mcp"
 const PIPELINE_ROOT := TEMP_ROOT + "/pipeline"
+const SPRITE_GEN_ROOT := TEMP_ROOT + "/sprite-gen"
 const PYTHON_PATH := TEMP_ROOT + "/python.exe"
 
 var launched_executable := ""
@@ -12,9 +13,12 @@ var launched_arguments := PackedStringArray()
 
 func before_test() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(PIPELINE_ROOT + "/tools"))
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SPRITE_GEN_ROOT + "/scripts"))
 	_write(PYTHON_PATH, "fixture")
 	_write(PIPELINE_ROOT + "/tools/build_video_sprite_library.py", "# fixture")
 	_write(PIPELINE_ROOT + "/characters.json", "{}")
+	_write(SPRITE_GEN_ROOT + "/scripts/prepare_sprite_run.py", "# fixture")
+	_write(SPRITE_GEN_ROOT + "/scripts/extract_sprite_row_frames.py", "# fixture")
 
 
 func after_test() -> void:
@@ -73,6 +77,7 @@ func test_import_launch_builds_exact_worker_arguments_and_returns_immediately() 
 			"source_directory": source_absolute,
 			"output_directory": "res://tools/sprites/niko_video_library",
 			"pipeline_root": ProjectSettings.globalize_path(PIPELINE_ROOT),
+			"sprite_gen_root": ProjectSettings.globalize_path(SPRITE_GEN_ROOT),
 			"python_executable": ProjectSettings.globalize_path(PYTHON_PATH),
 			"config_path": ProjectSettings.globalize_path(PIPELINE_ROOT + "/characters.json"),
 			"force_generated": true,
@@ -87,8 +92,10 @@ func test_import_launch_builds_exact_worker_arguments_and_returns_immediately() 
 	assert_str(result.get("state", "")).is_equal("queued")
 	assert_str(launched_executable).is_equal(ProjectSettings.globalize_path(PYTHON_PATH))
 	assert_array(launched_arguments).contains_exactly([
-		ProjectSettings.globalize_path(PIPELINE_ROOT + "/tools/build_video_sprite_library.py"),
+		ProjectSettings.globalize_path("res://tools/video_sprites/spritegen_video_worker.py"),
 		"import-directory",
+		"--pixelmotion-root", ProjectSettings.globalize_path(PIPELINE_ROOT),
+		"--sprite-gen-root", ProjectSettings.globalize_path(SPRITE_GEN_ROOT),
 		"--source-directory", source_absolute,
 		"--output-directory", ProjectSettings.globalize_path("res://tools/sprites/niko_video_library"),
 		"--job-receipt", ProjectSettings.globalize_path("user://video_sprite_jobs/job-fixed.json"),

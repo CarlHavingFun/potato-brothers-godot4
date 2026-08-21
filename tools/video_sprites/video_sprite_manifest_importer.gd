@@ -34,6 +34,8 @@ static func validate_character_config(config: Dictionary) -> PackedStringArray:
 		errors.append("character config schema_version must be 1")
 	if str(config.get("character_id", "")).is_empty():
 		errors.append("character config character_id must be non-empty")
+	if int(config.get("expected_source_frame_count", 0)) <= 0:
+		errors.append("character config expected_source_frame_count must be positive")
 	var required_value: Variant = config.get("required_actions", null)
 	if not required_value is Array or (required_value as Array).is_empty():
 		errors.append("character config required_actions must be a non-empty array")
@@ -236,6 +238,7 @@ static func build_character_sprite_frames(
 		return {"errors": errors}
 	var frames := SpriteFrames.new()
 	frames.remove_animation(&"default")
+	var expected_source_frame_count := int(config.get("expected_source_frame_count", 0))
 	if existing != null:
 		for animation_name: StringName in existing.get_animation_names():
 			if not String(animation_name).begins_with(SOURCE_PREFIX):
@@ -273,6 +276,14 @@ static func build_character_sprite_frames(
 			var source := source_value as SpriteFrames
 			if not source.has_animation(STATE) or source.get_frame_count(STATE) <= 0:
 				errors.append("clip %s is missing source_all frames" % clip_id)
+				continue
+			var source_frame_count := source.get_frame_count(STATE)
+			if expected_source_frame_count > 0 and source_frame_count != expected_source_frame_count:
+				errors.append(
+					"%s must contain exactly %d source frames; found %d" % [
+						clip_id, expected_source_frame_count, source_frame_count,
+					]
+				)
 				continue
 			var source_name := StringName("%s%s_down__%s" % [SOURCE_PREFIX, action, take_name])
 			_copy_animation(source, STATE, frames, source_name)
@@ -316,6 +327,7 @@ static func character_status(config: Dictionary, frames: SpriteFrames) -> Dictio
 		"required_actions": required,
 		"missing_actions": missing,
 		"source_take_count": source_take_count,
+		"expected_source_frame_count": int(config.get("expected_source_frame_count", 0)),
 		"degraded_static_fallback": false,
 	}
 

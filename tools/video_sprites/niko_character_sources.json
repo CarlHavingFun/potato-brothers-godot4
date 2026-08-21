@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "character_id": "niko",
+  "expected_source_frame_count": 124,
   "display_name": "Niko",
   "source_directory": "E:/01_gobro/MINIMAX_OK/niko",
   "clip_root": "res://tools/sprites/niko_video_library",

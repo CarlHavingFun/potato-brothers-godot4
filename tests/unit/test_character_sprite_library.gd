@@ -53,6 +53,20 @@ func test_character_library_groups_every_take_and_seeds_runtime_from_preferred_t
 	assert_bool(frames.has_animation(&"dash_down")).is_false()
 
 
+func test_character_library_refuses_any_take_that_is_not_the_full_expected_frame_count() -> void:
+	var result := Importer.build_character_sprite_frames(
+		_config(),
+		{
+			"walk_happy": _source_frames(2, 24.0, 101),
+			"walk_power": _source_frames(3, 24.0, 201),
+			"idle_take": _source_frames(3, 24.0, 301),
+		}
+	)
+	assert_str("\n".join(result.get("errors", PackedStringArray()))).contains(
+		"walk_happy must contain exactly 3 source frames"
+	)
+
+
 func test_character_library_refreshes_sources_without_overwriting_human_runtime_edits() -> void:
 	var importer = Importer.new()
 	if not importer.has_method("build_character_sprite_frames"):
@@ -266,6 +280,7 @@ func _config() -> Dictionary:
 	return {
 		"schema_version": 1,
 		"character_id": "niko",
+		"expected_source_frame_count": 3,
 		"required_actions": ["spawn", "idle", "walk", "dash", "hit", "death", "victory"],
 		"actions": {
 			"idle": {

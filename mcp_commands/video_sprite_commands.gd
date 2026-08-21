@@ -6,6 +6,7 @@ const Importer = preload("res://tools/video_sprites/video_sprite_manifest_import
 const DEFAULT_OUTPUT := "res://tools/sprites/niko_video_library"
 const JOB_ROOT := "user://video_sprite_jobs"
 const DEFAULT_CHARACTER_CONFIG := "res://tools/video_sprites/niko_character_sources.json"
+const SPRITE_GEN_WORKER := "res://tools/video_sprites/spritegen_video_worker.py"
 
 var _jobs: Dictionary = {}
 
@@ -44,16 +45,24 @@ func _scan_directory(params: Dictionary) -> Dictionary:
 	var pipeline_root := resolve_pipeline_root(params)
 	if pipeline_root.is_empty():
 		return error_invalid_params("pipeline_root is missing or does not exist")
-	var python := resolve_python_executable(params, pipeline_root)
+	var sprite_gen_root := resolve_sprite_gen_root(params)
+	if sprite_gen_root.is_empty():
+		return error_invalid_params("sprite_gen_root is missing or incomplete")
+	var python := resolve_python_executable(params, sprite_gen_root)
 	if python.is_empty():
-		return error_invalid_params("could not resolve a Python executable")
-	var script := pipeline_root.path_join("tools/build_video_sprite_library.py")
+		return error_invalid_params("could not resolve the sprite-gen venv Python executable")
+	var script := ProjectSettings.globalize_path(SPRITE_GEN_WORKER)
 	if not FileAccess.file_exists(script):
-		return error_not_found("PixelMotion video sprite CLI", script)
+		return error_not_found("sprite-gen video worker", SPRITE_GEN_WORKER)
 	var output: Array = []
 	var exit_code := OS.execute(
 		python,
-		PackedStringArray([script, "scan", "--source-directory", source_directory]),
+		PackedStringArray([
+			script, "scan",
+			"--pixelmotion-root", pipeline_root,
+			"--sprite-gen-root", sprite_gen_root,
+			"--source-directory", source_directory,
+		]),
 		output,
 		true
 	)
@@ -195,17 +204,37 @@ static func resolve_pipeline_root(params: Dictionary) -> String:
 	return candidate if DirAccess.dir_exists_absolute(candidate) else ""
 
 
-static func resolve_python_executable(params: Dictionary, pipeline_root: String) -> String:
+static func resolve_sprite_gen_root(params: Dictionary) -> String:
+	var candidate := str(params.get("sprite_gen_root", ""))
+	if candidate.is_empty():
+		candidate = OS.get_environment("SPRITE_GEN_ROOT")
+	if candidate.is_empty():
+		var user_profile := OS.get_environment("USERPROFILE")
+		if not user_profile.is_empty():
+			candidate = user_profile.path_join(".codex/skills/sprite-gen")
+	if candidate.is_empty() or not candidate.is_absolute_path():
+		return ""
+	candidate = candidate.simplify_path()
+	for required_script: String in [
+		"scripts/prepare_sprite_run.py",
+		"scripts/extract_sprite_row_frames.py",
+	]:
+		if not FileAccess.file_exists(candidate.path_join(required_script)):
+			return ""
+	return candidate
+
+
+static func resolve_python_executable(params: Dictionary, sprite_gen_root: String) -> String:
 	var explicit := str(params.get("python_executable", ""))
 	if not explicit.is_empty():
 		return explicit.simplify_path() if FileAccess.file_exists(explicit) else ""
-	var environment := OS.get_environment("PIXELMOTION2D_PYTHON")
+	var environment := OS.get_environment("SPRITE_GEN_PYTHON")
 	if not environment.is_empty():
 		return environment.simplify_path() if FileAccess.file_exists(environment) else ""
-	var bundled := pipeline_root.path_join(".venv/Scripts/python.exe")
+	var bundled := sprite_gen_root.path_join(".venv/Scripts/python.exe")
 	if FileAccess.file_exists(bundled):
 		return bundled
-	return "python"
+	return ""
 
 
 func start_import_job(
@@ -238,13 +267,17 @@ func start_import_job(
 	if pipeline_root.is_empty():
 		_append_result_error(result, "pipeline_root is missing or does not exist")
 		return result
-	var python := resolve_python_executable(params, pipeline_root)
-	if python.is_empty():
-		_append_result_error(result, "could not resolve a Python executable")
+	var sprite_gen_root := resolve_sprite_gen_root(params)
+	if sprite_gen_root.is_empty():
+		_append_result_error(result, "sprite_gen_root is missing or incomplete")
 		return result
-	var script := pipeline_root.path_join("tools/build_video_sprite_library.py")
+	var python := resolve_python_executable(params, sprite_gen_root)
+	if python.is_empty():
+		_append_result_error(result, "could not resolve the sprite-gen venv Python executable")
+		return result
+	var script := ProjectSettings.globalize_path(SPRITE_GEN_WORKER)
 	if not FileAccess.file_exists(script):
-		_append_result_error(result, "video sprite CLI not found: %s" % script)
+		_append_result_error(result, "sprite-gen video worker not found: %s" % SPRITE_GEN_WORKER)
 		return result
 	var config := str(params.get("config_path", pipeline_root.path_join("characters/niko-walk.json")))
 	if not FileAccess.file_exists(config):
@@ -272,6 +305,8 @@ func start_import_job(
 	var arguments := PackedStringArray([
 		script,
 		command,
+		"--pixelmotion-root", pipeline_root,
+		"--sprite-gen-root", sprite_gen_root,
 		"--%s" % source_key.replace("_", "-"), source,
 		"--output-directory", output_absolute,
 		"--job-receipt", receipt_absolute,
@@ -518,7 +553,8 @@ func _import_docs(source_name: String, source_description: String) -> Array:
 		doc_param(source_name, "String", true, source_description),
 		doc_param("output_directory", "String", false, "Destination below res://tools/sprites."),
 		doc_param("pipeline_root", "String", false, "PixelMotion 2D root."),
-		doc_param("python_executable", "String", false, "Python executable override."),
+		doc_param("sprite_gen_root", "String", false, "sprite-gen skill root."),
+		doc_param("python_executable", "String", false, "sprite-gen venv Python override."),
 		doc_param("config_path", "String", false, "PixelMotion character config override."),
 		doc_param("force_generated", "bool", false, "Rebuild generated PNG/atlas/manifest files."),
 		doc_param("replace_selection", "bool", false, "Explicitly replace selection.tres during finalization."),
@@ -534,7 +570,8 @@ func _character_docs(include_worker: bool) -> Array:
 		docs.append_array([
 			doc_param("source_directory", "String", false, "Optional source video directory override."),
 			doc_param("pipeline_root", "String", false, "PixelMotion 2D root."),
-			doc_param("python_executable", "String", false, "Python executable override."),
+			doc_param("sprite_gen_root", "String", false, "sprite-gen skill root."),
+			doc_param("python_executable", "String", false, "sprite-gen venv Python override."),
 			doc_param("force_generated", "bool", false, "Rebuild generated full-frame artifacts."),
 		])
 	return docs

@@ -2,6 +2,11 @@
 
 这套工具把视频的每一帧转为 Godot 可用的 256×256 像素精灵，并把“完整来源”和“人工选择”分开保存。它不会伪造缺失方向，也不会接入正式玩家角色资源。
 
+每一帧先由 PixelMotion 的边缘连通算法安全移除背景（保留白衣），再由 sprite-gen
+官方 component-row extractor 完成 pixel-unfake、32 色共享调色板、alpha-centroid
+水平对齐和底部落地。最终帧不是普通缩放结果。sprite-gen 以 y=232 作为地面边界，
+所以最后一个不透明像素位于 y=231。
+
 ## MCP 命令
 
 - `video_sprites.scan_directory`：递归扫描视频，返回路径、哈希、尺寸、精确 FPS、时间戳及总帧数。
@@ -20,6 +25,7 @@
   "source_directory": "E:\\01_gobro\\MINIMAX_OK\\niko",
   "output_directory": "res://tools/sprites/niko_video_library",
   "pipeline_root": "E:\\01_gobro\\pixelmotion-2d-niko",
+  "sprite_gen_root": "C:\\Users\\18421\\.codex\\skills\\sprite-gen",
   "python_executable": "C:\\Users\\18421\\.codex\\skills\\sprite-gen\\.venv\\Scripts\\python.exe",
   "force_generated": false,
   "replace_selection": false
@@ -41,6 +47,21 @@ Niko 的集中编辑入口是：
 
 编辑完成后执行 `character_sprite.publish` 或编辑器菜单“角色精灵/发布当前角色动画”。
 游戏只加载发布后的轻量资源，不加载全部 source 轨。
+
+统一动作模板如下；`dash_down` 当前明确缺失，不会用静态图冒充：
+
+| Godot 动作 | 视频来源 / take | 默认循环 |
+| --- | --- | --- |
+| `spawn_down` | `born` / `born` | 否 |
+| `idle_down` | `idle` / `calm` | 是 |
+| `walk_down` | `walk` / `happy`（另含 `power`、`strong`） | 是 |
+| `dash_down` | 暂无 | 否 |
+| `hit_down` | `hit` / `hit` | 否 |
+| `death_down` | `die` / `niko_die`（另含 `die`） | 否 |
+| `victory_down` | `happy_jump` / `happy_jump` | 否 |
+
+在补齐其他方向素材之前，运行时的 `walk_up`、`walk_left`、`walk_right` 及所有斜向
+走路请求都统一解析到 `walk_down`；资源内不会复制出八份假方向动画。
 
 每个 clip 包含：
 
