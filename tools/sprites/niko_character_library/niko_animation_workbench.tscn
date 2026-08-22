@@ -1,0 +1,121 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="SpriteFrames" path="res://tools/sprites/niko_character_library/runtime/niko_runtime_frames.tres" id="1_frames"]
+
+[node name="NikoAnimationWorkbench" type="Node2D"]
+editor_description = "Niko 人工动画入口。展开 Actions，选择动作节点，然后在 SpriteFrames 面板替换对应动画。所有节点与游戏中的 Niko 共用同一个资源，保存后立即生效。"
+
+[node name="Title" type="Label" parent="."]
+offset_left = 24.0
+offset_top = 16.0
+offset_right = 1120.0
+offset_bottom = 48.0
+text = "Niko 动作工作台 — 选择 Actions 下的动作节点编辑帧"
+theme_override_font_sizes/font_size = 22
+
+[node name="Actions" type="Node2D" parent="."]
+
+[node name="Spawn" type="AnimatedSprite2D" parent="Actions"]
+texture_filter = 1
+position = Vector2(160, 190)
+sprite_frames = ExtResource("1_frames")
+animation = &"spawn_down"
+autoplay = "spawn_down"
+
+[node name="Name" type="Label" parent="Actions/Spawn"]
+offset_left = -60.0
+offset_top = 132.0
+offset_right = 60.0
+offset_bottom = 160.0
+text = "spawn_down"
+horizontal_alignment = 1
+
+[node name="Idle" type="AnimatedSprite2D" parent="Actions"]
+texture_filter = 1
+position = Vector2(440, 190)
+sprite_frames = ExtResource("1_frames")
+animation = &"idle_down"
+autoplay = "idle_down"
+
+[node name="Name" type="Label" parent="Actions/Idle"]
+offset_left = -60.0
+offset_top = 132.0
+offset_right = 60.0
+offset_bottom = 160.0
+text = "idle_down"
+horizontal_alignment = 1
+
+[node name="Walk" type="AnimatedSprite2D" parent="Actions"]
+texture_filter = 1
+position = Vector2(720, 190)
+sprite_frames = ExtResource("1_frames")
+animation = &"walk_down"
+autoplay = "walk_down"
+
+[node name="Name" type="Label" parent="Actions/Walk"]
+offset_left = -60.0
+offset_top = 132.0
+offset_right = 60.0
+offset_bottom = 160.0
+text = "walk_down"
+horizontal_alignment = 1
+
+[node name="Dash" type="AnimatedSprite2D" parent="Actions"]
+texture_filter = 1
+position = Vector2(1000, 190)
+sprite_frames = ExtResource("1_frames")
+animation = &"dash_down"
+autoplay = "dash_down"
+
+[node name="Name" type="Label" parent="Actions/Dash"]
+offset_left = -60.0
+offset_top = 132.0
+offset_right = 60.0
+offset_bottom = 160.0
+text = "dash_down（占位）"
+horizontal_alignment = 1
+
+[node name="Hit" type="AnimatedSprite2D" parent="Actions"]
+texture_filter = 1
+position = Vector2(300, 490)
+sprite_frames = ExtResource("1_frames")
+animation = &"hit_down"
+autoplay = "hit_down"
+
+[node name="Name" type="Label" parent="Actions/Hit"]
+offset_left = -60.0
+offset_top = 132.0
+offset_right = 60.0
+offset_bottom = 160.0
+text = "hit_down"
+horizontal_alignment = 1
+
+[node name="Death" type="AnimatedSprite2D" parent="Actions"]
+texture_filter = 1
+position = Vector2(580, 490)
+sprite_frames = ExtResource("1_frames")
+animation = &"death_down"
+autoplay = "death_down"
+
+[node name="Name" type="Label" parent="Actions/Death"]
+offset_left = -60.0
+offset_top = 132.0
+offset_right = 60.0
+offset_bottom = 160.0
+text = "death_down"
+horizontal_alignment = 1
+
+[node name="Victory" type="AnimatedSprite2D" parent="Actions"]
+texture_filter = 1
+position = Vector2(860, 490)
+sprite_frames = ExtResource("1_frames")
+animation = &"victory_down"
+autoplay = "victory_down"
+
+[node name="Name" type="Label" parent="Actions/Victory"]
+offset_left = -60.0
+offset_top = 132.0
+offset_right = 60.0
+offset_bottom = 160.0
+text = "victory_down"
+horizontal_alignment = 1

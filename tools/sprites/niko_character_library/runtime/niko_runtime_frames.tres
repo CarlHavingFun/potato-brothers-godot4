@@ -2983,6 +2983,14 @@ region = Rect2(1792, 3584, 256, 256)
 [resource]
 animations = [{
 "frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_yj6a6")
+}],
+"loop": 0,
+"name": &"dash_down",
+"speed": 10.0
+}, {
+"frames": [{
 "duration": 1.000008,
 "texture": SubResource("AtlasTexture_653xm")
 }, {
