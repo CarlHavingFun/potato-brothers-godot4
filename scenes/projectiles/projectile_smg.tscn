@@ -1,7 +1,0 @@
-[gd_scene load_steps=3 format=3 uid="uid://df423u0lajaft"]
-
-[ext_resource type="PackedScene" uid="uid://cs4y516rwuuxm" path="res://scenes/projectiles/projectile_pistol.tscn" id="1_s2juw"]
-
-[node name="ProjectileSMG" instance=ExtResource("1_s2juw")]
-
-[node name="Sprite2D" parent="." index="0"]

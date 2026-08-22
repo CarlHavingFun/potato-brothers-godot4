@@ -10,28 +10,11 @@ config_version=5
 
 [application]
 
-config/name="Game Prototype"
-run/main_scene="res://scenes/game_root/game_root.tscn"
+config/name="GOGOBRO"
+run/main_scene="res://game/app/app_root.tscn"
 config/use_custom_user_dir=true
-config/custom_user_dir_name="LETS_GOOOOO"
+config/custom_user_dir_name="GOGOBRO"
 config/features=PackedStringArray("4.7", "GL Compatibility")
-config/icon="res://content_packs/skins/lets_gooooo/assets/ui/app_icon.png"
-
-[autoload]
-
-GameLog="*res://core/logging/game_log.gd"
-Content="*res://core/content/bootstrap_content_loader.gd"
-Presentation="*res://core/presentation/skin_resolver.gd"
-GameplayCues="*res://core/presentation/gameplay_cue_bus.gd"
-CuePresenter="*res://core/presentation/gameplay_cue_presenter.gd"
-Global="*res://autoloads/global.gd"
-InputDevices="*res://core/input/input_device_manager.gd"
-MCPGameInspector="*res://addons/godot_mcp/services/game_inspector.gd"
-MCPGameInput="*res://addons/godot_mcp/services/game_input.gd"
-
-[balance]
-
-active_profile="baseline_parity_1_1_15_4"
 
 [debug]
 
@@ -46,17 +29,13 @@ window/stretch/mode="canvas_items"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg", "res://addons/godot_mcp/plugin.cfg")
+enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
 
 [godot_mcp]
 
 network/http_port=9100
 network/http_typed=false
 runtime/direct_server=true
-
-[gui]
-
-theme/custom_font="uid://dk7ibdh75qguo"
 
 [input]
 

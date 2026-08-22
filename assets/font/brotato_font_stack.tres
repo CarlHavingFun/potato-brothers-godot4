@@ -1,8 +1,0 @@
-[gd_resource type="FontVariation" format=3 uid="uid://dk7ibdh75qguo"]
-
-[ext_resource type="FontFile" path="res://assets/font/Anybody-Medium.ttf" id="1_anybody"]
-[ext_resource type="FontFile" path="res://assets/font/NotoSansCJKsc-Medium.otf" id="2_noto_sc"]
-
-[resource]
-fallbacks = [ExtResource("2_noto_sc")]
-base_font = ExtResource("1_anybody")

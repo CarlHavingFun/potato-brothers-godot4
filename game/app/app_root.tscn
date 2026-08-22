@@ -1,0 +1,20 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://game/app/app_root.gd" id="1_root"]
+[ext_resource type="Script" path="res://game/app/scene_flow.gd" id="2_flow"]
+[ext_resource type="Script" path="res://game/platform/audio_service.gd" id="3_audio"]
+[ext_resource type="Script" path="res://game/platform/log_service.gd" id="4_log"]
+
+[node name="GogobroApp" type="Node"]
+script = ExtResource("1_root")
+
+[node name="AudioService" type="Node" parent="."]
+script = ExtResource("3_audio")
+
+[node name="LogService" type="Node" parent="."]
+script = ExtResource("4_log")
+
+[node name="SceneFlow" type="Node" parent="."]
+script = ExtResource("2_flow")
+
+[node name="SceneHost" type="Node" parent="."]
