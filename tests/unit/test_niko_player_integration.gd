@@ -6,8 +6,9 @@ const NIKO_RUNTIME_PATH := (
 	"res://tools/sprites/niko_character_library/runtime/niko_runtime_frames.tres"
 )
 const NIKO_WORKBENCH_PATH := (
-	"res://tools/sprites/niko_character_library/niko_animation_workbench.tscn"
+	"res://Niko动画工作台.tscn"
 )
+const LEGACY_AUTHORING_PLUGIN := "res://addons/character_sprite_authoring/plugin.cfg"
 const NIKO_AUTHORING_PATH := (
 	"res://tools/sprites/niko_character_library/authoring/niko_all_actions.tres"
 )
@@ -110,6 +111,13 @@ func test_niko_animation_workbench_lists_every_action_on_the_shared_game_library
 			continue
 		assert_str(preview.sprite_frames.resource_path).is_equal(NIKO_RUNTIME_PATH)
 		assert_str(preview.animation).is_equal(String(action))
+
+
+func test_legacy_character_authoring_dock_is_disabled_for_manual_editing() -> void:
+	var enabled_plugins: PackedStringArray = ProjectSettings.get_setting(
+		"editor_plugins/enabled", PackedStringArray()
+	)
+	assert_bool(LEGACY_AUTHORING_PLUGIN in enabled_plugins).is_false()
 
 
 func test_only_well_rounded_uses_the_niko_player_scene_in_the_default_pack() -> void:

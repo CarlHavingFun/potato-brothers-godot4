@@ -1,6 +1,6 @@
 # Niko 人工动画入口
 
-打开 `niko_animation_workbench.tscn`。场景树的 `Actions` 下列出 Niko 的七个游戏动作：
+打开项目根目录的 `res://Niko动画工作台.tscn`。场景树的 `Actions` 下列出 Niko 的七个游戏动作：
 
 - `Spawn` → `spawn_down`
 - `Idle` → `idle_down`
