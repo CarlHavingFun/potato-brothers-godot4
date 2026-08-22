@@ -2,7 +2,12 @@ class_name BootstrapContentLoader
 extends Node
 
 
+signal catalog_changed(catalog: ContentCatalog)
+
+const RegistryScript := preload("res://core/content/content_pack_registry.gd")
+const StateStoreScript := preload("res://core/content/content_pack_state_store.gd")
 const DEFAULT_MANIFEST_PATH := "res://content_packs/default/pack.tres"
+const BUILTIN_PACK_INDEX_PATH := "res://content_packs/builtin_packs.json"
 const DEFAULT_PACK_FILENAME := "default_content.pck"
 const EXPECTED_DEFAULT_WEAPON_COUNT := 24
 const EXPECTED_DEFAULT_PASSIVE_COUNT := 60
@@ -19,6 +24,11 @@ var catalog := ContentCatalog.new()
 var active_balance_pack: BalancePackDef
 var last_errors := PackedStringArray()
 var _translation_paths: Array[String] = []
+var _core_pack: ContentPackDef
+var _optional_packs: Array[ContentPackDef] = []
+var _active_pack_ids := PackedStringArray(["core"])
+var _pending_pack_ids := PackedStringArray()
+var _state_store := StateStoreScript.new()
 
 
 func _init() -> void:
@@ -29,6 +39,8 @@ func _init() -> void:
 		result = mount_and_load(default_export_pack_path())
 	if result != OK:
 		push_error("Default content pack failed to load: %s" % "\n".join(last_errors))
+	else:
+		_initialize_optional_packs()
 
 
 func _ready() -> void:
@@ -75,10 +87,160 @@ func load_manifest(manifest_path: String, source_root := "") -> int:
 		return result
 	catalog = candidate_catalog
 	active_balance_pack = candidate_balance_pack
+	if manifest_path == DEFAULT_MANIFEST_PATH:
+		_core_pack = runtime_pack
 	_register_translations(runtime_pack)
 	if manifest_path == DEFAULT_MANIFEST_PATH:
 		print(DEFAULT_CONTENT_READY_MARKER)
 	return OK
+
+
+func queue_enabled_pack_ids(ids: PackedStringArray) -> Dictionary:
+	var known := {}
+	for pack: ContentPackDef in _optional_packs:
+		known[pack.pack_id] = true
+	var normalized := PackedStringArray()
+	var seen := {}
+	for raw_id: String in ids:
+		var pack_id := StringName(raw_id.strip_edges())
+		if pack_id == &"core" or seen.has(pack_id):
+			continue
+		if not known.has(pack_id):
+			return {"ok": false, "errors": PackedStringArray([
+				"unknown content pack: %s" % pack_id
+			])}
+		seen[pack_id] = true
+		normalized.append(pack_id)
+	normalized.sort()
+	_pending_pack_ids = normalized
+	return {"ok": true, "errors": PackedStringArray(), "pending_pack_ids": normalized}
+
+
+func apply_pending_at_main_menu(run_active: bool) -> Dictionary:
+	if run_active:
+		return _apply_failure("content pack changes can only be applied at the main menu")
+	if _core_pack == null:
+		return _apply_failure("core content pack is not available")
+	var result: Dictionary = RegistryScript.new().build_candidate(
+		_core_pack, _optional_packs, _pending_pack_ids, active_balance_pack
+	)
+	var errors: PackedStringArray = result.get("errors", PackedStringArray())
+	if not errors.is_empty() or result.get("catalog") == null:
+		last_errors = errors
+		return result
+	var save_error: Error = _state_store.save_enabled(_pending_pack_ids)
+	if save_error != OK:
+		return _apply_failure("could not save enabled packs: %s" % error_string(save_error))
+	catalog = result.catalog as ContentCatalog
+	_active_pack_ids = result.active_pack_ids
+	_register_active_translations()
+	catalog_changed.emit(catalog)
+	result["ok"] = true
+	return result
+
+
+func content_pack_summaries() -> Array[Dictionary]:
+	var summaries: Array[Dictionary] = [{
+		"pack_id": &"core",
+		"display_name": "Core",
+		"version": _core_pack.pack_version if _core_pack != null else "",
+		"kind": ContentPackDef.PackKind.CORE,
+		"enabled": true,
+		"required": true,
+	}]
+	for pack: ContentPackDef in _optional_packs:
+		summaries.append({
+			"pack_id": pack.pack_id,
+			"display_name": String(pack.display_name_key) if not pack.display_name_key.is_empty() else String(pack.pack_id),
+			"version": pack.pack_version,
+			"kind": pack.pack_kind,
+			"enabled": String(pack.pack_id) in _pending_pack_ids,
+			"required": false,
+		})
+	return summaries
+
+
+func active_pack_ids() -> PackedStringArray:
+	return _active_pack_ids.duplicate()
+
+
+func pending_pack_ids() -> PackedStringArray:
+	return _pending_pack_ids.duplicate()
+
+
+func _initialize_optional_packs() -> void:
+	_optional_packs.clear()
+	var defaults := PackedStringArray()
+	if FileAccess.file_exists(BUILTIN_PACK_INDEX_PATH):
+		var file := FileAccess.open(BUILTIN_PACK_INDEX_PATH, FileAccess.READ)
+		var parsed: Variant = JSON.parse_string(file.get_as_text()) if file != null else null
+		if file != null:
+			file.close()
+		if parsed is Dictionary:
+			for entry: Variant in parsed.get("packs", []):
+				if not entry is Dictionary:
+					continue
+				var manifest_path := String(entry.get("manifest", ""))
+				var pack := _load_optional_manifest(manifest_path)
+				if pack == null:
+					continue
+				_optional_packs.append(pack)
+				if bool(entry.get("default_enabled", false)):
+					defaults.append(pack.pack_id)
+	var state: Dictionary = _state_store.load_state()
+	var saved: PackedStringArray = state.get("enabled_pack_ids", PackedStringArray())
+	_pending_pack_ids = saved if _state_store.last_error == OK and not saved.is_empty() else defaults
+	var initial: Dictionary = RegistryScript.new().build_candidate(
+		_core_pack, _optional_packs, _pending_pack_ids, active_balance_pack
+	)
+	if initial.get("catalog") != null and (initial.errors as PackedStringArray).is_empty():
+		catalog = initial.catalog as ContentCatalog
+		_active_pack_ids = initial.active_pack_ids
+		_register_active_translations()
+	else:
+		last_errors.append_array(initial.get("errors", PackedStringArray()))
+
+
+func _load_optional_manifest(path: String) -> ContentPackDef:
+	if path.is_empty() or not ResourceLoader.exists(path):
+		last_errors.append("optional content manifest not found: %s" % path)
+		return null
+	var resource := ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REPLACE)
+	if not resource is ContentPackDef:
+		last_errors.append("optional manifest is not a ContentPackDef: %s" % path)
+		return null
+	var pack := (resource as ContentPackDef).duplicate(true) as ContentPackDef
+	var errors := ContentValidator.new().validate_pack(pack, path.get_base_dir())
+	if not errors.is_empty():
+		last_errors.append_array(errors)
+		return null
+	return pack
+
+
+func _register_active_translations() -> void:
+	var paths: Array[String] = []
+	for path: String in _core_pack.translation_paths:
+		paths.append(path)
+	for pack: ContentPackDef in _optional_packs:
+		if String(pack.pack_id) not in _active_pack_ids:
+			continue
+		for path: String in pack.translation_paths:
+			if path not in paths:
+				paths.append(path)
+	_translation_paths = paths
+	if is_inside_tree():
+		_apply_registered_translations()
+
+
+func _apply_failure(message: String) -> Dictionary:
+	last_errors = PackedStringArray([message])
+	return {
+		"ok": false,
+		"catalog": null,
+		"active_pack_ids": _active_pack_ids.duplicate(),
+		"errors": last_errors,
+		"restart_required": false,
+	}
 
 
 func _validate_default_mechanics_contract(pack: ContentPackDef) -> PackedStringArray:

@@ -24,6 +24,13 @@ const CHARACTER_CARD_SIZE_LARGE := Vector2(92, 84)
 @onready var primary_button: Button = $Pages/TitlePage/SafeArea/Layout/Menu/PrimaryButton
 @onready var new_game_button: Button = $Pages/TitlePage/SafeArea/Layout/Menu/NewGameButton
 @onready var profile_button: Button = $Pages/TitlePage/SafeArea/Layout/Menu/ProfileButton
+@onready var content_packs_button: Button = $Pages/TitlePage/SafeArea/Layout/Menu/ContentPacksButton
+@onready var content_packs_page: Control = $Pages/ContentPacksPage
+@onready var content_packs_title: Label = $Pages/ContentPacksPage/Content/Header/Title
+@onready var content_packs_list: VBoxContainer = $Pages/ContentPacksPage/Content/PackList
+@onready var content_packs_status: Label = $Pages/ContentPacksPage/Content/Status
+@onready var content_packs_apply: Button = $Pages/ContentPacksPage/Content/Actions/ApplyButton
+@onready var content_packs_back: Button = $Pages/ContentPacksPage/Content/Actions/BackButton
 @onready var profile_choices: VBoxContainer = $Pages/ProfilePage/Content/ProfileChoices
 @onready var repair_notice_label: Label = $Pages/ProfilePage/Content/RepairNotice
 @onready var profile_status_label: Label = $Pages/ProfilePage/Content/ProfileStatus
@@ -83,6 +90,8 @@ var _random_character_button: Button
 var _weapon_stats_return_focus: Button
 var _fallback_theme: Theme
 var _page_transition: Tween
+var _content_packs_open := false
+var _content_pack_checks: Dictionary = {}
 
 
 func _ready() -> void:
@@ -102,6 +111,9 @@ func _ready() -> void:
 	_setup_run_mode()
 	_on_input_device_changed(InputDevices.active_device)
 	_setup_profile_dialogs()
+	content_packs_button.pressed.connect(_open_content_packs)
+	content_packs_apply.pressed.connect(_apply_content_pack_changes)
+	content_packs_back.pressed.connect(_close_content_packs)
 	weapon_stats.gui_input.connect(_on_weapon_stats_gui_input)
 	_apply_character_page_layout()
 	_apply_weapon_page_layout()
@@ -153,7 +165,13 @@ func _on_skin_loaded(_skin_id: StringName) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not visible or current_step == SelectionStep.Value.TITLE:
+	if not visible:
+		return
+	if _content_packs_open and event.is_action_pressed("ui_cancel"):
+		_close_content_packs()
+		get_viewport().set_input_as_handled()
+		return
+	if current_step == SelectionStep.Value.TITLE:
 		return
 	if event.is_action_pressed("ui_cancel"):
 		go_back()
@@ -276,6 +294,7 @@ func _show_step(step: int, animate := true) -> void:
 		_page_transition.kill()
 		_page_transition = null
 	current_step = step
+	_content_packs_open = false
 	var target := _page_for_step(step)
 	for page: Control in pages.get_children():
 		page.modulate.a = 1.0
@@ -294,6 +313,92 @@ func _show_step(step: int, animate := true) -> void:
 		_page_transition.tween_property(target, "modulate:a", 1.0, TRANSITION_SECONDS)
 		_page_transition.tween_property(target, "position:x", 0.0, TRANSITION_SECONDS)
 	_restore_focus(step, target)
+
+
+func _open_content_packs() -> void:
+	_content_packs_open = true
+	for page: Control in pages.get_children():
+		page.visible = page == content_packs_page
+	_rebuild_content_pack_list()
+	content_packs_status.text = ""
+	content_packs_back.call_deferred("grab_focus")
+
+
+func _close_content_packs() -> void:
+	_show_step(SelectionStep.Value.TITLE, false)
+	content_packs_button.call_deferred("grab_focus")
+
+
+func _rebuild_content_pack_list() -> void:
+	_clear_children(content_packs_list)
+	_content_pack_checks.clear()
+	for summary: Dictionary in Content.content_pack_summaries():
+		var check := CheckBox.new()
+		var kind := _content_pack_kind_name(int(summary.get("kind", 0)))
+		check.text = "%s  [%s]  v%s" % [
+			summary.get("display_name", summary.get("pack_id", "")),
+			kind,
+			summary.get("version", ""),
+		]
+		check.button_pressed = bool(summary.get("enabled", false))
+		check.disabled = bool(summary.get("required", false))
+		check.focus_mode = Control.FOCUS_ALL
+		content_packs_list.add_child(check)
+		_content_pack_checks[summary.get("pack_id")] = check
+	_register_button_feedback(content_packs_list)
+	_update_content_pack_copy()
+
+
+func _apply_content_pack_changes() -> void:
+	var requested := PackedStringArray()
+	for pack_id: StringName in _content_pack_checks:
+		if pack_id == &"core":
+			continue
+		var check := _content_pack_checks[pack_id] as CheckBox
+		if check != null and check.button_pressed:
+			requested.append(pack_id)
+	var queued: Dictionary = Content.queue_enabled_pack_ids(requested)
+	if not bool(queued.get("ok", false)):
+		_show_content_pack_errors(queued.get("errors", PackedStringArray()))
+		return
+	var result: Dictionary = Content.apply_pending_at_main_menu(Global.current_run != null)
+	if not bool(result.get("ok", false)):
+		_show_content_pack_errors(result.get("errors", PackedStringArray()))
+		return
+	selection_flow.reset_to_title()
+	_build_character_choices()
+	content_packs_status.text = _pack_text(
+		"内容包已应用。新游戏将使用新的角色和武器目录。",
+		"Content packs applied. New runs will use the updated catalog."
+	)
+	_rebuild_content_pack_list()
+
+
+func _show_content_pack_errors(errors: PackedStringArray) -> void:
+	content_packs_status.text = "\n".join(errors) if not errors.is_empty() else _pack_text(
+		"内容包应用失败，现有目录保持不变。",
+		"Content pack apply failed; the current catalog is unchanged."
+	)
+
+
+func _update_content_pack_copy() -> void:
+	content_packs_button.text = _pack_text("内容包", "Content Packs")
+	content_packs_title.text = _pack_text("角色与武器内容包", "Character & Weapon Packs")
+	content_packs_apply.text = _pack_text("应用更改", "Apply Changes")
+	content_packs_back.text = _pack_text("返回", "Back")
+
+
+func _content_pack_kind_name(kind: int) -> String:
+	match kind:
+		ContentPackDef.PackKind.CHARACTER:
+			return _pack_text("角色", "Character")
+		ContentPackDef.PackKind.WEAPON:
+			return _pack_text("武器", "Weapon")
+	return _pack_text("核心", "Core")
+
+
+func _pack_text(chinese: String, english: String) -> String:
+	return chinese if TranslationServer.get_locale().begins_with("zh") else english
 
 
 func _page_for_step(step: int) -> Control:
@@ -1342,6 +1447,7 @@ func _localized_repair_notice(notice: String) -> String:
 
 
 func _retranslate_dynamic_ui() -> void:
+	_update_content_pack_copy()
 	_setup_aim_mode()
 	_setup_run_mode()
 	_update_profile_dialog_text()

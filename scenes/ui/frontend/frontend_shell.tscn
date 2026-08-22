@@ -250,6 +250,12 @@ layout_mode = 2
 text = "ui.title.profiles"
 alignment = 0
 
+[node name="ContentPacksButton" type="Button" parent="Pages/TitlePage/SafeArea/Layout/Menu"]
+custom_minimum_size = Vector2(430, 62)
+layout_mode = 2
+text = "Content Packs"
+alignment = 0
+
 [node name="CodexButton" type="Button" parent="Pages/TitlePage/SafeArea/Layout/Menu"]
 custom_minimum_size = Vector2(430, 62)
 layout_mode = 2
@@ -856,6 +862,65 @@ text = "ui.difficulty.hint"
 layout_mode = 2
 theme_override_constants/separation = 14
 alignment = 1
+
+[node name="ContentPacksPage" type="Control" parent="Pages"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Content" type="VBoxContainer" parent="Pages/ContentPacksPage"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 120.0
+offset_top = 72.0
+offset_right = -120.0
+offset_bottom = -72.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 24
+
+[node name="Header" type="HBoxContainer" parent="Pages/ContentPacksPage/Content"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Pages/ContentPacksPage/Content/Header"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 46
+text = "Character & Weapon Packs"
+
+[node name="Explanation" type="Label" parent="Pages/ContentPacksPage/Content"]
+layout_mode = 2
+text = "Changes apply only at the main menu. Active runs keep their current catalog."
+autowrap_mode = 2
+
+[node name="PackList" type="VBoxContainer" parent="Pages/ContentPacksPage/Content"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="Status" type="Label" parent="Pages/ContentPacksPage/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.76, 0.31, 1)
+autowrap_mode = 2
+
+[node name="Actions" type="HBoxContainer" parent="Pages/ContentPacksPage/Content"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="ApplyButton" type="Button" parent="Pages/ContentPacksPage/Content/Actions"]
+custom_minimum_size = Vector2(220, 62)
+layout_mode = 2
+text = "Apply Changes"
+
+[node name="BackButton" type="Button" parent="Pages/ContentPacksPage/Content/Actions"]
+custom_minimum_size = Vector2(160, 62)
+layout_mode = 2
+text = "Back"
 
 [connection signal="pressed" from="Pages/TitlePage/SafeArea/Layout/Menu/PrimaryButton" to="." method="_on_primary_pressed"]
 [connection signal="pressed" from="Pages/TitlePage/SafeArea/Layout/Menu/NewGameButton" to="." method="_on_new_game_pressed"]
