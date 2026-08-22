@@ -5,7 +5,7 @@ func _initialize() -> void:
 	var registry := GogoContentRegistry.new()
 	var snapshot := registry.build_snapshot(ValidationContentFactory.create_packs())
 	_require(snapshot != null, "content snapshot")
-	_require(snapshot.all(&"character").size() == 1, "one character")
+	_require(snapshot.all(&"character").size() == 2, "two characters")
 	_require(snapshot.all(&"weapon").size() == 2, "two weapons")
 	_require(snapshot.all(&"enemy").size() == 3, "three enemies")
 	_require(snapshot.all(&"item").size() == 6, "six items")

@@ -9,6 +9,7 @@ var session: GameSession
 var combat_world: CombatWorld
 var weapon_runtime := WeaponRuntimeService.new()
 var weapon_orbit: Node2D
+var character_visual: AnimatedSprite2D
 var damage_cooldown := 0.0
 
 
@@ -25,6 +26,7 @@ func _ready() -> void:
 	circle.radius = 18.0
 	shape.shape = circle
 	add_child(shape)
+	_build_character_visual()
 	weapon_orbit = Node2D.new()
 	weapon_orbit.name = "WeaponOrbit"
 	add_child(weapon_orbit)
@@ -39,6 +41,7 @@ func _physics_process(delta: float) -> void:
 	var direction := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	velocity = direction * float(player_state.final_stats.get(&"movement_speed", 220.0))
 	move_and_slide()
+	_update_character_visual(direction)
 	if combat_world != null:
 		global_position = combat_world.clamp_to_arena(global_position, 24.0)
 
@@ -90,9 +93,41 @@ func _build_weapons() -> void:
 
 
 func _draw() -> void:
+	if character_visual != null:
+		return
 	var body_color := Color("86d98b") if damage_cooldown <= 0.0 else Color("ffffff")
 	draw_circle(Vector2(0.0, 5.0), 22.0, Color("2b2d33"))
 	draw_circle(Vector2(0.0, 0.0), 20.0, body_color)
 	draw_circle(Vector2(-7.0, -4.0), 2.5, Color("1a1b20"))
 	draw_circle(Vector2(7.0, -4.0), 2.5, Color("1a1b20"))
 	draw_line(Vector2(-6.0, 7.0), Vector2(6.0, 7.0), Color("1a1b20"), 2.0)
+
+
+func _build_character_visual() -> void:
+	if player_state == null or session == null or session.content_snapshot == null:
+		return
+	var definition := session.content_snapshot.definition(player_state.character_id, &"character") as CharacterDefinition
+	if definition == null or definition.sprite_frames == null or definition.default_animation.is_empty():
+		return
+	if not definition.sprite_frames.has_animation(definition.default_animation):
+		return
+	character_visual = AnimatedSprite2D.new()
+	character_visual.name = "CharacterVisual"
+	character_visual.sprite_frames = definition.sprite_frames
+	character_visual.animation = definition.default_animation
+	character_visual.centered = true
+	character_visual.position = definition.visual_offset
+	character_visual.scale = definition.visual_scale
+	character_visual.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	character_visual.frame = 0
+	add_child(character_visual)
+
+
+func _update_character_visual(direction: Vector2) -> void:
+	if character_visual == null:
+		return
+	if direction.is_zero_approx():
+		character_visual.pause()
+		character_visual.frame = 0
+	elif not character_visual.is_playing():
+		character_visual.play()

@@ -1,6 +1,7 @@
 class_name ValidationContentFactory
 extends RefCounted
 
+const NIKO_CONTENT_FACTORY := preload("res://game/content/packs/characters/niko/niko_content_factory.gd")
 const CHARACTER_ID: StringName = &"character.placeholder:character/runner"
 const MELEE_ID: StringName = &"weapon.training_blade:weapon/training_blade"
 const RANGED_ID: StringName = &"weapon.training_blaster:weapon/training_blaster"
@@ -9,7 +10,13 @@ const ZONE_ID: StringName = &"gogobro.core:zone/training_ground"
 
 
 static func create_packs() -> Array[GogoContentPackDefinition]:
-	return [_core_pack(), _character_pack(), _weapon_pack(MELEE_ID, true), _weapon_pack(RANGED_ID, false)]
+	return [
+		_core_pack(),
+		_character_pack(),
+		_weapon_pack(MELEE_ID, true),
+		_weapon_pack(RANGED_ID, false),
+		NIKO_CONTENT_FACTORY.create_pack(),
+	]
 
 
 static func _core_pack() -> GogoContentPackDefinition:

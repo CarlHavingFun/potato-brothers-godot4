@@ -1,0 +1,67 @@
+[gd_resource type="SpriteFrames" load_steps=10 format=3]
+
+[ext_resource type="Texture2D" path="res://game/content/packs/characters/niko/animations/walk_down/atlas.png" id="1_atlas"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_001"]
+atlas = ExtResource("1_atlas")
+region = Rect2(0, 0, 640, 640)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_002"]
+atlas = ExtResource("1_atlas")
+region = Rect2(640, 0, 640, 640)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_003"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1280, 0, 640, 640)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_004"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1920, 0, 640, 640)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_005"]
+atlas = ExtResource("1_atlas")
+region = Rect2(0, 640, 640, 640)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_006"]
+atlas = ExtResource("1_atlas")
+region = Rect2(640, 640, 640, 640)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_007"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1280, 640, 640, 640)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_008"]
+atlas = ExtResource("1_atlas")
+region = Rect2(1920, 640, 640, 640)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_001")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_002")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_003")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_004")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_005")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_006")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_007")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_008")
+}],
+"loop": true,
+"name": &"walk_down",
+"speed": 8.0
+}]
