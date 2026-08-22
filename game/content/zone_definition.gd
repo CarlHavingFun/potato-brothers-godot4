@@ -1,7 +1,7 @@
 class_name GogoZoneDefinition
 extends GogoContentDefinition
 
-@export var arena_size: Vector2 = Vector2(1152.0, 648.0)
+@export var arena_size: Vector2 = Vector2(2048.0, 1536.0)
 @export var wave_ids: Array[StringName] = []
 
 

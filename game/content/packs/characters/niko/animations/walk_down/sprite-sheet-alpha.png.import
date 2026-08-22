@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cpveqghjhcywl"
-path="res://.godot/imported/atlas.png-45f5d2290a5989b2ab3620df003a2406.ctex"
+uid="uid://c7lx8tdljn40p"
+path="res://.godot/imported/sprite-sheet-alpha.png-d6ba65310c663a382a8d2fc29dd4fd04.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://game/content/packs/characters/niko/animations/walk_down/atlas.png"
-dest_files=["res://.godot/imported/atlas.png-45f5d2290a5989b2ab3620df003a2406.ctex"]
+source_file="res://game/content/packs/characters/niko/animations/walk_down/sprite-sheet-alpha.png"
+dest_files=["res://.godot/imported/sprite-sheet-alpha.png-d6ba65310c663a382a8d2fc29dd4fd04.ctex"]
 
 [params]
 

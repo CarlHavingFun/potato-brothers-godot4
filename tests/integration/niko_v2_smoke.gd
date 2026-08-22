@@ -32,14 +32,29 @@ func _initialize() -> void:
 		return
 	var root := Node2D.new()
 	get_root().add_child(root)
-	var actor := GogoPlayerActor.new()
-	actor.configure(session, null)
-	root.add_child(actor)
+	var world := CombatWorld.new()
+	root.add_child(world)
 	await process_frame
+	var zone := snapshot.definition(ValidationContentFactory.ZONE_ID, &"zone") as GogoZoneDefinition
+	var wave := snapshot.definition(zone.wave_ids[0], &"wave") as GogoWaveDefinition
+	if not _require(world.start_wave(session, wave) == OK, "Niko combat world start"):
+		return
+	await process_frame
+	if not _require(world.arena_rect.size == Vector2(2048.0, 1536.0), "Brotato-sized 32x24 tile arena"):
+		return
+	var camera := world.get_node_or_null("PlayerCamera") as Camera2D
+	if not _require(camera != null and camera.enabled, "player-following combat camera"):
+		return
+	var actor := world.player_actor
 	var visual := actor.get_node_or_null("CharacterVisual") as AnimatedSprite2D
 	if not _require(visual != null, "runtime character visual"):
 		return
 	if not _require(visual.sprite_frames.get_frame_count(&"walk_down") == 8, "runtime uses Niko SpriteFrames"):
+		return
+	if not _require(visual.scale == Vector2.ONE, "runtime uses authored sprite size"):
+		return
+	var first_texture := visual.sprite_frames.get_frame_texture(&"walk_down", 0) as AtlasTexture
+	if not _require(first_texture != null and first_texture.region.size == Vector2(128.0, 128.0), "runtime Niko cells are baked to 128px"):
 		return
 	print("NIKO_V2_SMOKE_OK frames=%d fps=%.1f" % [
 		frames.get_frame_count(&"walk_down"),

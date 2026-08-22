@@ -1,38 +1,38 @@
 [gd_resource type="SpriteFrames" load_steps=10 format=3]
 
-[ext_resource type="Texture2D" path="res://game/content/packs/characters/niko/animations/walk_down/atlas.png" id="1_atlas"]
+[ext_resource type="Texture2D" path="res://game/content/packs/characters/niko/animations/walk_down/sprite-sheet-alpha.png" id="1_atlas"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_001"]
 atlas = ExtResource("1_atlas")
-region = Rect2(0, 0, 640, 640)
+region = Rect2(0, 0, 128, 128)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_002"]
 atlas = ExtResource("1_atlas")
-region = Rect2(640, 0, 640, 640)
+region = Rect2(128, 0, 128, 128)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_003"]
 atlas = ExtResource("1_atlas")
-region = Rect2(1280, 0, 640, 640)
+region = Rect2(256, 0, 128, 128)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_004"]
 atlas = ExtResource("1_atlas")
-region = Rect2(1920, 0, 640, 640)
+region = Rect2(384, 0, 128, 128)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_005"]
 atlas = ExtResource("1_atlas")
-region = Rect2(0, 640, 640, 640)
+region = Rect2(512, 0, 128, 128)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_006"]
 atlas = ExtResource("1_atlas")
-region = Rect2(640, 640, 640, 640)
+region = Rect2(640, 0, 128, 128)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_007"]
 atlas = ExtResource("1_atlas")
-region = Rect2(1280, 640, 640, 640)
+region = Rect2(768, 0, 128, 128)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_008"]
 atlas = ExtResource("1_atlas")
-region = Rect2(1920, 640, 640, 640)
+region = Rect2(896, 0, 128, 128)
 
 [resource]
 animations = [{

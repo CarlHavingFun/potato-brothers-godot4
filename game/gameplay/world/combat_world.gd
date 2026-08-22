@@ -12,7 +12,8 @@ var player_actor: GogoPlayerActor
 var enemy_layer: Node2D
 var projectile_layer: Node2D
 var effect_layer: Node2D
-var arena_rect := Rect2(Vector2.ZERO, Vector2(1152.0, 648.0))
+var player_camera: GogoCombatCamera
+var arena_rect := Rect2(Vector2.ZERO, Vector2(2048.0, 1536.0))
 var running := false
 
 
@@ -46,6 +47,11 @@ func start_wave(next_session: GameSession, wave_definition: GogoWaveDefinition) 
 		add_child(player_actor)
 		player_actor.died.connect(_on_player_died)
 		player_actor.health_changed.connect(_on_player_health_changed)
+	if player_camera == null:
+		player_camera = GogoCombatCamera.new()
+		player_camera.name = "PlayerCamera"
+		add_child(player_camera)
+	player_camera.configure(player_actor, arena_rect)
 	running = true
 	return OK
 

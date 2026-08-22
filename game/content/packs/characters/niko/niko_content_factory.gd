@@ -25,7 +25,7 @@ static func create_pack() -> GogoContentPackDefinition:
 	}
 	character.sprite_frames = NIKO_FRAMES
 	character.default_animation = &"walk_down"
-	character.visual_scale = Vector2(0.1, 0.1)
-	character.visual_offset = Vector2(0.0, -3.0)
+	character.visual_scale = Vector2.ONE
+	character.visual_offset = Vector2(0.0, -25.0)
 	pack.definitions.append(character)
 	return pack

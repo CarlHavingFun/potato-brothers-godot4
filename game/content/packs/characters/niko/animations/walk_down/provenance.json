@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
-  "kind": "framekit-codex-handoff",
+  "kind": "gogobro-video-sprite-provenance",
   "created_at": "2026-08-22T13:12:47.106Z",
   "source": {
-    "filename": "niko_walk_happy.mp4"
+    "filename": "niko_walk_happy.mp4",
+    "handoff": "framekit-codex-handoff"
   },
   "animation": {
     "fps": 8,
@@ -18,20 +19,28 @@
   },
   "output": {
     "frame_size": {
-      "width": 640,
-      "height": 640
+      "width": 128,
+      "height": 128
     },
     "sheet_size": {
-      "width": 2560,
-      "height": 1280
+      "width": 1024,
+      "height": 128
     },
-    "columns": 4,
+    "columns": 8,
     "gap": 0,
     "alpha": {
       "enabled": true,
-      "mode": "connected",
-      "color": "#ffffff"
-    }
+      "mode": "hard"
+    },
+    "pixel_unfake": {
+      "engine": "component-row",
+      "engine_revision": "77d7af445dc3",
+      "logical_height": 64,
+      "palette_size": 32,
+      "align_x": "alpha-centroid",
+      "align_y": "bottom"
+    },
+    "godot_visual_scale": 1.0
   },
   "frames": [
     {
@@ -83,7 +92,7 @@
       "file": "frames/frame-008.png"
     }
   ],
-  "files": [
+  "source_files": [
     "sprite-sheet.png",
     "sprite-sheet-alpha.png",
     "preview.gif",
