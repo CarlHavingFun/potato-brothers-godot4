@@ -10,6 +10,7 @@ extends Resource
 @export var icon: Texture2D
 @export var tags: Array[StringName] = []
 @export var effects: Array[EffectDef] = []
+@export_storage var origin_pack_id: StringName
 
 
 func get_stable_id(pack_id: StringName) -> StringName:
@@ -18,7 +19,8 @@ func get_stable_id(pack_id: StringName) -> StringName:
 		return &""
 	if local_id.contains(":"):
 		return StringName(local_id)
-	return StringName("%s:%s" % [pack_id, local_id])
+	var owner := origin_pack_id if not origin_pack_id.is_empty() else pack_id
+	return StringName("%s:%s" % [owner, local_id])
 
 
 func get_presentation_id(pack_id: StringName = &"") -> StringName:

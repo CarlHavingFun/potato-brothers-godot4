@@ -9,6 +9,7 @@ const BOOTSTRAP_LOADER_SCRIPT := "res://core/content/bootstrap_content_loader.gd
 const TEST_PACK_PATH := "user://tests/content_pack/pack.tres"
 const TEST_OPTIONAL_CHARACTER_PATH := "user://tests/content_pack/optional_character.tres"
 const DEFAULT_PACK_PATH := "res://content_packs/default/pack.tres"
+const PACK_DEPENDENCY_SCRIPT := "res://core/content/content_pack_dependency.gd"
 
 
 func after_test() -> void:
@@ -35,6 +36,48 @@ func test_content_pack_definition_exposes_a_versioned_contract() -> void:
 
 	assert_int(pack.get("content_api_version")).is_equal(2)
 	assert_str(pack.get("pack_version")).is_equal("0.1.0")
+	assert_int(pack.get("pack_kind")).is_equal(0)
+	assert_array(pack.get("dependencies")).is_empty()
+	assert_bool(ResourceLoader.exists(PACK_DEPENDENCY_SCRIPT)).is_true()
+
+
+func test_catalog_registers_core_character_and_weapon_packs_atomically() -> void:
+	var core_pack := ContentPackDef.new()
+	core_pack.pack_id = &"core"
+	var core_character := CharacterDef.new()
+	core_character.content_id = &"character/well_rounded"
+	core_pack.characters = [core_character]
+
+	var niko_pack := ContentPackDef.new()
+	niko_pack.pack_id = &"character_niko"
+	var niko := CharacterDef.new()
+	niko.content_id = &"character/niko"
+	niko_pack.characters = [niko]
+
+	var sword_pack := ContentPackDef.new()
+	sword_pack.pack_id = &"weapon_sword"
+	var sword := WeaponDef.new()
+	sword.content_id = &"weapon/sword"
+	sword_pack.weapons = [sword]
+
+	var catalog := ContentCatalog.new()
+	var packs: Array[ContentPackDef] = [core_pack, niko_pack, sword_pack]
+	assert_int(catalog.register_packs(packs)).is_equal(OK)
+	assert_object(catalog.get_character(&"character/well_rounded")).is_same(core_character)
+	assert_object(catalog.get_character(&"character_niko:character/niko")).is_same(niko)
+	assert_object(catalog.get_weapon(&"weapon_sword:weapon/sword")).is_same(sword)
+	assert_str(niko.get_stable_id(&"core")).is_equal("character_niko:character/niko")
+	assert_str(sword.get_stable_id(&"core")).is_equal("weapon_sword:weapon/sword")
+
+	var duplicate_pack := ContentPackDef.new()
+	duplicate_pack.pack_id = &"character_niko"
+	var duplicate := CharacterDef.new()
+	duplicate.content_id = &"character/niko"
+	duplicate_pack.characters = [duplicate]
+	var rejected := ContentCatalog.new()
+	var duplicate_packs: Array[ContentPackDef] = [niko_pack, duplicate_pack]
+	assert_int(rejected.register_packs(duplicate_packs)).is_equal(ERR_ALREADY_EXISTS)
+	assert_array(rejected.get_characters()).is_empty()
 
 
 func test_content_definition_types_are_explicit_and_namespaced() -> void:

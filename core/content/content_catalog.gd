@@ -22,10 +22,28 @@ var _pack: ContentPackDef
 
 
 func register_pack(pack: ContentPackDef, active_balance_pack: BalancePackDef = null) -> int:
-	if pack == null or pack.pack_id.is_empty():
+	var packs: Array[ContentPackDef] = [pack]
+	return register_packs(packs, active_balance_pack)
+
+
+func register_packs(
+	packs: Array[ContentPackDef],
+	active_balance_pack: BalancePackDef = null
+) -> int:
+	if packs.is_empty():
 		return ERR_INVALID_DATA
 	if not _all.is_empty():
 		return ERR_ALREADY_EXISTS
+	var seen_pack_ids := {}
+	var primary_pack: ContentPackDef
+	for pack: ContentPackDef in packs:
+		if pack == null or pack.pack_id.is_empty():
+			return ERR_INVALID_DATA
+		if seen_pack_ids.has(pack.pack_id):
+			return ERR_ALREADY_EXISTS
+		seen_pack_ids[pack.pack_id] = true
+		if primary_pack == null or pack.pack_id == &"core":
+			primary_pack = pack
 
 	var candidate_all: Dictionary = {}
 	var candidate_characters: Dictionary = {}
@@ -41,53 +59,70 @@ func register_pack(pack: ContentPackDef, active_balance_pack: BalancePackDef = n
 	var candidate_upgrade_items: Array[ItemUpgrade] = []
 	var candidate_passive_defs_by_item: Dictionary = {}
 	var candidate_upgrade_defs_by_item: Dictionary = {}
-	var collections := [
-		[pack.characters, candidate_characters],
-		[pack.weapons, candidate_weapons],
-		[pack.passives, candidate_passives],
-		[pack.upgrades, candidate_upgrades],
-		[pack.enemies, candidate_enemies],
-		[pack.waves, candidate_waves],
-	]
-	for collection: Array in collections:
-		var result := _index_definitions(collection[0], collection[1], candidate_all, pack.pack_id)
-		if result != OK:
-			return result
-	for weapon: WeaponDef in pack.weapons:
-		var stable_id := weapon.get_stable_id(pack.pack_id)
-		for item: ItemWeapon in weapon.tiers:
-			if item == null:
+	var candidate_origins: Dictionary = {}
+	var merged_pack := ContentPackDef.new()
+	merged_pack.pack_id = primary_pack.pack_id
+	merged_pack.pack_version = primary_pack.pack_version
+	for pack: ContentPackDef in packs:
+		var collections := [
+			[pack.characters, candidate_characters],
+			[pack.weapons, candidate_weapons],
+			[pack.passives, candidate_passives],
+			[pack.upgrades, candidate_upgrades],
+			[pack.enemies, candidate_enemies],
+			[pack.waves, candidate_waves],
+		]
+		for collection: Array in collections:
+			var result := _index_definitions(
+				collection[0], collection[1], candidate_all, pack.pack_id, candidate_origins
+			)
+			if result != OK:
+				return result
+		merged_pack.characters.append_array(pack.characters)
+		merged_pack.weapons.append_array(pack.weapons)
+		merged_pack.passives.append_array(pack.passives)
+		merged_pack.upgrades.append_array(pack.upgrades)
+		merged_pack.enemies.append_array(pack.enemies)
+		merged_pack.waves.append_array(pack.waves)
+		merged_pack.difficulties.append_array(pack.difficulties)
+		merged_pack.translation_paths.append_array(pack.translation_paths)
+		for weapon: WeaponDef in pack.weapons:
+			var stable_id := weapon.get_stable_id(pack.pack_id)
+			for item: ItemWeapon in weapon.tiers:
+				if item == null:
+					return ERR_INVALID_DATA
+				candidate_item_ids[item.get_instance_id()] = stable_id
+				if not item.resource_path.is_empty():
+					candidate_item_paths[item.resource_path] = stable_id
+				candidate_shop_items.append(item)
+		for passive: PassiveItemDef in pack.passives:
+			if passive.item == null:
 				return ERR_INVALID_DATA
-			candidate_item_ids[item.get_instance_id()] = stable_id
-			if not item.resource_path.is_empty():
-				candidate_item_paths[item.resource_path] = stable_id
-			candidate_shop_items.append(item)
-	for passive: PassiveItemDef in pack.passives:
-		if passive.item == null:
-			return ERR_INVALID_DATA
-		var stable_id := passive.get_stable_id(pack.pack_id)
-		candidate_item_ids[passive.item.get_instance_id()] = stable_id
-		candidate_passive_defs_by_item[passive.item.get_instance_id()] = passive
-		if not passive.item.resource_path.is_empty():
-			candidate_item_paths[passive.item.resource_path] = stable_id
-		candidate_shop_items.append(passive.item)
-	for upgrade: UpgradeDef in pack.upgrades:
-		if upgrade.item == null:
-			return ERR_INVALID_DATA
-		var stable_id := upgrade.get_stable_id(pack.pack_id)
-		candidate_item_ids[upgrade.item.get_instance_id()] = stable_id
-		candidate_upgrade_defs_by_item[upgrade.item.get_instance_id()] = upgrade
-		if not upgrade.item.resource_path.is_empty():
-			candidate_item_paths[upgrade.item.resource_path] = stable_id
-		candidate_upgrade_items.append(upgrade.item)
-	for difficulty: DifficultyDef in pack.difficulties:
-		if difficulty == null or candidate_difficulties.has(difficulty.level):
-			return ERR_INVALID_DATA
-		candidate_difficulties[difficulty.level] = difficulty
+			var stable_id := passive.get_stable_id(pack.pack_id)
+			candidate_item_ids[passive.item.get_instance_id()] = stable_id
+			candidate_passive_defs_by_item[passive.item.get_instance_id()] = passive
+			if not passive.item.resource_path.is_empty():
+				candidate_item_paths[passive.item.resource_path] = stable_id
+			candidate_shop_items.append(passive.item)
+		for upgrade: UpgradeDef in pack.upgrades:
+			if upgrade.item == null:
+				return ERR_INVALID_DATA
+			var stable_id := upgrade.get_stable_id(pack.pack_id)
+			candidate_item_ids[upgrade.item.get_instance_id()] = stable_id
+			candidate_upgrade_defs_by_item[upgrade.item.get_instance_id()] = upgrade
+			if not upgrade.item.resource_path.is_empty():
+				candidate_item_paths[upgrade.item.resource_path] = stable_id
+			candidate_upgrade_items.append(upgrade.item)
+		for difficulty: DifficultyDef in pack.difficulties:
+			if difficulty == null or candidate_difficulties.has(difficulty.level):
+				return ERR_INVALID_DATA
+			candidate_difficulties[difficulty.level] = difficulty
 
-	pack_id = pack.pack_id
+	for definition: ContentDef in candidate_origins:
+		definition.origin_pack_id = candidate_origins[definition]
+	pack_id = primary_pack.pack_id
 	balance_pack = active_balance_pack
-	_pack = pack
+	_pack = merged_pack
 	_all = candidate_all
 	_characters = candidate_characters
 	_weapons = candidate_weapons
@@ -270,7 +305,8 @@ func _index_definitions(
 	definitions: Array,
 	bucket: Dictionary,
 	all_entries: Dictionary,
-	owner_pack_id: StringName
+	owner_pack_id: StringName,
+	origins: Dictionary = {}
 ) -> int:
 	for definition: Variant in definitions:
 		if not definition is ContentDef:
@@ -282,6 +318,7 @@ func _index_definitions(
 			return ERR_ALREADY_EXISTS
 		all_entries[stable_id] = definition
 		bucket[stable_id] = definition
+		origins[definition] = owner_pack_id
 	return OK
 
 
