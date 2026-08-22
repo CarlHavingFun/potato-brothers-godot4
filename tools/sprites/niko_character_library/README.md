@@ -14,7 +14,7 @@
 
 `runtime/niko_runtime_frames.tres`
 
-选择动作节点，在检查器中点击 `Sprite Frames`，然后在底部 SpriteFrames 编辑器中选择同名动画。可以直接拖入帧、删除或排序，并修改 FPS 和循环。保存资源后，`player_niko.tscn` 会立即使用新动画，不需要修改角色节点，也不需要再次发布 runtime。
+选择动作节点，在检查器中点击 `Sprite Frames`，然后在底部 SpriteFrames 编辑器中选择同名动画。可以直接拖入帧、删除或排序，并修改 FPS 和循环。保存资源后，`content_packs/characters/niko/niko.tscn` 会立即使用新动画，不需要修改角色节点，也不需要再次发布 runtime。
 
 `dash_down` 初始只有一帧待机占位图，导入 Dash 素材后直接替换即可。其他方向缺少动画时，游戏会自动使用对应的 `*_down` 正面动画。
 

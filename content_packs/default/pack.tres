@@ -12,7 +12,6 @@
 [ext_resource type="PackedScene" path="res://scenes/unit/players/player_knight.tscn" id="8_dndku"]
 [ext_resource type="Resource" path="res://resources/units/players/stats_player_knight.tres" id="9_n02ax"]
 [ext_resource type="PackedScene" path="res://scenes/unit/players/player_well_rounded.tscn" id="10_6bkrh"]
-[ext_resource type="PackedScene" path="res://scenes/unit/players/player_niko.tscn" id="10_niko"]
 [ext_resource type="Resource" path="res://resources/units/players/stats_player_well_rounded.tres" id="11_ekhsh"]
 [ext_resource type="Script" path="res://core/content/difficulty_def.gd" id="12_7dayf"]
 [ext_resource type="Script" path="res://resources/units/unit_stats.gd" id="13_1goop"]
@@ -207,7 +206,7 @@ starting_stat_modifiers = {
 
 [sub_resource type="Resource" id="Resource_6sfud"]
 script = ExtResource("1_u7nwy")
-scene = ExtResource("10_niko")
+scene = ExtResource("10_6bkrh")
 stats = ExtResource("11_ekhsh")
 starter_weapon_ids = Array[StringName]([&"core:weapon/axe", &"core:weapon/chainsaw", &"core:weapon/mace", &"core:weapon/punch", &"core:weapon/sword", &"core:weapon/wand", &"core:weapon/laser", &"core:weapon/pistol", &"core:weapon/revolver", &"core:weapon/shotgun", &"core:weapon/smg", &"core:weapon/spear", &"core:weapon/cleaver", &"core:weapon/carbine", &"core:weapon/railbow", &"core:weapon/shrapnel_launcher", &"core:weapon/needler", &"core:weapon/boomerang", &"core:weapon/ember_staff", &"core:weapon/frost_orb", &"core:weapon/storm_coil", &"core:weapon/void_prism", &"core:weapon/turret_kit", &"core:weapon/drone_beacon"])
 rules = SubResource("Resource_iqwa1")

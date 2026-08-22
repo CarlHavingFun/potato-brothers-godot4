@@ -1,9 +1,9 @@
 extends GdUnitTestSuite
 
 
-const NIKO_SCENE_PATH := "res://scenes/unit/players/player_niko.tscn"
+const NIKO_SCENE_PATH := "res://content_packs/characters/niko/niko.tscn"
 const NIKO_RUNTIME_PATH := (
-	"res://tools/sprites/niko_character_library/runtime/niko_runtime_frames.tres"
+	"res://content_packs/characters/niko/animations/niko_runtime_frames.tres"
 )
 const NIKO_WORKBENCH_PATH := (
 	"res://Niko动画工作台.tscn"
@@ -13,6 +13,7 @@ const NIKO_AUTHORING_PATH := (
 	"res://tools/sprites/niko_character_library/authoring/niko_all_actions.tres"
 )
 const DEFAULT_PACK_PATH := "res://content_packs/default/pack.tres"
+const NIKO_PACK_PATH := "res://content_packs/characters/niko/pack.tres"
 const GENERATED_ACTIONS: Array[StringName] = [
 	&"spawn_down",
 	&"idle_down",
@@ -120,7 +121,7 @@ func test_legacy_character_authoring_dock_is_disabled_for_manual_editing() -> vo
 	assert_bool(LEGACY_AUTHORING_PLUGIN in enabled_plugins).is_false()
 
 
-func test_only_well_rounded_uses_the_niko_player_scene_in_the_default_pack() -> void:
+func test_niko_is_an_independent_pack_and_core_well_rounded_is_restored() -> void:
 	var pack := ResourceLoader.load(DEFAULT_PACK_PATH, "ContentPackDef") as ContentPackDef
 	assert_object(pack).is_not_null()
 	if pack == null:
@@ -129,9 +130,26 @@ func test_only_well_rounded_uses_the_niko_player_scene_in_the_default_pack() -> 
 	for character: CharacterDef in pack.characters:
 		if character.content_id == &"character/well_rounded":
 			found_well_rounded = true
-			assert_str(character.scene.resource_path).is_equal(NIKO_SCENE_PATH)
+			assert_str(character.scene.resource_path).is_equal(
+				"res://scenes/unit/players/player_well_rounded.tscn"
+			)
 		elif character.content_id == &"character/almighty":
 			assert_str(character.scene.resource_path).is_equal(
 				"res://scenes/unit/players/player_well_rounded.tscn"
 			)
 	assert_bool(found_well_rounded).is_true()
+	var niko_pack := ResourceLoader.load(NIKO_PACK_PATH, "ContentPackDef") as ContentPackDef
+	assert_object(niko_pack).is_not_null()
+	if niko_pack == null:
+		return
+	assert_str(niko_pack.pack_id).is_equal("character_niko")
+	assert_int(niko_pack.pack_kind).is_equal(ContentPackDef.PackKind.CHARACTER)
+	assert_int(niko_pack.characters.size()).is_equal(1)
+	assert_str(niko_pack.characters[0].content_id).is_equal("character/niko")
+	assert_str(niko_pack.characters[0].scene.resource_path).is_equal(NIKO_SCENE_PATH)
+	assert_str(FileAccess.get_file_as_string(NIKO_SCENE_PATH)).not_contains("res://tools/")
+	assert_str(FileAccess.get_file_as_string(NIKO_RUNTIME_PATH)).not_contains("res://tools/")
+	assert_object(Content.catalog.get_character(&"character_niko:character/niko")).is_not_null()
+	assert_str(
+		Content.catalog.get_character(&"character/well_rounded").scene.resource_path
+	).is_equal("res://scenes/unit/players/player_well_rounded.tscn")

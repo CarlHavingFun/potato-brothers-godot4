@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cg2mhx80nsd62"
-path="res://.godot/imported/runtime_atlas_002.png-7b9e2e2cbd3abb7c936171de5dad8c38.ctex"
+uid="uid://bqrp3gfcms7qe"
+path="res://.godot/imported/runtime_atlas_001.png-d30c873ebf5cb9ed7d7876850c1b918b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://tools/sprites/niko_character_library/runtime/runtime_atlas_002.png"
-dest_files=["res://.godot/imported/runtime_atlas_002.png-7b9e2e2cbd3abb7c936171de5dad8c38.ctex"]
+source_file="res://content_packs/characters/niko/animations/runtime_atlas_001.png"
+dest_files=["res://.godot/imported/runtime_atlas_001.png-d30c873ebf5cb9ed7d7876850c1b918b.ctex"]
 
 [params]
 

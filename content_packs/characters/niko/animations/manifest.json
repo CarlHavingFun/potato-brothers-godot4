@@ -14221,14 +14221,14 @@
   },
   "kind": "character-sprite-runtime",
   "pages": [
-    "res://tools/sprites/niko_character_library/runtime/runtime_atlas_001.png",
-    "res://tools/sprites/niko_character_library/runtime/runtime_atlas_002.png",
-    "res://tools/sprites/niko_character_library/runtime/runtime_atlas_003.png"
+    "res://content_packs/characters/niko/animations/runtime_atlas_001.png",
+    "res://content_packs/characters/niko/animations/runtime_atlas_002.png",
+    "res://content_packs/characters/niko/animations/runtime_atlas_003.png"
   ],
   "root": {
     "x": 128,
     "y": 232
   },
   "schema_version": 1,
-  "sprite_frames": "res://tools/sprites/niko_character_library/runtime/niko_runtime_frames.tres"
+  "sprite_frames": "res://content_packs/characters/niko/animations/niko_runtime_frames.tres"
 }

@@ -29,9 +29,6 @@ $stagingRoot = Join-Path $buildRoot "release_staging"
 $stagingProject = Join-Path $stagingRoot "core_project"
 $distRoot = Join-Path $projectRoot "dist\game-prototype"
 $contentPack = Join-Path $buildRoot "content\default_content.pck"
-$NikoRuntimeSourceRoot = Join-Path $projectRoot "tools\sprites\niko_character_library\runtime"
-$NikoRuntimeSourceResourceRoot = "res://tools/sprites/niko_character_library/runtime/"
-$NikoRuntimeStagingResourceRoot = "res://assets/sprites/Players/NikoRuntime/"
 $FormalSkinManifest = "res://content_packs/skins/lets_gooooo/skin.tres"
 $FormalGlobalFontResource = "res://assets/font/brotato_font_stack.tres"
 $FormalPrimaryFontResource = "res://assets/font/Anybody-Medium.ttf"
@@ -393,37 +390,6 @@ foreach ($entry in $releaseEntries) {
 	if (-not (Test-Path -LiteralPath $source)) { throw "Release source is missing: $source" }
 	Copy-Item -LiteralPath $source -Destination $stagingProject -Recurse -Force
 }
-
-$nikoRuntimeFiles = @(
-	"niko_runtime_frames.tres",
-	"runtime_atlas_001.png",
-	"runtime_atlas_002.png",
-	"runtime_atlas_003.png"
-)
-$stagedNikoRuntimeRoot = Join-Path $stagingProject "assets\sprites\Players\NikoRuntime"
-New-Item -ItemType Directory -Force -Path $stagedNikoRuntimeRoot | Out-Null
-foreach ($runtimeFile in $nikoRuntimeFiles) {
-	$runtimeSource = Join-Path $NikoRuntimeSourceRoot $runtimeFile
-	if (-not (Test-Path -LiteralPath $runtimeSource -PathType Leaf)) {
-		throw "Niko shipping runtime asset is missing: $runtimeSource"
-	}
-	Copy-Item -LiteralPath $runtimeSource -Destination (Join-Path $stagedNikoRuntimeRoot $runtimeFile) -Force
-}
-$stagedNikoFrames = Join-Path $stagedNikoRuntimeRoot "niko_runtime_frames.tres"
-$nikoFramesText = Get-Content -LiteralPath $stagedNikoFrames -Raw
-$nikoFramesText = $nikoFramesText.Replace($NikoRuntimeSourceResourceRoot, $NikoRuntimeStagingResourceRoot)
-if ($nikoFramesText.Contains($NikoRuntimeSourceResourceRoot)) {
-	throw "Staged Niko SpriteFrames still references the authoring tools directory."
-}
-[System.IO.File]::WriteAllText($stagedNikoFrames, $nikoFramesText, [System.Text.UTF8Encoding]::new($false))
-
-$stagedNikoScene = Join-Path $stagingProject "scenes\unit\players\player_niko.tscn"
-$nikoSceneText = Get-Content -LiteralPath $stagedNikoScene -Raw
-if (-not $nikoSceneText.Contains($NikoRuntimeSourceResourceRoot + "niko_runtime_frames.tres")) {
-	throw "Niko player scene does not reference the expected authoring runtime resource."
-}
-$nikoSceneText = $nikoSceneText.Replace($NikoRuntimeSourceResourceRoot, $NikoRuntimeStagingResourceRoot)
-[System.IO.File]::WriteAllText($stagedNikoScene, $nikoSceneText, [System.Text.UTF8Encoding]::new($false))
 
 $stagedSkinRoot = Join-Path $stagingProject "content_packs\skins"
 $stagedSelectedSkinDirectory = Join-Path $stagedSkinRoot $selectedSkinName

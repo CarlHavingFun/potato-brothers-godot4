@@ -6,7 +6,7 @@
   "source_directory": "",
   "clip_root": "res://tools/sprites/niko_video_library",
   "authoring_path": "res://tools/sprites/niko_character_library/authoring/niko_all_actions.tres",
-  "runtime_root": "res://tools/sprites/niko_character_library/runtime",
+  "runtime_root": "res://content_packs/characters/niko/animations",
   "required_actions": [
     "spawn",
     "idle",

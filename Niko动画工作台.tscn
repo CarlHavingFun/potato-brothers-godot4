@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="SpriteFrames" path="res://tools/sprites/niko_character_library/runtime/niko_runtime_frames.tres" id="1_frames"]
+[ext_resource type="SpriteFrames" path="res://content_packs/characters/niko/animations/niko_runtime_frames.tres" id="1_frames"]
 
 [node name="NikoAnimationWorkbench" type="Node2D"]
 editor_description = "Niko 人工动画入口。展开 Actions，选择动作节点，然后在 SpriteFrames 面板替换对应动画。所有节点与游戏中的 Niko 共用同一个资源，保存后立即生效。"

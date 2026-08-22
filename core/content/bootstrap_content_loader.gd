@@ -16,9 +16,7 @@ const EXPECTED_DEFAULT_UPGRADE_COUNT := 64
 const DEFAULT_CONTENT_READY_MARKER := (
 	"MECHANICS_CONTENT_READY weapons=24 passives=60 upgrades=64 presentation_icons=0"
 )
-const OPTIONAL_CHARACTER_PATHS: Array[String] = [
-	"res://content_packs/default/assets/sprites/players/niko_v3/character_niko_v3.tres",
-]
+const OPTIONAL_CHARACTER_PATHS: Array[String] = []
 
 
 var catalog := ContentCatalog.new()

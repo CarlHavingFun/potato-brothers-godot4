@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ContentPackDef" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://core/content/content_pack_def.gd" id="1_pack"]
+[ext_resource type="Script" path="res://core/content/content_pack_dependency.gd" id="2_dependency"]
+[ext_resource type="Resource" path="res://content_packs/characters/niko/character_niko.tres" id="3_character"]
+[ext_resource type="Script" path="res://core/content/character_def.gd" id="4_character_script"]
+
+[sub_resource type="Resource" id="Dependency_core"]
+script = ExtResource("2_dependency")
+pack_id = &"core"
+minimum_version = "0.1.0"
+
+[resource]
+script = ExtResource("1_pack")
+pack_id = &"character_niko"
+pack_version = "1.0.0"
+pack_kind = 1
+display_name_key = &"character.niko.name"
+dependencies = Array[ExtResource("2_dependency")]([SubResource("Dependency_core")])
+characters = Array[ExtResource("4_character_script")]([ExtResource("3_character")])
+translation_paths = Array[String](["res://content_packs/characters/niko/i18n/niko.zh_CN.po", "res://content_packs/characters/niko/i18n/niko.en.po"])

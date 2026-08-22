@@ -103,10 +103,10 @@ Niko 的集中编辑入口是：
 `spawn_down` 等动作会直接拒绝发布。没有任何 take 的 `dash_down` 仍作为明确缺项保留，
 不会被伪造，也不会在触发冲刺时锁死到循环待机动画。
 
-默认内容包中的 `character/well_rounded` 已改用
-`res://scenes/unit/players/player_niko.tscn`；其他 11 个角色仍使用原场景。Niko 场景固定
-引用 `runtime/niko_runtime_frames.tres`，所以你在母资源中手动选帧并再次“发布当前角色
-动画”后，不需要再修改场景或内容包。
+Niko 现在是独立的 `character_niko` 内容包；核心包中的
+`character/well_rounded` 保持原角色。Niko 场景固定引用
+`res://content_packs/characters/niko/animations/niko_runtime_frames.tres`，所以你在母资源中
+手动选帧并再次“发布当前角色动画”后，不需要再修改场景或角色节点。
 
 ## 每个可玩角色需要的动作
 

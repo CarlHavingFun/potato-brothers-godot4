@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cxpilpega7nwl"
-path="res://.godot/imported/runtime_atlas_003.png-74de076c65faf2e002a911375577ce04.ctex"
+path="res://.godot/imported/runtime_atlas_003.png-7dab73a03b8d8cf36c5e175628b0ecf1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://tools/sprites/niko_character_library/runtime/runtime_atlas_003.png"
-dest_files=["res://.godot/imported/runtime_atlas_003.png-74de076c65faf2e002a911375577ce04.ctex"]
+source_file="res://content_packs/characters/niko/animations/runtime_atlas_003.png"
+dest_files=["res://.godot/imported/runtime_atlas_003.png-7dab73a03b8d8cf36c5e175628b0ecf1.ctex"]
 
 [params]
 

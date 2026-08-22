@@ -2,7 +2,7 @@
 
 [ext_resource type="PackedScene" path="res://scenes/unit/players/player_well_rounded.tscn" id="1_base"]
 [ext_resource type="Script" path="res://core/presentation/directional_sprite_visual.gd" id="2_visual"]
-[ext_resource type="SpriteFrames" path="res://tools/sprites/niko_character_library/runtime/niko_runtime_frames.tres" id="3_frames"]
+[ext_resource type="SpriteFrames" path="res://content_packs/characters/niko/animations/niko_runtime_frames.tres" id="3_frames"]
 
 [node name="PlayerNiko" instance=ExtResource("1_base")]
 

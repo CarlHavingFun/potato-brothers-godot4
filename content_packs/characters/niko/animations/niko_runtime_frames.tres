@@ -1,8 +1,8 @@
 [gd_resource type="SpriteFrames" format=3]
 
-[ext_resource type="Texture2D" path="res://tools/sprites/niko_character_library/runtime/runtime_atlas_001.png" id="1_653xm"]
-[ext_resource type="Texture2D" path="res://tools/sprites/niko_character_library/runtime/runtime_atlas_002.png" id="2_qukur"]
-[ext_resource type="Texture2D" path="res://tools/sprites/niko_character_library/runtime/runtime_atlas_003.png" id="3_b5yjl"]
+[ext_resource type="Texture2D" path="res://content_packs/characters/niko/animations/runtime_atlas_001.png" id="1_653xm"]
+[ext_resource type="Texture2D" path="res://content_packs/characters/niko/animations/runtime_atlas_002.png" id="2_qukur"]
+[ext_resource type="Texture2D" path="res://content_packs/characters/niko/animations/runtime_atlas_003.png" id="3_b5yjl"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_653xm"]
 atlas = ExtResource("1_653xm")
