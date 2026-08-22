@@ -48,27 +48,35 @@ func _build(source_root: String, manifest_path: String, output_path: String, con
 
 	var packed_files := PackedStringArray()
 	for virtual_path: String in source_files:
-		if virtual_path.ends_with(".uid"):
+		# Pack source images directly. Import sidecars point at the project's shared
+		# `.godot/imported` namespace, which would break per-pack containment.
+		if virtual_path.ends_with(".uid") or virtual_path.ends_with(".import"):
 			continue
 		result = _add_file(packer, virtual_path, virtual_path, packed_files)
 		if result != OK:
 			return result
-		if virtual_path.ends_with(".import"):
-			result = _add_imported_dependencies(packer, virtual_path, packed_files)
-			if result != OK:
-				return result
 
 	result = packer.flush()
 	if result != OK:
 		printerr("Could not finalize content PCK: %s" % error_string(result))
 		return result
 	packed_files.sort()
+	var file_entries: Array[Dictionary] = []
+	for path: String in packed_files:
+		file_entries.append({
+			"path": path,
+			"sha256": FileAccess.get_sha256(ProjectSettings.globalize_path(path)),
+		})
 	var manifest := {
+		"schema_version": 1,
 		"pack_id": String(resource.pack_id),
 		"pack_version": resource.pack_version,
 		"content_api_version": resource.content_api_version,
+		"manifest_virtual_path": manifest_path,
+		"source_root_virtual_path": source_root.trim_suffix("/"),
+		"pck_sha256": FileAccess.get_sha256(ProjectSettings.globalize_path(output_path)),
 		"replace_files": false,
-		"files": Array(packed_files),
+		"files": file_entries,
 	}
 	result = _write_json(contents_path, manifest)
 	if result != OK:

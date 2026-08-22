@@ -6,6 +6,7 @@ signal catalog_changed(catalog: ContentCatalog)
 
 const RegistryScript := preload("res://core/content/content_pack_registry.gd")
 const StateStoreScript := preload("res://core/content/content_pack_state_store.gd")
+const InstallerScript := preload("res://core/content/content_pack_installer.gd")
 const DEFAULT_MANIFEST_PATH := "res://content_packs/default/pack.tres"
 const BUILTIN_PACK_INDEX_PATH := "res://content_packs/builtin_packs.json"
 const DEFAULT_PACK_FILENAME := "default_content.pck"
@@ -29,6 +30,7 @@ var _optional_packs: Array[ContentPackDef] = []
 var _active_pack_ids := PackedStringArray(["core"])
 var _pending_pack_ids := PackedStringArray()
 var _state_store := StateStoreScript.new()
+var _installer := InstallerScript.new()
 
 
 func _init() -> void:
@@ -171,6 +173,9 @@ func pending_pack_ids() -> PackedStringArray:
 func _initialize_optional_packs() -> void:
 	_optional_packs.clear()
 	var defaults := PackedStringArray()
+	var pending_result: Dictionary = _installer.apply_pending_on_startup()
+	if not bool(pending_result.get("ok", false)):
+		last_errors.append_array(pending_result.get("errors", PackedStringArray()))
 	if FileAccess.file_exists(BUILTIN_PACK_INDEX_PATH):
 		var file := FileAccess.open(BUILTIN_PACK_INDEX_PATH, FileAccess.READ)
 		var parsed: Variant = JSON.parse_string(file.get_as_text()) if file != null else null
@@ -187,6 +192,19 @@ func _initialize_optional_packs() -> void:
 				_optional_packs.append(pack)
 				if bool(entry.get("default_enabled", false)):
 					defaults.append(pack.pack_id)
+	for entry: Dictionary in _installer.installed_entries():
+		var pck_path := String(entry.get("pck_path", ""))
+		var manifest_path := String(entry.get("manifest_virtual_path", ""))
+		if pck_path.is_empty() or manifest_path.is_empty():
+			continue
+		if not ProjectSettings.load_resource_pack(ProjectSettings.globalize_path(pck_path), false):
+			last_errors.append("installed content pack could not be mounted: %s" % pck_path)
+			continue
+		var pack := _load_optional_manifest(manifest_path)
+		if pack == null:
+			continue
+		_optional_packs.append(pack)
+		_installer.mark_mounted(pack.pack_id)
 	var state: Dictionary = _state_store.load_state()
 	var saved: PackedStringArray = state.get("enabled_pack_ids", PackedStringArray())
 	_pending_pack_ids = saved if _state_store.last_error == OK and not saved.is_empty() else defaults
