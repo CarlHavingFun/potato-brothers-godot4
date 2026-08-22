@@ -3,6 +3,7 @@
   "packs": [
     {
       "manifest": "res://content_packs/characters/niko/pack.tres",
+      "shipping_pck": "character_niko-1.0.0.pck",
       "default_enabled": true
     }
   ]

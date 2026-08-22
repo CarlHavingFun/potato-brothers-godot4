@@ -29,6 +29,7 @@ var _active_pack_ids := PackedStringArray(["core"])
 var _pending_pack_ids := PackedStringArray()
 var _state_store := StateStoreScript.new()
 var _installer := InstallerScript.new()
+var _builtin_pack_ids := {}
 
 
 func _init() -> void:
@@ -140,6 +141,9 @@ func apply_pending_at_main_menu(run_active: bool) -> Dictionary:
 
 
 func content_pack_summaries() -> Array[Dictionary]:
+	var installed_ids := {}
+	for entry: Dictionary in _installer.installed_entries():
+		installed_ids[StringName(entry.get("pack_id", ""))] = true
 	var summaries: Array[Dictionary] = [{
 		"pack_id": &"core",
 		"display_name": "Core",
@@ -156,8 +160,89 @@ func content_pack_summaries() -> Array[Dictionary]:
 			"kind": pack.pack_kind,
 			"enabled": String(pack.pack_id) in _pending_pack_ids,
 			"required": false,
+			"installed": installed_ids.has(pack.pack_id),
+			"removable": installed_ids.has(pack.pack_id),
 		})
 	return summaries
+
+
+func install_content_pack(pck_path: String) -> Dictionary:
+	if not FileAccess.file_exists(pck_path):
+		return _apply_failure("content PCK not found: %s" % pck_path)
+	var descriptor_path := pck_path.get_basename() + ".contents.json"
+	if not FileAccess.file_exists(descriptor_path):
+		return _apply_failure("content descriptor not found: %s" % descriptor_path)
+	var descriptor_data: Variant = JSON.parse_string(FileAccess.get_file_as_string(descriptor_path))
+	if descriptor_data is Dictionary:
+		var candidate_id := StringName(descriptor_data.get("pack_id", ""))
+		if _builtin_pack_ids.has(candidate_id):
+			return _apply_failure("built-in pack updates ship with a game update: %s" % candidate_id)
+	var result: Dictionary = _installer.install(pck_path, descriptor_path)
+	if not bool(result.get("ok", false)) or bool(result.get("restart_required", false)):
+		return result
+	var installed_pack_id := StringName(result.get("pack_id", ""))
+	var installed_path := String(result.get("pck_path", ""))
+	if not ProjectSettings.load_resource_pack(ProjectSettings.globalize_path(installed_path), false):
+		var cleanup: Dictionary = _installer.remove(installed_pack_id)
+		var message := "installed content pack could not be mounted"
+		if not bool(cleanup.get("ok", false)):
+			message += "; install rollback failed: %s" % "; ".join(cleanup.get("errors", PackedStringArray()))
+		return _apply_failure(message)
+	# Godot cannot unmount a resource pack. Mark it before reading the manifest so
+	# any post-mount validation failure is staged for removal on the next restart.
+	_installer.mark_mounted(installed_pack_id)
+	var installed_entry: Dictionary
+	for entry: Dictionary in _installer.installed_entries():
+		if StringName(entry.get("pack_id", "")) == installed_pack_id:
+			installed_entry = entry
+			break
+	var pack := _load_optional_manifest(String(installed_entry.get("manifest_virtual_path", "")))
+	if pack == null or pack.pack_id != installed_pack_id:
+		var cleanup: Dictionary = _installer.remove(installed_pack_id)
+		var errors := PackedStringArray(["installed content manifest could not be loaded or its ID did not match"])
+		if not bool(cleanup.get("ok", false)):
+			errors.append_array(cleanup.get("errors", PackedStringArray()))
+		last_errors = errors
+		return {
+			"ok": false,
+			"catalog": null,
+			"active_pack_ids": _active_pack_ids.duplicate(),
+			"errors": errors,
+			"restart_required": bool(cleanup.get("restart_required", true)),
+		}
+	_optional_packs.append(pack)
+	return result
+
+
+func remove_content_pack(pack_id: StringName) -> Dictionary:
+	if _builtin_pack_ids.has(pack_id):
+		return _apply_failure("built-in packs are replaced by a game update")
+	var previous_ids := _pending_pack_ids.duplicate()
+	var next_ids := _pending_pack_ids.duplicate()
+	var pending_index := next_ids.find(String(pack_id))
+	if pending_index >= 0:
+		next_ids.remove_at(pending_index)
+	var save_error: Error = _state_store.save_enabled(next_ids)
+	if save_error != OK:
+		return _apply_failure("could not save disabled pack state: %s" % error_string(save_error))
+	var result: Dictionary = _installer.remove(pack_id)
+	if not bool(result.get("ok", false)):
+		var restore_error: Error = _state_store.save_enabled(previous_ids)
+		if restore_error != OK:
+			var errors: PackedStringArray = result.get("errors", PackedStringArray())
+			errors.append("enabled pack state rollback failed: %s" % error_string(restore_error))
+			result["errors"] = errors
+		return result
+	_pending_pack_ids = next_ids
+	return result
+
+
+func request_controlled_restart(run_active: bool) -> Dictionary:
+	if run_active:
+		return _apply_failure("restart is only allowed at the main menu")
+	OS.set_restart_on_exit(true)
+	get_tree().quit()
+	return {"ok": true, "errors": PackedStringArray(), "restart_required": true}
 
 
 func active_pack_ids() -> PackedStringArray:
@@ -170,6 +255,7 @@ func pending_pack_ids() -> PackedStringArray:
 
 func _initialize_optional_packs() -> void:
 	_optional_packs.clear()
+	_builtin_pack_ids.clear()
 	var defaults := PackedStringArray()
 	var pending_result: Dictionary = _installer.apply_pending_on_startup()
 	if not bool(pending_result.get("ok", false)):
@@ -184,10 +270,18 @@ func _initialize_optional_packs() -> void:
 				if not entry is Dictionary:
 					continue
 				var manifest_path := String(entry.get("manifest", ""))
+				if not ResourceLoader.exists(manifest_path):
+					var shipping_name := String(entry.get("shipping_pck", ""))
+					var shipping_path := OS.get_executable_path().get_base_dir().path_join(
+						"content_packs"
+					).path_join(shipping_name)
+					if not shipping_name.is_empty() and FileAccess.file_exists(shipping_path):
+						ProjectSettings.load_resource_pack(shipping_path, false)
 				var pack := _load_optional_manifest(manifest_path)
 				if pack == null:
 					continue
 				_optional_packs.append(pack)
+				_builtin_pack_ids[pack.pack_id] = true
 				if bool(entry.get("default_enabled", false)):
 					defaults.append(pack.pack_id)
 	for entry: Dictionary in _installer.installed_entries():

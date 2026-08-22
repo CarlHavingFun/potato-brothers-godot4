@@ -917,6 +917,17 @@ custom_minimum_size = Vector2(220, 62)
 layout_mode = 2
 text = "Apply Changes"
 
+[node name="InstallButton" type="Button" parent="Pages/ContentPacksPage/Content/Actions"]
+custom_minimum_size = Vector2(190, 62)
+layout_mode = 2
+text = "Install PCK"
+
+[node name="RestartButton" type="Button" parent="Pages/ContentPacksPage/Content/Actions"]
+visible = false
+custom_minimum_size = Vector2(190, 62)
+layout_mode = 2
+text = "Restart App"
+
 [node name="BackButton" type="Button" parent="Pages/ContentPacksPage/Content/Actions"]
 custom_minimum_size = Vector2(160, 62)
 layout_mode = 2

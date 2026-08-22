@@ -61,9 +61,13 @@ func test_generated_default_pck_contains_only_restricted_content_files() -> void
 	assert_bool(FileAccess.file_exists(DEFAULT_PACK_PATH)).is_true()
 	var contents: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DEFAULT_CONTENTS_PATH))
 	assert_bool(contents.get("replace_files", true)).is_false()
+	assert_float(float(contents.get("schema_version", 0))).is_equal_approx(1.0, 0.001)
+	assert_str(contents.get("pck_sha256", "")).is_equal(FileAccess.get_sha256(DEFAULT_PACK_PATH))
 	var files: Array = contents.get("files", [])
-	assert_bool(files.has("res://content_packs/default/pack.tres")).is_true()
-	for path: String in files:
+	assert_bool(files.any(func(entry: Dictionary): return entry.path == "res://content_packs/default/pack.tres")).is_true()
+	for entry: Dictionary in files:
+		var path := String(entry.get("path", ""))
+		assert_int(String(entry.get("sha256", "")).length()).is_equal(64)
 		var allowed := path.begins_with("res://content_packs/default/") or path.begins_with("res://.godot/imported/")
 		assert_bool(allowed).override_failure_message(path).is_true()
 		assert_bool(path.contains("/assets/")).override_failure_message(path).is_false()

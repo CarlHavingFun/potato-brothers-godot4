@@ -29,6 +29,7 @@ $stagingRoot = Join-Path $buildRoot "release_staging"
 $stagingProject = Join-Path $stagingRoot "core_project"
 $distRoot = Join-Path $projectRoot "dist\game-prototype"
 $contentPack = Join-Path $buildRoot "content\default_content.pck"
+$independentContentBuildRoot = Join-Path $buildRoot "content\independent"
 $FormalSkinManifest = "res://content_packs/skins/lets_gooooo/skin.tres"
 $FormalGlobalFontResource = "res://assets/font/brotato_font_stack.tres"
 $FormalPrimaryFontResource = "res://assets/font/Anybody-Medium.ttf"
@@ -246,8 +247,9 @@ function Assert-WindowsX64Executable([string]$ExecutablePath) {
 	}
 }
 
-function Assert-WindowsReleaseDirectory([string]$PlatformDirectory) {
+function Assert-WindowsReleaseDirectory([string]$PlatformDirectory, [string[]]$ContentArtifacts = @()) {
 	$requiredFiles = @("GamePrototype.exe", "GamePrototype.pck", "default_content.pck", "PLAYTEST.md", "THIRD_PARTY.md")
+	$requiredFiles += @($ContentArtifacts | ForEach-Object { "content_packs/" + (Split-Path -Leaf $_) })
 	$actualFiles = @(Get-ChildItem -LiteralPath $PlatformDirectory -File -Recurse | ForEach-Object {
 		$_.FullName.Substring($PlatformDirectory.Length + 1).Replace('\', '/')
 	})
@@ -255,8 +257,10 @@ function Assert-WindowsReleaseDirectory([string]$PlatformDirectory) {
 	$missing = @($requiredFiles | Where-Object { $actualFiles -notcontains $_ })
 	if ($unexpected.Count -gt 0) { throw "Unexpected files in Windows package: $($unexpected -join ', ')" }
 	if ($missing.Count -gt 0) { throw "Required files missing from Windows package: $($missing -join ', ')" }
-	$directories = @(Get-ChildItem -LiteralPath $PlatformDirectory -Directory -Recurse)
-	if ($directories.Count -gt 0) { throw "Windows package must not contain source directories: $($directories.FullName -join ', ')" }
+	$unexpectedDirectories = @(Get-ChildItem -LiteralPath $PlatformDirectory -Directory -Recurse | Where-Object {
+		$_.FullName.Substring($PlatformDirectory.Length + 1).Replace('\', '/') -ne "content_packs"
+	})
+	if ($unexpectedDirectories.Count -gt 0) { throw "Windows package contains unexpected directories: $($unexpectedDirectories.FullName -join ', ')" }
 	foreach ($fileName in $requiredFiles) {
 		$file = Get-Item -LiteralPath (Join-Path $PlatformDirectory $fileName)
 		if ($file.Length -le 0) { throw "Windows package contains an empty file: $fileName" }
@@ -264,10 +268,11 @@ function Assert-WindowsReleaseDirectory([string]$PlatformDirectory) {
 	Assert-WindowsX64Executable (Join-Path $PlatformDirectory "GamePrototype.exe")
 }
 
-function Assert-WindowsReleaseArchive([string]$ArchivePath) {
+function Assert-WindowsReleaseArchive([string]$ArchivePath, [string[]]$ContentArtifacts = @()) {
 	Add-Type -AssemblyName System.IO.Compression
 	Add-Type -AssemblyName System.IO.Compression.FileSystem
 	$requiredFiles = @("GamePrototype.exe", "GamePrototype.pck", "default_content.pck", "PLAYTEST.md", "THIRD_PARTY.md")
+	$requiredFiles += @($ContentArtifacts | ForEach-Object { "content_packs/" + (Split-Path -Leaf $_) })
 	$archive = [System.IO.Compression.ZipFile]::OpenRead($ArchivePath)
 	try {
 		$actualFiles = @($archive.Entries | Where-Object { -not [string]::IsNullOrEmpty($_.Name) } | ForEach-Object {
@@ -377,7 +382,48 @@ if (-not $SkipAcceptance) {
 & (Join-Path $PSScriptRoot "build_content_pack.ps1") -GodotBinary $GodotBinary
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+Reset-GeneratedDirectory $independentContentBuildRoot (Join-Path $buildRoot "content")
+$independentContentArtifacts = @()
+$packRoots = @(
+	Join-Path $projectRoot "content_packs\characters",
+	Join-Path $projectRoot "content_packs\weapons"
+)
+foreach ($packRoot in $packRoots) {
+	if (-not (Test-Path -LiteralPath $packRoot -PathType Container)) { continue }
+	Get-ChildItem -LiteralPath $packRoot -Directory | Where-Object {
+		Test-Path -LiteralPath (Join-Path $_.FullName "pack.tres") -PathType Leaf
+	} | ForEach-Object {
+		$manifestFile = Join-Path $_.FullName "pack.tres"
+		$manifestText = Get-Content -LiteralPath $manifestFile -Raw
+		$packIdMatch = [regex]::Match($manifestText, '(?m)^pack_id = &"(?<value>[a-z0-9_]+)"\r?$')
+		$packVersionMatch = [regex]::Match($manifestText, '(?m)^pack_version = "(?<value>[0-9]+\.[0-9]+\.[0-9]+)"\r?$')
+		if (-not $packIdMatch.Success -or -not $packVersionMatch.Success) {
+			throw "Independent pack manifest has no strict ID/version: $manifestFile"
+		}
+		$packId = $packIdMatch.Groups['value'].Value
+		$packVersion = $packVersionMatch.Groups['value'].Value
+		$sourceRelative = $_.FullName.Substring($projectRoot.Length + 1).Replace('\', '/')
+		$sourceResource = "res://$sourceRelative"
+		$manifestResource = "$sourceResource/pack.tres"
+		$outputResource = "res://builds/content/independent/$packId-$packVersion.pck"
+		& (Join-Path $PSScriptRoot "build_content_pack.ps1") `
+			-GodotBinary $GodotBinary `
+			-SourceRoot $sourceResource `
+			-ManifestPath $manifestResource `
+			-OutputPath $outputResource
+		if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+		$builtPck = Join-Path $independentContentBuildRoot "$packId-$packVersion.pck"
+		$independentContentArtifacts += $builtPck
+		$independentContentArtifacts += ($builtPck.Substring(0, $builtPck.Length - 4) + ".contents.json")
+	}
+}
+
 Reset-GeneratedDirectory $distRoot (Join-Path $projectRoot "dist")
+$distContentPacks = Join-Path $distRoot "content_packs"
+New-Item -ItemType Directory -Force -Path $distContentPacks | Out-Null
+foreach ($artifact in $independentContentArtifacts) {
+	Copy-Item -LiteralPath $artifact -Destination (Join-Path $distContentPacks (Split-Path -Leaf $artifact)) -Force
+}
 
 $releaseEntries = @(
 	"assets", "autoloads", "content_packs", "core", "effects", "resources",
@@ -390,6 +436,10 @@ foreach ($entry in $releaseEntries) {
 	if (-not (Test-Path -LiteralPath $source)) { throw "Release source is missing: $source" }
 	Copy-Item -LiteralPath $source -Destination $stagingProject -Recurse -Force
 }
+$stagedOptionalCharacters = Join-Path $stagingProject "content_packs\characters"
+$stagedOptionalWeapons = Join-Path $stagingProject "content_packs\weapons"
+if (Test-Path -LiteralPath $stagedOptionalCharacters) { Remove-Item -LiteralPath $stagedOptionalCharacters -Recurse -Force }
+if (Test-Path -LiteralPath $stagedOptionalWeapons) { Remove-Item -LiteralPath $stagedOptionalWeapons -Recurse -Force }
 
 $stagedSkinRoot = Join-Path $stagingProject "content_packs\skins"
 $stagedSelectedSkinDirectory = Join-Path $stagedSkinRoot $selectedSkinName
@@ -458,6 +508,17 @@ foreach ($platform in $Platforms) {
 				$packStream = [System.IO.File]::OpenRead($contentPack)
 				try { $packStream.CopyTo($entryStream) } finally { $packStream.Dispose() }
 			} finally { $entryStream.Dispose() }
+			foreach ($artifact in $independentContentArtifacts) {
+				$artifactEntry = $archive.CreateEntry(
+					$macosDirectory + "content_packs/" + (Split-Path -Leaf $artifact),
+					[System.IO.Compression.CompressionLevel]::Optimal
+				)
+				$artifactStream = $artifactEntry.Open()
+				try {
+					$sourceStream = [System.IO.File]::OpenRead($artifact)
+					try { $sourceStream.CopyTo($artifactStream) } finally { $sourceStream.Dispose() }
+				} finally { $artifactStream.Dispose() }
+			}
 			$noticeFiles = @{
 				"PLAYTEST.md" = (Join-Path $projectRoot "docs\PHASE_ONE_PLAYTEST.md")
 				"THIRD_PARTY.md" = (Join-Path $projectRoot "docs\THIRD_PARTY.md")
@@ -489,17 +550,22 @@ foreach ($platform in $Platforms) {
 			"--asset-manifest", $selectedSkinAssetManifestResource
 		)
 		Copy-Item -LiteralPath $contentPack -Destination (Join-Path $platformDir "default_content.pck") -Force
+		$platformContentPacks = Join-Path $platformDir "content_packs"
+		New-Item -ItemType Directory -Force -Path $platformContentPacks | Out-Null
+		foreach ($artifact in $independentContentArtifacts) {
+			Copy-Item -LiteralPath $artifact -Destination (Join-Path $platformContentPacks (Split-Path -Leaf $artifact)) -Force
+		}
 		Copy-Item -LiteralPath (Join-Path $projectRoot "docs\PHASE_ONE_PLAYTEST.md") -Destination (Join-Path $platformDir "PLAYTEST.md") -Force
 		Copy-Item -LiteralPath (Join-Path $projectRoot "docs\THIRD_PARTY.md") -Destination (Join-Path $platformDir "THIRD_PARTY.md") -Force
 		if ($platform -eq "Windows") {
-			Assert-WindowsReleaseDirectory $platformDir
+			Assert-WindowsReleaseDirectory $platformDir $independentContentArtifacts
 			if ($env:OS -eq "Windows_NT") {
 				Invoke-WindowsReleaseSmoke $platformDir
 			}
 			$releaseArchive = Join-Path $distRoot "GamePrototype-Windows-x86_64.zip"
 			tar -a -cf $releaseArchive -C $platformDir .
 			if ($LASTEXITCODE -ne 0) { throw "Windows archive creation failed" }
-			Assert-WindowsReleaseArchive $releaseArchive
+			Assert-WindowsReleaseArchive $releaseArchive $independentContentArtifacts
 		} else {
 			$releaseArchive = Join-Path $distRoot "GamePrototype-Linux-x86_64.tar.gz"
 			tar -czf $releaseArchive -C $platformDir .

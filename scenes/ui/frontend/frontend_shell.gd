@@ -27,9 +27,12 @@ const CHARACTER_CARD_SIZE_LARGE := Vector2(92, 84)
 @onready var content_packs_button: Button = $Pages/TitlePage/SafeArea/Layout/Menu/ContentPacksButton
 @onready var content_packs_page: Control = $Pages/ContentPacksPage
 @onready var content_packs_title: Label = $Pages/ContentPacksPage/Content/Header/Title
+@onready var content_packs_explanation: Label = $Pages/ContentPacksPage/Content/Explanation
 @onready var content_packs_list: VBoxContainer = $Pages/ContentPacksPage/Content/PackList
 @onready var content_packs_status: Label = $Pages/ContentPacksPage/Content/Status
 @onready var content_packs_apply: Button = $Pages/ContentPacksPage/Content/Actions/ApplyButton
+@onready var content_packs_install: Button = $Pages/ContentPacksPage/Content/Actions/InstallButton
+@onready var content_packs_restart: Button = $Pages/ContentPacksPage/Content/Actions/RestartButton
 @onready var content_packs_back: Button = $Pages/ContentPacksPage/Content/Actions/BackButton
 @onready var profile_choices: VBoxContainer = $Pages/ProfilePage/Content/ProfileChoices
 @onready var repair_notice_label: Label = $Pages/ProfilePage/Content/RepairNotice
@@ -92,6 +95,7 @@ var _fallback_theme: Theme
 var _page_transition: Tween
 var _content_packs_open := false
 var _content_pack_checks: Dictionary = {}
+var _content_pack_dialog: FileDialog
 
 
 func _ready() -> void:
@@ -113,7 +117,10 @@ func _ready() -> void:
 	_setup_profile_dialogs()
 	content_packs_button.pressed.connect(_open_content_packs)
 	content_packs_apply.pressed.connect(_apply_content_pack_changes)
+	content_packs_install.pressed.connect(_open_content_pack_file)
+	content_packs_restart.pressed.connect(_restart_for_content_packs)
 	content_packs_back.pressed.connect(_close_content_packs)
+	_setup_content_pack_dialog()
 	weapon_stats.gui_input.connect(_on_weapon_stats_gui_input)
 	_apply_character_page_layout()
 	_apply_weapon_page_layout()
@@ -321,6 +328,7 @@ func _open_content_packs() -> void:
 		page.visible = page == content_packs_page
 	_rebuild_content_pack_list()
 	content_packs_status.text = ""
+	content_packs_restart.visible = false
 	content_packs_back.call_deferred("grab_focus")
 
 
@@ -333,7 +341,12 @@ func _rebuild_content_pack_list() -> void:
 	_clear_children(content_packs_list)
 	_content_pack_checks.clear()
 	for summary: Dictionary in Content.content_pack_summaries():
+		var row := HBoxContainer.new()
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_theme_constant_override(&"separation", 12)
+		content_packs_list.add_child(row)
 		var check := CheckBox.new()
+		check.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var kind := _content_pack_kind_name(int(summary.get("kind", 0)))
 		check.text = "%s  [%s]  v%s" % [
 			summary.get("display_name", summary.get("pack_id", "")),
@@ -343,8 +356,15 @@ func _rebuild_content_pack_list() -> void:
 		check.button_pressed = bool(summary.get("enabled", false))
 		check.disabled = bool(summary.get("required", false))
 		check.focus_mode = Control.FOCUS_ALL
-		content_packs_list.add_child(check)
+		row.add_child(check)
 		_content_pack_checks[summary.get("pack_id")] = check
+		if bool(summary.get("removable", false)):
+			var remove_button := Button.new()
+			remove_button.text = _pack_text("移除", "Remove")
+			remove_button.pressed.connect(
+				_remove_content_pack.bind(StringName(summary.get("pack_id", "")))
+			)
+			row.add_child(remove_button)
 	_register_button_feedback(content_packs_list)
 	_update_content_pack_copy()
 
@@ -374,6 +394,51 @@ func _apply_content_pack_changes() -> void:
 	_rebuild_content_pack_list()
 
 
+func _setup_content_pack_dialog() -> void:
+	_content_pack_dialog = FileDialog.new()
+	_content_pack_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	_content_pack_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	_content_pack_dialog.filters = PackedStringArray(["*.pck ; Godot Content Pack"])
+	_content_pack_dialog.file_selected.connect(_install_content_pack)
+	add_child(_content_pack_dialog)
+
+
+func _open_content_pack_file() -> void:
+	_content_pack_dialog.popup_centered_ratio(0.75)
+
+
+func _install_content_pack(path: String) -> void:
+	var result: Dictionary = Content.install_content_pack(path)
+	if not bool(result.get("ok", false)):
+		_show_content_pack_errors(result.get("errors", PackedStringArray()))
+		return
+	content_packs_status.text = _pack_text(
+		"内容包已安装。勾选后应用即可启用。",
+		"Content pack installed. Enable its checkbox, then apply."
+	)
+	content_packs_restart.visible = bool(result.get("restart_required", false))
+	_rebuild_content_pack_list()
+
+
+func _remove_content_pack(pack_id: StringName) -> void:
+	var result: Dictionary = Content.remove_content_pack(pack_id)
+	if not bool(result.get("ok", false)):
+		_show_content_pack_errors(result.get("errors", PackedStringArray()))
+		return
+	content_packs_restart.visible = bool(result.get("restart_required", false))
+	content_packs_status.text = _pack_text(
+		"移除已排队；重启后完成。" if content_packs_restart.visible else "内容包已移除。",
+		"Removal queued; restart to finish." if content_packs_restart.visible else "Content pack removed."
+	)
+	_rebuild_content_pack_list()
+
+
+func _restart_for_content_packs() -> void:
+	var result: Dictionary = Content.request_controlled_restart(Global.current_run != null)
+	if not bool(result.get("ok", false)):
+		_show_content_pack_errors(result.get("errors", PackedStringArray()))
+
+
 func _show_content_pack_errors(errors: PackedStringArray) -> void:
 	content_packs_status.text = "\n".join(errors) if not errors.is_empty() else _pack_text(
 		"内容包应用失败，现有目录保持不变。",
@@ -384,7 +449,13 @@ func _show_content_pack_errors(errors: PackedStringArray) -> void:
 func _update_content_pack_copy() -> void:
 	content_packs_button.text = _pack_text("内容包", "Content Packs")
 	content_packs_title.text = _pack_text("角色与武器内容包", "Character & Weapon Packs")
+	content_packs_explanation.text = _pack_text(
+		"更改只在主菜单应用；运行中的角色和武器保持不变。",
+		"Changes apply only at the main menu; active characters and weapons stay unchanged."
+	)
 	content_packs_apply.text = _pack_text("应用更改", "Apply Changes")
+	content_packs_install.text = _pack_text("安装 PCK", "Install PCK")
+	content_packs_restart.text = _pack_text("重启应用", "Restart App")
 	content_packs_back.text = _pack_text("返回", "Back")
 
 

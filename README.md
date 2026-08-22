@@ -20,6 +20,22 @@ Unity/Tuanjie reproduction.
 The Unity/Tuanjie project, the tutorial source project, and `c-sbro` are
 read-only references. The game must not depend on their paths at runtime.
 
+## Independent character and weapon packs
+
+Every new character and weapon is an independently versioned content pack.
+`core` is always active; optional packs use fully qualified IDs such as
+`character_niko:character/niko` and can be enabled or disabled from the main
+menu. The catalog is immutable during a run. A menu apply builds a complete
+candidate catalog and swaps it atomically; mounted PCK updates and removals are
+staged for the next process start because Godot cannot safely unmount them.
+
+Runtime assets live under `content_packs/characters/<id>/` or
+`content_packs/weapons/<id>/`; generation tools, source videos, and full frame
+pools stay under `tools/` or outside the project. Niko is the reference
+character pack and its human editing entry remains
+`res://Niko动画工作台.tscn`. Reusable templates are documented under
+`content_packs/templates/`.
+
 ## Engine
 
 - Godot 4.7.1 standard build
