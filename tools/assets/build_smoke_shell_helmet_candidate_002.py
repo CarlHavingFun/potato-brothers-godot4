@@ -153,6 +153,14 @@ def _canonical_json_bytes(payload: object) -> bytes:
     ).encode("utf-8")
 
 
+def _is_lower_sha256(value: object) -> bool:
+    return (
+        type(value) is str
+        and len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
 def _source_hashes(inputs: BuildInputs, candidate_001_hashes: dict[str, str]) -> dict[str, object]:
     return {
         "appearance_source": _sha256(inputs.appearance_source),
@@ -269,33 +277,36 @@ def _normalized_registered_registry(
     normalized = copy.deepcopy(registry)
     unit = _registry_unit(normalized)
     history = unit.get("candidate_history")
-    if not isinstance(history, list):
+    if type(history) is not list:
         raise ValueError("invalid_registry_history")
     matches = [
         candidate
         for candidate in history
-        if isinstance(candidate, dict) and candidate.get("candidate_id") == CANDIDATE_ID
+        if type(candidate) is dict and candidate.get("candidate_id") == CANDIDATE_ID
     ]
     if len(matches) != 1:
         raise ValueError("candidate_002_registry_count")
     active = matches[0]
     artifacts = active.get("artifacts")
-    if not isinstance(artifacts, list) or len(artifacts) != len(ARTIFACT_PATHS):
+    if type(artifacts) is not list or len(artifacts) != len(ARTIFACT_PATHS):
         raise ValueError("invalid_candidate_artifacts")
     seen_paths: set[str] = set()
     for artifact in artifacts:
-        if not isinstance(artifact, dict):
+        if type(artifact) is not dict:
             raise ValueError("invalid_candidate_artifacts")
         raw_path = artifact.get("path")
-        if not isinstance(raw_path, str) or not raw_path.startswith(REGISTRY_ARTIFACT_PREFIX):
+        if type(raw_path) is not str or not raw_path.startswith(REGISTRY_ARTIFACT_PREFIX):
             raise ValueError("invalid_candidate_artifacts")
         relative = raw_path[len(REGISTRY_ARTIFACT_PREFIX) :]
+        byte_count = artifact.get("bytes")
+        artifact_sha256 = artifact.get("sha256")
         if (
             relative not in ARTIFACT_PATHS
             or relative in seen_paths
             or artifact.get("role") != ARTIFACT_ROLES[relative]
-            or "bytes" not in artifact
-            or "sha256" not in artifact
+            or type(byte_count) is not int
+            or byte_count < 0
+            or not _is_lower_sha256(artifact_sha256)
         ):
             raise ValueError("invalid_candidate_artifacts")
         seen_paths.add(relative)
@@ -304,14 +315,30 @@ def _normalized_registered_registry(
     if seen_paths != set(ARTIFACT_PATHS):
         raise ValueError("invalid_candidate_artifacts")
     source_sha256 = active.get("source_sha256")
-    if not isinstance(source_sha256, dict) or "registry" not in source_sha256:
+    if type(source_sha256) is not dict or not _is_lower_sha256(
+        source_sha256.get("registry")
+    ):
         raise ValueError("invalid_candidate_source_sha256")
     source_sha256["registry"] = "<candidate-002-source-registry-sha256>"
     if "visual_rubric_sha256" not in active:
         raise ValueError("invalid_candidate_visual_rubric_sha256")
-    active["visual_rubric_sha256"] = "<candidate-002-visual-rubric-sha256>"
+    visual_rubric_sha256 = active.get("visual_rubric_sha256")
     metrics = active.get("metrics")
-    if isinstance(metrics, dict) and "visual_rubric_sha256" in metrics:
+    if type(metrics) is not dict:
+        raise ValueError("invalid_candidate_metrics")
+    metrics_has_rubric = "visual_rubric_sha256" in metrics
+    if visual_rubric_sha256 is not None and not _is_lower_sha256(
+        visual_rubric_sha256
+    ):
+        raise ValueError("invalid_candidate_visual_rubric_sha256")
+    if metrics_has_rubric and not _is_lower_sha256(
+        metrics.get("visual_rubric_sha256")
+    ):
+        raise ValueError("invalid_candidate_metrics")
+    if visual_rubric_sha256 is None and metrics_has_rubric:
+        raise ValueError("invalid_candidate_metrics")
+    active["visual_rubric_sha256"] = "<candidate-002-visual-rubric-sha256>"
+    if metrics_has_rubric:
         metrics["visual_rubric_sha256"] = (
             "<candidate-002-metrics-visual-rubric-sha256>"
         )
@@ -402,7 +429,7 @@ def _registered_candidate_matches_metadata(
         and unit.get("approval_status") == "review"
         and unit.get("effects") == registry_snapshot.get("effects")
         and unit.get("localization") == registry_snapshot.get("localization")
-        and active == expected_active
+        and _canonical_json_bytes(active) == _canonical_json_bytes(expected_active)
         and _registry_refresh_guard_matches(registry, metadata)
     )
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import shutil
@@ -344,6 +345,130 @@ def test_registered_refresh_rejects_registry_that_does_not_match_metadata(
         build_candidate_002(build_inputs)
 
     assert tree_hashes(output_root) == before
+
+
+@pytest.mark.parametrize(
+    "malformed_bytes",
+    [3030.0, True],
+    ids=["equal_valued_float", "bool"],
+)
+def test_registered_refresh_rejects_non_exact_artifact_byte_types_without_mutation(
+    tmp_path: Path,
+    malformed_bytes: object,
+) -> None:
+    """Catches Python numeric equality authorizing a malformed registered refresh."""
+    registry_copy = tmp_path / "registry.json"
+    shutil.copyfile(REGISTRY, registry_copy)
+    output_root = tmp_path / "candidate-002"
+    build_inputs = replace(inputs(output_root), registry=registry_copy)
+    build_candidate_002(build_inputs)
+    register_candidate_metadata(registry_copy, output_root)
+
+    registry = json.loads(registry_copy.read_text("utf-8"))
+    helmet = next(
+        unit for unit in registry["units"] if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    active = next(
+        candidate
+        for candidate in helmet["candidate_history"]
+        if candidate["candidate_id"] == "candidate-002"
+    )
+    assert active["artifacts"][0]["bytes"] == 3030
+    active["artifacts"][0]["bytes"] = malformed_bytes
+    registry_copy.write_text(
+        json.dumps(registry, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+
+    output_before = tree_hashes(output_root)
+    metadata_before = (output_root / "candidate-metadata.json").read_bytes()
+    registry_before = registry_copy.read_bytes()
+    candidate_001_before = tree_hashes(CANDIDATE_001)
+    source_hashes_before = {
+        path: sha256(path)
+        for path in (
+            build_inputs.appearance_source,
+            build_inputs.niko_atlas,
+            build_inputs.rig_profile,
+            build_inputs.card_font_regular,
+            build_inputs.card_font_bold,
+        )
+    }
+
+    with pytest.raises(ValueError, match="source_hash_mismatch"):
+        build_candidate_002(build_inputs)
+
+    assert tree_hashes(output_root) == output_before
+    assert (output_root / "candidate-metadata.json").read_bytes() == metadata_before
+    assert registry_copy.read_bytes() == registry_before
+    assert tree_hashes(CANDIDATE_001) == candidate_001_before
+    assert {path: sha256(path) for path in source_hashes_before} == source_hashes_before
+
+
+@pytest.mark.parametrize(
+    ("mutation", "error"),
+    [
+        ("artifact_bytes_float", "invalid_candidate_artifacts"),
+        ("artifact_bytes_bool", "invalid_candidate_artifacts"),
+        ("artifact_sha256_bool", "invalid_candidate_artifacts"),
+        ("source_registry_bool", "invalid_candidate_source_sha256"),
+        ("source_not_object", "invalid_candidate_source_sha256"),
+        ("visual_rubric_missing", "invalid_candidate_visual_rubric_sha256"),
+        ("visual_rubric_bool", "invalid_candidate_visual_rubric_sha256"),
+        ("metrics_visual_rubric_bool", "invalid_candidate_metrics"),
+        ("metrics_not_object", "invalid_candidate_metrics"),
+    ],
+)
+def test_registry_normalization_rejects_malformed_excluded_field_types(
+    mutation: str,
+    error: str,
+) -> None:
+    """Catches normalization erasing malformed types before they are validated."""
+    registry = json.loads(REGISTRY.read_text("utf-8"))
+    helmet = next(
+        unit for unit in registry["units"] if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    active = next(
+        candidate
+        for candidate in helmet["candidate_history"]
+        if candidate["candidate_id"] == "candidate-002"
+    )
+    malformed = copy.deepcopy(registry)
+    malformed_helmet = next(
+        unit
+        for unit in malformed["units"]
+        if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    malformed_active = next(
+        candidate
+        for candidate in malformed_helmet["candidate_history"]
+        if candidate["candidate_id"] == "candidate-002"
+    )
+
+    if mutation == "artifact_bytes_float":
+        malformed_active["artifacts"][0]["bytes"] = float(
+            active["artifacts"][0]["bytes"]
+        )
+    elif mutation == "artifact_bytes_bool":
+        malformed_active["artifacts"][0]["bytes"] = True
+    elif mutation == "artifact_sha256_bool":
+        malformed_active["artifacts"][0]["sha256"] = True
+    elif mutation == "source_registry_bool":
+        malformed_active["source_sha256"]["registry"] = True
+    elif mutation == "source_not_object":
+        malformed_active["source_sha256"] = []
+    elif mutation == "visual_rubric_missing":
+        malformed_active.pop("visual_rubric_sha256")
+        malformed_active["metrics"].pop("visual_rubric_sha256")
+    elif mutation == "visual_rubric_bool":
+        malformed_active["visual_rubric_sha256"] = True
+    elif mutation == "metrics_visual_rubric_bool":
+        malformed_active["metrics"]["visual_rubric_sha256"] = True
+    else:
+        malformed_active["metrics"] = []
+
+    with pytest.raises(ValueError, match=error):
+        builder._normalized_registered_registry(malformed)
 
 
 @pytest.mark.parametrize(
