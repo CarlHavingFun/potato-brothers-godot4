@@ -647,6 +647,11 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
     if profile_schema not in (None, "gogobro-rig-profile-v1"):
         raise ValueError("invalid_contract")
     canonical_profile = profile_schema == "gogobro-rig-profile-v1"
+    _add(
+        reasons,
+        canonical_profile and pixel_contract is None,
+        "formal_pixel_contract_required",
+    )
     expected_atlas_sha256: str | None = None
     if canonical_profile:
         expected_hash = profile.get("character_atlas_sha256")

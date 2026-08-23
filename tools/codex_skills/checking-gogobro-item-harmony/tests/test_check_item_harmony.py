@@ -207,6 +207,8 @@ class NikoSlotFixture:
         self.out_dir = root / "out"
 
         profile = json.loads(NIKO_RIG_PROFILE.read_text(encoding="utf-8"))
+        profile.pop("schema_version")
+        profile.pop("character_atlas_sha256")
         left, top, right, bottom = self._APPEARANCE_BOXES[slot]
         image = Image.new("RGBA", (128, 128), (0, 0, 0, 0))
         image.putpixel((left, top), (40, 30, 20, 255))
@@ -645,6 +647,28 @@ def test_recognized_legacy_anchor_schema_remains_auditable(
     assert "invalid_contract" not in report.reason_codes
     assert "scale_ratio_high" in report.reason_codes
     assert report.metrics["outer_width_ratio"] == pytest.approx(76 / 58)
+
+
+def test_canonical_rig_requires_formal_pixel_contract_for_integer_legacy_anchors(
+    head_fixture: HeadFixture,
+) -> None:
+    """Canonical production rigs must not bypass pixel gates through schema 1."""
+    _bind_canonical_atlas_contract(head_fixture)
+    anchors = json.loads(head_fixture.anchors.read_text(encoding="utf-8"))
+    anchors["schema_version"] = 1
+    _write_json(head_fixture.anchors, anchors)
+    appearance = Image.open(head_fixture.appearance).convert("RGBA")
+    appearance.putpixel((30, 50), (0, 0, 0, 0))
+    appearance.save(head_fixture.appearance)
+    derive_nearest_2x_icon(appearance).save(head_fixture.icon)
+
+    report = analyze_harmony(head_fixture.inputs())
+    reviewed = apply_visual_rubric(report, rubric(scores=[2, 2, 2, 1, 1]))
+
+    assert report.verdict == "hard_fail"
+    assert "formal_pixel_contract_required" in report.reason_codes
+    assert "invalid_contract" not in report.reason_codes
+    assert reviewed.verdict == "hard_fail"
 
 
 def test_direct_icon_reuse_false_permits_an_independent_valid_icon(

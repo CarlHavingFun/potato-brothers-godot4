@@ -791,6 +791,60 @@ def _blank_visual_rubric_bytes() -> bytes:
     return _json_bytes(_default_visual_rubric())
 
 
+def _committed_visual_rubric_bytes(output_root: Path) -> bytes | None:
+    """Return rubric bytes only after all prior committed provenance agrees."""
+    metadata_path = output_root / "candidate-metadata.json"
+    if not metadata_path.is_file():
+        return None
+    rubric_path = output_root / "qa/visual-rubric.json"
+    report_path = output_root / "qa/harmony-report.json"
+    try:
+        metadata = _read_object(metadata_path)
+        report = _read_object(report_path)
+        rubric_bytes = rubric_path.read_bytes()
+    except (OSError, UnicodeError, ValueError):
+        raise ValueError("visual_rubric_committed_state_mismatch") from None
+
+    artifacts = metadata.get("artifacts")
+    rubric_artifacts = (
+        [
+            artifact
+            for artifact in artifacts
+            if type(artifact) is dict
+            and artifact.get("path") == "qa/visual-rubric.json"
+        ]
+        if type(artifacts) is list
+        else []
+    )
+    input_sha256 = report.get("input_sha256")
+    if (
+        "visual_rubric_sha256" not in metadata
+        or len(rubric_artifacts) != 1
+        or type(input_sha256) is not dict
+    ):
+        raise ValueError("visual_rubric_committed_state_mismatch")
+
+    committed_hash = metadata["visual_rubric_sha256"]
+    artifact_hash = rubric_artifacts[0].get("sha256")
+    actual_hash = hashlib.sha256(rubric_bytes).hexdigest()
+    if committed_hash is None:
+        valid = (
+            rubric_bytes == _blank_visual_rubric_bytes()
+            and artifact_hash == actual_hash
+            and "visual_rubric" not in input_sha256
+        )
+    else:
+        valid = (
+            _is_lower_sha256(committed_hash)
+            and actual_hash == committed_hash
+            and artifact_hash == committed_hash
+            and input_sha256.get("visual_rubric") == committed_hash
+        )
+    if not valid:
+        raise ValueError("visual_rubric_committed_state_mismatch")
+    return rubric_bytes
+
+
 def _rubric_scores_for_evidence_revision(payload: bytes) -> dict[str, int]:
     rubric = json.loads(payload.decode("utf-8"))
     if not isinstance(rubric, dict) or set(rubric) != set(RUBRIC_DIMENSIONS):
@@ -1044,6 +1098,12 @@ def build_candidate_002(
 ) -> CandidateMetadata:
     checker = _load_checker()
     _recover_transaction(inputs.output_root)
+    existing_rubric_path = inputs.output_root / "qa/visual-rubric.json"
+    if (
+        visual_rubric is not None
+        and visual_rubric.resolve() == existing_rubric_path.resolve()
+    ):
+        raise ValueError("visual_rubric_aliases_output")
     candidate_001 = _validate_inputs(inputs)
     candidate_001_before = _tree_hashes(candidate_001)
     source_hashes = _source_hashes(inputs, candidate_001_before)
@@ -1052,18 +1112,20 @@ def build_candidate_002(
     niko_before = _sha256(inputs.niko_atlas)
     font_regular_before = _sha256(inputs.card_font_regular)
     font_bold_before = _sha256(inputs.card_font_bold)
-    existing_rubric_path = inputs.output_root / "qa/visual-rubric.json"
-    existing_rubric_bytes = (
-        existing_rubric_path.read_bytes() if existing_rubric_path.is_file() else None
-    )
+    existing_rubric_bytes = _committed_visual_rubric_bytes(inputs.output_root)
     supplied_rubric_bytes = visual_rubric.read_bytes() if visual_rubric else None
+    blank_rubric_bytes = _blank_visual_rubric_bytes()
+    existing_completed_rubric = (
+        existing_rubric_bytes is not None
+        and existing_rubric_bytes != blank_rubric_bytes
+    )
     if revise_rubric_evidence and (
-        supplied_rubric_bytes is None or existing_rubric_bytes is None
+        supplied_rubric_bytes is None or not existing_completed_rubric
     ):
         raise ValueError("visual_rubric_revision_requires_existing")
     if (
         supplied_rubric_bytes is not None
-        and existing_rubric_bytes is not None
+        and existing_completed_rubric
         and supplied_rubric_bytes != existing_rubric_bytes
     ):
         if not revise_rubric_evidence:
@@ -1072,11 +1134,9 @@ def build_candidate_002(
             existing_rubric_bytes,
             supplied_rubric_bytes,
         )
-    blank_rubric_bytes = _blank_visual_rubric_bytes()
     preserved_completed_rubric = (
         supplied_rubric_bytes is None
-        and existing_rubric_bytes is not None
-        and existing_rubric_bytes != blank_rubric_bytes
+        and existing_completed_rubric
     )
     apply_rubric = supplied_rubric_bytes is not None or preserved_completed_rubric
     if supplied_rubric_bytes is not None:

@@ -367,9 +367,10 @@ def test_completed_preserved_rubric_is_reapplied_on_no_arg_rebuild(
     output_root = tmp_path / "candidate-002"
     build_inputs = inputs(output_root)
     build_candidate_002(build_inputs)
+    rubric_input = tmp_path / "passing-rubric.json"
+    write_passing_rubric(rubric_input)
+    build_candidate_002(build_inputs, visual_rubric=rubric_input)
     rubric_path = output_root / "qa/visual-rubric.json"
-    write_passing_rubric(rubric_path)
-    build_candidate_002(build_inputs, visual_rubric=rubric_path)
     before = tree_hashes(output_root)
     expected_hash = sha256(rubric_path)
 
@@ -392,6 +393,105 @@ def test_completed_preserved_rubric_is_reapplied_on_no_arg_rebuild(
     assert_manifest_matches(output_root)
 
 
+def test_tampered_completed_rubric_aborts_no_arg_rebuild_before_publish(
+    tmp_path: Path,
+) -> None:
+    """A mutable output rubric cannot replace the last committed review authority."""
+    output_root = tmp_path / "candidate-002"
+    build_inputs = inputs(output_root)
+    build_candidate_002(build_inputs)
+    rubric_input = tmp_path / "passing-rubric.json"
+    write_passing_rubric(rubric_input)
+    build_candidate_002(build_inputs, visual_rubric=rubric_input)
+    rubric_path = output_root / "qa/visual-rubric.json"
+    committed_metadata = (output_root / "candidate-metadata.json").read_bytes()
+    payload = json.loads(rubric_path.read_text(encoding="utf-8"))
+    payload["identity"]["score"] = 0
+    rubric_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    tampered_tree = tree_hashes(output_root)
+
+    with pytest.raises(ValueError, match="visual_rubric_committed_state_mismatch"):
+        build_candidate_002(build_inputs)
+
+    assert tree_hashes(output_root) == tampered_tree
+    assert (output_root / "candidate-metadata.json").read_bytes() == committed_metadata
+    assert not (output_root / ".candidate-transaction.json").exists()
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["metadata_top", "artifact_entry", "report_input"],
+)
+def test_completed_rubric_requires_all_committed_hash_authorities(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """Metadata, artifact manifest, and report input must name one rubric digest."""
+    output_root = tmp_path / "candidate-002"
+    build_inputs = inputs(output_root)
+    build_candidate_002(build_inputs)
+    rubric_input = tmp_path / "passing-rubric.json"
+    write_passing_rubric(rubric_input)
+    build_candidate_002(build_inputs, visual_rubric=rubric_input)
+
+    metadata_path = output_root / "candidate-metadata.json"
+    report_path = output_root / "qa/harmony-report.json"
+    if mutation in {"metadata_top", "artifact_entry"}:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        if mutation == "metadata_top":
+            metadata["visual_rubric_sha256"] = "0" * 64
+        else:
+            rubric_artifact = next(
+                artifact
+                for artifact in metadata["artifacts"]
+                if artifact["path"] == "qa/visual-rubric.json"
+            )
+            rubric_artifact["sha256"] = "0" * 64
+        metadata_path.write_text(
+            json.dumps(metadata, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    else:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        report["input_sha256"]["visual_rubric"] = "0" * 64
+        report_path.write_text(
+            json.dumps(report, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    tampered_tree = tree_hashes(output_root)
+
+    with pytest.raises(ValueError, match="visual_rubric_committed_state_mismatch"):
+        build_candidate_002(build_inputs)
+
+    assert tree_hashes(output_root) == tampered_tree
+    assert not (output_root / ".candidate-transaction.json").exists()
+
+
+def test_explicit_output_rubric_alias_is_rejected_before_writes(
+    tmp_path: Path,
+) -> None:
+    """Explicit evidence must come from an immutable input path, not its output alias."""
+    output_root = tmp_path / "candidate-002"
+    build_inputs = inputs(output_root)
+    build_candidate_002(build_inputs)
+    rubric_input = tmp_path / "passing-rubric.json"
+    write_passing_rubric(rubric_input)
+    build_candidate_002(build_inputs, visual_rubric=rubric_input)
+    before = tree_hashes(output_root)
+
+    with pytest.raises(ValueError, match="visual_rubric_aliases_output"):
+        build_candidate_002(
+            build_inputs,
+            visual_rubric=output_root / "qa/visual-rubric.json",
+            revise_rubric_evidence=True,
+        )
+
+    assert tree_hashes(output_root) == before
+
+
 def test_malformed_preserved_rubric_aborts_a_no_arg_rebuild(tmp_path: Path) -> None:
     """Catches unchecked target rubric bytes surviving as reviewed provenance."""
     output_root = tmp_path / "candidate-002"
@@ -401,7 +501,7 @@ def test_malformed_preserved_rubric_aborts_a_no_arg_rebuild(tmp_path: Path) -> N
     rubric_path.write_text('{"identity": {"score": "2"}}\n', encoding="utf-8")
     metadata_before = (output_root / "candidate-metadata.json").read_bytes()
 
-    with pytest.raises(ValueError, match="malformed_visual_rubric"):
+    with pytest.raises(ValueError, match="visual_rubric_committed_state_mismatch"):
         build_candidate_002(build_inputs)
 
     assert (output_root / "candidate-metadata.json").read_bytes() == metadata_before
@@ -416,9 +516,10 @@ def test_preserved_rubric_change_after_capture_aborts_before_publish(
     output_root = tmp_path / "candidate-002"
     build_inputs = inputs(output_root)
     build_candidate_002(build_inputs)
+    rubric_input = tmp_path / "passing-rubric.json"
+    write_passing_rubric(rubric_input)
+    build_candidate_002(build_inputs, visual_rubric=rubric_input)
     rubric_path = output_root / "qa/visual-rubric.json"
-    write_passing_rubric(rubric_path)
-    build_candidate_002(build_inputs, visual_rubric=rubric_path)
     metadata_before = (output_root / "candidate-metadata.json").read_bytes()
     real_approval_card = builder._approval_card
 
@@ -450,8 +551,8 @@ def test_registered_review_candidate_can_be_rebuilt_from_exact_current_registry(
     output_root = tmp_path / "candidate-002"
     build_inputs = replace(inputs(output_root), registry=registry_copy)
     build_candidate_002(build_inputs)
-    rubric_path = output_root / "qa/visual-rubric.json"
-    rubric_path.write_text(
+    rubric_input = tmp_path / "passing-rubric.json"
+    rubric_input.write_text(
         json.dumps(
             {
                 name: {
@@ -472,12 +573,12 @@ def test_registered_review_candidate_can_be_rebuilt_from_exact_current_registry(
         + "\n",
         encoding="utf-8",
     )
-    build_candidate_002(build_inputs, visual_rubric=rubric_path)
+    build_candidate_002(build_inputs, visual_rubric=rubric_input)
     register_candidate_metadata(registry_copy, output_root)
     prebuild_registry_bytes = registry_copy.read_bytes()
     prebuild_registry_hash = hashlib.sha256(prebuild_registry_bytes).hexdigest()
 
-    build_candidate_002(build_inputs, visual_rubric=rubric_path)
+    build_candidate_002(build_inputs)
 
     refreshed = json.loads(
         (output_root / "candidate-metadata.json").read_text("utf-8")
@@ -761,7 +862,11 @@ def test_candidate_001_existing_scale_and_offsets_fail_harmony(tmp_path: Path) -
 
     assert {frame["scale"] for frame in checker_anchors["frames"]} == {0.75}
     assert report.verdict == "hard_fail"
-    assert {"scale_ratio_high", "feature_center_offset"} <= set(report.reason_codes)
+    assert {
+        "feature_center_offset",
+        "formal_pixel_contract_required",
+        "scale_ratio_high",
+    } <= set(report.reason_codes)
     assert report.metrics["outer_width_ratio"] == pytest.approx(76 / 58)
     assert report.metrics["max_feature_center_error_px"] > 1
 
@@ -770,7 +875,7 @@ def test_finalization_applies_rubric_and_preserves_its_bytes(tmp_path: Path) -> 
     """Catches rubric replacement, missing rubric provenance, and false finalization."""
     output_root = tmp_path / "candidate-002"
     build_candidate_002(inputs(output_root))
-    rubric_path = output_root / "qa/visual-rubric.json"
+    rubric_input = tmp_path / "reviewed-rubric.json"
     rubric = {
         "identity": {"score": 2, "evidence": "The smoke-shell silhouette remains immediately identifiable."},
         "function": {"score": 2, "evidence": "The aperture follows the face in all eight frames."},
@@ -778,14 +883,15 @@ def test_finalization_applies_rubric_and_preserves_its_bytes(tmp_path: Path) -> 
         "hierarchy": {"score": 1, "evidence": "The face remains primary at actual size."},
         "originality": {"score": 1, "evidence": "The tactical shell motif remains distinct."},
     }
-    rubric_path.write_text(
+    rubric_input.write_text(
         json.dumps(rubric, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    before = rubric_path.read_bytes()
+    before = rubric_input.read_bytes()
 
-    build_candidate_002(inputs(output_root), visual_rubric=rubric_path)
+    build_candidate_002(inputs(output_root), visual_rubric=rubric_input)
 
+    rubric_path = output_root / "qa/visual-rubric.json"
     assert rubric_path.read_bytes() == before
     rubric_hash = hashlib.sha256(before).hexdigest()
     report = json.loads((output_root / "qa/harmony-report.json").read_text("utf-8"))
@@ -805,16 +911,17 @@ def test_explicit_rubric_revision_changes_evidence_only_and_preserves_art(
     """Catches unsafe score changes or art drift during a reviewed evidence correction."""
     output_root = tmp_path / "candidate-002"
     build_candidate_002(inputs(output_root))
-    rubric_path = output_root / "qa/visual-rubric.json"
+    initial_rubric_path = tmp_path / "initial-rubric.json"
     initial_rubric = {
         name: {"score": 2, "evidence": f"Initial concrete {name} evidence."}
         for name in ("identity", "function", "material", "hierarchy", "originality")
     }
-    rubric_path.write_text(
+    initial_rubric_path.write_text(
         json.dumps(initial_rubric, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    build_candidate_002(inputs(output_root), visual_rubric=rubric_path)
+    build_candidate_002(inputs(output_root), visual_rubric=initial_rubric_path)
+    rubric_path = output_root / "qa/visual-rubric.json"
     immutable_art = {
         relative: sha256(output_root / relative)
         for relative in EXPECTED_ARTIFACTS
@@ -862,16 +969,16 @@ def test_failed_explicit_rubric_revision_rolls_back_every_candidate_file(
     """Catches an interrupted evidence revision leaving rubric and metadata mixed."""
     output_root = tmp_path / "candidate-002"
     build_candidate_002(inputs(output_root))
-    rubric_path = output_root / "qa/visual-rubric.json"
+    initial_rubric_path = tmp_path / "initial-rubric.json"
     initial_rubric = {
         name: {"score": 2, "evidence": f"Initial concrete {name} evidence."}
         for name in ("identity", "function", "material", "hierarchy", "originality")
     }
-    rubric_path.write_text(
+    initial_rubric_path.write_text(
         json.dumps(initial_rubric, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    build_candidate_002(inputs(output_root), visual_rubric=rubric_path)
+    build_candidate_002(inputs(output_root), visual_rubric=initial_rubric_path)
     before = tree_hashes(output_root)
     revised_rubric = {
         name: {**value, "evidence": f"Revised concrete {name} evidence."}
@@ -910,16 +1017,16 @@ def test_explicit_rubric_revision_rejects_score_changes_before_writes(
     """Catches an evidence-only correction silently changing reviewed scores."""
     output_root = tmp_path / "candidate-002"
     build_candidate_002(inputs(output_root))
-    rubric_path = output_root / "qa/visual-rubric.json"
+    initial_rubric_path = tmp_path / "initial-rubric.json"
     initial_rubric = {
         name: {"score": 2, "evidence": f"Initial concrete {name} evidence."}
         for name in ("identity", "function", "material", "hierarchy", "originality")
     }
-    rubric_path.write_text(
+    initial_rubric_path.write_text(
         json.dumps(initial_rubric, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    build_candidate_002(inputs(output_root), visual_rubric=rubric_path)
+    build_candidate_002(inputs(output_root), visual_rubric=initial_rubric_path)
     before = tree_hashes(output_root)
     score_change = {
         **initial_rubric,
@@ -1013,9 +1120,9 @@ def test_finalization_refuses_a_different_existing_rubric_before_writes(tmp_path
     """Catches report/metadata provenance that disagrees with retained rubric bytes."""
     output_root = tmp_path / "candidate-002"
     build_candidate_002(inputs(output_root))
-    rubric_path = output_root / "qa/visual-rubric.json"
-    write_passing_rubric(rubric_path)
-    build_candidate_002(inputs(output_root), visual_rubric=rubric_path)
+    rubric_input = tmp_path / "passing-rubric.json"
+    write_passing_rubric(rubric_input)
+    build_candidate_002(inputs(output_root), visual_rubric=rubric_input)
     before = tree_hashes(output_root)
     different_rubric = tmp_path / "different-rubric.json"
     different_rubric.write_text(
@@ -1043,9 +1150,9 @@ def test_publication_failure_rolls_back_the_old_valid_generation(
     """Catches a recoverable write failure leaving metadata and artifacts mixed."""
     output_root = tmp_path / "candidate-002"
     build_candidate_002(inputs(output_root))
-    rubric_path = output_root / "qa/visual-rubric.json"
-    write_passing_rubric(rubric_path)
-    build_candidate_002(inputs(output_root), visual_rubric=rubric_path)
+    rubric_input = tmp_path / "passing-rubric.json"
+    write_passing_rubric(rubric_input)
+    build_candidate_002(inputs(output_root), visual_rubric=rubric_input)
     before = tree_hashes(output_root)
     real_replace = getattr(builder, "_replace_file", lambda source, target: source.replace(target))
     calls = 0
@@ -1059,9 +1166,7 @@ def test_publication_failure_rolls_back_the_old_valid_generation(
 
     monkeypatch.setattr(builder, "_replace_file", fail_during_publication, raising=False)
     with pytest.raises(OSError, match="injected publication failure"):
-        build_candidate_002(
-            inputs(output_root), visual_rubric=output_root / "qa/visual-rubric.json"
-        )
+        build_candidate_002(inputs(output_root))
 
     assert tree_hashes(output_root) == before
     assert not (output_root / ".candidate-transaction.json").exists()
@@ -1074,9 +1179,9 @@ def test_interrupted_publication_is_marked_and_recovered_on_next_run(
     """Catches an interrupted multi-file publish being mistaken for a valid candidate."""
     output_root = tmp_path / "candidate-002"
     build_candidate_002(inputs(output_root))
-    rubric_path = output_root / "qa/visual-rubric.json"
-    write_passing_rubric(rubric_path)
-    build_candidate_002(inputs(output_root), visual_rubric=rubric_path)
+    rubric_input = tmp_path / "passing-rubric.json"
+    write_passing_rubric(rubric_input)
+    build_candidate_002(inputs(output_root), visual_rubric=rubric_input)
     real_replace = getattr(builder, "_replace_file", lambda source, target: source.replace(target))
     calls = 0
 
@@ -1089,15 +1194,11 @@ def test_interrupted_publication_is_marked_and_recovered_on_next_run(
 
     monkeypatch.setattr(builder, "_replace_file", interrupt_publication, raising=False)
     with pytest.raises(KeyboardInterrupt, match="injected crash"):
-        build_candidate_002(
-            inputs(output_root), visual_rubric=output_root / "qa/visual-rubric.json"
-        )
+        build_candidate_002(inputs(output_root))
     assert (output_root / ".candidate-transaction.json").is_file()
 
     monkeypatch.setattr(builder, "_replace_file", real_replace, raising=False)
-    build_candidate_002(
-        inputs(output_root), visual_rubric=output_root / "qa/visual-rubric.json"
-    )
+    build_candidate_002(inputs(output_root))
 
     assert not (output_root / ".candidate-transaction.json").exists()
     assert_manifest_matches(output_root)
