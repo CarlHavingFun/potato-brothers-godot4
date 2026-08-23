@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 from PIL import Image
+
+import tools.assets.build_smoke_shell_helmet_candidate_002 as builder
 
 from tools.assets.build_smoke_shell_helmet_candidate_002 import (
     BuildInputs,
@@ -76,6 +80,25 @@ def assert_pixel_contract(image: Image.Image) -> None:
     pixels = list(image.get_flattened_data())
     assert {pixel[3] for pixel in pixels} <= {0, 255}
     assert all(pixel[:3] == (0, 0, 0) for pixel in pixels if pixel[3] == 0)
+
+
+def assert_opaque_pixels_equal(actual: Image.Image, expected: Image.Image) -> None:
+    assert actual.size == expected.size
+    assert all(
+        actual_pixel == expected_pixel
+        for actual_pixel, expected_pixel in zip(
+            actual.get_flattened_data(), expected.get_flattened_data(), strict=True
+        )
+        if expected_pixel[3] == 255
+    )
+
+
+def assert_manifest_matches(root: Path) -> None:
+    metadata = json.loads((root / "candidate-metadata.json").read_text("utf-8"))
+    for artifact in metadata["artifacts"]:
+        path = root / artifact["path"]
+        assert path.stat().st_size == artifact["bytes"]
+        assert sha256(path) == artifact["sha256"]
 
 
 def test_builder_preserves_sources_and_derives_exact_review_candidate(tmp_path: Path) -> None:
@@ -270,3 +293,220 @@ def test_finalization_applies_rubric_and_preserves_its_bytes(tmp_path: Path) -> 
     assert report["metrics"]["visual_rubric_sha256"] == rubric_hash
     assert metadata["visual_rubric_sha256"] == rubric_hash
     assert not (output_root / "curated").exists()
+
+
+def test_approval_card_contains_exact_1x_icon_and_runtime_evidence(tmp_path: Path) -> None:
+    """Catches resampled icon evidence, missing runtime evidence, and ambiguous status."""
+    output_root = tmp_path / "candidate-002"
+    build_candidate_002(inputs(output_root))
+    pixel_qa = json.loads((output_root / "qa/pixel-qa-report.json").read_text("utf-8"))
+    evidence = pixel_qa["approval_card_evidence"]
+    card = rgba(output_root / "qa/approval-card.png")
+    icon = rgba(output_root / "derived/icon-256.png")
+    appearance = rgba(output_root / "derived/appearance-128.png")
+    frame = rgba(output_root / "qa/composite-frame-001.png")
+    composite = rgba(output_root / "qa/composite-atlas-8x128.png")
+
+    assert evidence["status_text"] == "Harmony gate: review | Unit approval status: review"
+    assert evidence["icon"] == {
+        "box": [164, 310, 420, 566],
+        "display_scale": 1,
+        "resampling": "none",
+        "source": "derived/icon-256.png",
+    }
+    assert evidence["appearance"]["display_scale"] == 1
+    assert evidence["runtime_actual_size"] == {
+        "box": [930, 500, 1058, 628],
+        "display_scale": 1,
+        "resampling": "none",
+        "source": "qa/composite-frame-001.png",
+    }
+    assert evidence["caption_boxes"] == {
+        "appearance": [600, 450, 850, 496],
+        "runtime_actual_size": [930, 450, 1140, 496],
+    }
+    appearance_caption = evidence["caption_boxes"]["appearance"]
+    runtime_caption = evidence["caption_boxes"]["runtime_actual_size"]
+    assert appearance_caption[2] < runtime_caption[0]
+    assert_opaque_pixels_equal(card.crop((164, 310, 420, 566)), icon)
+    assert_opaque_pixels_equal(card.crop((600, 500, 728, 628)), appearance)
+    assert_opaque_pixels_equal(card.crop((930, 500, 1058, 628)), frame)
+    assert_opaque_pixels_equal(card.crop((600, 300, 1624, 428)), composite)
+
+
+def test_finalization_refuses_a_different_existing_rubric_before_writes(tmp_path: Path) -> None:
+    """Catches report/metadata provenance that disagrees with retained rubric bytes."""
+    output_root = tmp_path / "candidate-002"
+    build_candidate_002(inputs(output_root))
+    before = tree_hashes(output_root)
+    different_rubric = tmp_path / "different-rubric.json"
+    different_rubric.write_text(
+        json.dumps(
+            {
+                name: {"score": 2, "evidence": f"Different reviewed evidence for {name}."}
+                for name in ("identity", "function", "material", "hierarchy", "originality")
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="visual_rubric_mismatch"):
+        build_candidate_002(inputs(output_root), visual_rubric=different_rubric)
+
+    assert tree_hashes(output_root) == before
+
+
+def test_publication_failure_rolls_back_the_old_valid_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Catches a recoverable write failure leaving metadata and artifacts mixed."""
+    output_root = tmp_path / "candidate-002"
+    build_candidate_002(inputs(output_root))
+    before = tree_hashes(output_root)
+    real_replace = getattr(builder, "_replace_file", lambda source, target: source.replace(target))
+    calls = 0
+
+    def fail_during_publication(source: Path, target: Path) -> Path:
+        nonlocal calls
+        calls += 1
+        if calls == 4:
+            raise OSError("injected publication failure")
+        return real_replace(source, target)
+
+    monkeypatch.setattr(builder, "_replace_file", fail_during_publication, raising=False)
+    with pytest.raises(OSError, match="injected publication failure"):
+        build_candidate_002(
+            inputs(output_root), visual_rubric=output_root / "qa/visual-rubric.json"
+        )
+
+    assert tree_hashes(output_root) == before
+    assert not (output_root / ".candidate-transaction.json").exists()
+    assert_manifest_matches(output_root)
+
+
+def test_interrupted_publication_is_marked_and_recovered_on_next_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Catches an interrupted multi-file publish being mistaken for a valid candidate."""
+    output_root = tmp_path / "candidate-002"
+    build_candidate_002(inputs(output_root))
+    real_replace = getattr(builder, "_replace_file", lambda source, target: source.replace(target))
+    calls = 0
+
+    def interrupt_publication(source: Path, target: Path) -> Path:
+        nonlocal calls
+        calls += 1
+        if calls == 4:
+            raise KeyboardInterrupt("injected crash")
+        return real_replace(source, target)
+
+    monkeypatch.setattr(builder, "_replace_file", interrupt_publication, raising=False)
+    with pytest.raises(KeyboardInterrupt, match="injected crash"):
+        build_candidate_002(
+            inputs(output_root), visual_rubric=output_root / "qa/visual-rubric.json"
+        )
+    assert (output_root / ".candidate-transaction.json").is_file()
+
+    monkeypatch.setattr(builder, "_replace_file", real_replace, raising=False)
+    build_candidate_002(
+        inputs(output_root), visual_rubric=output_root / "qa/visual-rubric.json"
+    )
+
+    assert not (output_root / ".candidate-transaction.json").exists()
+    assert_manifest_matches(output_root)
+
+
+def test_failed_initial_publication_can_retry_without_clearing_output_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Catches empty transaction-created directories blocking a safe first-build retry."""
+    output_root = tmp_path / "candidate-002"
+    real_replace = getattr(builder, "_replace_file", lambda source, target: source.replace(target))
+    calls = 0
+
+    def fail_first_publication(source: Path, target: Path) -> Path:
+        nonlocal calls
+        calls += 1
+        if calls == 4:
+            raise OSError("injected first publication failure")
+        return real_replace(source, target)
+
+    monkeypatch.setattr(builder, "_replace_file", fail_first_publication)
+    with pytest.raises(OSError, match="injected first publication failure"):
+        build_candidate_002(inputs(output_root))
+    assert not (output_root / ".candidate-transaction.json").exists()
+    assert not (output_root / "candidate-metadata.json").exists()
+
+    monkeypatch.setattr(builder, "_replace_file", real_replace)
+    build_candidate_002(inputs(output_root))
+
+    assert_manifest_matches(output_root)
+
+
+def test_card_fonts_are_explicit_hashed_inputs(tmp_path: Path) -> None:
+    """Catches unprovenanced host-font selection changing approval-card bytes."""
+    build_inputs = inputs(tmp_path / "candidate-002")
+    build_candidate_002(build_inputs)
+    metadata = json.loads(
+        (build_inputs.output_root / "candidate-metadata.json").read_text("utf-8")
+    )
+
+    assert metadata["source_sha256"]["card_font_regular"] == sha256(
+        build_inputs.card_font_regular
+    )
+    assert metadata["source_sha256"]["card_font_bold"] == sha256(
+        build_inputs.card_font_bold
+    )
+    assert metadata["card_rendering"]["fonts"] == {
+        "bold": {
+            "path": str(build_inputs.card_font_bold.resolve()),
+            "sha256": sha256(build_inputs.card_font_bold),
+        },
+        "regular": {
+            "path": str(build_inputs.card_font_regular.resolve()),
+            "sha256": sha256(build_inputs.card_font_regular),
+        },
+    }
+
+
+def test_builder_fails_before_output_when_a_card_font_is_missing(tmp_path: Path) -> None:
+    """Catches silent font fallback and unrepeatable host-dependent rendering."""
+    build_inputs = replace(
+        inputs(tmp_path / "candidate-002"),
+        card_font_regular=tmp_path / "missing-font.ttc",
+    )
+
+    with pytest.raises(FileNotFoundError, match="missing-font.ttc"):
+        build_candidate_002(build_inputs)
+
+    assert not build_inputs.output_root.exists()
+
+
+def test_builder_detects_a_card_font_changed_during_build(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Catches font bytes changing after provenance is captured but before publication."""
+    regular = tmp_path / "regular.ttc"
+    bold = tmp_path / "bold.ttc"
+    shutil.copyfile("C:/Windows/Fonts/msyh.ttc", regular)
+    shutil.copyfile("C:/Windows/Fonts/msyhbd.ttc", bold)
+    build_inputs = replace(
+        inputs(tmp_path / "candidate-002"),
+        card_font_regular=regular,
+        card_font_bold=bold,
+    )
+    real_approval_card = builder._approval_card
+
+    def mutate_font_after_render(*args: object, **kwargs: object) -> Image.Image:
+        card = real_approval_card(*args, **kwargs)
+        regular.write_bytes(regular.read_bytes() + b"changed")
+        return card
+
+    monkeypatch.setattr(builder, "_approval_card", mutate_font_after_render)
+    with pytest.raises(RuntimeError, match="card_font_changed"):
+        build_candidate_002(build_inputs)
+
+    assert not (build_inputs.output_root / "candidate-metadata.json").exists()

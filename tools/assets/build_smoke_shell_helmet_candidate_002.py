@@ -23,6 +23,9 @@ FRAME_SIZE = (128, 128)
 ICON_SIZE = (256, 256)
 ATLAS_SIZE = (1024, 128)
 LOCKED_NIKO_HASH = "fbc10108d9a665b14dcc376da54bbbf66d89b931ae1189e69fe1c45b31fe579d"
+DEFAULT_CARD_FONT_REGULAR = Path("C:/Windows/Fonts/msyh.ttc")
+DEFAULT_CARD_FONT_BOLD = Path("C:/Windows/Fonts/msyhbd.ttc")
+TRANSACTION_MARKER = ".candidate-transaction.json"
 ARTIFACT_PATHS = (
     "derived/icon-256.png",
     "derived/appearance-128.png",
@@ -60,6 +63,8 @@ class BuildInputs:
     rig_profile: Path
     registry: Path
     output_root: Path
+    card_font_regular: Path = DEFAULT_CARD_FONT_REGULAR
+    card_font_bold: Path = DEFAULT_CARD_FONT_BOLD
 
 
 @dataclass(frozen=True)
@@ -119,6 +124,8 @@ def _read_object(path: Path) -> dict[str, object]:
 def _source_hashes(inputs: BuildInputs, candidate_001_hashes: dict[str, str]) -> dict[str, object]:
     return {
         "appearance_source": _sha256(inputs.appearance_source),
+        "card_font_bold": _sha256(inputs.card_font_bold),
+        "card_font_regular": _sha256(inputs.card_font_regular),
         "niko_atlas": _sha256(inputs.niko_atlas),
         "rig_profile": _sha256(inputs.rig_profile),
         "registry": _sha256(inputs.registry),
@@ -132,6 +139,8 @@ def _validate_inputs(inputs: BuildInputs) -> Path:
         inputs.niko_atlas,
         inputs.rig_profile,
         inputs.registry,
+        inputs.card_font_regular,
+        inputs.card_font_bold,
     ):
         if not path.is_file():
             raise FileNotFoundError(path)
@@ -145,7 +154,9 @@ def _validate_inputs(inputs: BuildInputs) -> Path:
 
 
 def _assert_reusable_output(output_root: Path, source_hashes: dict[str, object]) -> None:
-    if not output_root.exists() or not any(output_root.iterdir()):
+    if not output_root.exists() or not any(
+        path.is_file() for path in output_root.rglob("*")
+    ):
         return
     metadata_path = output_root / "candidate-metadata.json"
     if not metadata_path.is_file():
@@ -153,7 +164,16 @@ def _assert_reusable_output(output_root: Path, source_hashes: dict[str, object])
     metadata = _read_object(metadata_path)
     if metadata.get("candidate_id") != CANDIDATE_ID:
         raise ValueError("candidate_id_mismatch")
-    if metadata.get("source_sha256") != source_hashes:
+    recorded_hashes = metadata.get("source_sha256")
+    legacy_hashes = {
+        key: value
+        for key, value in source_hashes.items()
+        if key not in {"card_font_regular", "card_font_bold"}
+    }
+    legacy_font_upgrade = (
+        recorded_hashes == legacy_hashes and "card_rendering" not in metadata
+    )
+    if recorded_hashes != source_hashes and not legacy_font_upgrade:
         raise ValueError("source_hash_mismatch")
 
 
@@ -319,15 +339,10 @@ def _registry_unit(registry: dict[str, object]) -> dict[str, object]:
     return matches[0]
 
 
-def _font(size: int, *, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    candidates = (
-        Path("C:/Windows/Fonts/msyhbd.ttc" if bold else "C:/Windows/Fonts/msyh.ttc"),
-        Path("C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf"),
-    )
-    for candidate in candidates:
-        if candidate.is_file():
-            return ImageFont.truetype(str(candidate), size)
-    return ImageFont.load_default()
+def _font(path: Path, size: int) -> ImageFont.FreeTypeFont:
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    return ImageFont.truetype(str(path), size)
 
 
 def _draw_wrapped(
@@ -365,34 +380,45 @@ def _approval_card(
     composite: Image.Image,
     unit: dict[str, object],
     report: object,
+    font_regular: Path,
+    font_bold: Path,
 ) -> Image.Image:
     card = Image.new("RGBA", (1800, 1200), (15, 19, 27, 255))
     draw = ImageDraw.Draw(card)
     draw.rounded_rectangle((48, 48, 1752, 1152), radius=28, fill=(25, 32, 44, 255), outline=(75, 94, 120, 255), width=3)
-    title_font = _font(54, bold=True)
-    heading_font = _font(30, bold=True)
-    body_font = _font(25)
-    small_font = _font(20)
+    title_font = _font(font_bold, 54)
+    heading_font = _font(font_bold, 30)
+    body_font = _font(font_regular, 25)
+    small_font = _font(font_regular, 20)
     draw.text((92, 82), "Smoke-Shell Helmet / 封烟头盔", font=title_font, fill=(236, 242, 250, 255))
-    draw.text((94, 154), f"{CANDIDATE_ID}  •  preliminary verdict: {report.verdict}", font=heading_font, fill=(113, 210, 182, 255))
+    unit_status = str(unit.get("approval_status", "review"))
+    status_text = (
+        f"Harmony gate: {report.verdict} | Unit approval status: {unit_status}"
+    )
+    draw.text((94, 154), f"{CANDIDATE_ID}  •  {status_text}", font=heading_font, fill=(113, 210, 182, 255))
 
-    draw.rounded_rectangle((92, 220, 540, 668), radius=18, fill=(12, 16, 23, 255))
-    icon_large = icon.resize((384, 384), Image.Resampling.NEAREST)
-    card.alpha_composite(icon_large, dest=(124, 252))
-    draw.text((92, 686), "Derived icon: exact NEAREST 2×", font=small_font, fill=(177, 190, 208, 255))
+    draw.rounded_rectangle((92, 220, 492, 680), radius=18, fill=(12, 16, 23, 255))
+    draw.text((120, 248), "Canonical icon", font=heading_font, fill=(228, 235, 244, 255))
+    card.alpha_composite(icon, dest=(164, 310))
+    draw.text((120, 592), "256×256 at exact 1:1 — no resampling", font=small_font, fill=(177, 190, 208, 255))
 
-    draw.rounded_rectangle((588, 220, 1708, 668), radius=18, fill=(12, 16, 23, 255))
-    contact = composite.resize((1024, 128), Image.Resampling.NEAREST)
-    card.alpha_composite(contact, dest=(636, 320))
-    appearance_preview = appearance.resize((256, 256), Image.Resampling.NEAREST)
-    card.alpha_composite(appearance_preview, dest=(1015, 402))
-    draw.text((628, 254), "8-frame Niko walk-down composite", font=heading_font, fill=(228, 235, 244, 255))
-    draw.text((628, 610), "Appearance source copied unchanged; only integer anchor offsets vary.", font=small_font, fill=(177, 190, 208, 255))
+    draw.rounded_rectangle((520, 220, 1708, 680), radius=18, fill=(12, 16, 23, 255))
+    draw.text((552, 248), "8-frame Niko walk-down composite — exact 1:1", font=heading_font, fill=(228, 235, 244, 255))
+    card.alpha_composite(composite, dest=(600, 300))
+    draw.text((600, 450), "Appearance 128×128", font=small_font, fill=(177, 190, 208, 255))
+    draw.text((600, 474), "exact 1:1 • unchanged", font=small_font, fill=(177, 190, 208, 255))
+    card.alpha_composite(appearance, dest=(600, 500))
+    draw.text((930, 450), "Runtime frame 001", font=small_font, fill=(177, 190, 208, 255))
+    draw.text((930, 474), "128×128 actual 1:1", font=small_font, fill=(177, 190, 208, 255))
+    card.alpha_composite(composite.crop((0, 0, 128, 128)), dest=(930, 500))
+    draw.text((1110, 505), "True gameplay pixel size", font=heading_font, fill=(236, 198, 94, 255))
+    draw.text((1110, 552), "Face aperture and shell hierarchy", font=small_font, fill=(177, 190, 208, 255))
+    draw.text((1110, 584), "are judged without display scaling.", font=small_font, fill=(177, 190, 208, 255))
 
     localization = unit.get("localization", {})
     zh = localization.get("zh_CN", {}) if isinstance(localization, dict) else {}
     en = localization.get("en", {}) if isinstance(localization, dict) else {}
-    y = 748
+    y = 726
     draw.text((92, y), "Approved copy", font=heading_font, fill=(228, 235, 244, 255))
     y += 48
     for text in (
@@ -404,18 +430,55 @@ def _approval_card(
         y = _draw_wrapped(draw, text, (92, y), body_font, (204, 214, 227, 255), 980)
         y += 4
 
-    draw.text((1190, 748), "Structured effects", font=heading_font, fill=(228, 235, 244, 255))
-    effect_y = 804
+    draw.text((1190, 726), "Structured effects", font=heading_font, fill=(228, 235, 244, 255))
+    effect_y = 782
     for label in _effect_labels(unit.get("effects")):
         draw.text((1190, effect_y), label, font=body_font, fill=(246, 198, 94, 255))
         effect_y += 48
     metrics = report.metrics
-    draw.text((1190, 930), f"Scale: {SHARED_SCALE}", font=small_font, fill=(177, 190, 208, 255))
-    draw.text((1190, 964), f"Outer ratio: {metrics['outer_width_ratio']:.6f}", font=small_font, fill=(177, 190, 208, 255))
-    draw.text((1190, 998), f"Feature error: {metrics['max_feature_center_error_px']:.4f}px", font=small_font, fill=(177, 190, 208, 255))
-    draw.text((1190, 1032), f"Residual jitter: {metrics['max_residual_jitter_px']:.4f}px", font=small_font, fill=(177, 190, 208, 255))
+    draw.text((1190, 914), f"Scale: {SHARED_SCALE}", font=small_font, fill=(177, 190, 208, 255))
+    draw.text((1190, 948), f"Outer ratio: {metrics['outer_width_ratio']:.6f}", font=small_font, fill=(177, 190, 208, 255))
+    draw.text((1190, 982), f"Feature error: {metrics['max_feature_center_error_px']:.4f}px", font=small_font, fill=(177, 190, 208, 255))
+    draw.text((1190, 1016), f"Residual jitter: {metrics['max_residual_jitter_px']:.4f}px", font=small_font, fill=(177, 190, 208, 255))
     draw.text((92, 1092), "REVIEW EVIDENCE ONLY — no curated, runtime, startup, or registry mutation", font=heading_font, fill=(239, 116, 116, 255))
     return card
+
+
+def _approval_card_evidence(unit: dict[str, object], report: object) -> dict[str, object]:
+    unit_status = str(unit.get("approval_status", "review"))
+    return {
+        "appearance": {
+            "box": [600, 500, 728, 628],
+            "display_scale": 1,
+            "resampling": "none",
+            "source": "derived/appearance-128.png",
+        },
+        "composite": {
+            "box": [600, 300, 1624, 428],
+            "display_scale": 1,
+            "resampling": "none",
+            "source": "qa/composite-atlas-8x128.png",
+        },
+        "caption_boxes": {
+            "appearance": [600, 450, 850, 496],
+            "runtime_actual_size": [930, 450, 1140, 496],
+        },
+        "icon": {
+            "box": [164, 310, 420, 566],
+            "display_scale": 1,
+            "resampling": "none",
+            "source": "derived/icon-256.png",
+        },
+        "runtime_actual_size": {
+            "box": [930, 500, 1058, 628],
+            "display_scale": 1,
+            "resampling": "none",
+            "source": "qa/composite-frame-001.png",
+        },
+        "status_text": (
+            f"Harmony gate: {report.verdict} | Unit approval status: {unit_status}"
+        ),
+    }
 
 
 def _default_visual_rubric() -> dict[str, object]:
@@ -464,31 +527,219 @@ def _artifact_manifest(stage: Path) -> list[dict[str, object]]:
     return artifacts
 
 
+def _replace_file(source: Path, target: Path) -> Path:
+    return source.replace(target)
+
+
+def _transaction_paths(output_root: Path) -> tuple[Path, Path]:
+    marker = output_root / TRANSACTION_MARKER
+    return marker, marker.with_name(f"{marker.name}.tmp")
+
+
+def _atomic_transaction_marker(path: Path, payload: dict[str, object]) -> None:
+    temporary = path.with_name(f"{path.name}.tmp")
+    _write_json(temporary, payload)
+    _replace_file(temporary, path)
+
+
+def _validated_transaction(
+    output_root: Path, payload: dict[str, object]
+) -> tuple[Path, list[dict[str, object]]]:
+    if payload.get("candidate_id") != CANDIDATE_ID:
+        raise RuntimeError("invalid_transaction_marker")
+    backup_name = payload.get("backup_dir")
+    entries = payload.get("entries")
+    if (
+        not isinstance(backup_name, str)
+        or Path(backup_name).name != backup_name
+        or not backup_name.startswith(".candidate-002-txn-")
+        or not isinstance(entries, list)
+    ):
+        raise RuntimeError("invalid_transaction_marker")
+    backup_dir = (output_root.parent / backup_name).resolve()
+    if backup_dir.parent != output_root.parent.resolve():
+        raise RuntimeError("invalid_transaction_marker")
+    allowed = {*ARTIFACT_PATHS, "candidate-metadata.json"}
+    normalized: list[dict[str, object]] = []
+    for entry in entries:
+        if not isinstance(entry, dict) or entry.get("relative") not in allowed:
+            raise RuntimeError("invalid_transaction_marker")
+        relative = str(entry["relative"])
+        backup = entry.get("backup")
+        if backup is not None and (
+            not isinstance(backup, str) or Path(backup).name != backup
+        ):
+            raise RuntimeError("invalid_transaction_marker")
+        normalized.append({**entry, "relative": relative})
+    return backup_dir, normalized
+
+
+def _verify_transaction_targets(
+    output_root: Path,
+    entries: list[dict[str, object]],
+    hash_field: str,
+) -> None:
+    for entry in entries:
+        expected = entry.get(hash_field)
+        target = output_root / str(entry["relative"])
+        if expected is None:
+            if target.exists():
+                raise RuntimeError("transaction_target_mismatch")
+        elif not target.is_file() or _sha256(target) != expected:
+            raise RuntimeError("transaction_target_mismatch")
+
+
+def _finish_transaction(output_root: Path, payload: dict[str, object]) -> None:
+    backup_dir, entries = _validated_transaction(output_root, payload)
+    phase = payload.get("phase")
+    if phase == "committed":
+        _verify_transaction_targets(output_root, entries, "new_sha256")
+    elif phase == "rolled_back":
+        _verify_transaction_targets(output_root, entries, "old_sha256")
+    else:
+        raise RuntimeError("invalid_transaction_phase")
+    for entry in entries:
+        backup = entry.get("backup")
+        if isinstance(backup, str):
+            (backup_dir / backup).unlink(missing_ok=True)
+    if backup_dir.exists():
+        backup_dir.rmdir()
+    marker, marker_temporary = _transaction_paths(output_root)
+    marker_temporary.unlink(missing_ok=True)
+    marker.unlink(missing_ok=True)
+
+
+def _rollback_transaction(output_root: Path, payload: dict[str, object]) -> None:
+    backup_dir, entries = _validated_transaction(output_root, payload)
+    for entry in entries:
+        target = output_root / str(entry["relative"])
+        old_hash = entry.get("old_sha256")
+        if old_hash is None:
+            target.unlink(missing_ok=True)
+            continue
+        backup = entry.get("backup")
+        if not isinstance(backup, str):
+            raise RuntimeError("missing_transaction_backup")
+        backup_path = backup_dir / backup
+        if not backup_path.is_file() or _sha256(backup_path) != old_hash:
+            raise RuntimeError("invalid_transaction_backup")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        recovery = target.with_name(f"{target.name}.recovery.tmp")
+        shutil.copyfile(backup_path, recovery)
+        _replace_file(recovery, target)
+    _verify_transaction_targets(output_root, entries, "old_sha256")
+    rolled_back = {**payload, "phase": "rolled_back"}
+    marker, _ = _transaction_paths(output_root)
+    _atomic_transaction_marker(marker, rolled_back)
+    _finish_transaction(output_root, rolled_back)
+
+
+def _recover_transaction(output_root: Path) -> None:
+    marker, marker_temporary = _transaction_paths(output_root)
+    if not marker.is_file():
+        marker_temporary.unlink(missing_ok=True)
+        return
+    payload = _read_object(marker)
+    phase = payload.get("phase")
+    if phase == "prepared":
+        _rollback_transaction(output_root, payload)
+    elif phase in {"committed", "rolled_back"}:
+        _finish_transaction(output_root, payload)
+    else:
+        raise RuntimeError("invalid_transaction_phase")
+
+
 def _publish(stage: Path, output_root: Path, *, preserve_rubric: bool) -> None:
     output_root.mkdir(parents=True, exist_ok=True)
-    for relative in ARTIFACT_PATHS:
-        if relative == "qa/visual-rubric.json" and preserve_rubric:
-            continue
-        source = stage / relative
+    relatives = [
+        relative
+        for relative in ARTIFACT_PATHS
+        if not (relative == "qa/visual-rubric.json" and preserve_rubric)
+    ]
+    relatives.append("candidate-metadata.json")
+    backup_dir = Path(
+        tempfile.mkdtemp(prefix=".candidate-002-txn-", dir=output_root.parent)
+    )
+    entries: list[dict[str, object]] = []
+    for index, relative in enumerate(relatives):
         target = output_root / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        source.replace(target)
-    metadata_source = stage / "candidate-metadata.json"
-    metadata_target = output_root / "candidate-metadata.json"
-    metadata_source.replace(metadata_target)
+        source = stage / relative
+        had_original = target.is_file()
+        backup_name = f"{index:02d}.backup" if had_original else None
+        old_hash = _sha256(target) if had_original else None
+        if backup_name is not None:
+            shutil.copyfile(target, backup_dir / backup_name)
+        entries.append(
+            {
+                "backup": backup_name,
+                "new_sha256": _sha256(source),
+                "old_sha256": old_hash,
+                "relative": relative,
+            }
+        )
+    marker, _ = _transaction_paths(output_root)
+    transaction: dict[str, object] = {
+        "backup_dir": backup_dir.name,
+        "candidate_id": CANDIDATE_ID,
+        "entries": entries,
+        "phase": "prepared",
+        "reader_contract": "candidate is invalid while this marker exists",
+        "schema_version": "gogobro-candidate-transaction-v1",
+    }
+    try:
+        _atomic_transaction_marker(marker, transaction)
+        for relative in relatives:
+            source = stage / relative
+            target = output_root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            _replace_file(source, target)
+        committed = {**transaction, "phase": "committed"}
+        _atomic_transaction_marker(marker, committed)
+        _finish_transaction(output_root, committed)
+    except Exception:
+        if marker.is_file():
+            _recover_transaction(output_root)
+        else:
+            _, marker_temporary = _transaction_paths(output_root)
+            marker_temporary.unlink(missing_ok=True)
+            for entry in entries:
+                backup = entry.get("backup")
+                if isinstance(backup, str):
+                    (backup_dir / backup).unlink(missing_ok=True)
+            if backup_dir.exists():
+                backup_dir.rmdir()
+        raise
 
 
 def build_candidate_002(
     inputs: BuildInputs, visual_rubric: Path | None = None
 ) -> CandidateMetadata:
     checker = _load_checker()
+    _recover_transaction(inputs.output_root)
     candidate_001 = _validate_inputs(inputs)
     candidate_001_before = _tree_hashes(candidate_001)
     source_hashes = _source_hashes(inputs, candidate_001_before)
     _assert_reusable_output(inputs.output_root, source_hashes)
     registry_before = _sha256(inputs.registry)
     niko_before = _sha256(inputs.niko_atlas)
-    rubric_bytes = visual_rubric.read_bytes() if visual_rubric else None
+    font_regular_before = _sha256(inputs.card_font_regular)
+    font_bold_before = _sha256(inputs.card_font_bold)
+    existing_rubric_path = inputs.output_root / "qa/visual-rubric.json"
+    existing_rubric_bytes = (
+        existing_rubric_path.read_bytes() if existing_rubric_path.is_file() else None
+    )
+    supplied_rubric_bytes = visual_rubric.read_bytes() if visual_rubric else None
+    if (
+        supplied_rubric_bytes is not None
+        and existing_rubric_bytes is not None
+        and supplied_rubric_bytes != existing_rubric_bytes
+    ):
+        raise ValueError("visual_rubric_mismatch")
+    rubric_bytes = (
+        supplied_rubric_bytes
+        if supplied_rubric_bytes is not None
+        else existing_rubric_bytes
+    )
     rubric_hash = hashlib.sha256(rubric_bytes).hexdigest() if rubric_bytes is not None else None
 
     appearance, atlas = _load_images(inputs)
@@ -545,6 +796,7 @@ def build_candidate_002(
         appearance_checks = _image_checks(appearance)
         icon_checks = _image_checks(icon)
         pixel_qa = {
+            "approval_card_evidence": _approval_card_evidence(unit, report),
             "candidate_id": CANDIDATE_ID,
             "checks": {
                 "appearance_binary_alpha": appearance_checks["binary_alpha"],
@@ -574,7 +826,15 @@ def build_candidate_002(
         }
         pixel_qa["passed"] = all(pixel_qa["checks"].values())
         _write_json(stage / "qa/pixel-qa-report.json", pixel_qa)
-        card = _approval_card(icon, appearance, composite, unit, report)
+        card = _approval_card(
+            icon,
+            appearance,
+            composite,
+            unit,
+            report,
+            inputs.card_font_regular,
+            inputs.card_font_bold,
+        )
         card.save(stage / "qa/approval-card.png")
 
         artifacts = _artifact_manifest(stage)
@@ -591,7 +851,24 @@ def build_candidate_002(
         metadata_payload = {
             **asdict(metadata),
             "asset_id": ASSET_ID,
+            "card_rendering": {
+                "evidence": pixel_qa["approval_card_evidence"],
+                "fonts": {
+                    "bold": {
+                        "path": str(inputs.card_font_bold.resolve()),
+                        "sha256": font_bold_before,
+                    },
+                    "regular": {
+                        "path": str(inputs.card_font_regular.resolve()),
+                        "sha256": font_regular_before,
+                    },
+                },
+            },
             "harmony_verdict": report.verdict,
+            "publication": {
+                "transaction_marker": TRANSACTION_MARKER,
+                "valid_when_marker_absent": True,
+            },
             "reason_codes": list(report.reason_codes),
             "registry_snapshot": {
                 "effects": unit.get("effects", []),
@@ -602,6 +879,11 @@ def build_candidate_002(
         }
         _write_json(stage / "candidate-metadata.json", metadata_payload)
 
+        if (
+            _sha256(inputs.card_font_regular) != font_regular_before
+            or _sha256(inputs.card_font_bold) != font_bold_before
+        ):
+            raise RuntimeError("card_font_changed")
         source_unchanged = (
             _tree_hashes(candidate_001) == candidate_001_before
             and _sha256(inputs.niko_atlas) == niko_before == LOCKED_NIKO_HASH
@@ -609,12 +891,16 @@ def build_candidate_002(
         )
         if not source_unchanged:
             raise RuntimeError("source_changed")
-        if rubric_bytes is not None and visual_rubric.read_bytes() != rubric_bytes:
+        if (
+            supplied_rubric_bytes is not None
+            and visual_rubric is not None
+            and visual_rubric.read_bytes() != supplied_rubric_bytes
+        ):
             raise RuntimeError("visual_rubric_changed")
         _publish(
             stage,
             inputs.output_root,
-            preserve_rubric=(inputs.output_root / "qa/visual-rubric.json").is_file(),
+            preserve_rubric=existing_rubric_bytes is not None,
         )
     return metadata
 
@@ -627,6 +913,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--registry", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--visual-rubric", type=Path)
+    parser.add_argument("--card-font-regular", type=Path, default=DEFAULT_CARD_FONT_REGULAR)
+    parser.add_argument("--card-font-bold", type=Path, default=DEFAULT_CARD_FONT_BOLD)
     return parser
 
 
@@ -639,6 +927,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             rig_profile=arguments.rig_profile,
             registry=arguments.registry,
             output_root=arguments.output_root,
+            card_font_regular=arguments.card_font_regular,
+            card_font_bold=arguments.card_font_bold,
         ),
         visual_rubric=arguments.visual_rubric,
     )
