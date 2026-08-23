@@ -76,6 +76,8 @@ function Install-GogobroItemHarmonySkill {
         )) {
             throw "SHA-256 mismatch after copy: $relativePath"
         }
+        $displayPath = $relativePath.Replace('\', '/')
+        Write-Output "Verified ${displayPath} SHA-256=$($targetHash.ToLowerInvariant())"
     }
 
     Write-Output "Installed $($manifest.Count) manifest files to $resolvedTarget"

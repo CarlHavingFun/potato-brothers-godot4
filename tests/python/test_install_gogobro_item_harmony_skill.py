@@ -68,6 +68,19 @@ def test_installer_copies_only_manifest_files_and_preserves_hashes(tmp_path: Pat
     assert not any(path.name == "__pycache__" for path in tmp_path.rglob("*"))
 
 
+def test_installer_prints_each_manifest_path_and_verified_sha256(tmp_path: Path) -> None:
+    target = tmp_path / "checking-gogobro-item-harmony"
+    result = run_installer(source=SKILL_SOURCE, target=target)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    output_lines = {line.strip() for line in result.stdout.splitlines()}
+    expected_lines = {
+        f"Verified {relative_path} SHA-256={sha256}"
+        for relative_path, sha256 in manifest_hashes(SKILL_SOURCE).items()
+    }
+    assert expected_lines <= output_lines
+
+
 def test_installer_rejects_identical_resolved_roots() -> None:
     aliased_target = SKILL_SOURCE / "agents" / ".."
     result = run_installer(
