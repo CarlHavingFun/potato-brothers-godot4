@@ -95,8 +95,81 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _input_paths(inputs: HarmonyInputs) -> dict[str, Path]:
+    return {
+        "character_atlas": inputs.character_atlas,
+        "appearance": inputs.appearance,
+        "icon": inputs.icon,
+        "anchors": inputs.anchors,
+        "rig_profile": inputs.rig_profile,
+    }
+
+
+def _hash_paths(paths: dict[str, Path]) -> dict[str, str]:
+    return {name: _sha256(path) for name, path in paths.items()}
+
+
+def _safe_hash_paths(paths: dict[str, Path]) -> dict[str, str]:
+    try:
+        return _hash_paths(paths)
+    except OSError:
+        return {}
+
+
+def _with_hard_reason(report: HarmonyReport, reason: str) -> HarmonyReport:
+    return HarmonyReport(
+        "hard_fail",
+        tuple(sorted({*report.reason_codes, reason})),
+        dict(report.metrics),
+        report.input_sha256,
+    )
+
+
+def check_source_integrity(
+    report: HarmonyReport,
+    inputs: HarmonyInputs,
+    expected_hashes: dict[str, str],
+    extra_sources: dict[str, Path] | None = None,
+) -> HarmonyReport:
+    """Return a hard-fail report when any source differs from its initial hash."""
+    paths = _input_paths(inputs)
+    if extra_sources:
+        paths.update(extra_sources)
+    try:
+        current_hashes = _hash_paths(paths)
+    except OSError:
+        return _with_hard_reason(report, "source_changed")
+    return report if current_hashes == expected_hashes else _with_hard_reason(report, "source_changed")
+
+
+def _output_paths(inputs: HarmonyInputs, include_suggestion: bool) -> tuple[Path, ...]:
+    paths = [
+        inputs.out_dir / "harmony-report.json",
+        inputs.out_dir / "harmony-overlay.png",
+        inputs.out_dir / "harmony-actual-size.png",
+    ]
+    if include_suggestion:
+        paths.append(inputs.out_dir / "transform-suggestion.json")
+    return tuple(paths)
+
+
+def _has_output_collision(
+    inputs: HarmonyInputs,
+    include_suggestion: bool,
+    extra_sources: dict[str, Path] | None = None,
+) -> bool:
+    sources = list(_input_paths(inputs).values())
+    if extra_sources:
+        sources.extend(extra_sources.values())
+    source_paths = {path.resolve() for path in sources}
+    return any(path.resolve() in source_paths for path in _output_paths(inputs, include_suggestion))
+
+
 def _read_json(path: Path) -> dict[str, object]:
-    return json.loads(path.read_text(encoding="utf-8"))
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("malformed_input")
+    return payload
 
 
 def _alpha_bounds(image: Image.Image) -> Box | None:
@@ -126,7 +199,33 @@ def _slot_profile(profile: dict[str, object], slot: str) -> dict[str, object]:
 def _as_pair(value: object) -> tuple[float, float]:
     if not isinstance(value, list | tuple) or len(value) != 2:
         raise ValueError("expected coordinate pair")
-    return (float(value[0]), float(value[1]))
+    pair = (float(value[0]), float(value[1]))
+    if not all(math.isfinite(component) for component in pair):
+        raise ValueError("expected finite coordinate pair")
+    return pair
+
+
+def _validate_contract(contract: dict[str, object]) -> None:
+    try:
+        ratio = contract["outer_width_ratio"]
+        if not isinstance(ratio, list | tuple) or len(ratio) != 2:
+            raise ValueError
+        low, high = (float(value) for value in ratio)
+        palette_limit = contract["max_palette_colors"]
+        feature_limit = float(contract["feature_center_max_px"])
+        jitter_limit = float(contract["residual_jitter_max_px"])
+    except (KeyError, TypeError, ValueError):
+        raise ValueError("invalid_contract") from None
+    if (
+        not all(math.isfinite(value) for value in (low, high, feature_limit, jitter_limit))
+        or low < 0
+        or high < low
+        or feature_limit < 0
+        or jitter_limit < 0
+        or not isinstance(palette_limit, int)
+        or palette_limit < 1
+    ):
+        raise ValueError("invalid_contract")
 
 
 def _placed_box(bounds: Box, scale: float, offset: tuple[int, int]) -> Box:
@@ -173,20 +272,16 @@ def _pixel_reason_codes(appearance: Image.Image, palette_limit: int) -> set[str]
     return reasons
 
 
-def analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
-    paths = {
-        "character_atlas": inputs.character_atlas,
-        "appearance": inputs.appearance,
-        "icon": inputs.icon,
-        "anchors": inputs.anchors,
-        "rig_profile": inputs.rig_profile,
-    }
-    input_sha256 = {name: _sha256(path) for name, path in paths.items()}
+def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
+    paths = _input_paths(inputs)
+    input_sha256 = _hash_paths(paths)
     reasons: set[str] = set()
     anchors = _read_json(inputs.anchors)
     profile = _read_json(inputs.rig_profile)
     frames = _profile_frames(profile)
     contract = _slot_profile(profile, inputs.slot)
+    if contract:
+        _validate_contract(contract)
     with Image.open(inputs.character_atlas) as opened_atlas:
         atlas = opened_atlas.convert("RGBA")
     with Image.open(inputs.appearance) as opened_appearance:
@@ -228,7 +323,7 @@ def analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
     _add(reasons, isinstance(occupied, list) and inputs.slot in occupied, "duplicate_slot")
 
     ratio_bounds = bounds if bounds is not None else Box(0, 0, 0, 0)
-    placed_widths: list[float] = []
+    outer_width_ratios: list[float] = []
     feature_errors: list[float] = []
     residuals: list[tuple[float, float]] = []
     frame_boxes: list[list[int]] = []
@@ -247,12 +342,22 @@ def analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
         except (KeyError, TypeError, ValueError):
             reasons.add("invalid_frame_data")
             continue
-        _add(reasons, scale <= 0, "invalid_scale")
+        if not math.isfinite(scale) or scale <= 0:
+            reasons.add("invalid_scale")
+            continue
         if expected_depth is not None:
             _add(reasons, anchor.get("depth") != expected_depth, "depth_mismatch")
         placed = _placed_box(ratio_bounds, scale, offset)
         frame_boxes.append([placed.left, placed.top, placed.right, placed.bottom])
-        placed_widths.append((ratio_bounds.right - ratio_bounds.left) * scale)
+        try:
+            head_width = float(frame["head_width"])
+        except (KeyError, TypeError, ValueError):
+            reasons.add("invalid_frame_data")
+            continue
+        if not math.isfinite(head_width) or head_width <= 0:
+            reasons.add("invalid_frame_data")
+            continue
+        outer_width_ratios.append((placed.right - placed.left) / head_width)
         _add(
             reasons,
             placed.left < 0 or placed.top < 0 or placed.right > appearance.width or placed.bottom > appearance.height,
@@ -271,12 +376,11 @@ def analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
             feature_errors.append(max(abs(delta[0]), abs(delta[1])))
             residuals.append(delta)
 
-    head_widths = [float(frame.get("head_width", 0)) for frame in frames if isinstance(frame, dict)]
-    outer_ratio = max(placed_widths, default=0) / head_widths[0] if head_widths and head_widths[0] else 0
+    outer_ratio = max(outer_width_ratios, default=0)
     allowed_ratio = contract.get("outer_width_ratio", [0, float("inf")])
     low_ratio, high_ratio = (float(allowed_ratio[0]), float(allowed_ratio[1]))
-    _add(reasons, outer_ratio < low_ratio, "scale_ratio_low")
-    _add(reasons, outer_ratio > high_ratio, "scale_ratio_high")
+    _add(reasons, any(ratio < low_ratio for ratio in outer_width_ratios), "scale_ratio_low")
+    _add(reasons, any(ratio > high_ratio for ratio in outer_width_ratios), "scale_ratio_high")
     max_feature_error = max(feature_errors, default=0)
     _add(reasons, max_feature_error > float(contract.get("feature_center_max_px", 1)), "feature_center_offset")
     first_residual = residuals[0] if residuals else (0.0, 0.0)
@@ -290,6 +394,7 @@ def analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
     _add(reasons, input_sha256 != after_sha256, "source_changed")
     metrics: dict[str, object] = {
         "outer_width_ratio": outer_ratio,
+        "outer_width_ratios": outer_width_ratios,
         "max_feature_center_error_px": max_feature_error,
         "max_residual_jitter_px": max_jitter,
         "frame_boxes": frame_boxes,
@@ -302,6 +407,20 @@ def analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
         metrics=metrics,
         input_sha256=after_sha256,
     )
+
+
+def analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
+    """Analyze untrusted files without allowing malformed input to escape the checker."""
+    try:
+        return _analyze_harmony(inputs)
+    except Exception as error:  # All dependencies below consume user-supplied files.
+        reason = "invalid_contract" if str(error) == "invalid_contract" else "malformed_input"
+        return HarmonyReport(
+            "hard_fail",
+            (reason,),
+            {"error": type(error).__name__},
+            _safe_hash_paths(_input_paths(inputs)),
+        )
 
 
 def apply_visual_rubric(report: HarmonyReport, rubric: VisualRubric) -> HarmonyReport:
@@ -328,14 +447,21 @@ def apply_visual_rubric(report: HarmonyReport, rubric: VisualRubric) -> HarmonyR
 
 
 def _write_json(path: Path, payload: object) -> None:
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_bytes(
+        (json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    )
 
 
 def write_harmony_outputs(report: HarmonyReport, inputs: HarmonyInputs) -> None:
+    if _has_output_collision(inputs, include_suggestion=False):
+        raise ValueError("output_path_collision")
     inputs.out_dir.mkdir(parents=True, exist_ok=True)
     _write_json(inputs.out_dir / "harmony-report.json", asdict(report))
-    with Image.open(inputs.character_atlas) as opened_atlas:
-        atlas = opened_atlas.convert("RGBA")
+    try:
+        with Image.open(inputs.character_atlas) as opened_atlas:
+            atlas = opened_atlas.convert("RGBA")
+    except Exception:
+        atlas = Image.new("RGBA", (128, 128), (0, 0, 0, 0))
     overlay = Image.new("RGBA", atlas.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
     for index, box in enumerate(report.metrics.get("frame_boxes", [])):
@@ -385,12 +511,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         slot=arguments.slot,
         out_dir=arguments.out_dir,
     )
+    extra_sources = (
+        {"visual_rubric": arguments.visual_rubric} if arguments.visual_rubric else {}
+    )
+    initial_hashes = _safe_hash_paths({**_input_paths(inputs), **extra_sources})
+    if _has_output_collision(inputs, arguments.suggest_transform, extra_sources):
+        return 2
     report = analyze_harmony(inputs)
     if arguments.visual_rubric:
-        report = apply_visual_rubric(report, _rubric_from_json(arguments.visual_rubric))
+        try:
+            report = apply_visual_rubric(report, _rubric_from_json(arguments.visual_rubric))
+        except Exception:
+            report = _with_hard_reason(report, "malformed_visual_rubric")
     write_harmony_outputs(report, inputs)
     if arguments.suggest_transform:
         _write_json(inputs.out_dir / "transform-suggestion.json", {"reason_codes": list(report.reason_codes)})
+    report_after_outputs = check_source_integrity(report, inputs, initial_hashes, extra_sources)
+    if report_after_outputs != report:
+        write_harmony_outputs(report_after_outputs, inputs)
+        report = check_source_integrity(report_after_outputs, inputs, initial_hashes, extra_sources)
     return 2 if report.verdict == "hard_fail" else 0
 
 

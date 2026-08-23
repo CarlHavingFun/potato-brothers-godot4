@@ -15,9 +15,11 @@ sys.path.insert(0, str(SCRIPTS))
 from check_item_harmony import (  # noqa: E402
     Box,
     HarmonyInputs,
+    HarmonyReport,
     VisualRubric,
     analyze_harmony,
     apply_visual_rubric,
+    check_source_integrity,
     derive_nearest_2x_icon,
     find_largest_enclosed_transparent_region,
     main,
@@ -361,3 +363,147 @@ def test_cli_returns_two_for_hard_fail(head_fixture: HeadFixture) -> None:
         "--icon", str(inputs.icon), "--anchors", str(inputs.anchors),
         "--rig-profile", str(inputs.rig_profile), "--slot", inputs.slot, "--out-dir", str(inputs.out_dir),
     ]) == 2
+
+
+def _arguments(inputs: HarmonyInputs) -> list[str]:
+    return [
+        "--character-atlas", str(inputs.character_atlas), "--appearance", str(inputs.appearance),
+        "--icon", str(inputs.icon), "--anchors", str(inputs.anchors),
+        "--rig-profile", str(inputs.rig_profile), "--slot", inputs.slot, "--out-dir", str(inputs.out_dir),
+    ]
+
+
+def test_cli_rejects_output_source_collision_without_mutating_the_source(
+    head_fixture: HeadFixture,
+) -> None:
+    collision = head_fixture.root / "harmony-overlay.png"
+    head_fixture.character_atlas.replace(collision)
+    inputs = replace(head_fixture.inputs(), character_atlas=collision, out_dir=head_fixture.root)
+    original = _sha256(collision)
+    assert main(_arguments(inputs)) == 2
+    assert _sha256(collision) == original
+    assert not (head_fixture.root / "harmony-report.json").exists()
+
+
+def test_source_integrity_marks_a_report_hard_fail_after_a_source_changes(
+    valid_inputs: HarmonyInputs,
+) -> None:
+    initial_hashes = {
+        "character_atlas": _sha256(valid_inputs.character_atlas),
+        "appearance": _sha256(valid_inputs.appearance),
+        "icon": _sha256(valid_inputs.icon),
+        "anchors": _sha256(valid_inputs.anchors),
+        "rig_profile": _sha256(valid_inputs.rig_profile),
+    }
+    valid_inputs.anchors.write_text("{}", encoding="utf-8")
+    report = check_source_integrity(
+        HarmonyReport("review", (), {}, initial_hashes), valid_inputs, initial_hashes
+    )
+    assert report.verdict == "hard_fail"
+    assert "source_changed" in report.reason_codes
+
+
+@pytest.mark.parametrize(
+    ("change", "reason"),
+    [
+        ("bad_json", "malformed_input"),
+        ("bad_image", "malformed_input"),
+        ("bad_coordinate", "invalid_frame_data"),
+        ("bad_contract", "invalid_contract"),
+        ("zero_scale", "invalid_scale"),
+    ],
+)
+def test_malformed_required_input_returns_hard_fail_report_and_cli_two(
+    head_fixture: HeadFixture, change: str, reason: str
+) -> None:
+    inputs = head_fixture.inputs()
+    if change == "bad_json":
+        inputs.anchors.write_text("{", encoding="utf-8")
+    elif change == "bad_image":
+        inputs.appearance.write_text("not a png", encoding="utf-8")
+    elif change == "bad_coordinate":
+        anchors = json.loads(inputs.anchors.read_text(encoding="utf-8"))
+        anchors["frames"][0]["offset"] = [0]
+        _write_json(inputs.anchors, anchors)
+    elif change == "bad_contract":
+        profile = json.loads(inputs.rig_profile.read_text(encoding="utf-8"))
+        profile["slot_profiles"]["head"]["outer_width_ratio"] = ["low", 1.15]
+        _write_json(inputs.rig_profile, profile)
+    else:
+        anchors = json.loads(inputs.anchors.read_text(encoding="utf-8"))
+        anchors["frames"][0]["scale"] = 0
+        _write_json(inputs.anchors, anchors)
+    report = analyze_harmony(inputs)
+    assert report.verdict == "hard_fail"
+    assert reason in report.reason_codes
+    assert main(_arguments(inputs)) == 2
+    persisted = json.loads((inputs.out_dir / "harmony-report.json").read_text(encoding="utf-8"))
+    assert persisted["verdict"] == "hard_fail"
+
+
+def test_malformed_visual_rubric_returns_hard_fail_and_exit_two(valid_inputs: HarmonyInputs) -> None:
+    rubric_path = valid_inputs.out_dir.parent / "rubric.json"
+    rubric_path.write_text("{", encoding="utf-8")
+    assert main(_arguments(valid_inputs) + ["--visual-rubric", str(rubric_path)]) == 2
+    report = json.loads((valid_inputs.out_dir / "harmony-report.json").read_text(encoding="utf-8"))
+    assert "malformed_visual_rubric" in report["reason_codes"]
+
+
+def test_each_frame_uses_its_placed_alpha_width_and_own_head_width(
+    head_fixture: HeadFixture,
+) -> None:
+    inputs = head_fixture.inputs()
+    anchors = json.loads(inputs.anchors.read_text(encoding="utf-8"))
+    for anchor in anchors["frames"]:
+        anchor["scale"] = 0.51
+    _write_json(inputs.anchors, anchors)
+    profile = json.loads(inputs.rig_profile.read_text(encoding="utf-8"))
+    profile["slot_profiles"]["head"]["outer_width_ratio"] = [0, 1.09]
+    profile["frames"][0]["head_width"] = 100
+    profile["frames"][-1]["head_width"] = 30
+    _write_json(inputs.rig_profile, profile)
+    report = analyze_harmony(inputs)
+    assert report.verdict == "hard_fail"
+    assert "scale_ratio_high" in report.reason_codes
+    assert report.metrics["outer_width_ratios"][-1] == pytest.approx(33 / 30)
+    assert report.metrics["outer_width_ratio"] == pytest.approx(33 / 30)
+
+
+def test_output_bytes_are_canonical_and_diagnostics_have_fixed_content(
+    valid_inputs: HarmonyInputs,
+) -> None:
+    report = analyze_harmony(valid_inputs)
+    write_harmony_outputs(report, valid_inputs)
+    raw_report = (valid_inputs.out_dir / "harmony-report.json").read_bytes()
+    decoded = json.loads(raw_report)
+    assert raw_report == (
+        json.dumps(decoded, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
+    assert raw_report.endswith(b"\n")
+    with Image.open(valid_inputs.out_dir / "harmony-overlay.png") as overlay:
+        assert overlay.getpixel((30, 50)) == (255, 0, 255, 255)
+        assert overlay.getbbox() is not None
+    with Image.open(valid_inputs.out_dir / "harmony-actual-size.png") as preview:
+        assert preview.size == (1920, 1080)
+        assert preview.getpixel((0, 0)) == (18, 22, 30, 255)
+
+
+def test_optional_visual_rubric_and_transform_suggestion_paths_are_written(
+    valid_inputs: HarmonyInputs,
+) -> None:
+    rubric_path = valid_inputs.out_dir.parent / "rubric.json"
+    _write_json(
+        rubric_path,
+        {
+            name: {"score": 2, "evidence": "visible in deterministic preview"}
+            for name in ("identity", "function", "material", "hierarchy", "originality")
+        },
+    )
+    assert main(
+        _arguments(valid_inputs)
+        + ["--visual-rubric", str(rubric_path), "--suggest-transform"]
+    ) == 0
+    report = json.loads((valid_inputs.out_dir / "harmony-report.json").read_text(encoding="utf-8"))
+    assert report["verdict"] == "harmony_pass"
+    raw_suggestion = (valid_inputs.out_dir / "transform-suggestion.json").read_bytes()
+    assert raw_suggestion == b'{\n  "reason_codes": []\n}\n'
