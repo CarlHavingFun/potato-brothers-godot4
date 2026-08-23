@@ -1,0 +1,344 @@
+{
+  "atlas_size": [
+    1024,
+    128
+  ],
+  "character_atlas": "game/content/packs/characters/niko/animations/walk_down/sprite-sheet-alpha.png",
+  "character_atlas_sha256": "FBC10108D9A665B14DCC376DA54BBBF66D89B931AE1189E69FE1C45B31FE579D",
+  "frame_size": [
+    128,
+    128
+  ],
+  "frames": [
+    {
+      "attachment_regions": {
+        "back": [38, 76, 86, 109],
+        "feet": [38, 104, 88, 118],
+        "side_left": [28, 78, 46, 106],
+        "side_right": [78, 78, 96, 106],
+        "torso": [45, 83, 79, 108],
+        "trinket_left": [30, 94, 42, 114],
+        "trinket_right": [86, 94, 98, 114],
+        "wrist_left": [34, 82, 48, 100],
+        "wrist_right": [76, 82, 90, 100]
+      },
+      "face_center": [62, 71],
+      "face_roi": [44, 50, 80, 92],
+      "frame_index": 0,
+      "head_center": [62, 60],
+      "head_width": 58,
+      "protected_regions": {
+        "eyes": [48, 64, 78, 80],
+        "face": [44, 50, 80, 92]
+      }
+    },
+    {
+      "attachment_regions": {
+        "back": [38, 76, 86, 109],
+        "feet": [38, 104, 88, 118],
+        "side_left": [28, 78, 46, 106],
+        "side_right": [78, 78, 96, 106],
+        "torso": [45, 83, 79, 108],
+        "trinket_left": [30, 94, 42, 114],
+        "trinket_right": [86, 94, 98, 114],
+        "wrist_left": [34, 82, 48, 100],
+        "wrist_right": [76, 82, 90, 100]
+      },
+      "face_center": [62, 71],
+      "face_roi": [44, 50, 80, 92],
+      "frame_index": 1,
+      "head_center": [62, 60],
+      "head_width": 58,
+      "protected_regions": {
+        "eyes": [48, 64, 78, 80],
+        "face": [44, 50, 80, 92]
+      }
+    },
+    {
+      "attachment_regions": {
+        "back": [38, 76, 86, 109],
+        "feet": [38, 104, 88, 118],
+        "side_left": [28, 78, 46, 106],
+        "side_right": [78, 78, 96, 106],
+        "torso": [45, 83, 79, 108],
+        "trinket_left": [30, 94, 42, 114],
+        "trinket_right": [86, 94, 98, 114],
+        "wrist_left": [34, 82, 48, 100],
+        "wrist_right": [76, 82, 90, 100]
+      },
+      "face_center": [62, 71],
+      "face_roi": [44, 50, 80, 92],
+      "frame_index": 2,
+      "head_center": [62, 60],
+      "head_width": 58,
+      "protected_regions": {
+        "eyes": [48, 64, 78, 80],
+        "face": [44, 50, 80, 92]
+      }
+    },
+    {
+      "attachment_regions": {
+        "back": [38, 76, 86, 109],
+        "feet": [38, 104, 88, 118],
+        "side_left": [28, 78, 46, 106],
+        "side_right": [78, 78, 96, 106],
+        "torso": [45, 83, 79, 108],
+        "trinket_left": [30, 94, 42, 114],
+        "trinket_right": [86, 94, 98, 114],
+        "wrist_left": [34, 82, 48, 100],
+        "wrist_right": [76, 82, 90, 100]
+      },
+      "face_center": [62, 71],
+      "face_roi": [44, 50, 80, 92],
+      "frame_index": 3,
+      "head_center": [62, 60],
+      "head_width": 58,
+      "protected_regions": {
+        "eyes": [48, 64, 78, 80],
+        "face": [44, 50, 80, 92]
+      }
+    },
+    {
+      "attachment_regions": {
+        "back": [40, 76, 88, 109],
+        "feet": [40, 104, 90, 118],
+        "side_left": [30, 78, 48, 106],
+        "side_right": [80, 78, 98, 106],
+        "torso": [47, 83, 81, 108],
+        "trinket_left": [32, 94, 44, 114],
+        "trinket_right": [88, 94, 100, 114],
+        "wrist_left": [36, 82, 50, 100],
+        "wrist_right": [78, 82, 92, 100]
+      },
+      "face_center": [64, 71],
+      "face_roi": [46, 50, 82, 92],
+      "frame_index": 4,
+      "head_center": [64, 60],
+      "head_width": 58,
+      "protected_regions": {
+        "eyes": [50, 64, 80, 80],
+        "face": [46, 50, 82, 92]
+      }
+    },
+    {
+      "attachment_regions": {
+        "back": [40, 76, 88, 109],
+        "feet": [40, 104, 90, 118],
+        "side_left": [30, 78, 48, 106],
+        "side_right": [80, 78, 98, 106],
+        "torso": [47, 83, 81, 108],
+        "trinket_left": [32, 94, 44, 114],
+        "trinket_right": [88, 94, 100, 114],
+        "wrist_left": [36, 82, 50, 100],
+        "wrist_right": [78, 82, 92, 100]
+      },
+      "face_center": [64, 71],
+      "face_roi": [46, 50, 82, 92],
+      "frame_index": 5,
+      "head_center": [64, 60],
+      "head_width": 58,
+      "protected_regions": {
+        "eyes": [50, 64, 80, 80],
+        "face": [46, 50, 82, 92]
+      }
+    },
+    {
+      "attachment_regions": {
+        "back": [38, 76, 86, 109],
+        "feet": [38, 104, 88, 118],
+        "side_left": [28, 78, 46, 106],
+        "side_right": [78, 78, 96, 106],
+        "torso": [45, 83, 79, 108],
+        "trinket_left": [30, 94, 42, 114],
+        "trinket_right": [86, 94, 98, 114],
+        "wrist_left": [34, 82, 48, 100],
+        "wrist_right": [76, 82, 90, 100]
+      },
+      "face_center": [62, 71],
+      "face_roi": [44, 50, 80, 92],
+      "frame_index": 6,
+      "head_center": [62, 60],
+      "head_width": 58,
+      "protected_regions": {
+        "eyes": [48, 64, 78, 80],
+        "face": [44, 50, 80, 92]
+      }
+    },
+    {
+      "attachment_regions": {
+        "back": [38, 76, 86, 109],
+        "feet": [38, 104, 88, 118],
+        "side_left": [28, 78, 46, 106],
+        "side_right": [78, 78, 96, 106],
+        "torso": [45, 83, 79, 108],
+        "trinket_left": [30, 94, 42, 114],
+        "trinket_right": [86, 94, 98, 114],
+        "wrist_left": [34, 82, 48, 100],
+        "wrist_right": [76, 82, 90, 100]
+      },
+      "face_center": [62, 71],
+      "face_roi": [44, 50, 80, 92],
+      "frame_index": 7,
+      "head_center": [62, 60],
+      "head_width": 58,
+      "protected_regions": {
+        "eyes": [48, 64, 78, 80],
+        "face": [44, 50, 80, 92]
+      }
+    }
+  ],
+  "rig_id": "niko_walk_down_v1",
+  "schema_version": "gogobro-rig-profile-v1",
+  "slot_profiles": {
+    "back": {
+      "depth_band": [-99, -1],
+      "direct_icon_reuse": false,
+      "expected_depth": -10,
+      "feature_anchor": "attachment_regions.back",
+      "feature_center_max_px": 2,
+      "flip_behavior": "none",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.25,
+      "max_palette_colors": 10,
+      "max_residual_jitter_px": 1,
+      "outer_width_ratio": [0.6, 1.2],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1
+    },
+    "face": {
+      "depth_band": [1, 99],
+      "direct_icon_reuse": false,
+      "expected_depth": 40,
+      "feature_anchor": "face_roi",
+      "feature_center_max_px": 1,
+      "flip_behavior": "none",
+      "max_feature_center_error_px": 1,
+      "max_occlusion_ratio": 0.0,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "outer_width_ratio": [0.55, 0.9],
+      "protected_region": "protected_regions.eyes",
+      "residual_jitter_max_px": 1
+    },
+    "feet": {
+      "depth_band": [1, 99],
+      "direct_icon_reuse": false,
+      "expected_depth": 40,
+      "feature_anchor": "attachment_regions.feet",
+      "feature_center_max_px": 2,
+      "flip_behavior": "none",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.15,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "outer_width_ratio": [0.55, 1.1],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1
+    },
+    "head": {
+      "depth_band": [1, 99],
+      "direct_icon_reuse": true,
+      "expected_depth": 40,
+      "feature_anchor": "face_center",
+      "feature_center_max_px": 1,
+      "flip_behavior": "none",
+      "max_feature_center_error_px": 1,
+      "max_occlusion_ratio": 0.0,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "outer_width_ratio": [1.05, 1.15],
+      "protected_region": "protected_regions.eyes",
+      "residual_jitter_max_px": 1
+    },
+    "side_left": {
+      "depth_band": [1, 99],
+      "direct_icon_reuse": false,
+      "expected_depth": 40,
+      "feature_anchor": "attachment_regions.side_left",
+      "feature_center_max_px": 2,
+      "flip_behavior": "mirror_to_side_right",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.1,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "outer_width_ratio": [0.4, 0.9],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1
+    },
+    "side_right": {
+      "depth_band": [1, 99],
+      "direct_icon_reuse": false,
+      "expected_depth": 40,
+      "feature_anchor": "attachment_regions.side_right",
+      "feature_center_max_px": 2,
+      "flip_behavior": "mirror_from_side_left",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.1,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "outer_width_ratio": [0.4, 0.9],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1
+    },
+    "torso": {
+      "depth_band": [1, 99],
+      "direct_icon_reuse": false,
+      "expected_depth": 40,
+      "feature_anchor": "attachment_regions.torso",
+      "feature_center_max_px": 2,
+      "flip_behavior": "none",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.15,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "outer_width_ratio": [0.55, 1.0],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1
+    },
+    "trinket_left": {
+      "depth_band": [1, 99],
+      "direct_icon_reuse": false,
+      "expected_depth": 40,
+      "feature_anchor": "attachment_regions.trinket_left",
+      "feature_center_max_px": 2,
+      "flip_behavior": "mirror_to_trinket_right",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.05,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "outer_width_ratio": [0.2, 0.55],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1
+    },
+    "trinket_right": {
+      "depth_band": [1, 99],
+      "direct_icon_reuse": false,
+      "expected_depth": 40,
+      "feature_anchor": "attachment_regions.trinket_right",
+      "feature_center_max_px": 2,
+      "flip_behavior": "mirror_from_trinket_left",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.05,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "outer_width_ratio": [0.2, 0.55],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1
+    },
+    "wrist": {
+      "depth_band": [1, 99],
+      "direct_icon_reuse": false,
+      "expected_depth": 40,
+      "feature_anchor": "attachment_regions.wrist_right",
+      "feature_center_max_px": 2,
+      "flip_behavior": "mirror_between_wrists",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.1,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "outer_width_ratio": [0.25, 0.6],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1
+    }
+  }
+}

@@ -27,6 +27,33 @@ from check_item_harmony import (  # noqa: E402
 )
 
 
+TOOLS_ROOT = Path(__file__).parents[3]
+NIKO_ATLAS = (
+    TOOLS_ROOT.parent
+    / "game"
+    / "content"
+    / "packs"
+    / "characters"
+    / "niko"
+    / "animations"
+    / "walk_down"
+    / "sprite-sheet-alpha.png"
+)
+NIKO_RIG_PROFILE = TOOLS_ROOT / "assets" / "rig_profiles" / "niko_walk_down_v1.json"
+NIKO_SLOTS = {
+    "head",
+    "face",
+    "torso",
+    "back",
+    "wrist",
+    "feet",
+    "side_left",
+    "side_right",
+    "trinket_left",
+    "trinket_right",
+}
+
+
 def _write_json(path: Path, payload: object) -> None:
     path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
 
@@ -187,6 +214,94 @@ def rubric(scores: list[int]) -> VisualRubric:
         hierarchy=(scores[3], evidence),
         originality=(scores[4], evidence),
     )
+
+
+def test_niko_walk_down_profile_matches_canonical_atlas_and_shifted_regions() -> None:
+    profile = json.loads(NIKO_RIG_PROFILE.read_text(encoding="utf-8"))
+    atlas_sha256 = hashlib.sha256(NIKO_ATLAS.read_bytes()).hexdigest().upper()
+    assert profile["schema_version"] == "gogobro-rig-profile-v1"
+    assert profile["character_atlas_sha256"] == atlas_sha256
+    assert atlas_sha256 == "FBC10108D9A665B14DCC376DA54BBBF66D89B931AE1189E69FE1C45B31FE579D"
+    assert profile["frame_size"] == [128, 128]
+    assert profile["atlas_size"] == [1024, 128]
+    assert len(profile["frames"]) == 8
+    assert [frame["face_center"][0] for frame in profile["frames"]] == [
+        62,
+        62,
+        62,
+        62,
+        64,
+        64,
+        62,
+        62,
+    ]
+    assert all(frame["face_center"][1] == 71 for frame in profile["frames"])
+    assert [frame["face_roi"] for frame in profile["frames"]] == [
+        [44, 50, 80, 92],
+        [44, 50, 80, 92],
+        [44, 50, 80, 92],
+        [44, 50, 80, 92],
+        [46, 50, 82, 92],
+        [46, 50, 82, 92],
+        [44, 50, 80, 92],
+        [44, 50, 80, 92],
+    ]
+    assert [frame["protected_regions"]["eyes"] for frame in profile["frames"]] == [
+        [48, 64, 78, 80],
+        [48, 64, 78, 80],
+        [48, 64, 78, 80],
+        [48, 64, 78, 80],
+        [50, 64, 80, 80],
+        [50, 64, 80, 80],
+        [48, 64, 78, 80],
+        [48, 64, 78, 80],
+    ]
+
+
+def test_niko_profile_has_explicit_distinct_slot_contracts_and_attachment_boxes() -> None:
+    profile = json.loads(NIKO_RIG_PROFILE.read_text(encoding="utf-8"))
+    slots = profile["slot_profiles"]
+    assert set(slots) == NIKO_SLOTS
+    assert slots["head"]["outer_width_ratio"] == [1.05, 1.15]
+    assert slots["head"]["max_feature_center_error_px"] == 1
+    assert slots["head"]["max_residual_jitter_px"] == 1
+    required_contract = {
+        "feature_anchor",
+        "outer_width_ratio",
+        "protected_region",
+        "max_occlusion_ratio",
+        "depth_band",
+        "flip_behavior",
+        "expected_depth",
+        "max_feature_center_error_px",
+        "max_residual_jitter_px",
+        "feature_center_max_px",
+        "residual_jitter_max_px",
+        "max_palette_colors",
+    }
+    assert all(required_contract <= set(contract) for contract in slots.values())
+    assert all(contract["feature_anchor"] != "face_center" for name, contract in slots.items() if name != "head")
+    assert slots["side_left"] != slots["side_right"]
+    assert slots["trinket_left"] != slots["trinket_right"]
+
+    region_names = {
+        "torso",
+        "back",
+        "wrist_left",
+        "wrist_right",
+        "feet",
+        "side_left",
+        "side_right",
+        "trinket_left",
+        "trinket_right",
+    }
+    for frame in profile["frames"]:
+        regions = frame["attachment_regions"]
+        assert set(regions) == region_names
+        assert all(
+            len(box) == 4 and all(isinstance(coordinate, int) for coordinate in box)
+            for box in regions.values()
+        )
 
 
 def test_oversized_head_item_is_hard_fail(head_fixture: HeadFixture) -> None:
