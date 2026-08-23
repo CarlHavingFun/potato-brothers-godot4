@@ -23,6 +23,7 @@ Fresh forward evaluation used the exact temporary-installed four-file skill at
 
 - Candidate `candidate-001`: `hard_fail`; retained measured `scale_ratio_high` and `feature_center_offset`, and added `formal_pixel_contract_required`; approval blocked.
 - Fresh candidate `candidate-002`: deterministic `review` with no hard-fail reasons; independent visual rubric produced `harmony_pass` at 9/10; ratio `1.0689655172413792`, feature error `1.0 px`, jitter `0.0 px`, occlusion `0.0`.
+- The committed external review candidate separately uses the five-score 10/10 rubric at SHA-256 `617b7c1a95917a9a8f903a54a5be68cc49b6162c9593c8f73960450e5cad0c6b`; its hierarchy evidence records the current exact-raster `62/58 = 1.0689655172413792`. The independent 9/10 rubric below is forward-test evidence, not the committed artifact.
 - Formal pixel evidence: appearance/icon exact 2x/4x grid round-trips, exact direct-icon reuse, 18 opaque colors, binary alpha, transparent RGB cleared, source outline `563/563`, and all eight rendered outlines `329/329`.
 - Synthetic `back` fixture: back-region/depth rules applied; no head aperture or protected-eye rule; deterministic geometry passed while a 3/10 visual rubric correctly kept it in `review`.
 - Candidate 002 remains explicitly human-gated: approval status `review`, with no `curated/` output.

@@ -48,7 +48,7 @@ const CANDIDATE_002_SOURCE_KEYS := [
 	"rig_profile",
 ]
 const CANDIDATE_002_SOURCE_TREE_SIZE := 52
-const CANDIDATE_002_SOURCE_FINGERPRINT := "f9bbda36df5b60ee67147a36a54477ea32721930602d7bdd115eff1c44890ed4"
+const CANDIDATE_002_SOURCE_FINGERPRINT := "83cd51464c21e684c3eaf3b03f88d207fd1f6de3ecc4a20f94aff4bdf32184ab"
 const OBSOLETE_SINGLE_CANDIDATE_FIELDS := ["candidate_id", "candidate_provenance", "candidate_artifacts"]
 const CANDIDATE_ARTIFACT_OUTPUT_SPEC_VARIANTS := {
 	"icon": [{"format": "PNG", "width": 256, "height": 256, "alpha": true}],

@@ -140,8 +140,8 @@ func test_smoke_shell_helmet_review_record_has_exact_copy_and_candidate_provenan
 		["runtime_preview", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/runtime-size-1920x1080.png", 15371, "03dd0cbfa73f77f47dc3a900c54862a7060444fdf84763359829f046e670377b", {"format":"PNG","width":1920,"height":1080,"alpha":true}],
 		["harmony_overlay", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-overlay.png", 9781, "83726a06995948ee714a3961ff062a7e4a68532b010a28c4c07c39e075573f45", {"format":"PNG","width":1024,"height":128,"alpha":true}],
 		["harmony_actual_size", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-actual-size.png", 20018, "433d9ea7d9799b90d76f092bc1d44697b9eda2f6ab574ce8f7d9a2d2ba902a1f", {"format":"PNG","width":1920,"height":1080,"alpha":true}],
-		["harmony_report", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-report.json", 5859, "2e28e83314306cdfcdee5c6c008df72914f2da7624d4804128652d26cb3f99d4", {"format":"JSON"}],
-		["visual_rubric", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/visual-rubric.json", 1063, "079bc298093ddc08df5040bd05f51788a9989edc544ffcf75c0a53d40edd9bc9", {"format":"JSON"}],
+		["harmony_report", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-report.json", 5859, "8039b1219277cdeedd36c37d6739eac68c592848454acdae3f495d2c349ff4ed", {"format":"JSON"}],
+		["visual_rubric", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/visual-rubric.json", 1094, "617b7c1a95917a9a8f903a54a5be68cc49b6162c9593c8f73960450e5cad0c6b", {"format":"JSON"}],
 		["pixel_qa_report", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/pixel-qa-report.json", 1729, "23be2391ad691928883e9da25af13972b50410cfd90628d2a91a27657dc6c00e", {"format":"JSON"}],
 		["approval_card", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/approval-card.png", 156769, "3659fb91481827e11d1ca728e8104bfe2393ed898550b856d05e3922673bf05b", {"format":"PNG","width":1800,"height":1200,"alpha":true}],
 	]:
@@ -156,7 +156,7 @@ func test_smoke_shell_helmet_review_record_has_exact_copy_and_candidate_provenan
 	assert_float(float(metrics.get("max_residual_jitter_px", -1.0))).is_equal(0.0)
 	assert_float(float(metrics.get("outer_width_ratio", -1.0))).is_equal(1.0689655172413792)
 	assert_int(int(metrics.get("visual_rubric_total", 0))).is_equal(10)
-	assert_str(str(active_candidate.get("visual_rubric_sha256", ""))).is_equal("079bc298093ddc08df5040bd05f51788a9989edc544ffcf75c0a53d40edd9bc9")
+	assert_str(str(active_candidate.get("visual_rubric_sha256", ""))).is_equal("617b7c1a95917a9a8f903a54a5be68cc49b6162c9593c8f73960450e5cad0c6b")
 	var fonts := active_candidate.get("font_provenance", {}) as Dictionary
 	assert_str(str((fonts.get("regular", {}) as Dictionary).get("path", ""))).is_equal("C:\\Windows\\Fonts\\msyh.ttc")
 	assert_str(str((fonts.get("regular", {}) as Dictionary).get("sha256", ""))).is_equal("d79c55e68b1131eea0cc1c47be4f572d964f28c682e143db2ad09c1e4cb07a3f")
