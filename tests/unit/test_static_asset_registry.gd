@@ -3,13 +3,14 @@ extends GdUnitTestSuite
 
 const Registry = preload("res://game/content/assets/static_asset_registry.gd")
 const CANONICAL_PATH := "res://game/content/assets/gogobro_static_assets_v1.json"
+const CANDIDATE_002_METADATA_PATH := "E:/01_gobro/GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/candidate-metadata.json"
 
 
 func test_canonical_registry_loads_seventy_five_planned_and_one_review_approval_unit() -> void:
 	var result := Registry.load_registry(CANONICAL_PATH)
 	var errors := result.get("errors", PackedStringArray()) as PackedStringArray
 	var registry := result.get("registry", {}) as Dictionary
-	assert_int(errors.size()).is_equal(0)
+	assert_array(errors).is_empty()
 	assert_int((registry.get("units", []) as Array).size()).is_equal(76)
 	assert_int(_approval_status_count(registry, "planned")).is_equal(75)
 	assert_int(_approval_status_count(registry, "review")).is_equal(1)
@@ -102,7 +103,10 @@ func test_smoke_shell_helmet_review_record_has_exact_copy_and_candidate_provenan
 	])
 	assert_int((old_candidate.get("artifacts", []) as Array).size()).is_equal(10)
 	var provenance := old_candidate.get("provenance", {}) as Dictionary
-	assert_str(str(provenance.get("prompt_version", ""))).is_equal("gogobro-static-v1")
+	assert_dict(provenance).is_equal({
+		"prompt_version": "gogobro-static-v1",
+		"request_artifact_roles": ["icon_request", "appearance_request"],
+	})
 	for expected in [
 		["icon", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/icon/run/frames/icon/frame-0.png", 1968, "C0AD74445595D80A61BA979B4E668B1FF12A566FEDEF91EC801E38240F29002C", {"format":"PNG","width":256,"height":256,"alpha":true}],
 		["appearance", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/cleaned/smoke-shell-helmet-appearance-128.png", 2206, "B3932E02DAF39074CE048E45B6FAE7F221019D87AD7B3A4327FA40714F25874A", {"format":"PNG","width":128,"height":128,"alpha":true,"appearance_mode":"RIGID"}],
@@ -122,6 +126,7 @@ func test_smoke_shell_helmet_review_record_has_exact_copy_and_candidate_provenan
 		_assert_output_spec(artifact.get("output_spec", {}) as Dictionary, expected[4] as Dictionary)
 
 	var active_candidate := _candidate_history_entry(helmet, "candidate-002")
+	var metadata := _candidate_metadata()
 	assert_str(str(active_candidate.get("decision", ""))).is_equal("review")
 	assert_str(str(active_candidate.get("harmony_verdict", ""))).is_equal("harmony_pass")
 	assert_array(active_candidate.get("reasons", []) as Array).is_empty()
@@ -160,6 +165,8 @@ func test_smoke_shell_helmet_review_record_has_exact_copy_and_candidate_provenan
 	var report_verdicts := active_candidate.get("report_verdicts", {}) as Dictionary
 	assert_bool(bool(report_verdicts.get("pixel_qa_passed", false))).is_true()
 	assert_str(str(report_verdicts.get("harmony", ""))).is_equal("harmony_pass")
+	assert_dict(active_candidate.get("source_sha256", {}) as Dictionary).is_equal(metadata.get("source_sha256", {}) as Dictionary)
+	assert_int(((active_candidate.get("source_sha256", {}) as Dictionary).get("candidate_001_tree", {}) as Dictionary).size()).is_equal(52)
 
 
 func test_loader_rejects_missing_duplicate_or_unresolved_active_candidate_history() -> void:
@@ -199,6 +206,66 @@ func test_loader_rejects_incomplete_revision_history_and_active_report_roles() -
 		_assert_fixture_error(missing_report, "active candidate missing required artifact role: %s" % role)
 
 
+func test_loader_requires_exact_candidate_role_sets_and_no_legacy_single_candidate_fields() -> void:
+	for role in ["composite_frame", "harmony_overlay", "harmony_actual_size", "visual_rubric"]:
+		var missing_active_role := _canonical_registry()
+		_remove_candidate_role(_candidate_history_entry(_smoke_shell_helmet(missing_active_role), "candidate-002"), role)
+		_assert_fixture_error(missing_active_role, "candidate candidate-002 artifact roles must match exact required set")
+
+	var missing_revision_role := _canonical_registry()
+	_remove_candidate_role(_candidate_history_entry(_smoke_shell_helmet(missing_revision_role), "candidate-001"), "icon_request")
+	_assert_fixture_error(missing_revision_role, "candidate candidate-001 artifact roles must match exact required set")
+
+	for candidate_id in ["candidate-001", "candidate-002"]:
+		var unknown_role := _canonical_registry()
+		var candidate := _candidate_history_entry(_smoke_shell_helmet(unknown_role), candidate_id)
+		var unknown_artifact := _candidate_artifact(candidate, "icon").duplicate(true) as Dictionary
+		unknown_artifact["role"] = "unknown_role"
+		(candidate.get("artifacts", []) as Array).append(unknown_artifact)
+		_assert_fixture_error(unknown_role, "candidate %s artifact roles must match exact required set" % candidate_id)
+
+	for obsolete_field in ["candidate_id", "candidate_provenance", "candidate_artifacts"]:
+		var legacy_field := _canonical_registry()
+		_smoke_shell_helmet(legacy_field)[obsolete_field] = "obsolete"
+		_assert_fixture_error(legacy_field, "candidate history unit must not contain obsolete field: %s" % obsolete_field)
+
+
+func test_loader_requires_exact_candidate_source_and_revision_provenance() -> void:
+	var missing_source_key := _registry_with_exact_source_provenance()
+	(_candidate_history_entry(_smoke_shell_helmet(missing_source_key), "candidate-002")["source_sha256"] as Dictionary).erase("candidate_001_tree")
+	_assert_fixture_error(missing_source_key, "active candidate source provenance must match exact generated metadata")
+
+	var changed_source_hash := _registry_with_exact_source_provenance()
+	(_candidate_history_entry(_smoke_shell_helmet(changed_source_hash), "candidate-002")["source_sha256"] as Dictionary)["niko_atlas"] = "0000000000000000000000000000000000000000000000000000000000000000"
+	_assert_fixture_error(changed_source_hash, "active candidate source provenance must match exact generated metadata")
+
+	var missing_tree_entry := _registry_with_exact_source_provenance()
+	var source_tree := ((_candidate_history_entry(_smoke_shell_helmet(missing_tree_entry), "candidate-002")["source_sha256"] as Dictionary)["candidate_001_tree"] as Dictionary)
+	source_tree.erase("requests/icon-request.json")
+	_assert_fixture_error(missing_tree_entry, "active candidate source provenance must match exact generated metadata")
+
+	var replacement_tree_entry := _registry_with_exact_source_provenance()
+	var replacement_tree := ((_candidate_history_entry(_smoke_shell_helmet(replacement_tree_entry), "candidate-002")["source_sha256"] as Dictionary)["candidate_001_tree"] as Dictionary)
+	replacement_tree.erase("requests/icon-request.json")
+	replacement_tree["requests/unknown-request.json"] = "4a8a4e327ffedddc95324070b7bd5d20b68218f801632a2e1388da58ce708c79"
+	_assert_fixture_error(replacement_tree_entry, "active candidate source provenance must match exact generated metadata")
+
+	for malformed_roles in [[], ["icon_request"], ["appearance_request", "icon_request"], ["icon_request", "appearance_request", "extra"]]:
+		var changed_revision_provenance := _canonical_registry()
+		var revision_provenance := _candidate_history_entry(_smoke_shell_helmet(changed_revision_provenance), "candidate-001").get("provenance", {}) as Dictionary
+		revision_provenance["request_artifact_roles"] = malformed_roles
+		_assert_fixture_error(changed_revision_provenance, "candidate-001 provenance must match preserved canonical record")
+	for prompt_version in ["", "gogobro-static-v2"]:
+		var changed_prompt_provenance := _canonical_registry()
+		var prompt_provenance := _candidate_history_entry(_smoke_shell_helmet(changed_prompt_provenance), "candidate-001").get("provenance", {}) as Dictionary
+		prompt_provenance["prompt_version"] = prompt_version
+		_assert_fixture_error(changed_prompt_provenance, "candidate-001 provenance must match preserved canonical record")
+
+	var unexpected_revision_provenance := _canonical_registry()
+	(_candidate_history_entry(_smoke_shell_helmet(unexpected_revision_provenance), "candidate-001").get("provenance", {}) as Dictionary)["unexpected"] = true
+	_assert_fixture_error(unexpected_revision_provenance, "candidate-001 provenance must match preserved canonical record")
+
+
 func test_loader_rejects_malformed_or_unsafe_candidate_history_artifacts() -> void:
 	var malformed_hash := _canonical_registry()
 	_candidate_artifact(_candidate_history_entry(_smoke_shell_helmet(malformed_hash), "candidate-002"), "icon")["sha256"] = "bad-hash"
@@ -226,10 +293,32 @@ func test_loader_rejects_malformed_or_unsafe_candidate_history_artifacts() -> vo
 	_candidate_artifact(_candidate_history_entry(_smoke_shell_helmet(curated_path), "candidate-002"), "icon")["path"] = "workspace://GOGOBRO_ASSET_INBOX/curated/smoke-shell-helmet.png"
 	_assert_fixture_error(curated_path, "candidate artifact icon path must not contain /curated/")
 
+	for unsafe_path in [
+		"workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/../candidate-001/cleaned/smoke-shell-helmet-appearance-128.png",
+		"workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/./harmony-overlay.png",
+		"workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002//derived/icon-256.png",
+		"workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/derived/icon-256.png?raw=1",
+		"workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/derived/icon-256.png#fragment",
+		"workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/%2e%2e/candidate-001/icon.png",
+		"workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/%2Fgame/assets/x.png",
+		"workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/derived%5cicon.png",
+		"workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/icon/run/frames/icon/frame-0.png",
+		"workspace://GOGOBRO_ASSET_INBOX/../../game/assets/x.png",
+	]:
+		var escaped_path := _canonical_registry()
+		_candidate_artifact(_candidate_history_entry(_smoke_shell_helmet(escaped_path), "candidate-002"), "icon")["path"] = unsafe_path
+		_assert_fixture_error(escaped_path, "candidate artifact icon path must stay within exact candidate root")
+
 	var canonical_json := FileAccess.get_file_as_string(CANONICAL_PATH)
 	for malformed_byte_literal in ["1.0", "1.5", "1e3", "0", "-1", "\"1\"", "null"]:
 		var malformed_bytes_json := canonical_json.replace("\"bytes\":1968", "\"bytes\":%s" % malformed_byte_literal)
 		_assert_raw_fixture_error(malformed_bytes_json, "invalid byte size")
+	for escaped_bytes_key in ["\\u0062ytes", "b\\u0079tes", "\\u0062\\u0079\\u0074\\u0065\\u0073"]:
+		for malformed_byte_literal in ["1.0", "1.5", "1e3", "0", "-1", "\"1\"", "null"]:
+			var escaped_malformed_bytes_json := canonical_json.replace("\"bytes\":3030", "\"%s\":%s" % [escaped_bytes_key, malformed_byte_literal])
+			_assert_raw_fixture_error(escaped_malformed_bytes_json, "invalid byte size")
+	var valid_escaped_bytes_json := canonical_json.replace("\"bytes\":3030", "\"\\u0062ytes\":3030")
+	_assert_raw_fixture_has_no_errors(valid_escaped_bytes_json)
 
 	var duplicate_role := _canonical_registry()
 	var active_candidate := _candidate_history_entry(_smoke_shell_helmet(duplicate_role), "candidate-002")
@@ -252,6 +341,17 @@ func _canonical_registry() -> Dictionary:
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(CANONICAL_PATH))
 	var registry := JSON.parse_string(JSON.stringify(parsed)) as Dictionary
 	_normalize_fixture_byte_sizes(registry)
+	return registry
+
+
+func _candidate_metadata() -> Dictionary:
+	return JSON.parse_string(FileAccess.get_file_as_string(CANDIDATE_002_METADATA_PATH)) as Dictionary
+
+
+func _registry_with_exact_source_provenance() -> Dictionary:
+	var registry := _canonical_registry()
+	var metadata := _candidate_metadata()
+	_candidate_history_entry(_smoke_shell_helmet(registry), "candidate-002")["source_sha256"] = (metadata.get("source_sha256", {}) as Dictionary).duplicate(true)
 	return registry
 
 
@@ -291,6 +391,16 @@ func _assert_raw_fixture_error(raw_json: String, expected_error: String) -> void
 	file.close()
 	var result := Registry.load_registry(fixture_path)
 	assert_str("\n".join(result.get("errors", PackedStringArray()) as PackedStringArray)).contains(expected_error)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(fixture_path))
+
+
+func _assert_raw_fixture_has_no_errors(raw_json: String) -> void:
+	var fixture_path := "user://static_asset_registry_fixture_%s.json" % Time.get_ticks_usec()
+	var file := FileAccess.open(fixture_path, FileAccess.WRITE)
+	file.store_string(raw_json)
+	file.close()
+	var result := Registry.load_registry(fixture_path)
+	assert_int((result.get("errors", PackedStringArray()) as PackedStringArray).size()).is_equal(0)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(fixture_path))
 
 

@@ -17,12 +17,39 @@ const ACTIVE_ITEM_REQUIRED_ARTIFACT_ROLES := [
 	"icon",
 	"appearance",
 	"anchors",
+	"composite_frame",
 	"composite_atlas",
 	"runtime_preview",
+	"harmony_overlay",
+	"harmony_actual_size",
 	"approval_card",
 	"pixel_qa_report",
 	"harmony_report",
+	"visual_rubric",
 ]
+const CANDIDATE_ARTIFACT_ROLE_SETS := {
+	"candidate-001": [
+		"icon", "appearance", "anchors", "composite_frame", "composite_atlas",
+		"runtime_preview", "approval_card", "qa_report", "icon_request", "appearance_request",
+	],
+	"candidate-002": ACTIVE_ITEM_REQUIRED_ARTIFACT_ROLES,
+}
+const CANDIDATE_001_PROVENANCE := {
+	"prompt_version": "gogobro-static-v1",
+	"request_artifact_roles": ["icon_request", "appearance_request"],
+}
+const CANDIDATE_002_SOURCE_KEYS := [
+	"appearance_source",
+	"candidate_001_tree",
+	"card_font_bold",
+	"card_font_regular",
+	"niko_atlas",
+	"registry",
+	"rig_profile",
+]
+const CANDIDATE_002_SOURCE_TREE_SIZE := 52
+const CANDIDATE_002_SOURCE_FINGERPRINT := "6da07ef86eff56698fa9fccb874f93e9f4a71c549c862377d0ac634c94c307ce"
+const OBSOLETE_SINGLE_CANDIDATE_FIELDS := ["candidate_id", "candidate_provenance", "candidate_artifacts"]
 const CANDIDATE_ARTIFACT_OUTPUT_SPEC_VARIANTS := {
 	"icon": [{"format": "PNG", "width": 256, "height": 256, "alpha": true}],
 	"appearance": [
@@ -90,12 +117,49 @@ static func load_registry(path: String = REGISTRY_PATH) -> Dictionary:
 
 
 static func _has_invalid_byte_literals(raw_json: String) -> bool:
-	var bytes_pattern := RegEx.new()
-	bytes_pattern.compile("\"bytes\"\\s*:\\s*([^,}\\s]+)")
-	for match in bytes_pattern.search_all(raw_json):
-		if not _is_positive_base_ten_integer_literal(match.get_string(1)):
-			return true
+	var index := 0
+	while index < raw_json.length():
+		if raw_json[index] != "\"":
+			index += 1
+			continue
+		var string_end := _json_string_end(raw_json, index)
+		if string_end < 0:
+			return false
+		var decoded: Variant = JSON.parse_string(raw_json.substr(index, string_end - index + 1))
+		var cursor := _skip_json_whitespace(raw_json, string_end + 1)
+		if decoded == "bytes" and cursor < raw_json.length() and raw_json[cursor] == ":":
+			cursor = _skip_json_whitespace(raw_json, cursor + 1)
+			var literal_start := cursor
+			if cursor >= raw_json.length() or raw_json[cursor] < "1" or raw_json[cursor] > "9":
+				return true
+			while cursor < raw_json.length() and raw_json[cursor] >= "0" and raw_json[cursor] <= "9":
+				cursor += 1
+			if not _is_positive_base_ten_integer_literal(raw_json.substr(literal_start, cursor - literal_start)):
+				return true
+			cursor = _skip_json_whitespace(raw_json, cursor)
+			if cursor >= raw_json.length() or not [",", "}", "]"].has(raw_json[cursor]):
+				return true
+		index = string_end + 1
 	return false
+
+
+static func _json_string_end(raw_json: String, start: int) -> int:
+	var index := start + 1
+	while index < raw_json.length():
+		if raw_json[index] == "\\":
+			index += 2
+			continue
+		if raw_json[index] == "\"":
+			return index
+		index += 1
+	return -1
+
+
+static func _skip_json_whitespace(raw_json: String, start: int) -> int:
+	var index := start
+	while index < raw_json.length() and [" ", "\t", "\r", "\n"].has(raw_json[index]):
+		index += 1
+	return index
 
 
 static func _is_positive_base_ten_integer_literal(literal: String) -> bool:
@@ -242,6 +306,9 @@ static func _contains_numeric_effect_text(description: String) -> bool:
 static func _validate_candidate_history(unit: Dictionary, label: String, category: String, errors: PackedStringArray) -> void:
 	if str(unit.get("approval_status", "")) != "review":
 		errors.append("candidate history unit approval_status must remain review")
+	for obsolete_field in OBSOLETE_SINGLE_CANDIDATE_FIELDS:
+		if unit.has(obsolete_field):
+			errors.append("candidate history unit must not contain obsolete field: %s" % obsolete_field)
 	var active_candidate_id := str(unit.get("active_candidate_id", "")).strip_edges()
 	if active_candidate_id.is_empty():
 		errors.append("%s review unit missing active_candidate_id" % label)
@@ -275,6 +342,8 @@ static func _validate_candidate_history(unit: Dictionary, label: String, categor
 			var provenance: Variant = candidate.get("provenance")
 			if not provenance is Dictionary or str((provenance as Dictionary).get("prompt_version", "")).strip_edges().is_empty():
 				errors.append("revision_requested candidate missing prompt provenance")
+			if candidate_id == "candidate-001" and provenance != CANDIDATE_001_PROVENANCE:
+				errors.append("candidate-001 provenance must match preserved canonical record")
 		else:
 			errors.append("candidate history entry has invalid decision: %s" % decision)
 		var artifacts: Variant = candidate.get("artifacts")
@@ -284,7 +353,7 @@ static func _validate_candidate_history(unit: Dictionary, label: String, categor
 			else:
 				errors.append("candidate %s missing artifacts" % candidate_id)
 		else:
-			_validate_candidate_artifacts(artifacts as Array, errors)
+			_validate_candidate_artifacts(artifacts as Array, candidate_id, str(unit.get("asset_id", "")), errors)
 		if candidate_id == active_candidate_id:
 			active_matches += 1
 			active_candidate = candidate
@@ -292,13 +361,20 @@ static func _validate_candidate_history(unit: Dictionary, label: String, categor
 		errors.append("active_candidate_id must resolve exactly once")
 	if review_count != 1:
 		errors.append("candidate history must contain exactly one review decision")
+	if candidate_ids.size() != CANDIDATE_ARTIFACT_ROLE_SETS.size():
+		errors.append("candidate history must contain the exact canonical candidate ids")
+	else:
+		for expected_candidate_id in CANDIDATE_ARTIFACT_ROLE_SETS:
+			if not candidate_ids.has(expected_candidate_id):
+				errors.append("candidate history must contain the exact canonical candidate ids")
+				break
 	if active_matches == 1:
 		if str(active_candidate.get("decision", "")) != "review":
 			errors.append("active candidate decision must be review")
 		_validate_active_candidate(active_candidate, category, errors)
 
 
-static func _validate_candidate_artifacts(artifacts: Array, errors: PackedStringArray) -> void:
+static func _validate_candidate_artifacts(artifacts: Array, candidate_id: String, asset_id: String, errors: PackedStringArray) -> void:
 	var roles := {}
 	for artifact_variant in artifacts:
 		if not artifact_variant is Dictionary:
@@ -322,6 +398,8 @@ static func _validate_candidate_artifacts(artifacts: Array, errors: PackedString
 			errors.append("candidate artifact %s path must not contain /curated/" % role)
 		elif not path.begins_with("workspace://") or path.contains("\\"):
 			errors.append("candidate artifact %s path must use a workspace:// forward-slash path" % role)
+		elif not _is_exact_candidate_artifact_path(path, asset_id, candidate_id):
+			errors.append("candidate artifact %s path must stay within exact candidate root" % role)
 		var sha256 := str(artifact.get("sha256", "")).strip_edges()
 		if not _is_valid_sha256(sha256):
 			errors.append("candidate artifact %s has invalid sha256" % role)
@@ -335,6 +413,29 @@ static func _validate_candidate_artifacts(artifacts: Array, errors: PackedString
 			errors.append("candidate artifact %s missing structured output_spec" % role)
 		elif CANDIDATE_ARTIFACT_OUTPUT_SPEC_VARIANTS.has(role) and not _output_spec_matches_any(output_spec as Dictionary, CANDIDATE_ARTIFACT_OUTPUT_SPEC_VARIANTS[role] as Array):
 			errors.append("candidate artifact %s output_spec must match required specification" % role)
+	var expected_roles: Array = CANDIDATE_ARTIFACT_ROLE_SETS.get(candidate_id, []) as Array
+	if roles.size() != expected_roles.size():
+		errors.append("candidate %s artifact roles must match exact required set" % candidate_id)
+	else:
+		for expected_role in expected_roles:
+			if not roles.has(expected_role):
+				errors.append("candidate %s artifact roles must match exact required set" % candidate_id)
+				break
+
+
+static func _is_exact_candidate_artifact_path(path: String, asset_id: String, candidate_id: String) -> bool:
+	if path.contains("?") or path.contains("#") or path.contains("%") or path.contains("\\"):
+		return false
+	var candidate_root := "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/%s/%s/" % [asset_id, candidate_id]
+	if not path.begins_with(candidate_root):
+		return false
+	var relative_path := path.substr(candidate_root.length())
+	if relative_path.is_empty():
+		return false
+	for segment in relative_path.split("/", true):
+		if segment.is_empty() or segment == "." or segment == "..":
+			return false
+	return true
 
 
 static func _validate_active_candidate(candidate: Dictionary, category: String, errors: PackedStringArray) -> void:
@@ -377,9 +478,42 @@ static func _validate_active_candidate(candidate: Dictionary, category: String, 
 	if not source_sha256 is Dictionary or (source_sha256 as Dictionary).is_empty():
 		errors.append("active candidate missing source sha256 provenance")
 	else:
-		for source_role in source_sha256:
-			if not _is_valid_sha256(str((source_sha256 as Dictionary)[source_role])):
-				errors.append("active candidate source %s has invalid sha256" % source_role)
+		_validate_active_candidate_source(source_sha256 as Dictionary, errors)
+
+
+static func _validate_active_candidate_source(source: Dictionary, errors: PackedStringArray) -> void:
+	var exact_shape := source.size() == CANDIDATE_002_SOURCE_KEYS.size()
+	for source_key in CANDIDATE_002_SOURCE_KEYS:
+		if not source.has(source_key):
+			exact_shape = false
+	var tree_variant: Variant = source.get("candidate_001_tree")
+	if not tree_variant is Dictionary or (tree_variant as Dictionary).size() != CANDIDATE_002_SOURCE_TREE_SIZE:
+		exact_shape = false
+	else:
+		for tree_path in tree_variant as Dictionary:
+			if str(tree_path).is_empty() or str(tree_path).contains("\\") or str(tree_path).begins_with("/") or not _is_valid_sha256(str((tree_variant as Dictionary)[tree_path])):
+				exact_shape = false
+	for source_key in CANDIDATE_002_SOURCE_KEYS:
+		if source_key != "candidate_001_tree" and not _is_valid_sha256(str(source.get(source_key, ""))):
+			exact_shape = false
+	if not exact_shape or _source_provenance_fingerprint(source) != CANDIDATE_002_SOURCE_FINGERPRINT:
+		errors.append("active candidate source provenance must match exact generated metadata")
+
+
+static func _source_provenance_fingerprint(source: Dictionary) -> String:
+	var lines := PackedStringArray()
+	var source_keys := source.keys()
+	source_keys.sort()
+	for source_key in source_keys:
+		var value: Variant = source[source_key]
+		if value is Dictionary:
+			var tree_keys := (value as Dictionary).keys()
+			tree_keys.sort()
+			for tree_key in tree_keys:
+				lines.append("%s\t%s\t%s" % [source_key, tree_key, (value as Dictionary)[tree_key]])
+		else:
+			lines.append("%s\t%s" % [source_key, value])
+	return "\n".join(lines).sha256_text()
 
 
 static func _is_valid_sha256(value: String) -> bool:
