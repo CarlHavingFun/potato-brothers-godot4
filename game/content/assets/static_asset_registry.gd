@@ -12,7 +12,7 @@ const EXPECTED_CATEGORY_COUNTS := {
 	"world": 11,
 	"ui_brand": 10,
 }
-const VALID_STATUSES := ["planned", "draft", "approved", "rejected"]
+const VALID_STATUSES := ["planned", "generated", "review", "approved", "integrated", "qa_passed"]
 const REQUIRED_ENTRY_FIELDS := [
 	"asset_id",
 	"category",
@@ -95,7 +95,12 @@ static func validate_registry(registry: Dictionary) -> PackedStringArray:
 			category_counts[category] = int(category_counts.get(category, 0)) + 1
 		if not VALID_STATUSES.has(unit.get("approval_status")):
 			errors.append("unknown approval_status: %s" % str(unit.get("approval_status")))
-		_validate_localization(unit.get("localization"), label, errors)
+		_validate_localization(
+			unit.get("localization"),
+			label,
+			category in ["character_creature", "weapon", "item", "upgrade"],
+			errors
+		)
 		if category == "item":
 			_validate_item(unit, label, errors)
 		elif category == "upgrade":
@@ -120,7 +125,7 @@ static func _counts_match(counts: Dictionary) -> bool:
 	return true
 
 
-static func _validate_localization(localization: Variant, label: String, errors: PackedStringArray) -> void:
+static func _validate_localization(localization: Variant, label: String, flavor_required: bool, errors: PackedStringArray) -> void:
 	if not localization is Dictionary:
 		errors.append("%s localization must be an object" % label)
 		return
@@ -131,8 +136,16 @@ static func _validate_localization(localization: Variant, label: String, errors:
 			errors.append("%s missing %s copy" % [label, "English" if locale == "en" else "Chinese"])
 			continue
 		var description: Variant = (copy as Dictionary).get("description")
-		if description is String and _contains_numeric_effect_text(description as String):
+		if not description is String or (description as String).strip_edges().is_empty():
+			errors.append("%s missing %s description" % [label, "English" if locale == "en" else "Chinese"])
+		elif _contains_numeric_effect_text(description as String):
 			errors.append("%s contains handwritten numeric effect text" % label)
+		if flavor_required:
+			var flavor: Variant = (copy as Dictionary).get("flavor")
+			if not flavor is String or (flavor as String).strip_edges().is_empty():
+				errors.append("%s missing %s flavor" % [label, "English" if locale == "en" else "Chinese"])
+			elif _contains_numeric_effect_text(flavor as String):
+				errors.append("%s contains handwritten numeric effect text" % label)
 
 
 static func _contains_numeric_effect_text(description: String) -> bool:

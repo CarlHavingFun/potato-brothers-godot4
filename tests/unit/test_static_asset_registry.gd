@@ -50,6 +50,34 @@ func test_loader_rejects_each_required_malformed_temporary_fixture() -> void:
 	_assert_fixture_error(handwritten_effect_copy, "handwritten numeric effect text")
 
 
+func test_loader_accepts_only_the_canonical_approval_states() -> void:
+	for approval_status in ["planned", "generated", "review", "approved", "integrated", "qa_passed"]:
+		var accepted := _canonical_registry()
+		((accepted["units"] as Array)[0] as Dictionary)["approval_status"] = approval_status
+		_assert_fixture_has_no_errors(accepted)
+	for approval_status in ["draft", "rejected"]:
+		var rejected := _canonical_registry()
+		((rejected["units"] as Array)[0] as Dictionary)["approval_status"] = approval_status
+		_assert_fixture_error(rejected, "unknown approval_status")
+
+
+func test_loader_requires_bilingual_descriptions_and_category_flavor_without_numeric_prose() -> void:
+	var missing_world_description := _canonical_registry()
+	var world_copy := ((_first_unit_in_category(missing_world_description, "world") as Dictionary)["localization"] as Dictionary)["en"] as Dictionary
+	world_copy.erase("description")
+	_assert_fixture_error(missing_world_description, "missing English description")
+
+	var missing_weapon_flavor := _canonical_registry()
+	var weapon_copy := ((_first_unit_in_category(missing_weapon_flavor, "weapon") as Dictionary)["localization"] as Dictionary)["zh_CN"] as Dictionary
+	weapon_copy["flavor"] = ""
+	_assert_fixture_error(missing_weapon_flavor, "missing Chinese flavor")
+
+	var numeric_flavor := _canonical_registry()
+	var character_copy := ((_first_unit_in_category(numeric_flavor, "character_creature") as Dictionary)["localization"] as Dictionary)["en"] as Dictionary
+	character_copy["flavor"] = "Wins with 3 precise moves."
+	_assert_fixture_error(numeric_flavor, "handwritten numeric effect text")
+
+
 func _canonical_registry() -> Dictionary:
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(CANONICAL_PATH))
 	return JSON.parse_string(JSON.stringify(parsed)) as Dictionary
@@ -63,6 +91,16 @@ func _assert_fixture_error(registry: Dictionary, expected_error: String) -> void
 	var result := Registry.load_registry(fixture_path)
 	var errors := result.get("errors", PackedStringArray()) as PackedStringArray
 	assert_str("\n".join(errors)).contains(expected_error)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(fixture_path))
+
+
+func _assert_fixture_has_no_errors(registry: Dictionary) -> void:
+	var fixture_path := "user://static_asset_registry_fixture_%s.json" % Time.get_ticks_usec()
+	var file := FileAccess.open(fixture_path, FileAccess.WRITE)
+	file.store_string(JSON.stringify(registry))
+	file.close()
+	var result := Registry.load_registry(fixture_path)
+	assert_int((result.get("errors", PackedStringArray()) as PackedStringArray).size()).is_equal(0)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(fixture_path))
 
 
