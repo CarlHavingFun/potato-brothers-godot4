@@ -22,6 +22,18 @@ const REVIEW_ITEM_REQUIRED_ARTIFACT_ROLES := [
 	"approval_card",
 	"qa_report",
 ]
+const REVIEW_ARTIFACT_OUTPUT_SPECS := {
+	"icon": {"format": "PNG", "width": 256, "height": 256, "alpha": true},
+	"appearance": {"format": "PNG", "width": 128, "height": 128, "alpha": true, "appearance_mode": "RIGID"},
+	"anchors": {"format": "JSON", "state": "walk_down", "anchor_count": 8},
+	"composite_frame": {"format": "PNG", "width": 128, "height": 128, "alpha": true},
+	"composite_atlas": {"format": "PNG", "width": 1024, "height": 128, "alpha": true, "columns": 8, "frame_width": 128, "frame_height": 128},
+	"runtime_preview": {"format": "PNG", "width": 1920, "height": 1080},
+	"approval_card": {"format": "PNG", "width": 1800, "height": 1200},
+	"qa_report": {"format": "JSON"},
+	"icon_request": {"format": "JSON", "purpose": "provenance"},
+	"appearance_request": {"format": "JSON", "purpose": "provenance"},
+}
 const REQUIRED_ENTRY_FIELDS := [
 	"asset_id",
 	"category",
@@ -50,8 +62,24 @@ static func load_registry(path: String = REGISTRY_PATH) -> Dictionary:
 		errors.append("registry root must be an object")
 		return {"registry": {}, "errors": errors}
 	var registry := json.data as Dictionary
+	_normalize_review_artifact_byte_sizes(registry)
 	errors.append_array(validate_registry(registry))
 	return {"registry": registry, "errors": errors}
+
+
+static func _normalize_review_artifact_byte_sizes(registry: Dictionary) -> void:
+	var units: Variant = registry.get("units")
+	if not units is Array:
+		return
+	for unit_variant in units as Array:
+		if not unit_variant is Dictionary:
+			continue
+		var artifacts: Variant = (unit_variant as Dictionary).get("candidate_artifacts")
+		if not artifacts is Array:
+			continue
+		for artifact_variant in artifacts as Array:
+			if artifact_variant is Dictionary and (artifact_variant as Dictionary).get("bytes") is float:
+				(artifact_variant as Dictionary)["bytes"] = int((artifact_variant as Dictionary).get("bytes"))
 
 
 static func validate_registry(registry: Dictionary) -> PackedStringArray:
@@ -189,7 +217,10 @@ static func _validate_review_candidate(unit: Dictionary, label: String, category
 		if role.is_empty():
 			errors.append("%s candidate artifact missing role" % label)
 			continue
-		roles[role] = true
+		if roles.has(role):
+			errors.append("duplicate candidate artifact role: %s" % role)
+		else:
+			roles[role] = true
 		var path := str(artifact.get("path", "")).strip_edges()
 		if path.is_empty():
 			errors.append("candidate artifact %s missing path" % role)
@@ -203,17 +234,37 @@ static func _validate_review_candidate(unit: Dictionary, label: String, category
 		if sha256_pattern.search(sha256) == null:
 			errors.append("candidate artifact %s has invalid sha256" % role)
 		var bytes: Variant = artifact.get("bytes")
-		if not bytes is int and not bytes is float:
+		if not bytes is int:
 			errors.append("candidate artifact %s has invalid byte size" % role)
-		elif int(bytes) <= 0 or float(bytes) != floor(float(bytes)):
+		elif bytes <= 0:
 			errors.append("candidate artifact %s has invalid byte size" % role)
 		var output_spec: Variant = artifact.get("output_spec")
 		if not output_spec is Dictionary or (output_spec as Dictionary).is_empty() or str((output_spec as Dictionary).get("format", "")).strip_edges().is_empty():
 			errors.append("candidate artifact %s missing structured output_spec" % role)
+		elif REVIEW_ARTIFACT_OUTPUT_SPECS.has(role) and not _output_spec_matches(output_spec as Dictionary, REVIEW_ARTIFACT_OUTPUT_SPECS[role] as Dictionary):
+			errors.append("candidate artifact %s output_spec must match required specification" % role)
 	if category == "item":
 		for required_role in REVIEW_ITEM_REQUIRED_ARTIFACT_ROLES:
 			if not roles.has(required_role):
 				errors.append("review item missing required candidate artifact role: %s" % required_role)
+
+
+static func _output_spec_matches(actual: Dictionary, expected: Dictionary) -> bool:
+	if actual.size() != expected.size():
+		return false
+	for field in expected:
+		if not actual.has(field):
+			return false
+		var expected_value: Variant = expected[field]
+		var actual_value: Variant = actual[field]
+		if expected_value is int:
+			if not actual_value is int and not actual_value is float:
+				return false
+			if float(actual_value) != float(expected_value):
+				return false
+		elif actual_value != expected_value:
+			return false
+	return true
 
 
 static func _validate_item(unit: Dictionary, label: String, errors: PackedStringArray) -> void:

@@ -95,22 +95,22 @@ func test_smoke_shell_helmet_review_record_has_exact_copy_and_candidate_provenan
 	var provenance := helmet.get("candidate_provenance", {}) as Dictionary
 	assert_str(str(provenance.get("prompt_version", ""))).is_equal("gogobro-static-v1")
 	for expected in [
-		["icon", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/icon/run/frames/icon/frame-0.png", 1968, "C0AD74445595D80A61BA979B4E668B1FF12A566FEDEF91EC801E38240F29002C"],
-		["appearance", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/cleaned/smoke-shell-helmet-appearance-128.png", 2206, "B3932E02DAF39074CE048E45B6FAE7F221019D87AD7B3A4327FA40714F25874A"],
-		["anchors", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/appearance/anchors-walk-down.json", 8359, "BB07E3105A39B9071AD1A5706AE74CD48FAB2D7AE25D13CFE2EE1F86C1010D13"],
-		["composite_frame", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/qa/composite-frame-001.png", 3295, "491710EE2758D826B90B614C95ED54FB0AE675F7C16C60D974306AE6B370D14A"],
-		["composite_atlas", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/qa/composite-atlas-8x128.png", 9223, "1B80D5DD228D215F058D4B289C194F55C4191C9408941F9DAC5E67AB29D88D66"],
-		["runtime_preview", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/qa/runtime-size-1920x1080.png", 14125, "DFA42A196AA3B05C78DF7970EBBF40A3D37766638317683FEFE1374169642D8B"],
-		["approval_card", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/qa/approval-card.png", 168311, "44E594051E8522988372FB8C73C04220FA0490F7263C0D075CD3D2DC4C5B140D"],
-		["qa_report", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/qa/candidate-qa-report.json", 8367, "030155097E2892F706E4246316D8E926D73D52A69F88D212A0792D46B1D06A3E"],
-		["icon_request", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/requests/icon-request.json", 268, "4A8A4E327FFEDDDC95324070B7BD5D20B68218F801632A2E1388DA58CE708C79"],
-		["appearance_request", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/requests/appearance-request.json", 294, "13CD24D70593147C20EEFC8EAC6E229A21DE59B6B454522ECD3A1D707111E32D"],
+		["icon", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/icon/run/frames/icon/frame-0.png", 1968, "C0AD74445595D80A61BA979B4E668B1FF12A566FEDEF91EC801E38240F29002C", {"format":"PNG","width":256,"height":256,"alpha":true}],
+		["appearance", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/cleaned/smoke-shell-helmet-appearance-128.png", 2206, "B3932E02DAF39074CE048E45B6FAE7F221019D87AD7B3A4327FA40714F25874A", {"format":"PNG","width":128,"height":128,"alpha":true,"appearance_mode":"RIGID"}],
+		["anchors", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/appearance/anchors-walk-down.json", 8359, "BB07E3105A39B9071AD1A5706AE74CD48FAB2D7AE25D13CFE2EE1F86C1010D13", {"format":"JSON","state":"walk_down","anchor_count":8}],
+		["composite_frame", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/qa/composite-frame-001.png", 3295, "491710EE2758D826B90B614C95ED54FB0AE675F7C16C60D974306AE6B370D14A", {"format":"PNG","width":128,"height":128,"alpha":true}],
+		["composite_atlas", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/qa/composite-atlas-8x128.png", 9223, "1B80D5DD228D215F058D4B289C194F55C4191C9408941F9DAC5E67AB29D88D66", {"format":"PNG","width":1024,"height":128,"alpha":true,"columns":8,"frame_width":128,"frame_height":128}],
+		["runtime_preview", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/qa/runtime-size-1920x1080.png", 14125, "DFA42A196AA3B05C78DF7970EBBF40A3D37766638317683FEFE1374169642D8B", {"format":"PNG","width":1920,"height":1080}],
+		["approval_card", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/qa/approval-card.png", 168311, "44E594051E8522988372FB8C73C04220FA0490F7263C0D075CD3D2DC4C5B140D", {"format":"PNG","width":1800,"height":1200}],
+		["qa_report", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/qa/candidate-qa-report.json", 8367, "030155097E2892F706E4246316D8E926D73D52A69F88D212A0792D46B1D06A3E", {"format":"JSON"}],
+		["icon_request", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/requests/icon-request.json", 268, "4A8A4E327FFEDDDC95324070B7BD5D20B68218F801632A2E1388DA58CE708C79", {"format":"JSON","purpose":"provenance"}],
+		["appearance_request", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/requests/appearance-request.json", 294, "13CD24D70593147C20EEFC8EAC6E229A21DE59B6B454522ECD3A1D707111E32D", {"format":"JSON","purpose":"provenance"}],
 	]:
 		var artifact := _candidate_artifact(helmet, expected[0])
 		assert_str(str(artifact.get("path", ""))).is_equal(expected[1])
 		assert_int(int(artifact.get("bytes", 0))).is_equal(expected[2])
 		assert_str(str(artifact.get("sha256", ""))).is_equal(expected[3])
-		assert_bool((artifact.get("output_spec", {}) as Dictionary).has("format")).is_true()
+		_assert_output_spec(artifact.get("output_spec", {}) as Dictionary, expected[4] as Dictionary)
 
 
 func test_loader_rejects_review_candidate_missing_required_provenance_or_safe_artifacts() -> void:
@@ -133,6 +133,21 @@ func test_loader_rejects_review_candidate_missing_required_provenance_or_safe_ar
 	var curated_path := _canonical_registry()
 	(_candidate_artifact(_smoke_shell_helmet(curated_path), "icon") as Dictionary)["path"] = "workspace://GOGOBRO_ASSET_INBOX/curated/smoke-shell-helmet.png"
 	_assert_fixture_error(curated_path, "candidate artifact icon path must not contain /curated/")
+
+	var float_byte_size := _canonical_registry()
+	for artifact in _smoke_shell_helmet(float_byte_size).get("candidate_artifacts", []) as Array:
+		(artifact as Dictionary)["bytes"] = int((artifact as Dictionary).get("bytes", 0))
+	(_candidate_artifact(_smoke_shell_helmet(float_byte_size), "icon") as Dictionary)["bytes"] = 1.0
+	_assert_registry_error(float_byte_size, "candidate artifact icon has invalid byte size")
+
+	var duplicate_role := _canonical_registry()
+	var duplicate_icon := (_candidate_artifact(_smoke_shell_helmet(duplicate_role), "icon") as Dictionary).duplicate(true) as Dictionary
+	(_smoke_shell_helmet(duplicate_role).get("candidate_artifacts", []) as Array).append(duplicate_icon)
+	_assert_fixture_error(duplicate_role, "duplicate candidate artifact role: icon")
+
+	var malformed_output_spec := _canonical_registry()
+	((_candidate_artifact(_smoke_shell_helmet(malformed_output_spec), "icon") as Dictionary)["output_spec"] as Dictionary)["width"] = 128
+	_assert_fixture_error(malformed_output_spec, "candidate artifact icon output_spec must match required specification")
 
 
 func _canonical_registry() -> Dictionary:
@@ -159,6 +174,10 @@ func _assert_fixture_has_no_errors(registry: Dictionary) -> void:
 	var result := Registry.load_registry(fixture_path)
 	assert_int((result.get("errors", PackedStringArray()) as PackedStringArray).size()).is_equal(0)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(fixture_path))
+
+
+func _assert_registry_error(registry: Dictionary, expected_error: String) -> void:
+	assert_str("\n".join(Registry.validate_registry(registry))).contains(expected_error)
 
 
 func _first_unit_in_category(registry: Dictionary, category: String) -> Dictionary:
@@ -196,3 +215,15 @@ func _approval_status_count(registry: Dictionary, approval_status: String) -> in
 		if (unit as Dictionary).get("approval_status", "") == approval_status:
 			count += 1
 	return count
+
+
+func _assert_output_spec(actual: Dictionary, expected: Dictionary) -> void:
+	assert_int(actual.size()).is_equal(expected.size())
+	for field in expected:
+		var expected_value: Variant = expected[field]
+		if expected_value is bool:
+			assert_bool(bool(actual.get(field, false))).is_equal(expected_value)
+		elif expected_value is int:
+			assert_int(int(actual.get(field, 0))).is_equal(expected_value)
+		else:
+			assert_str(str(actual.get(field, ""))).is_equal(str(expected_value))
