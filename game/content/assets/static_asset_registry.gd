@@ -13,26 +13,44 @@ const EXPECTED_CATEGORY_COUNTS := {
 	"ui_brand": 10,
 }
 const VALID_STATUSES := ["planned", "generated", "review", "approved", "integrated", "qa_passed"]
-const REVIEW_ITEM_REQUIRED_ARTIFACT_ROLES := [
+const ACTIVE_ITEM_REQUIRED_ARTIFACT_ROLES := [
 	"icon",
 	"appearance",
 	"anchors",
 	"composite_atlas",
 	"runtime_preview",
 	"approval_card",
-	"qa_report",
+	"pixel_qa_report",
+	"harmony_report",
 ]
-const REVIEW_ARTIFACT_OUTPUT_SPECS := {
-	"icon": {"format": "PNG", "width": 256, "height": 256, "alpha": true},
-	"appearance": {"format": "PNG", "width": 128, "height": 128, "alpha": true, "appearance_mode": "RIGID"},
-	"anchors": {"format": "JSON", "state": "walk_down", "anchor_count": 8},
-	"composite_frame": {"format": "PNG", "width": 128, "height": 128, "alpha": true},
-	"composite_atlas": {"format": "PNG", "width": 1024, "height": 128, "alpha": true, "columns": 8, "frame_width": 128, "frame_height": 128},
-	"runtime_preview": {"format": "PNG", "width": 1920, "height": 1080},
-	"approval_card": {"format": "PNG", "width": 1800, "height": 1200},
-	"qa_report": {"format": "JSON"},
-	"icon_request": {"format": "JSON", "purpose": "provenance"},
-	"appearance_request": {"format": "JSON", "purpose": "provenance"},
+const CANDIDATE_ARTIFACT_OUTPUT_SPEC_VARIANTS := {
+	"icon": [{"format": "PNG", "width": 256, "height": 256, "alpha": true}],
+	"appearance": [
+		{"format": "PNG", "width": 128, "height": 128, "alpha": true},
+		{"format": "PNG", "width": 128, "height": 128, "alpha": true, "appearance_mode": "RIGID"},
+	],
+	"anchors": [{"format": "JSON", "state": "walk_down", "anchor_count": 8}],
+	"composite_frame": [{"format": "PNG", "width": 128, "height": 128, "alpha": true}],
+	"composite_atlas": [
+		{"format": "PNG", "width": 1024, "height": 128, "alpha": true},
+		{"format": "PNG", "width": 1024, "height": 128, "alpha": true, "columns": 8, "frame_width": 128, "frame_height": 128},
+	],
+	"runtime_preview": [
+		{"format": "PNG", "width": 1920, "height": 1080},
+		{"format": "PNG", "width": 1920, "height": 1080, "alpha": true},
+	],
+	"harmony_overlay": [{"format": "PNG", "width": 1024, "height": 128, "alpha": true}],
+	"harmony_actual_size": [{"format": "PNG", "width": 1920, "height": 1080, "alpha": true}],
+	"approval_card": [
+		{"format": "PNG", "width": 1800, "height": 1200},
+		{"format": "PNG", "width": 1800, "height": 1200, "alpha": true},
+	],
+	"qa_report": [{"format": "JSON"}],
+	"pixel_qa_report": [{"format": "JSON"}],
+	"harmony_report": [{"format": "JSON"}],
+	"visual_rubric": [{"format": "JSON"}],
+	"icon_request": [{"format": "JSON", "purpose": "provenance"}],
+	"appearance_request": [{"format": "JSON", "purpose": "provenance"}],
 }
 const REQUIRED_ENTRY_FIELDS := [
 	"asset_id",
@@ -66,7 +84,7 @@ static func load_registry(path: String = REGISTRY_PATH) -> Dictionary:
 		errors.append("registry root must be an object")
 		return {"registry": {}, "errors": errors}
 	var registry := json.data as Dictionary
-	_normalize_review_artifact_byte_sizes(registry)
+	_normalize_candidate_artifact_byte_sizes(registry)
 	errors.append_array(validate_registry(registry))
 	return {"registry": registry, "errors": errors}
 
@@ -87,19 +105,25 @@ static func _is_positive_base_ten_integer_literal(literal: String) -> bool:
 	return value > 0 and literal == str(value)
 
 
-static func _normalize_review_artifact_byte_sizes(registry: Dictionary) -> void:
+static func _normalize_candidate_artifact_byte_sizes(registry: Dictionary) -> void:
 	var units: Variant = registry.get("units")
 	if not units is Array:
 		return
 	for unit_variant in units as Array:
 		if not unit_variant is Dictionary:
 			continue
-		var artifacts: Variant = (unit_variant as Dictionary).get("candidate_artifacts")
-		if not artifacts is Array:
+		var history: Variant = (unit_variant as Dictionary).get("candidate_history")
+		if not history is Array:
 			continue
-		for artifact_variant in artifacts as Array:
-			if artifact_variant is Dictionary and (artifact_variant as Dictionary).get("bytes") is float:
-				(artifact_variant as Dictionary)["bytes"] = int((artifact_variant as Dictionary).get("bytes"))
+		for candidate_variant in history as Array:
+			if not candidate_variant is Dictionary:
+				continue
+			var artifacts: Variant = (candidate_variant as Dictionary).get("artifacts")
+			if not artifacts is Array:
+				continue
+			for artifact_variant in artifacts as Array:
+				if artifact_variant is Dictionary and (artifact_variant as Dictionary).get("bytes") is float:
+					(artifact_variant as Dictionary)["bytes"] = int((artifact_variant as Dictionary).get("bytes"))
 
 
 static func validate_registry(registry: Dictionary) -> PackedStringArray:
@@ -153,8 +177,8 @@ static func validate_registry(registry: Dictionary) -> PackedStringArray:
 		var approval_status := str(unit.get("approval_status", ""))
 		if not VALID_STATUSES.has(approval_status):
 			errors.append("unknown approval_status: %s" % approval_status)
-		elif approval_status == "review":
-			_validate_review_candidate(unit, label, category, errors)
+		if approval_status == "review" or unit.has("active_candidate_id") or unit.has("candidate_history"):
+			_validate_candidate_history(unit, label, category, errors)
 		_validate_localization(
 			unit.get("localization"),
 			label,
@@ -215,27 +239,75 @@ static func _contains_numeric_effect_text(description: String) -> bool:
 	return false
 
 
-static func _validate_review_candidate(unit: Dictionary, label: String, category: String, errors: PackedStringArray) -> void:
-	if str(unit.get("candidate_id", "")).strip_edges().is_empty():
-		errors.append("%s review unit missing candidate_id" % label)
-	var provenance: Variant = unit.get("candidate_provenance")
-	if not provenance is Dictionary or str((provenance as Dictionary).get("prompt_version", "")).strip_edges().is_empty():
-		errors.append("%s review unit missing candidate prompt provenance" % label)
-	var artifacts: Variant = unit.get("candidate_artifacts")
-	if not artifacts is Array or (artifacts as Array).is_empty():
-		errors.append("%s review unit missing candidate_artifacts" % label)
+static func _validate_candidate_history(unit: Dictionary, label: String, category: String, errors: PackedStringArray) -> void:
+	if str(unit.get("approval_status", "")) != "review":
+		errors.append("candidate history unit approval_status must remain review")
+	var active_candidate_id := str(unit.get("active_candidate_id", "")).strip_edges()
+	if active_candidate_id.is_empty():
+		errors.append("%s review unit missing active_candidate_id" % label)
+	var history_variant: Variant = unit.get("candidate_history")
+	if not history_variant is Array or (history_variant as Array).is_empty():
+		errors.append("%s review unit missing candidate_history" % label)
 		return
+	var candidate_ids := {}
+	var review_count := 0
+	var active_matches := 0
+	var active_candidate := {}
+	for candidate_variant in history_variant as Array:
+		if not candidate_variant is Dictionary:
+			errors.append("candidate history entry must be an object")
+			continue
+		var candidate := candidate_variant as Dictionary
+		var candidate_id := str(candidate.get("candidate_id", "")).strip_edges()
+		if candidate_id.is_empty():
+			errors.append("candidate history entry missing candidate_id")
+		elif candidate_ids.has(candidate_id):
+			errors.append("duplicate candidate_id: %s" % candidate_id)
+		else:
+			candidate_ids[candidate_id] = true
+		var decision := str(candidate.get("decision", "")).strip_edges()
+		if decision == "review":
+			review_count += 1
+		elif decision == "revision_requested":
+			var reasons: Variant = candidate.get("reasons")
+			if not reasons is Array or (reasons as Array).is_empty():
+				errors.append("revision_requested candidate missing reasons")
+			var provenance: Variant = candidate.get("provenance")
+			if not provenance is Dictionary or str((provenance as Dictionary).get("prompt_version", "")).strip_edges().is_empty():
+				errors.append("revision_requested candidate missing prompt provenance")
+		else:
+			errors.append("candidate history entry has invalid decision: %s" % decision)
+		var artifacts: Variant = candidate.get("artifacts")
+		if not artifacts is Array or (artifacts as Array).is_empty():
+			if decision == "revision_requested":
+				errors.append("revision_requested candidate missing artifacts")
+			else:
+				errors.append("candidate %s missing artifacts" % candidate_id)
+		else:
+			_validate_candidate_artifacts(artifacts as Array, errors)
+		if candidate_id == active_candidate_id:
+			active_matches += 1
+			active_candidate = candidate
+	if active_matches != 1:
+		errors.append("active_candidate_id must resolve exactly once")
+	if review_count != 1:
+		errors.append("candidate history must contain exactly one review decision")
+	if active_matches == 1:
+		if str(active_candidate.get("decision", "")) != "review":
+			errors.append("active candidate decision must be review")
+		_validate_active_candidate(active_candidate, category, errors)
+
+
+static func _validate_candidate_artifacts(artifacts: Array, errors: PackedStringArray) -> void:
 	var roles := {}
-	var sha256_pattern := RegEx.new()
-	sha256_pattern.compile("^[A-Fa-f0-9]{64}$")
-	for artifact_variant in artifacts as Array:
+	for artifact_variant in artifacts:
 		if not artifact_variant is Dictionary:
-			errors.append("%s candidate artifact must be an object" % label)
+			errors.append("candidate artifact must be an object")
 			continue
 		var artifact := artifact_variant as Dictionary
 		var role := str(artifact.get("role", "")).strip_edges()
 		if role.is_empty():
-			errors.append("%s candidate artifact missing role" % label)
+			errors.append("candidate artifact missing role")
 			continue
 		if roles.has(role):
 			errors.append("duplicate candidate artifact role: %s" % role)
@@ -251,7 +323,7 @@ static func _validate_review_candidate(unit: Dictionary, label: String, category
 		elif not path.begins_with("workspace://") or path.contains("\\"):
 			errors.append("candidate artifact %s path must use a workspace:// forward-slash path" % role)
 		var sha256 := str(artifact.get("sha256", "")).strip_edges()
-		if sha256_pattern.search(sha256) == null:
+		if not _is_valid_sha256(sha256):
 			errors.append("candidate artifact %s has invalid sha256" % role)
 		var bytes: Variant = artifact.get("bytes")
 		if not bytes is int:
@@ -261,12 +333,66 @@ static func _validate_review_candidate(unit: Dictionary, label: String, category
 		var output_spec: Variant = artifact.get("output_spec")
 		if not output_spec is Dictionary or (output_spec as Dictionary).is_empty() or str((output_spec as Dictionary).get("format", "")).strip_edges().is_empty():
 			errors.append("candidate artifact %s missing structured output_spec" % role)
-		elif REVIEW_ARTIFACT_OUTPUT_SPECS.has(role) and not _output_spec_matches(output_spec as Dictionary, REVIEW_ARTIFACT_OUTPUT_SPECS[role] as Dictionary):
+		elif CANDIDATE_ARTIFACT_OUTPUT_SPEC_VARIANTS.has(role) and not _output_spec_matches_any(output_spec as Dictionary, CANDIDATE_ARTIFACT_OUTPUT_SPEC_VARIANTS[role] as Array):
 			errors.append("candidate artifact %s output_spec must match required specification" % role)
+
+
+static func _validate_active_candidate(candidate: Dictionary, category: String, errors: PackedStringArray) -> void:
+	var harmony_verdict := str(candidate.get("harmony_verdict", "")).strip_edges()
+	if not ["harmony_pass", "review"].has(harmony_verdict):
+		errors.append("active candidate harmony_verdict must be harmony_pass or review")
+	var roles := {}
+	for artifact_variant in candidate.get("artifacts", []) as Array:
+		if artifact_variant is Dictionary:
+			roles[str((artifact_variant as Dictionary).get("role", ""))] = true
 	if category == "item":
-		for required_role in REVIEW_ITEM_REQUIRED_ARTIFACT_ROLES:
+		for required_role in ACTIVE_ITEM_REQUIRED_ARTIFACT_ROLES:
 			if not roles.has(required_role):
-				errors.append("review item missing required candidate artifact role: %s" % required_role)
+				errors.append("active candidate missing required artifact role: %s" % required_role)
+	var report_verdicts: Variant = candidate.get("report_verdicts")
+	if not report_verdicts is Dictionary:
+		errors.append("active candidate missing report verdicts")
+	else:
+		if (report_verdicts as Dictionary).get("pixel_qa_passed") != true:
+			errors.append("active candidate pixel QA report must pass")
+		if not ["harmony_pass", "review"].has(str((report_verdicts as Dictionary).get("harmony", ""))):
+			errors.append("active candidate harmony report has invalid verdict")
+	var visual_rubric_sha256 := str(candidate.get("visual_rubric_sha256", "")).strip_edges()
+	if not _is_valid_sha256(visual_rubric_sha256):
+		errors.append("active candidate has invalid visual rubric sha256")
+	var metrics: Variant = candidate.get("metrics")
+	if not metrics is Dictionary or (metrics as Dictionary).is_empty():
+		errors.append("active candidate missing harmony metrics")
+	elif str((metrics as Dictionary).get("visual_rubric_sha256", "")) != visual_rubric_sha256:
+		errors.append("active candidate metrics visual rubric sha256 mismatch")
+	var font_provenance: Variant = candidate.get("font_provenance")
+	if not font_provenance is Dictionary:
+		errors.append("active candidate missing font provenance")
+	else:
+		for font_role in ["regular", "bold"]:
+			var font_variant: Variant = (font_provenance as Dictionary).get(font_role)
+			if not font_variant is Dictionary or str((font_variant as Dictionary).get("path", "")).strip_edges().is_empty() or not _is_valid_sha256(str((font_variant as Dictionary).get("sha256", ""))):
+				errors.append("active candidate has invalid %s font provenance" % font_role)
+	var source_sha256: Variant = candidate.get("source_sha256")
+	if not source_sha256 is Dictionary or (source_sha256 as Dictionary).is_empty():
+		errors.append("active candidate missing source sha256 provenance")
+	else:
+		for source_role in source_sha256:
+			if not _is_valid_sha256(str((source_sha256 as Dictionary)[source_role])):
+				errors.append("active candidate source %s has invalid sha256" % source_role)
+
+
+static func _is_valid_sha256(value: String) -> bool:
+	var sha256_pattern := RegEx.new()
+	sha256_pattern.compile("^[A-Fa-f0-9]{64}$")
+	return sha256_pattern.search(value) != null
+
+
+static func _output_spec_matches_any(actual: Dictionary, expected_variants: Array) -> bool:
+	for expected_variant in expected_variants:
+		if expected_variant is Dictionary and _output_spec_matches(actual, expected_variant as Dictionary):
+			return true
+	return false
 
 
 static func _output_spec_matches(actual: Dictionary, expected: Dictionary) -> bool:

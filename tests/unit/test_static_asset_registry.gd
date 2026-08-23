@@ -86,13 +86,22 @@ func test_smoke_shell_helmet_review_record_has_exact_copy_and_candidate_provenan
 	var helmet := _smoke_shell_helmet(result.get("registry", {}) as Dictionary)
 	var localization := helmet.get("localization", {}) as Dictionary
 	assert_str(str(helmet.get("approval_status", ""))).is_equal("review")
-	assert_str(str(helmet.get("candidate_id", ""))).is_equal("candidate-001")
+	assert_str(str(helmet.get("active_candidate_id", ""))).is_equal("candidate-002")
+	assert_int((helmet.get("candidate_history", []) as Array).size()).is_equal(2)
 	assert_str(str(((localization["zh_CN"] as Dictionary).get("description", "")))).is_equal("加固外壳提高防护，但沉重结构会拖慢转点。")
 	assert_str(str(((localization["en"] as Dictionary).get("description", "")))).is_equal("A reinforced shell improves protection, but its weight slows every rotate.")
 	assert_str(str(((localization["zh_CN"] as Dictionary).get("flavor", "")))).is_equal("烟封好了，脚步也顺便封住了。")
 	assert_str(str(((localization["en"] as Dictionary).get("flavor", "")))).is_equal("The smoke is sealed. So is your sprint.")
-	assert_int((helmet.get("candidate_artifacts", []) as Array).size()).is_equal(10)
-	var provenance := helmet.get("candidate_provenance", {}) as Dictionary
+
+	var old_candidate := _candidate_history_entry(helmet, "candidate-001")
+	assert_str(str(old_candidate.get("decision", ""))).is_equal("revision_requested")
+	assert_array(old_candidate.get("reasons", []) as Array).contains_exactly([
+		"icon_reuse",
+		"appearance_offset",
+		"appearance_oversized",
+	])
+	assert_int((old_candidate.get("artifacts", []) as Array).size()).is_equal(10)
+	var provenance := old_candidate.get("provenance", {}) as Dictionary
 	assert_str(str(provenance.get("prompt_version", ""))).is_equal("gogobro-static-v1")
 	for expected in [
 		["icon", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/icon/run/frames/icon/frame-0.png", 1968, "C0AD74445595D80A61BA979B4E668B1FF12A566FEDEF91EC801E38240F29002C", {"format":"PNG","width":256,"height":256,"alpha":true}],
@@ -106,32 +115,115 @@ func test_smoke_shell_helmet_review_record_has_exact_copy_and_candidate_provenan
 		["icon_request", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/requests/icon-request.json", 268, "4A8A4E327FFEDDDC95324070B7BD5D20B68218F801632A2E1388DA58CE708C79", {"format":"JSON","purpose":"provenance"}],
 		["appearance_request", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/requests/appearance-request.json", 294, "13CD24D70593147C20EEFC8EAC6E229A21DE59B6B454522ECD3A1D707111E32D", {"format":"JSON","purpose":"provenance"}],
 	]:
-		var artifact := _candidate_artifact(helmet, expected[0])
+		var artifact := _candidate_artifact(old_candidate, expected[0])
 		assert_str(str(artifact.get("path", ""))).is_equal(expected[1])
 		assert_int(int(artifact.get("bytes", 0))).is_equal(expected[2])
 		assert_str(str(artifact.get("sha256", ""))).is_equal(expected[3])
 		_assert_output_spec(artifact.get("output_spec", {}) as Dictionary, expected[4] as Dictionary)
 
+	var active_candidate := _candidate_history_entry(helmet, "candidate-002")
+	assert_str(str(active_candidate.get("decision", ""))).is_equal("review")
+	assert_str(str(active_candidate.get("harmony_verdict", ""))).is_equal("harmony_pass")
+	assert_array(active_candidate.get("reasons", []) as Array).is_empty()
+	assert_int((active_candidate.get("artifacts", []) as Array).size()).is_equal(12)
+	for expected in [
+		["icon", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/derived/icon-256.png", 3030, "9d5d9a14d005be3b08c5cc90f2e11c74ef214bac8c921452f34dc1daef509bec", {"format":"PNG","width":256,"height":256,"alpha":true}],
+		["appearance", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/derived/appearance-128.png", 2206, "b3932e02daf39074ce048e45b6fae7f221019d87ad7b3a4327fa40714f25874a", {"format":"PNG","width":128,"height":128,"alpha":true}],
+		["anchors", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/appearance/anchors-walk-down.json", 1806, "c8bfe6231d40a3ab6643ec06dd7d34287a23729bf39094794b4c46a5c76b024a", {"format":"JSON","state":"walk_down","anchor_count":8}],
+		["composite_frame", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/composite-frame-001.png", 3241, "7a03b64c3cdba6f0ce701f70ee91f30b61d5b7304a3a1e2ccab65f04e813d08c", {"format":"PNG","width":128,"height":128,"alpha":true}],
+		["composite_atlas", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/composite-atlas-8x128.png", 9271, "ae2951fcc74e76eccb1e4dcb7bba8d9801c80b0bddcf3ecb9af29b4472c00db7", {"format":"PNG","width":1024,"height":128,"alpha":true}],
+		["runtime_preview", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/runtime-size-1920x1080.png", 15371, "03dd0cbfa73f77f47dc3a900c54862a7060444fdf84763359829f046e670377b", {"format":"PNG","width":1920,"height":1080,"alpha":true}],
+		["harmony_overlay", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-overlay.png", 9496, "9e736b02c4584ed8b42abdfe4bd6773e3323dc83d7d14ffeadd5f2fdbde19edf", {"format":"PNG","width":1024,"height":128,"alpha":true}],
+		["harmony_actual_size", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-actual-size.png", 20018, "433d9ea7d9799b90d76f092bc1d44697b9eda2f6ab574ce8f7d9a2d2ba902a1f", {"format":"PNG","width":1920,"height":1080,"alpha":true}],
+		["harmony_report", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-report.json", 1712, "0beadd99e85fbb022f9a4acf43e0c0f2f92bf8a566735b758143f399f0305b90", {"format":"JSON"}],
+		["visual_rubric", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/visual-rubric.json", 1040, "1b1687fd7d06941384399076bac901798ec7da2291729fbc678c3fcfbe4573ee", {"format":"JSON"}],
+		["pixel_qa_report", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/pixel-qa-report.json", 1638, "850784385759528e050ee8c07a933a26b6ce6dd18362a9a44fa545e9da99db83", {"format":"JSON"}],
+		["approval_card", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/approval-card.png", 158255, "339b3ce9a44b2ad823b781e6733086e88894f69cab85e0329a318843679c24f5", {"format":"PNG","width":1800,"height":1200,"alpha":true}],
+	]:
+		var artifact := _candidate_artifact(active_candidate, expected[0])
+		assert_str(str(artifact.get("path", ""))).is_equal(expected[1])
+		assert_int(int(artifact.get("bytes", 0))).is_equal(expected[2])
+		assert_str(str(artifact.get("sha256", ""))).is_equal(expected[3])
+		_assert_output_spec(artifact.get("output_spec", {}) as Dictionary, expected[4] as Dictionary)
+	var metrics := active_candidate.get("metrics", {}) as Dictionary
+	assert_float(float(metrics.get("max_feature_center_error_px", -1.0))).is_equal(0.4375)
+	assert_float(float(metrics.get("max_protected_occlusion_ratio", -1.0))).is_equal(0.0)
+	assert_float(float(metrics.get("max_residual_jitter_px", -1.0))).is_equal(0.0)
+	assert_float(float(metrics.get("outer_width_ratio", -1.0))).is_equal(1.103448275862069)
+	assert_int(int(metrics.get("visual_rubric_total", 0))).is_equal(10)
+	assert_str(str(active_candidate.get("visual_rubric_sha256", ""))).is_equal("1b1687fd7d06941384399076bac901798ec7da2291729fbc678c3fcfbe4573ee")
+	var fonts := active_candidate.get("font_provenance", {}) as Dictionary
+	assert_str(str((fonts.get("regular", {}) as Dictionary).get("path", ""))).is_equal("C:\\Windows\\Fonts\\msyh.ttc")
+	assert_str(str((fonts.get("regular", {}) as Dictionary).get("sha256", ""))).is_equal("d79c55e68b1131eea0cc1c47be4f572d964f28c682e143db2ad09c1e4cb07a3f")
+	assert_str(str((fonts.get("bold", {}) as Dictionary).get("path", ""))).is_equal("C:\\Windows\\Fonts\\msyhbd.ttc")
+	assert_str(str((fonts.get("bold", {}) as Dictionary).get("sha256", ""))).is_equal("4508821b3dffe01f0ef5e5326a3e60df705a44633858811f67b6982dce3f6ee6")
+	var report_verdicts := active_candidate.get("report_verdicts", {}) as Dictionary
+	assert_bool(bool(report_verdicts.get("pixel_qa_passed", false))).is_true()
+	assert_str(str(report_verdicts.get("harmony", ""))).is_equal("harmony_pass")
 
-func test_loader_rejects_review_candidate_missing_required_provenance_or_safe_artifacts() -> void:
-	var missing_candidate_id := _canonical_registry()
-	_smoke_shell_helmet(missing_candidate_id).erase("candidate_id")
-	_assert_fixture_error(missing_candidate_id, "review unit missing candidate_id")
 
-	var missing_required_role := _canonical_registry()
-	_remove_candidate_role(_smoke_shell_helmet(missing_required_role), "qa_report")
-	_assert_fixture_error(missing_required_role, "review item missing required candidate artifact role: qa_report")
+func test_loader_rejects_missing_duplicate_or_unresolved_active_candidate_history() -> void:
+	var missing_active := _canonical_registry()
+	_smoke_shell_helmet(missing_active).erase("active_candidate_id")
+	_assert_fixture_error(missing_active, "review unit missing active_candidate_id")
 
+	var duplicate_id := _canonical_registry()
+	var duplicate_history := _smoke_shell_helmet(duplicate_id).get("candidate_history", []) as Array
+	if duplicate_history.size() >= 2:
+		(duplicate_history[1] as Dictionary)["candidate_id"] = (duplicate_history[0] as Dictionary).get("candidate_id", "")
+	_assert_fixture_error(duplicate_id, "duplicate candidate_id")
+
+	var unresolved_active := _canonical_registry()
+	_smoke_shell_helmet(unresolved_active)["active_candidate_id"] = "candidate-999"
+	_assert_fixture_error(unresolved_active, "active_candidate_id must resolve exactly once")
+
+	var multiple_review := _canonical_registry()
+	var multiple_review_history := _smoke_shell_helmet(multiple_review).get("candidate_history", []) as Array
+	if not multiple_review_history.is_empty():
+		(multiple_review_history[0] as Dictionary)["decision"] = "review"
+	_assert_fixture_error(multiple_review, "candidate history must contain exactly one review decision")
+
+
+func test_loader_rejects_incomplete_revision_history_and_active_report_roles() -> void:
+	var missing_revision_artifacts := _canonical_registry()
+	_candidate_history_entry(_smoke_shell_helmet(missing_revision_artifacts), "candidate-001").erase("artifacts")
+	_assert_fixture_error(missing_revision_artifacts, "revision_requested candidate missing artifacts")
+
+	var missing_revision_reasons := _canonical_registry()
+	_candidate_history_entry(_smoke_shell_helmet(missing_revision_reasons), "candidate-001")["reasons"] = []
+	_assert_fixture_error(missing_revision_reasons, "revision_requested candidate missing reasons")
+
+	for role in ["pixel_qa_report", "harmony_report"]:
+		var missing_report := _canonical_registry()
+		_remove_candidate_role(_candidate_history_entry(_smoke_shell_helmet(missing_report), "candidate-002"), role)
+		_assert_fixture_error(missing_report, "active candidate missing required artifact role: %s" % role)
+
+
+func test_loader_rejects_malformed_or_unsafe_candidate_history_artifacts() -> void:
 	var malformed_hash := _canonical_registry()
-	(_candidate_artifact(_smoke_shell_helmet(malformed_hash), "icon") as Dictionary)["sha256"] = "bad-hash"
+	_candidate_artifact(_candidate_history_entry(_smoke_shell_helmet(malformed_hash), "candidate-002"), "icon")["sha256"] = "bad-hash"
 	_assert_fixture_error(malformed_hash, "candidate artifact icon has invalid sha256")
 
+	var malformed_bytes := _canonical_registry()
+	_candidate_artifact(_candidate_history_entry(_smoke_shell_helmet(malformed_bytes), "candidate-002"), "icon")["bytes"] = 0
+	_assert_fixture_error(malformed_bytes, "candidate artifact has invalid byte size")
+
+	var malformed_output_spec := _canonical_registry()
+	var icon_spec := _candidate_artifact(_candidate_history_entry(_smoke_shell_helmet(malformed_output_spec), "candidate-002"), "icon").get("output_spec", {}) as Dictionary
+	icon_spec["width"] = 128
+	_assert_fixture_error(malformed_output_spec, "candidate artifact icon output_spec must match required specification")
+
+	var unexpected_output_spec_field := _canonical_registry()
+	var unexpected_icon_spec := _candidate_artifact(_candidate_history_entry(_smoke_shell_helmet(unexpected_output_spec_field), "candidate-002"), "icon").get("output_spec", {}) as Dictionary
+	unexpected_icon_spec["unexpected"] = true
+	_assert_fixture_error(unexpected_output_spec_field, "candidate artifact icon output_spec must match required specification")
+
 	var runtime_path := _canonical_registry()
-	(_candidate_artifact(_smoke_shell_helmet(runtime_path), "icon") as Dictionary)["path"] = "res://game/assets/items/smoke_shell_helmet.png"
+	_candidate_artifact(_candidate_history_entry(_smoke_shell_helmet(runtime_path), "candidate-002"), "icon")["path"] = "res://game/assets/items/smoke_shell_helmet.png"
 	_assert_fixture_error(runtime_path, "candidate artifact icon path must stay outside runtime res://")
 
 	var curated_path := _canonical_registry()
-	(_candidate_artifact(_smoke_shell_helmet(curated_path), "icon") as Dictionary)["path"] = "workspace://GOGOBRO_ASSET_INBOX/curated/smoke-shell-helmet.png"
+	_candidate_artifact(_candidate_history_entry(_smoke_shell_helmet(curated_path), "candidate-002"), "icon")["path"] = "workspace://GOGOBRO_ASSET_INBOX/curated/smoke-shell-helmet.png"
 	_assert_fixture_error(curated_path, "candidate artifact icon path must not contain /curated/")
 
 	var canonical_json := FileAccess.get_file_as_string(CANONICAL_PATH)
@@ -140,13 +232,20 @@ func test_loader_rejects_review_candidate_missing_required_provenance_or_safe_ar
 		_assert_raw_fixture_error(malformed_bytes_json, "invalid byte size")
 
 	var duplicate_role := _canonical_registry()
-	var duplicate_icon := (_candidate_artifact(_smoke_shell_helmet(duplicate_role), "icon") as Dictionary).duplicate(true) as Dictionary
-	(_smoke_shell_helmet(duplicate_role).get("candidate_artifacts", []) as Array).append(duplicate_icon)
+	var active_candidate := _candidate_history_entry(_smoke_shell_helmet(duplicate_role), "candidate-002")
+	var duplicate_icon := _candidate_artifact(active_candidate, "icon").duplicate(true) as Dictionary
+	(active_candidate.get("artifacts", []) as Array).append(duplicate_icon)
 	_assert_fixture_error(duplicate_role, "duplicate candidate artifact role: icon")
 
-	var malformed_output_spec := _canonical_registry()
-	((_candidate_artifact(_smoke_shell_helmet(malformed_output_spec), "icon") as Dictionary)["output_spec"] as Dictionary)["width"] = 128
-	_assert_fixture_error(malformed_output_spec, "candidate artifact icon output_spec must match required specification")
+
+func test_loader_keeps_active_harmony_candidate_in_review() -> void:
+	var approved_harmony := _canonical_registry()
+	_candidate_history_entry(_smoke_shell_helmet(approved_harmony), "candidate-002")["harmony_verdict"] = "approved"
+	_assert_fixture_error(approved_harmony, "active candidate harmony_verdict must be harmony_pass or review")
+
+	var approved_unit := _canonical_registry()
+	_smoke_shell_helmet(approved_unit)["approval_status"] = "approved"
+	_assert_fixture_error(approved_unit, "candidate history unit approval_status must remain review")
 
 
 func _canonical_registry() -> Dictionary:
@@ -158,9 +257,10 @@ func _canonical_registry() -> Dictionary:
 
 func _normalize_fixture_byte_sizes(registry: Dictionary) -> void:
 	for unit in registry.get("units", []) as Array:
-		for artifact in (unit as Dictionary).get("candidate_artifacts", []) as Array:
-			if (artifact as Dictionary).get("bytes") is float:
-				(artifact as Dictionary)["bytes"] = int((artifact as Dictionary).get("bytes"))
+		for candidate in (unit as Dictionary).get("candidate_history", []) as Array:
+			for artifact in (candidate as Dictionary).get("artifacts", []) as Array:
+				if (artifact as Dictionary).get("bytes") is float:
+					(artifact as Dictionary)["bytes"] = int((artifact as Dictionary).get("bytes"))
 
 
 func _assert_fixture_error(registry: Dictionary, expected_error: String) -> void:
@@ -208,15 +308,22 @@ func _smoke_shell_helmet(registry: Dictionary) -> Dictionary:
 	return {}
 
 
-func _candidate_artifact(unit: Dictionary, role: String) -> Dictionary:
-	for artifact in unit.get("candidate_artifacts", []) as Array:
+func _candidate_history_entry(unit: Dictionary, candidate_id: String) -> Dictionary:
+	for candidate in unit.get("candidate_history", []) as Array:
+		if (candidate as Dictionary).get("candidate_id", "") == candidate_id:
+			return candidate as Dictionary
+	return {}
+
+
+func _candidate_artifact(candidate: Dictionary, role: String) -> Dictionary:
+	for artifact in candidate.get("artifacts", []) as Array:
 		if (artifact as Dictionary).get("role", "") == role:
 			return artifact as Dictionary
 	return {}
 
 
-func _remove_candidate_role(unit: Dictionary, role: String) -> void:
-	var artifacts := unit.get("candidate_artifacts", []) as Array
+func _remove_candidate_role(candidate: Dictionary, role: String) -> void:
+	var artifacts := candidate.get("artifacts", []) as Array
 	for index in artifacts.size():
 		if (artifacts[index] as Dictionary).get("role", "") == role:
 			artifacts.remove_at(index)
