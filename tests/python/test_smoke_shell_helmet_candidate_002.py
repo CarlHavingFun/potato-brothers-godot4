@@ -7,7 +7,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 import tools.assets.build_smoke_shell_helmet_candidate_002 as builder
 
@@ -47,6 +47,9 @@ EXPECTED_ARTIFACTS = {
     "qa/runtime-size-1920x1080.png",
     "qa/visual-rubric.json",
 }
+EXPECTED_REVIEW_FOOTER = (
+    "REVIEW EVIDENCE ONLY — no curated, runtime, or startup integration"
+)
 
 
 def sha256(path: Path) -> str:
@@ -99,6 +102,50 @@ def assert_manifest_matches(root: Path) -> None:
         path = root / artifact["path"]
         assert path.stat().st_size == artifact["bytes"]
         assert sha256(path) == artifact["sha256"]
+
+
+def register_candidate_metadata(registry_path: Path, candidate_root: Path) -> None:
+    """Mirror one generated review candidate into a test-only registry copy."""
+    registry = json.loads(registry_path.read_text("utf-8"))
+    metadata = json.loads((candidate_root / "candidate-metadata.json").read_text("utf-8"))
+    helmet = next(
+        unit for unit in registry["units"] if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    active = next(
+        candidate
+        for candidate in helmet["candidate_history"]
+        if candidate["candidate_id"] == "candidate-002"
+    )
+    prefix = (
+        "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/"
+        "smoke_shell_helmet/candidate-002/"
+    )
+    active.update(
+        {
+            "artifacts": [
+                {**artifact, "path": prefix + artifact["path"]}
+                for artifact in metadata["artifacts"]
+            ],
+            "decision": "review",
+            "font_provenance": metadata["card_rendering"]["fonts"],
+            "harmony_verdict": metadata["harmony_verdict"],
+            "metrics": metadata["metrics"],
+            "reasons": [],
+            "report_verdicts": {
+                "harmony": metadata["harmony_verdict"],
+                "pixel_qa_passed": json.loads(
+                    (candidate_root / "qa/pixel-qa-report.json").read_text("utf-8")
+                )["passed"],
+            },
+            "source_sha256": metadata["source_sha256"],
+            "transform": metadata["transform"],
+            "visual_rubric_sha256": metadata["visual_rubric_sha256"],
+        }
+    )
+    registry_path.write_text(
+        json.dumps(registry, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
 
 
 def test_builder_preserves_sources_and_derives_exact_review_candidate(tmp_path: Path) -> None:
@@ -221,6 +268,84 @@ def test_builder_is_deterministic_and_never_clears_output_root(tmp_path: Path) -
     assert not (first / "curated").exists()
 
 
+def test_registered_review_candidate_can_be_rebuilt_from_exact_current_registry(
+    tmp_path: Path,
+) -> None:
+    """Catches self-provenance blocking a candidate whose registry mirrors prior output."""
+    registry_copy = tmp_path / "registry.json"
+    shutil.copyfile(REGISTRY, registry_copy)
+    output_root = tmp_path / "candidate-002"
+    build_inputs = replace(inputs(output_root), registry=registry_copy)
+    build_candidate_002(build_inputs)
+    rubric_path = output_root / "qa/visual-rubric.json"
+    rubric_path.write_text(
+        json.dumps(
+            {
+                name: {
+                    "score": 2,
+                    "evidence": f"Concrete reviewed {name} evidence.",
+                }
+                for name in (
+                    "identity",
+                    "function",
+                    "material",
+                    "hierarchy",
+                    "originality",
+                )
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    build_candidate_002(build_inputs, visual_rubric=rubric_path)
+    register_candidate_metadata(registry_copy, output_root)
+    prebuild_registry_bytes = registry_copy.read_bytes()
+    prebuild_registry_hash = hashlib.sha256(prebuild_registry_bytes).hexdigest()
+
+    build_candidate_002(build_inputs, visual_rubric=rubric_path)
+
+    refreshed = json.loads(
+        (output_root / "candidate-metadata.json").read_text("utf-8")
+    )
+    assert refreshed["source_sha256"]["registry"] == prebuild_registry_hash
+    assert registry_copy.read_bytes() == prebuild_registry_bytes
+    assert refreshed["harmony_verdict"] == "harmony_pass"
+
+
+def test_registered_refresh_rejects_registry_that_does_not_match_metadata(
+    tmp_path: Path,
+) -> None:
+    """Catches the self-provenance exception accepting a tampered registry mirror."""
+    registry_copy = tmp_path / "registry.json"
+    shutil.copyfile(REGISTRY, registry_copy)
+    output_root = tmp_path / "candidate-002"
+    build_inputs = replace(inputs(output_root), registry=registry_copy)
+    build_candidate_002(build_inputs)
+    register_candidate_metadata(registry_copy, output_root)
+    registry = json.loads(registry_copy.read_text("utf-8"))
+    helmet = next(
+        unit for unit in registry["units"] if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    active = next(
+        candidate
+        for candidate in helmet["candidate_history"]
+        if candidate["candidate_id"] == "candidate-002"
+    )
+    active["artifacts"][0]["sha256"] = "0" * 64
+    registry_copy.write_text(
+        json.dumps(registry, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    before = tree_hashes(output_root)
+
+    with pytest.raises(ValueError, match="source_hash_mismatch"):
+        build_candidate_002(build_inputs)
+
+    assert tree_hashes(output_root) == before
+
+
 def test_candidate_001_existing_scale_and_offsets_fail_harmony(tmp_path: Path) -> None:
     """Catches a checker regression that would accept the oversized, misaligned candidate 001."""
     legacy = json.loads(
@@ -295,6 +420,151 @@ def test_finalization_applies_rubric_and_preserves_its_bytes(tmp_path: Path) -> 
     assert not (output_root / "curated").exists()
 
 
+def test_explicit_rubric_revision_changes_evidence_only_and_preserves_art(
+    tmp_path: Path,
+) -> None:
+    """Catches unsafe score changes or art drift during a reviewed evidence correction."""
+    output_root = tmp_path / "candidate-002"
+    build_candidate_002(inputs(output_root))
+    rubric_path = output_root / "qa/visual-rubric.json"
+    initial_rubric = {
+        name: {"score": 2, "evidence": f"Initial concrete {name} evidence."}
+        for name in ("identity", "function", "material", "hierarchy", "originality")
+    }
+    rubric_path.write_text(
+        json.dumps(initial_rubric, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    build_candidate_002(inputs(output_root), visual_rubric=rubric_path)
+    immutable_art = {
+        relative: sha256(output_root / relative)
+        for relative in EXPECTED_ARTIFACTS
+        if relative not in {"qa/harmony-report.json", "qa/visual-rubric.json"}
+    }
+    revised_rubric = {
+        **initial_rubric,
+        "identity": {
+            "score": 2,
+            "evidence": "Niko's face, brows, beard, and shirt remain readable in all eight frames.",
+        },
+        "function": {
+            "score": 2,
+            "evidence": "The shell, aperture, vent, and smoke canister read as protective smoke headgear.",
+        },
+    }
+    revision_path = tmp_path / "revised-rubric.json"
+    revision_path.write_text(
+        json.dumps(revised_rubric, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    build_candidate_002(
+        inputs(output_root),
+        visual_rubric=revision_path,
+        revise_rubric_evidence=True,
+    )
+
+    assert rubric_path.read_bytes() == revision_path.read_bytes()
+    assert {
+        name: value["score"] for name, value in revised_rubric.items()
+    } == {name: value["score"] for name, value in initial_rubric.items()}
+    metadata = json.loads((output_root / "candidate-metadata.json").read_text("utf-8"))
+    assert metadata["visual_rubric_sha256"] == sha256(revision_path)
+    assert metadata["harmony_verdict"] == "harmony_pass"
+    assert {
+        relative: sha256(output_root / relative) for relative in immutable_art
+    } == immutable_art
+    assert not (output_root / ".candidate-transaction.json").exists()
+
+
+def test_failed_explicit_rubric_revision_rolls_back_every_candidate_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Catches an interrupted evidence revision leaving rubric and metadata mixed."""
+    output_root = tmp_path / "candidate-002"
+    build_candidate_002(inputs(output_root))
+    rubric_path = output_root / "qa/visual-rubric.json"
+    initial_rubric = {
+        name: {"score": 2, "evidence": f"Initial concrete {name} evidence."}
+        for name in ("identity", "function", "material", "hierarchy", "originality")
+    }
+    rubric_path.write_text(
+        json.dumps(initial_rubric, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    build_candidate_002(inputs(output_root), visual_rubric=rubric_path)
+    before = tree_hashes(output_root)
+    revised_rubric = {
+        name: {**value, "evidence": f"Revised concrete {name} evidence."}
+        for name, value in initial_rubric.items()
+    }
+    revision_path = tmp_path / "revised-rubric.json"
+    revision_path.write_text(
+        json.dumps(revised_rubric, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    real_replace = builder._replace_file
+    calls = 0
+
+    def fail_during_revision(source: Path, target: Path) -> Path:
+        nonlocal calls
+        calls += 1
+        if calls == 4:
+            raise OSError("injected rubric revision failure")
+        return real_replace(source, target)
+
+    monkeypatch.setattr(builder, "_replace_file", fail_during_revision)
+    with pytest.raises(OSError, match="injected rubric revision failure"):
+        build_candidate_002(
+            inputs(output_root),
+            visual_rubric=revision_path,
+            revise_rubric_evidence=True,
+        )
+
+    assert tree_hashes(output_root) == before
+    assert not (output_root / ".candidate-transaction.json").exists()
+
+
+def test_explicit_rubric_revision_rejects_score_changes_before_writes(
+    tmp_path: Path,
+) -> None:
+    """Catches an evidence-only correction silently changing reviewed scores."""
+    output_root = tmp_path / "candidate-002"
+    build_candidate_002(inputs(output_root))
+    rubric_path = output_root / "qa/visual-rubric.json"
+    initial_rubric = {
+        name: {"score": 2, "evidence": f"Initial concrete {name} evidence."}
+        for name in ("identity", "function", "material", "hierarchy", "originality")
+    }
+    rubric_path.write_text(
+        json.dumps(initial_rubric, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    build_candidate_002(inputs(output_root), visual_rubric=rubric_path)
+    before = tree_hashes(output_root)
+    score_change = {
+        **initial_rubric,
+        "identity": {
+            "score": 1,
+            "evidence": "Changed identity evidence and score.",
+        },
+    }
+    revision_path = tmp_path / "score-change-rubric.json"
+    revision_path.write_text(
+        json.dumps(score_change, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="visual_rubric_scores_changed"):
+        build_candidate_002(
+            inputs(output_root),
+            visual_rubric=revision_path,
+            revise_rubric_evidence=True,
+        )
+
+    assert tree_hashes(output_root) == before
+
+
 def test_approval_card_contains_exact_1x_icon_and_runtime_evidence(tmp_path: Path) -> None:
     """Catches resampled icon evidence, missing runtime evidence, and ambiguous status."""
     output_root = tmp_path / "candidate-002"
@@ -332,6 +602,32 @@ def test_approval_card_contains_exact_1x_icon_and_runtime_evidence(tmp_path: Pat
     assert_opaque_pixels_equal(card.crop((600, 500, 728, 628)), appearance)
     assert_opaque_pixels_equal(card.crop((930, 500, 1058, 628)), frame)
     assert_opaque_pixels_equal(card.crop((600, 300, 1624, 428)), composite)
+
+
+def test_approval_card_uses_truthful_state_invariant_review_footer(
+    tmp_path: Path,
+) -> None:
+    """Catches review evidence falsely claiming that no registry record changed."""
+    output_root = tmp_path / "candidate-002"
+    build_candidate_002(inputs(output_root))
+    pixel_qa = json.loads(
+        (output_root / "qa/pixel-qa-report.json").read_text("utf-8")
+    )
+    evidence = pixel_qa["approval_card_evidence"]
+
+    assert evidence["footer_text"] == EXPECTED_REVIEW_FOOTER
+    assert "registry mutation" not in evidence["footer_text"]
+
+    card = rgba(output_root / "qa/approval-card.png")
+    actual_footer = card.crop((92, 1088, 1708, 1144))
+    expected_footer = Image.new("RGBA", actual_footer.size, (25, 32, 44, 255))
+    ImageDraw.Draw(expected_footer).text(
+        (0, 4),
+        EXPECTED_REVIEW_FOOTER,
+        font=ImageFont.truetype("C:/Windows/Fonts/msyhbd.ttc", 30),
+        fill=(239, 116, 116, 255),
+    )
+    assert actual_footer.tobytes() == expected_footer.tobytes()
 
 
 def test_finalization_refuses_a_different_existing_rubric_before_writes(tmp_path: Path) -> None:
@@ -507,6 +803,39 @@ def test_builder_detects_a_card_font_changed_during_build(
 
     monkeypatch.setattr(builder, "_approval_card", mutate_font_after_render)
     with pytest.raises(RuntimeError, match="card_font_changed"):
+        build_candidate_002(build_inputs)
+
+    assert not (build_inputs.output_root / "candidate-metadata.json").exists()
+
+
+def test_builder_detects_registry_change_after_source_provenance_capture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Catches metadata recording a registry hash older than the registry it rendered."""
+    registry_copy = tmp_path / "registry.json"
+    shutil.copyfile(REGISTRY, registry_copy)
+    build_inputs = replace(
+        inputs(tmp_path / "candidate-002"),
+        registry=registry_copy,
+    )
+    real_assert_reusable = builder._assert_reusable_output
+
+    def mutate_registry_after_source_capture(*args: object, **kwargs: object) -> None:
+        real_assert_reusable(*args, **kwargs)
+        registry = json.loads(registry_copy.read_text("utf-8"))
+        registry["test_mutation_after_source_capture"] = True
+        registry_copy.write_text(
+            json.dumps(registry, ensure_ascii=False, separators=(",", ":")) + "\n",
+            encoding="utf-8",
+        )
+
+    monkeypatch.setattr(
+        builder,
+        "_assert_reusable_output",
+        mutate_registry_after_source_capture,
+    )
+
+    with pytest.raises(RuntimeError, match="source_changed"):
         build_candidate_002(build_inputs)
 
     assert not (build_inputs.output_root / "candidate-metadata.json").exists()

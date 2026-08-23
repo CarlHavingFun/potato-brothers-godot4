@@ -140,10 +140,10 @@ func test_smoke_shell_helmet_review_record_has_exact_copy_and_candidate_provenan
 		["runtime_preview", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/runtime-size-1920x1080.png", 15371, "03dd0cbfa73f77f47dc3a900c54862a7060444fdf84763359829f046e670377b", {"format":"PNG","width":1920,"height":1080,"alpha":true}],
 		["harmony_overlay", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-overlay.png", 9496, "9e736b02c4584ed8b42abdfe4bd6773e3323dc83d7d14ffeadd5f2fdbde19edf", {"format":"PNG","width":1024,"height":128,"alpha":true}],
 		["harmony_actual_size", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-actual-size.png", 20018, "433d9ea7d9799b90d76f092bc1d44697b9eda2f6ab574ce8f7d9a2d2ba902a1f", {"format":"PNG","width":1920,"height":1080,"alpha":true}],
-		["harmony_report", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-report.json", 1712, "0beadd99e85fbb022f9a4acf43e0c0f2f92bf8a566735b758143f399f0305b90", {"format":"JSON"}],
-		["visual_rubric", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/visual-rubric.json", 1040, "1b1687fd7d06941384399076bac901798ec7da2291729fbc678c3fcfbe4573ee", {"format":"JSON"}],
-		["pixel_qa_report", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/pixel-qa-report.json", 1638, "850784385759528e050ee8c07a933a26b6ce6dd18362a9a44fa545e9da99db83", {"format":"JSON"}],
-		["approval_card", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/approval-card.png", 158255, "339b3ce9a44b2ad823b781e6733086e88894f69cab85e0329a318843679c24f5", {"format":"PNG","width":1800,"height":1200,"alpha":true}],
+		["harmony_report", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-report.json", 1712, "7f365446f5cb930c49d2bae74ff9a85a0e8df4e00bf6b238efd8466573cea030", {"format":"JSON"}],
+		["visual_rubric", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/visual-rubric.json", 1063, "079bc298093ddc08df5040bd05f51788a9989edc544ffcf75c0a53d40edd9bc9", {"format":"JSON"}],
+		["pixel_qa_report", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/pixel-qa-report.json", 1729, "23be2391ad691928883e9da25af13972b50410cfd90628d2a91a27657dc6c00e", {"format":"JSON"}],
+		["approval_card", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/approval-card.png", 157560, "8ba8369f36bc5ea5a2c07622bdff642651c4a86144473857edf817bda6d86728", {"format":"PNG","width":1800,"height":1200,"alpha":true}],
 	]:
 		var artifact := _candidate_artifact(active_candidate, expected[0])
 		assert_str(str(artifact.get("path", ""))).is_equal(expected[1])
@@ -156,7 +156,7 @@ func test_smoke_shell_helmet_review_record_has_exact_copy_and_candidate_provenan
 	assert_float(float(metrics.get("max_residual_jitter_px", -1.0))).is_equal(0.0)
 	assert_float(float(metrics.get("outer_width_ratio", -1.0))).is_equal(1.103448275862069)
 	assert_int(int(metrics.get("visual_rubric_total", 0))).is_equal(10)
-	assert_str(str(active_candidate.get("visual_rubric_sha256", ""))).is_equal("1b1687fd7d06941384399076bac901798ec7da2291729fbc678c3fcfbe4573ee")
+	assert_str(str(active_candidate.get("visual_rubric_sha256", ""))).is_equal("079bc298093ddc08df5040bd05f51788a9989edc544ffcf75c0a53d40edd9bc9")
 	var fonts := active_candidate.get("font_provenance", {}) as Dictionary
 	assert_str(str((fonts.get("regular", {}) as Dictionary).get("path", ""))).is_equal("C:\\Windows\\Fonts\\msyh.ttc")
 	assert_str(str((fonts.get("regular", {}) as Dictionary).get("sha256", ""))).is_equal("d79c55e68b1131eea0cc1c47be4f572d964f28c682e143db2ad09c1e4cb07a3f")

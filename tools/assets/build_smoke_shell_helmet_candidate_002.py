@@ -26,6 +26,20 @@ LOCKED_NIKO_HASH = "fbc10108d9a665b14dcc376da54bbbf66d89b931ae1189e69fe1c45b31fe
 DEFAULT_CARD_FONT_REGULAR = Path("C:/Windows/Fonts/msyh.ttc")
 DEFAULT_CARD_FONT_BOLD = Path("C:/Windows/Fonts/msyhbd.ttc")
 TRANSACTION_MARKER = ".candidate-transaction.json"
+REVIEW_FOOTER_TEXT = (
+    "REVIEW EVIDENCE ONLY — no curated, runtime, or startup integration"
+)
+REGISTRY_ARTIFACT_PREFIX = (
+    "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/"
+    "smoke_shell_helmet/candidate-002/"
+)
+RUBRIC_DIMENSIONS = (
+    "identity",
+    "function",
+    "material",
+    "hierarchy",
+    "originality",
+)
 ARTIFACT_PATHS = (
     "derived/icon-256.png",
     "derived/appearance-128.png",
@@ -153,7 +167,88 @@ def _validate_inputs(inputs: BuildInputs) -> Path:
     return candidate_001
 
 
-def _assert_reusable_output(output_root: Path, source_hashes: dict[str, object]) -> None:
+def _registered_candidate_matches_metadata(
+    registry_path: Path,
+    output_root: Path,
+    metadata: dict[str, object],
+) -> bool:
+    artifacts = metadata.get("artifacts")
+    if not isinstance(artifacts, list) or len(artifacts) != len(ARTIFACT_PATHS):
+        return False
+    expected_artifacts: list[dict[str, object]] = []
+    seen_paths: set[str] = set()
+    for artifact in artifacts:
+        if not isinstance(artifact, dict):
+            return False
+        relative = artifact.get("path")
+        if (
+            not isinstance(relative, str)
+            or relative not in ARTIFACT_PATHS
+            or relative in seen_paths
+            or artifact.get("role") != ARTIFACT_ROLES[relative]
+        ):
+            return False
+        seen_paths.add(relative)
+        path = output_root / relative
+        if (
+            not path.is_file()
+            or path.stat().st_size != artifact.get("bytes")
+            or _sha256(path) != artifact.get("sha256")
+        ):
+            return False
+        expected_artifacts.append(
+            {**artifact, "path": REGISTRY_ARTIFACT_PREFIX + relative}
+        )
+    if seen_paths != set(ARTIFACT_PATHS):
+        return False
+
+    registry = _read_object(registry_path)
+    unit = _registry_unit(registry)
+    history = unit.get("candidate_history")
+    if not isinstance(history, list):
+        return False
+    active_matches = [
+        candidate
+        for candidate in history
+        if isinstance(candidate, dict) and candidate.get("candidate_id") == CANDIDATE_ID
+    ]
+    if len(active_matches) != 1:
+        return False
+    active = active_matches[0]
+    card_rendering = metadata.get("card_rendering")
+    registry_snapshot = metadata.get("registry_snapshot")
+    if not isinstance(card_rendering, dict) or not isinstance(registry_snapshot, dict):
+        return False
+    expected_active = {
+        "artifacts": expected_artifacts,
+        "candidate_id": CANDIDATE_ID,
+        "decision": "review",
+        "font_provenance": card_rendering.get("fonts"),
+        "harmony_verdict": metadata.get("harmony_verdict"),
+        "metrics": metadata.get("metrics"),
+        "reasons": [],
+        "report_verdicts": {
+            "harmony": metadata.get("harmony_verdict"),
+            "pixel_qa_passed": True,
+        },
+        "source_sha256": metadata.get("source_sha256"),
+        "transform": metadata.get("transform"),
+        "visual_rubric_sha256": metadata.get("visual_rubric_sha256"),
+    }
+    return (
+        unit.get("active_candidate_id") == CANDIDATE_ID
+        and unit.get("approval_status") == "review"
+        and unit.get("effects") == registry_snapshot.get("effects")
+        and unit.get("localization") == registry_snapshot.get("localization")
+        and active == expected_active
+    )
+
+
+def _assert_reusable_output(
+    output_root: Path,
+    source_hashes: dict[str, object],
+    registry_path: Path,
+) -> None:
     if not output_root.exists() or not any(
         path.is_file() for path in output_root.rglob("*")
     ):
@@ -173,8 +268,27 @@ def _assert_reusable_output(output_root: Path, source_hashes: dict[str, object])
     legacy_font_upgrade = (
         recorded_hashes == legacy_hashes and "card_rendering" not in metadata
     )
-    if recorded_hashes != source_hashes and not legacy_font_upgrade:
-        raise ValueError("source_hash_mismatch")
+    if recorded_hashes == source_hashes or legacy_font_upgrade:
+        return
+    if isinstance(recorded_hashes, dict):
+        recorded_without_registry = {
+            key: value for key, value in recorded_hashes.items() if key != "registry"
+        }
+        current_without_registry = {
+            key: value for key, value in source_hashes.items() if key != "registry"
+        }
+        registered_refresh = (
+            recorded_without_registry == current_without_registry
+            and recorded_hashes.get("registry") != source_hashes.get("registry")
+            and _registered_candidate_matches_metadata(
+                registry_path,
+                output_root,
+                metadata,
+            )
+        )
+        if registered_refresh:
+            return
+    raise ValueError("source_hash_mismatch")
 
 
 def _load_images(inputs: BuildInputs) -> tuple[Image.Image, Image.Image]:
@@ -440,7 +554,12 @@ def _approval_card(
     draw.text((1190, 948), f"Outer ratio: {metrics['outer_width_ratio']:.6f}", font=small_font, fill=(177, 190, 208, 255))
     draw.text((1190, 982), f"Feature error: {metrics['max_feature_center_error_px']:.4f}px", font=small_font, fill=(177, 190, 208, 255))
     draw.text((1190, 1016), f"Residual jitter: {metrics['max_residual_jitter_px']:.4f}px", font=small_font, fill=(177, 190, 208, 255))
-    draw.text((92, 1092), "REVIEW EVIDENCE ONLY — no curated, runtime, startup, or registry mutation", font=heading_font, fill=(239, 116, 116, 255))
+    draw.text(
+        (92, 1092),
+        REVIEW_FOOTER_TEXT,
+        font=heading_font,
+        fill=(239, 116, 116, 255),
+    )
     return card
 
 
@@ -475,6 +594,7 @@ def _approval_card_evidence(unit: dict[str, object], report: object) -> dict[str
             "resampling": "none",
             "source": "qa/composite-frame-001.png",
         },
+        "footer_text": REVIEW_FOOTER_TEXT,
         "status_text": (
             f"Harmony gate: {report.verdict} | Unit approval status: {unit_status}"
         ),
@@ -484,14 +604,48 @@ def _approval_card_evidence(unit: dict[str, object], report: object) -> dict[str
 def _default_visual_rubric() -> dict[str, object]:
     return {
         name: {"evidence": "", "score": 0}
-        for name in ("identity", "function", "material", "hierarchy", "originality")
+        for name in RUBRIC_DIMENSIONS
     }
+
+
+def _rubric_scores_for_evidence_revision(payload: bytes) -> dict[str, int]:
+    rubric = json.loads(payload.decode("utf-8"))
+    if not isinstance(rubric, dict) or set(rubric) != set(RUBRIC_DIMENSIONS):
+        raise ValueError("visual_rubric_dimensions_changed")
+    scores: dict[str, int] = {}
+    for name in RUBRIC_DIMENSIONS:
+        dimension = rubric.get(name)
+        if not isinstance(dimension, dict) or set(dimension) != {"score", "evidence"}:
+            raise ValueError("visual_rubric_dimensions_changed")
+        score = dimension.get("score")
+        evidence = dimension.get("evidence")
+        if (
+            not isinstance(score, int)
+            or isinstance(score, bool)
+            or score < 0
+            or score > 2
+            or not isinstance(evidence, str)
+            or not evidence.strip()
+        ):
+            raise ValueError("visual_rubric_revision_invalid")
+        scores[name] = score
+    return scores
+
+
+def _assert_evidence_only_rubric_revision(
+    existing: bytes,
+    supplied: bytes,
+) -> None:
+    if _rubric_scores_for_evidence_revision(existing) != _rubric_scores_for_evidence_revision(
+        supplied
+    ):
+        raise ValueError("visual_rubric_scores_changed")
 
 
 def _load_visual_rubric(checker: object, path: Path) -> object:
     payload = _read_object(path)
     dimensions: list[tuple[int, str]] = []
-    for name in ("identity", "function", "material", "hierarchy", "originality"):
+    for name in RUBRIC_DIMENSIONS:
         value = payload[name]
         if isinstance(value, dict):
             dimensions.append((int(value["score"]), str(value["evidence"])))
@@ -712,15 +866,18 @@ def _publish(stage: Path, output_root: Path, *, preserve_rubric: bool) -> None:
 
 
 def build_candidate_002(
-    inputs: BuildInputs, visual_rubric: Path | None = None
+    inputs: BuildInputs,
+    visual_rubric: Path | None = None,
+    *,
+    revise_rubric_evidence: bool = False,
 ) -> CandidateMetadata:
     checker = _load_checker()
     _recover_transaction(inputs.output_root)
     candidate_001 = _validate_inputs(inputs)
     candidate_001_before = _tree_hashes(candidate_001)
     source_hashes = _source_hashes(inputs, candidate_001_before)
-    _assert_reusable_output(inputs.output_root, source_hashes)
-    registry_before = _sha256(inputs.registry)
+    _assert_reusable_output(inputs.output_root, source_hashes, inputs.registry)
+    registry_before = str(source_hashes["registry"])
     niko_before = _sha256(inputs.niko_atlas)
     font_regular_before = _sha256(inputs.card_font_regular)
     font_bold_before = _sha256(inputs.card_font_bold)
@@ -729,12 +886,23 @@ def build_candidate_002(
         existing_rubric_path.read_bytes() if existing_rubric_path.is_file() else None
     )
     supplied_rubric_bytes = visual_rubric.read_bytes() if visual_rubric else None
+    rubric_revision = False
+    if revise_rubric_evidence and (
+        supplied_rubric_bytes is None or existing_rubric_bytes is None
+    ):
+        raise ValueError("visual_rubric_revision_requires_existing")
     if (
         supplied_rubric_bytes is not None
         and existing_rubric_bytes is not None
         and supplied_rubric_bytes != existing_rubric_bytes
     ):
-        raise ValueError("visual_rubric_mismatch")
+        if not revise_rubric_evidence:
+            raise ValueError("visual_rubric_mismatch")
+        _assert_evidence_only_rubric_revision(
+            existing_rubric_bytes,
+            supplied_rubric_bytes,
+        )
+        rubric_revision = True
     rubric_bytes = (
         supplied_rubric_bytes
         if supplied_rubric_bytes is not None
@@ -900,7 +1068,9 @@ def build_candidate_002(
         _publish(
             stage,
             inputs.output_root,
-            preserve_rubric=existing_rubric_bytes is not None,
+            preserve_rubric=(
+                existing_rubric_bytes is not None and not rubric_revision
+            ),
         )
     return metadata
 
@@ -913,6 +1083,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--registry", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--visual-rubric", type=Path)
+    parser.add_argument("--revise-rubric-evidence", action="store_true")
     parser.add_argument("--card-font-regular", type=Path, default=DEFAULT_CARD_FONT_REGULAR)
     parser.add_argument("--card-font-bold", type=Path, default=DEFAULT_CARD_FONT_BOLD)
     return parser
@@ -931,6 +1102,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             card_font_bold=arguments.card_font_bold,
         ),
         visual_rubric=arguments.visual_rubric,
+        revise_rubric_evidence=arguments.revise_rubric_evidence,
     )
     verdict = json.loads(
         (arguments.output_root / "candidate-metadata.json").read_text(encoding="utf-8")
