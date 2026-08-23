@@ -54,8 +54,12 @@ static func load_registry(path: String = REGISTRY_PATH) -> Dictionary:
 	if not FileAccess.file_exists(path):
 		errors.append("registry not found: %s" % path)
 		return {"registry": {}, "errors": errors}
+	var raw_json := FileAccess.get_file_as_string(path)
+	if _has_invalid_byte_literals(raw_json):
+		errors.append("candidate artifact has invalid byte size")
+		return {"registry": {}, "errors": errors}
 	var json := JSON.new()
-	if json.parse(FileAccess.get_file_as_string(path)) != OK:
+	if json.parse(raw_json) != OK:
 		errors.append("registry is not valid JSON: %s" % json.get_error_message())
 		return {"registry": {}, "errors": errors}
 	if not json.data is Dictionary:
@@ -65,6 +69,22 @@ static func load_registry(path: String = REGISTRY_PATH) -> Dictionary:
 	_normalize_review_artifact_byte_sizes(registry)
 	errors.append_array(validate_registry(registry))
 	return {"registry": registry, "errors": errors}
+
+
+static func _has_invalid_byte_literals(raw_json: String) -> bool:
+	var bytes_pattern := RegEx.new()
+	bytes_pattern.compile("\"bytes\"\\s*:\\s*([^,}\\s]+)")
+	for match in bytes_pattern.search_all(raw_json):
+		if not _is_positive_base_ten_integer_literal(match.get_string(1)):
+			return true
+	return false
+
+
+static func _is_positive_base_ten_integer_literal(literal: String) -> bool:
+	if literal.is_empty() or not literal.is_valid_int():
+		return false
+	var value := literal.to_int()
+	return value > 0 and literal == str(value)
 
 
 static func _normalize_review_artifact_byte_sizes(registry: Dictionary) -> void:

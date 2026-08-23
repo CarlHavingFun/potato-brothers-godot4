@@ -134,11 +134,10 @@ func test_loader_rejects_review_candidate_missing_required_provenance_or_safe_ar
 	(_candidate_artifact(_smoke_shell_helmet(curated_path), "icon") as Dictionary)["path"] = "workspace://GOGOBRO_ASSET_INBOX/curated/smoke-shell-helmet.png"
 	_assert_fixture_error(curated_path, "candidate artifact icon path must not contain /curated/")
 
-	var float_byte_size := _canonical_registry()
-	for artifact in _smoke_shell_helmet(float_byte_size).get("candidate_artifacts", []) as Array:
-		(artifact as Dictionary)["bytes"] = int((artifact as Dictionary).get("bytes", 0))
-	(_candidate_artifact(_smoke_shell_helmet(float_byte_size), "icon") as Dictionary)["bytes"] = 1.0
-	_assert_registry_error(float_byte_size, "candidate artifact icon has invalid byte size")
+	var canonical_json := FileAccess.get_file_as_string(CANONICAL_PATH)
+	for malformed_byte_literal in ["1.0", "1.5", "1e3", "0", "-1", "\"1\"", "null"]:
+		var malformed_bytes_json := canonical_json.replace("\"bytes\":1968", "\"bytes\":%s" % malformed_byte_literal)
+		_assert_raw_fixture_error(malformed_bytes_json, "invalid byte size")
 
 	var duplicate_role := _canonical_registry()
 	var duplicate_icon := (_candidate_artifact(_smoke_shell_helmet(duplicate_role), "icon") as Dictionary).duplicate(true) as Dictionary
@@ -152,7 +151,16 @@ func test_loader_rejects_review_candidate_missing_required_provenance_or_safe_ar
 
 func _canonical_registry() -> Dictionary:
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(CANONICAL_PATH))
-	return JSON.parse_string(JSON.stringify(parsed)) as Dictionary
+	var registry := JSON.parse_string(JSON.stringify(parsed)) as Dictionary
+	_normalize_fixture_byte_sizes(registry)
+	return registry
+
+
+func _normalize_fixture_byte_sizes(registry: Dictionary) -> void:
+	for unit in registry.get("units", []) as Array:
+		for artifact in (unit as Dictionary).get("candidate_artifacts", []) as Array:
+			if (artifact as Dictionary).get("bytes") is float:
+				(artifact as Dictionary)["bytes"] = int((artifact as Dictionary).get("bytes"))
 
 
 func _assert_fixture_error(registry: Dictionary, expected_error: String) -> void:
@@ -176,8 +184,14 @@ func _assert_fixture_has_no_errors(registry: Dictionary) -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(fixture_path))
 
 
-func _assert_registry_error(registry: Dictionary, expected_error: String) -> void:
-	assert_str("\n".join(Registry.validate_registry(registry))).contains(expected_error)
+func _assert_raw_fixture_error(raw_json: String, expected_error: String) -> void:
+	var fixture_path := "user://static_asset_registry_fixture_%s.json" % Time.get_ticks_usec()
+	var file := FileAccess.open(fixture_path, FileAccess.WRITE)
+	file.store_string(raw_json)
+	file.close()
+	var result := Registry.load_registry(fixture_path)
+	assert_str("\n".join(result.get("errors", PackedStringArray()) as PackedStringArray)).contains(expected_error)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(fixture_path))
 
 
 func _first_unit_in_category(registry: Dictionary, category: String) -> Dictionary:
