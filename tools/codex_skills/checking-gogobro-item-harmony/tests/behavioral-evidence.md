@@ -175,3 +175,132 @@ Geometry, anchoring, depth, and occlusion are valid, but visual harmony is not. 
 All supplied input SHA-256 hashes still match those recorded by the checker; no source input, canonical skill, registry, or approval state was changed.
 ~~~
 <!-- END VERBATIM synthetic-back -->
+
+## GREEN — diagnostic compositing regression
+
+These fresh independent evaluations exercise the compositing diagnostics added by the checker. The evaluator source files contained no trailing spaces or tabs, so no Markdown hard-break normalization was necessary. For each block below, the UTF-8 bytes between the fenced block delimiters are identical to the corresponding evaluator source file, including its final newline.
+
+- Candidate-002 source SHA-256: `c673316a2d7ce10b0ad0574f846198f2e54830c9a98c464b332cf20d3e45e396`; normalized embedded payload SHA-256: `c673316a2d7ce10b0ad0574f846198f2e54830c9a98c464b332cf20d3e45e396`; normalized lines: `0`.
+- Synthetic-back source SHA-256: `b2ab5a0d86dcfc75a50d9207171dd0269091a1b58d7ef17688bb8aff2cb3bca6`; normalized embedded payload SHA-256: `b2ab5a0d86dcfc75a50d9207171dd0269091a1b58d7ef17688bb8aff2cb3bca6`; normalized lines: `0`.
+
+### Candidate 002 visible diagnostics — verbatim evaluator output
+
+<!-- BEGIN VERBATIM diagnostic-candidate-002 -->
+~~~markdown
+# Verdict: `harmony_pass`
+
+The checker exited `0`. Its deterministic stage returned `review` only because no visual rubric was supplied; `reason_codes: []`. Applying the required visual rubric gives **9/10 with no zero score**, advancing the evaluator verdict to `harmony_pass`.
+
+## Hard-gate measurements
+
+| Check | Result | Limit | Status |
+|---|---:|---:|---|
+| Outer-width ratio | `1.103448` in all 8 frames | `1.05–1.15` | Pass |
+| Max center error | `0.4375 px` | `≤1 px` | Pass |
+| Residual jitter | `0.0 px` | `≤1 px` | Pass |
+| Eye occlusion | `0.0` | `0` | Pass |
+| Depth | `40` in all frames | Front `1–99`, expected `40` | Pass |
+| Frame count | `8` | `8` | Pass |
+
+The geometric boxes reconstructed from pixels matched the report in all frames: `[33,29,97,97]` except frames 5–6, which correctly shift to `[35,29,99,97]`.
+
+## Eight-frame pixel evidence
+
+| Frame | Helmet pixels present | Eye ROI | Overlay visibility |
+|---:|---:|---:|---:|
+| 1 | `2559/2559` exact | `480/480` unchanged | `2524/2559` retained |
+| 2 | `2559/2559` exact | `480/480` unchanged | `2524/2559` retained |
+| 3 | `2559/2559` exact | `480/480` unchanged | `2524/2559` retained |
+| 4 | `2559/2559` exact | `480/480` unchanged | `2524/2559` retained |
+| 5 | `2559/2559` exact | `480/480` unchanged | `2524/2559` retained |
+| 6 | `2559/2559` exact | `480/480` unchanged | `2524/2559` retained |
+| 7 | `2559/2559` exact | `480/480` unchanged | `2524/2559` retained |
+| 8 | `2559/2559` exact | `480/480` unchanged | `2524/2559` retained |
+
+An independent base-then-item front-depth reconstruction differed from `harmony-actual-size.png` by **0 pixels**. The crown plate, side shells, open aperture, and chin rim are visibly worn in every frame. Eyes, brows, nose, and beard remain readable. Diagnostics annotate only `35/2559` item pixels per frame—about `1.37%`—so they do not hide the helmet.
+
+## Visual rubric
+
+| Dimension | Score | Evidence |
+|---|---:|---|
+| Character identity | 2/2 | Niko’s face and animation remain recognizable; eyes are completely unobstructed. |
+| Item function | 2/2 | Clearly reads as a protective open-face shell helmet in every frame. |
+| Material/outline fit | 2/2 | Chunky pixel clusters, dark outline, and muted shell shading match the character’s rendering density. |
+| Value/color hierarchy | 2/2 | Light forehead plate provides focus while the dark shell frames rather than overwhelms the face. |
+| Originality | 1/2 | Conventional helmet foundation, differentiated by the asymmetric teal shell detail and rectangular crown plate. |
+| **Total** | **9/10** | **Pass** |
+
+Source hashes still match the checker report. Only the three fresh evidence files were written:
+
+- [harmony-report.json](E:/01_gobro/.codex-temp/skill-forward-test/fix-round-2-fresh-evaluator-runs/candidate-002/harmony-report.json)
+- [harmony-overlay.png](E:/01_gobro/.codex-temp/skill-forward-test/fix-round-2-fresh-evaluator-runs/candidate-002/harmony-overlay.png)
+- [harmony-actual-size.png](E:/01_gobro/.codex-temp/skill-forward-test/fix-round-2-fresh-evaluator-runs/candidate-002/harmony-actual-size.png)
+
+`harmony_pass` clears this harmony gate only. Registry state and approval state were not changed; explicit human approval is still required before canonical adoption.
+~~~
+<!-- END VERBATIM diagnostic-candidate-002 -->
+
+### Synthetic back-slot visible diagnostics — verbatim evaluator output
+
+<!-- BEGIN VERBATIM diagnostic-back -->
+~~~markdown
+# Verdict: `review`
+
+The deterministic `back`-slot gate passes, but the visual rubric scores **5/10**, so the final verdict remains `review`. No approval state was advanced.
+
+Artifacts: [overlay](E:/01_gobro/.codex-temp/skill-forward-test/fix-round-2-fresh-evaluator-runs/synthetic-back-slot/harmony-overlay.png) · [actual size](E:/01_gobro/.codex-temp/skill-forward-test/fix-round-2-fresh-evaluator-runs/synthetic-back-slot/harmony-actual-size.png) · [report](E:/01_gobro/.codex-temp/skill-forward-test/fix-round-2-fresh-evaluator-runs/synthetic-back-slot/harmony-report.json)
+
+## Checker result and metrics
+
+| Measurement | Result | Back-slot limit |
+|---|---:|---:|
+| Reason codes | none | — |
+| Frames | 8 | 8 |
+| Width ratio, every frame | `0.833333` | `0.60–1.20` |
+| Feature-center error | `0 px` | ≤ `2 px` |
+| Residual jitter | `0 px` | ≤ `1 px` |
+| Protected-face occlusion | `0.190476` (`288/1512`) | ≤ `0.25` |
+| Depth, every frame | `-10` | `-99…-1`; expected `-10` |
+| Aperture box | `null` | Correct for non-head slot |
+
+Placed boxes are `[42,84,82,101]` in frames 0–3 and 6–7, and `[44,84,84,101]` in frames 4–5.
+
+## Pixel evidence
+
+The supplied item is a fully opaque `40×17` rectangle: 680/680 bbox pixels, color RGBA `(63,48,35,255)`.
+
+| Frame | Exterior item pixels visibly preserved | Overlap pixels occluded by Niko |
+|---:|---:|---:|
+| 0 | 16/16 | 664/664 |
+| 1 | 20/20 | 660/660 |
+| 2 | 24/24 | 656/656 |
+| 3 | 20/20 | 660/660 |
+| 4 | 24/24 | 656/656 |
+| 5 | 32/32 | 648/648 |
+| 6 | 32/32 | 648/648 |
+| 7 | 20/20 | 660/660 |
+
+All eight actual-size frames exactly match an item-first/Niko-second composite. A hypothetical front-layer composite differs at every overlap pixel—5,252 pixels total—while 188 exterior brown pixels remain visible. This confirms genuine composition in every frame and correct negative-depth ordering.
+
+## Slot-rule evidence
+
+- The diagnostic target centers are at rounded `(62,92)` or `(64,92)`, exactly matching `attachment_regions.back`; they are not at the face/head center near `y=71`.
+- Cyan protected guides span the full face ROI (`x=44…79` or `46…81`, `y=50…91`). Zero of the 88 eye-boundary pixels per frame are cyan.
+- The measured `0.190476` occlusion is exactly the face intersection. Eye overlap is `0`, further proving protected-face—not protected-eye—logic.
+- The item ratio is `40/48 = 0.833333`, inside the back range. A head calculation would be `40/58 = 0.689655`, outside the head range `1.05–1.15`.
+- The appearance bbox is completely opaque and has no enclosed aperture; nevertheless geometry passes and `aperture_box` is `null`. No head-aperture logic was applied.
+
+## Visual rubric
+
+| Dimension | Score | Visible evidence |
+|---|---:|---|
+| Character identity | 2 | Niko’s face and silhouette remain dominant and correctly occlude the item. |
+| Item function | 0 | The few exposed pixels form only a plain rectangle; no recognizable back-item function reads. |
+| Material/outline fit | 1 | Dark brown is broadly palette-compatible, but the item has no outline, texture, or shading. |
+| Value/color hierarchy | 2 | Its dark value stays subordinate and does not compete with Niko’s face. |
+| Originality | 0 | Single-color rectangular construction has no distinctive motif. |
+| **Total** | **5/10** | Below the required 8/10, with zero scores. |
+
+Fresh verification found exactly the three expected output files, and all five input hashes still match the report.
+~~~
+<!-- END VERBATIM diagnostic-back -->

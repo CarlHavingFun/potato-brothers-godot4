@@ -346,6 +346,84 @@ def test_registered_refresh_rejects_registry_that_does_not_match_metadata(
     assert tree_hashes(output_root) == before
 
 
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "top_level_category_count",
+        "unrelated_unit",
+        "candidate_001_reasons",
+        "helmet_unit_non_history",
+    ],
+)
+def test_registered_refresh_rejects_every_non_self_registry_mutation(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """Catches refresh authorization that fingerprints only the active helmet record."""
+    registry_copy = tmp_path / "registry.json"
+    shutil.copyfile(REGISTRY, registry_copy)
+    output_root = tmp_path / "candidate-002"
+    build_inputs = replace(inputs(output_root), registry=registry_copy)
+    build_candidate_002(build_inputs)
+    register_candidate_metadata(registry_copy, output_root)
+
+    registry = json.loads(registry_copy.read_text("utf-8"))
+    helmet = next(
+        unit for unit in registry["units"] if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    if mutation == "top_level_category_count":
+        registry["category_counts"]["weapon"] += 1
+    elif mutation == "unrelated_unit":
+        unrelated = next(
+            unit for unit in registry["units"] if unit["asset_id"] != "smoke_shell_helmet"
+        )
+        unrelated["prompt_version"] = "tampered-unrelated-unit"
+    elif mutation == "candidate_001_reasons":
+        candidate_001 = next(
+            candidate
+            for candidate in helmet["candidate_history"]
+            if candidate["candidate_id"] == "candidate-001"
+        )
+        candidate_001["reasons"] = [*candidate_001["reasons"], "tampered_reason"]
+    else:
+        helmet["prompt_version"] = "tampered-helmet-unit"
+    registry_copy.write_text(
+        json.dumps(registry, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    before = tree_hashes(output_root)
+
+    with pytest.raises(ValueError, match="source_hash_mismatch"):
+        build_candidate_002(build_inputs)
+
+    assert tree_hashes(output_root) == before
+
+
+def test_registry_refresh_guard_is_stable_across_repeated_exact_refreshes(
+    tmp_path: Path,
+) -> None:
+    """Catches a self-referential guard that cannot authorize its next exact generation."""
+    registry_copy = tmp_path / "registry.json"
+    shutil.copyfile(REGISTRY, registry_copy)
+    output_root = tmp_path / "candidate-002"
+    build_inputs = replace(inputs(output_root), registry=registry_copy)
+    build_candidate_002(build_inputs)
+    initial_metadata = json.loads(
+        (output_root / "candidate-metadata.json").read_text("utf-8")
+    )
+    initial_guard = initial_metadata["registry_snapshot"]["refresh_guard"]
+
+    for _ in range(2):
+        register_candidate_metadata(registry_copy, output_root)
+        registry_before = registry_copy.read_bytes()
+        build_candidate_002(build_inputs)
+        refreshed = json.loads(
+            (output_root / "candidate-metadata.json").read_text("utf-8")
+        )
+        assert refreshed["registry_snapshot"]["refresh_guard"] == initial_guard
+        assert registry_copy.read_bytes() == registry_before
+
+
 def test_candidate_001_existing_scale_and_offsets_fail_harmony(tmp_path: Path) -> None:
     """Catches a checker regression that would accept the oversized, misaligned candidate 001."""
     legacy = json.loads(

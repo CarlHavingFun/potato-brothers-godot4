@@ -189,6 +189,7 @@ class HeadFixture:
 
 class NikoSlotFixture:
     _APPEARANCE_BOXES = {
+        "back": [38, 76, 86, 109],
         "torso": [52, 83, 72, 108],
         "side_left": [31, 78, 43, 106],
     }
@@ -226,7 +227,11 @@ class NikoSlotFixture:
                 "slot": slot,
                 "flip_behavior": profile["slot_profiles"][slot]["flip_behavior"],
                 "frames": [
-                    {"scale": 1, "offset": [shift, 0], "depth": 40}
+                    {
+                        "scale": 1,
+                        "offset": [shift, 0],
+                        "depth": profile["slot_profiles"][slot]["expected_depth"],
+                    }
                     for shift in shifts
                 ],
             },
@@ -715,9 +720,128 @@ def test_output_bytes_are_canonical_and_diagnostics_have_fixed_content(
     with Image.open(valid_inputs.out_dir / "harmony-overlay.png") as overlay:
         assert overlay.getpixel((30, 50)) == (255, 0, 255, 255)
         assert overlay.getbbox() is not None
+        colors = {pixel[:3] for pixel in overlay.get_flattened_data() if pixel[3]}
+        assert (0, 210, 255) in colors
+        assert (0, 255, 96) in colors
+        assert (255, 64, 64) in colors
+        assert (255, 220, 0) in colors
     with Image.open(valid_inputs.out_dir / "harmony-actual-size.png") as preview:
         assert preview.size == (1920, 1080)
         assert preview.getpixel((0, 0)) == (18, 22, 30, 255)
+
+
+def test_diagnostics_composite_front_appearance_at_all_eight_anchor_placements(
+    head_fixture: HeadFixture,
+) -> None:
+    """Catches diagnostics that draw boxes over a bare character atlas."""
+    base_color = (24, 72, 120, 255)
+    Image.new("RGBA", (1024, 128), base_color).save(head_fixture.character_atlas)
+    inputs = head_fixture.inputs()
+    source_hashes = {
+        path: _sha256(path)
+        for path in (
+            inputs.character_atlas,
+            inputs.appearance,
+            inputs.icon,
+            inputs.anchors,
+            inputs.rig_profile,
+        )
+    }
+
+    write_harmony_outputs(analyze_harmony(inputs), inputs)
+
+    assert {_path: _sha256(_path) for _path in source_hashes} == source_hashes
+    with Image.open(inputs.out_dir / "harmony-overlay.png") as opened:
+        overlay = opened.convert("RGBA")
+    with Image.open(inputs.out_dir / "harmony-actual-size.png") as opened:
+        actual_size = opened.convert("RGBA")
+    preview_origin = ((1920 - 1024) // 2, (1080 - 128) // 2)
+    for frame_index in range(8):
+        local_x = 40 + frame_index
+        local_y = 60
+        atlas_x = frame_index * 128 + local_x
+        assert overlay.getpixel((atlas_x, local_y)) == (0, 0, 0, 255)
+        assert actual_size.getpixel(
+            (preview_origin[0] + atlas_x, preview_origin[1] + local_y)
+        ) == (0, 0, 0, 255)
+
+
+def test_back_diagnostics_place_item_behind_character_in_all_eight_frames(
+    tmp_path: Path,
+) -> None:
+    """Catches back-slot diagnostics that paste the appearance in front or omit it."""
+    fixture = NikoSlotFixture(tmp_path, "back")
+    inputs = fixture.inputs()
+    source_hashes = {
+        path: _sha256(path)
+        for path in (
+            inputs.character_atlas,
+            inputs.appearance,
+            inputs.icon,
+            inputs.anchors,
+            inputs.rig_profile,
+        )
+    }
+    report = analyze_harmony(inputs)
+    assert report.verdict == "review"
+
+    write_harmony_outputs(report, inputs)
+
+    assert {_path: _sha256(_path) for _path in source_hashes} == source_hashes
+    anchors = json.loads(inputs.anchors.read_text(encoding="utf-8"))["frames"]
+    with Image.open(inputs.character_atlas) as opened:
+        character = opened.convert("RGBA")
+    with Image.open(inputs.appearance) as opened:
+        appearance = opened.convert("RGBA")
+    with Image.open(inputs.out_dir / "harmony-overlay.png") as opened:
+        overlay = opened.convert("RGBA")
+    with Image.open(inputs.out_dir / "harmony-actual-size.png") as opened:
+        actual_size = opened.convert("RGBA")
+    preview_origin = ((1920 - 1024) // 2, (1080 - 128) // 2)
+    for frame_index, anchor in enumerate(anchors):
+        offset_x, offset_y = anchor["offset"]
+        frame_left = frame_index * 128
+        exposed_item_pixels: list[tuple[int, int]] = []
+        overlap_pixels: list[tuple[int, int]] = []
+        for source_y in range(appearance.height):
+            for source_x in range(appearance.width):
+                item_pixel = appearance.getpixel((source_x, source_y))
+                if item_pixel[3] == 0:
+                    continue
+                local_x = source_x + offset_x
+                local_y = source_y + offset_y
+                if not 0 <= local_x < 128 or not 0 <= local_y < 128:
+                    continue
+                character_pixel = character.getpixel((frame_left + local_x, local_y))
+                target = (frame_left + local_x, local_y)
+                if character_pixel[3]:
+                    overlap_pixels.append(target)
+                else:
+                    exposed_item_pixels.append(target)
+        assert exposed_item_pixels
+        assert overlap_pixels
+        assert any(
+            overlay.getpixel(point) == appearance.getpixel(
+                (point[0] - frame_left - offset_x, point[1] - offset_y)
+            )
+            for point in exposed_item_pixels
+        )
+        assert any(
+            actual_size.getpixel(
+                (preview_origin[0] + point[0], preview_origin[1] + point[1])
+            )
+            == appearance.getpixel(
+                (point[0] - frame_left - offset_x, point[1] - offset_y)
+            )
+            for point in exposed_item_pixels
+        )
+        assert any(
+            actual_size.getpixel(
+                (preview_origin[0] + point[0], preview_origin[1] + point[1])
+            )
+            == character.getpixel(point)
+            for point in overlap_pixels
+        )
 
 
 def test_optional_visual_rubric_and_transform_suggestion_paths_are_written(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import importlib.util
 import json
@@ -39,6 +40,14 @@ RUBRIC_DIMENSIONS = (
     "material",
     "hierarchy",
     "originality",
+)
+REGISTRY_REFRESH_GUARD_SCHEMA = "gogobro-registry-refresh-guard-v1"
+REGISTRY_REFRESH_EXCLUDED_FIELDS = (
+    "units[smoke_shell_helmet].candidate_history[candidate-002].artifacts[*].bytes",
+    "units[smoke_shell_helmet].candidate_history[candidate-002].artifacts[*].sha256",
+    "units[smoke_shell_helmet].candidate_history[candidate-002].metrics.visual_rubric_sha256",
+    "units[smoke_shell_helmet].candidate_history[candidate-002].source_sha256.registry",
+    "units[smoke_shell_helmet].candidate_history[candidate-002].visual_rubric_sha256",
 )
 ARTIFACT_PATHS = (
     "derived/icon-256.png",
@@ -135,6 +144,15 @@ def _read_object(path: Path) -> dict[str, object]:
     return payload
 
 
+def _canonical_json_bytes(payload: object) -> bytes:
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+
+
 def _source_hashes(inputs: BuildInputs, candidate_001_hashes: dict[str, str]) -> dict[str, object]:
     return {
         "appearance_source": _sha256(inputs.appearance_source),
@@ -167,19 +185,17 @@ def _validate_inputs(inputs: BuildInputs) -> Path:
     return candidate_001
 
 
-def _registered_candidate_matches_metadata(
-    registry_path: Path,
-    output_root: Path,
+def _registry_artifacts_from_metadata(
     metadata: dict[str, object],
-) -> bool:
+) -> list[dict[str, object]]:
     artifacts = metadata.get("artifacts")
     if not isinstance(artifacts, list) or len(artifacts) != len(ARTIFACT_PATHS):
-        return False
+        raise ValueError("invalid_candidate_metadata")
     expected_artifacts: list[dict[str, object]] = []
     seen_paths: set[str] = set()
     for artifact in artifacts:
         if not isinstance(artifact, dict):
-            return False
+            raise ValueError("invalid_candidate_metadata")
         relative = artifact.get("path")
         if (
             not isinstance(relative, str)
@@ -187,40 +203,24 @@ def _registered_candidate_matches_metadata(
             or relative in seen_paths
             or artifact.get("role") != ARTIFACT_ROLES[relative]
         ):
-            return False
+            raise ValueError("invalid_candidate_metadata")
         seen_paths.add(relative)
-        path = output_root / relative
-        if (
-            not path.is_file()
-            or path.stat().st_size != artifact.get("bytes")
-            or _sha256(path) != artifact.get("sha256")
-        ):
-            return False
         expected_artifacts.append(
             {**artifact, "path": REGISTRY_ARTIFACT_PREFIX + relative}
         )
     if seen_paths != set(ARTIFACT_PATHS):
-        return False
+        raise ValueError("invalid_candidate_metadata")
+    return expected_artifacts
 
-    registry = _read_object(registry_path)
-    unit = _registry_unit(registry)
-    history = unit.get("candidate_history")
-    if not isinstance(history, list):
-        return False
-    active_matches = [
-        candidate
-        for candidate in history
-        if isinstance(candidate, dict) and candidate.get("candidate_id") == CANDIDATE_ID
-    ]
-    if len(active_matches) != 1:
-        return False
-    active = active_matches[0]
+
+def _expected_registered_candidate(
+    metadata: dict[str, object],
+) -> dict[str, object]:
     card_rendering = metadata.get("card_rendering")
-    registry_snapshot = metadata.get("registry_snapshot")
-    if not isinstance(card_rendering, dict) or not isinstance(registry_snapshot, dict):
-        return False
-    expected_active = {
-        "artifacts": expected_artifacts,
+    if not isinstance(card_rendering, dict):
+        raise ValueError("invalid_candidate_metadata")
+    return {
+        "artifacts": _registry_artifacts_from_metadata(metadata),
         "candidate_id": CANDIDATE_ID,
         "decision": "review",
         "font_provenance": card_rendering.get("fonts"),
@@ -235,12 +235,175 @@ def _registered_candidate_matches_metadata(
         "transform": metadata.get("transform"),
         "visual_rubric_sha256": metadata.get("visual_rubric_sha256"),
     }
+
+
+def _project_registered_registry(
+    registry: dict[str, object],
+    metadata: dict[str, object],
+) -> dict[str, object]:
+    projected = copy.deepcopy(registry)
+    unit = _registry_unit(projected)
+    history = unit.get("candidate_history")
+    if not isinstance(history, list):
+        raise ValueError("invalid_registry_history")
+    matches = [
+        index
+        for index, candidate in enumerate(history)
+        if isinstance(candidate, dict) and candidate.get("candidate_id") == CANDIDATE_ID
+    ]
+    expected = _expected_registered_candidate(metadata)
+    if not matches:
+        history.append(expected)
+    elif len(matches) == 1:
+        history[matches[0]] = expected
+    else:
+        raise ValueError("duplicate_candidate_id")
+    unit["active_candidate_id"] = CANDIDATE_ID
+    unit["approval_status"] = "review"
+    return projected
+
+
+def _normalized_registered_registry(
+    registry: dict[str, object],
+) -> dict[str, object]:
+    normalized = copy.deepcopy(registry)
+    unit = _registry_unit(normalized)
+    history = unit.get("candidate_history")
+    if not isinstance(history, list):
+        raise ValueError("invalid_registry_history")
+    matches = [
+        candidate
+        for candidate in history
+        if isinstance(candidate, dict) and candidate.get("candidate_id") == CANDIDATE_ID
+    ]
+    if len(matches) != 1:
+        raise ValueError("candidate_002_registry_count")
+    active = matches[0]
+    artifacts = active.get("artifacts")
+    if not isinstance(artifacts, list) or len(artifacts) != len(ARTIFACT_PATHS):
+        raise ValueError("invalid_candidate_artifacts")
+    seen_paths: set[str] = set()
+    for artifact in artifacts:
+        if not isinstance(artifact, dict):
+            raise ValueError("invalid_candidate_artifacts")
+        raw_path = artifact.get("path")
+        if not isinstance(raw_path, str) or not raw_path.startswith(REGISTRY_ARTIFACT_PREFIX):
+            raise ValueError("invalid_candidate_artifacts")
+        relative = raw_path[len(REGISTRY_ARTIFACT_PREFIX) :]
+        if (
+            relative not in ARTIFACT_PATHS
+            or relative in seen_paths
+            or artifact.get("role") != ARTIFACT_ROLES[relative]
+            or "bytes" not in artifact
+            or "sha256" not in artifact
+        ):
+            raise ValueError("invalid_candidate_artifacts")
+        seen_paths.add(relative)
+        artifact["bytes"] = "<candidate-002-generated-bytes>"
+        artifact["sha256"] = "<candidate-002-generated-sha256>"
+    if seen_paths != set(ARTIFACT_PATHS):
+        raise ValueError("invalid_candidate_artifacts")
+    source_sha256 = active.get("source_sha256")
+    if not isinstance(source_sha256, dict) or "registry" not in source_sha256:
+        raise ValueError("invalid_candidate_source_sha256")
+    source_sha256["registry"] = "<candidate-002-source-registry-sha256>"
+    if "visual_rubric_sha256" not in active:
+        raise ValueError("invalid_candidate_visual_rubric_sha256")
+    active["visual_rubric_sha256"] = "<candidate-002-visual-rubric-sha256>"
+    metrics = active.get("metrics")
+    if isinstance(metrics, dict) and "visual_rubric_sha256" in metrics:
+        metrics["visual_rubric_sha256"] = (
+            "<candidate-002-metrics-visual-rubric-sha256>"
+        )
+    return normalized
+
+
+def _registry_refresh_guard(
+    registry: dict[str, object],
+    metadata: dict[str, object],
+) -> dict[str, object]:
+    normalized = _normalized_registered_registry(
+        _project_registered_registry(registry, metadata)
+    )
+    return {
+        "excluded_fields": list(REGISTRY_REFRESH_EXCLUDED_FIELDS),
+        "normalized_sha256": hashlib.sha256(
+            _canonical_json_bytes(normalized)
+        ).hexdigest(),
+        "schema_version": REGISTRY_REFRESH_GUARD_SCHEMA,
+    }
+
+
+def _registry_refresh_guard_matches(
+    registry: dict[str, object],
+    metadata: dict[str, object],
+) -> bool:
+    registry_snapshot = metadata.get("registry_snapshot")
+    if not isinstance(registry_snapshot, dict):
+        return False
+    guard = registry_snapshot.get("refresh_guard")
+    if not isinstance(guard, dict):
+        return False
+    expected_sha256 = guard.get("normalized_sha256")
+    if (
+        guard.get("schema_version") != REGISTRY_REFRESH_GUARD_SCHEMA
+        or guard.get("excluded_fields") != list(REGISTRY_REFRESH_EXCLUDED_FIELDS)
+        or not isinstance(expected_sha256, str)
+        or len(expected_sha256) != 64
+    ):
+        return False
+    try:
+        current_normalized = _normalized_registered_registry(registry)
+    except ValueError:
+        return False
+    return (
+        hashlib.sha256(_canonical_json_bytes(current_normalized)).hexdigest()
+        == expected_sha256
+    )
+
+
+def _registered_candidate_matches_metadata(
+    registry_path: Path,
+    output_root: Path,
+    metadata: dict[str, object],
+) -> bool:
+    try:
+        expected_active = _expected_registered_candidate(metadata)
+    except ValueError:
+        return False
+    for artifact in metadata["artifacts"]:
+        relative = artifact["path"]
+        path = output_root / relative
+        if (
+            not path.is_file()
+            or path.stat().st_size != artifact.get("bytes")
+            or _sha256(path) != artifact.get("sha256")
+        ):
+            return False
+
+    registry = _read_object(registry_path)
+    unit = _registry_unit(registry)
+    history = unit.get("candidate_history")
+    if not isinstance(history, list):
+        return False
+    active_matches = [
+        candidate
+        for candidate in history
+        if isinstance(candidate, dict) and candidate.get("candidate_id") == CANDIDATE_ID
+    ]
+    if len(active_matches) != 1:
+        return False
+    active = active_matches[0]
+    registry_snapshot = metadata.get("registry_snapshot")
+    if not isinstance(registry_snapshot, dict):
+        return False
     return (
         unit.get("active_candidate_id") == CANDIDATE_ID
         and unit.get("approval_status") == "review"
         and unit.get("effects") == registry_snapshot.get("effects")
         and unit.get("localization") == registry_snapshot.get("localization")
         and active == expected_active
+        and _registry_refresh_guard_matches(registry, metadata)
     )
 
 
@@ -1045,6 +1208,13 @@ def build_candidate_002(
             "source_sha256": source_hashes,
             "visual_rubric_sha256": rubric_hash,
         }
+        registry_snapshot = metadata_payload["registry_snapshot"]
+        if not isinstance(registry_snapshot, dict):
+            raise RuntimeError("invalid_registry_snapshot")
+        registry_snapshot["refresh_guard"] = _registry_refresh_guard(
+            registry,
+            metadata_payload,
+        )
         _write_json(stage / "candidate-metadata.json", metadata_payload)
 
         if (

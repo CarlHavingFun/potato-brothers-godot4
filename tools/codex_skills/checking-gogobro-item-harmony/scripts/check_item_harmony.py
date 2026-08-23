@@ -605,6 +605,176 @@ def _write_json(path: Path, payload: object) -> None:
     )
 
 
+def _diagnostic_composite(
+    inputs: HarmonyInputs,
+    atlas: Image.Image,
+) -> tuple[Image.Image, list[dict[str, object]]]:
+    """Composite the supplied appearance per frame before adding diagnostic marks."""
+    with Image.open(inputs.appearance) as opened_appearance:
+        appearance = opened_appearance.convert("RGBA")
+    anchors = _read_json(inputs.anchors)
+    profile = _read_json(inputs.rig_profile)
+    frames = _profile_frames(profile)
+    anchor_frames = anchors.get("frames")
+    if not isinstance(anchor_frames, list) or len(anchor_frames) != len(frames):
+        raise ValueError("invalid_frame_data")
+    frame_size_value = profile.get("frame_size", [128, 128])
+    if not isinstance(frame_size_value, list | tuple) or len(frame_size_value) != 2:
+        raise ValueError("invalid_contract")
+    frame_width, frame_height = (int(value) for value in frame_size_value)
+    if (
+        frame_width <= 0
+        or frame_height <= 0
+        or atlas.size != (frame_width * len(frames), frame_height)
+    ):
+        raise ValueError("invalid_contract")
+    contract = _slot_profile(profile, inputs.slot)
+    feature_anchor = str(contract.get("feature_anchor", "face_center"))
+    protected_region = str(
+        contract.get("protected_region", "protected_regions.eyes")
+    )
+    bounds = _alpha_bounds(appearance)
+    if bounds is None:
+        raise ValueError("empty_appearance")
+    if feature_anchor == "face_center":
+        aperture = find_largest_enclosed_transparent_region(appearance)
+        source_feature = _box_center(aperture)
+    else:
+        source_feature = _box_center(bounds)
+
+    composite = Image.new("RGBA", atlas.size, (0, 0, 0, 0))
+    diagnostics: list[dict[str, object]] = []
+    for index, (frame, anchor) in enumerate(
+        zip(frames, anchor_frames, strict=True)
+    ):
+        if not isinstance(frame, dict) or not isinstance(anchor, dict):
+            raise ValueError("invalid_frame_data")
+        scale = float(anchor["scale"])
+        offset_values = _as_pair(anchor["offset"])
+        offset = (int(offset_values[0]), int(offset_values[1]))
+        depth = float(anchor["depth"])
+        if (
+            not math.isfinite(scale)
+            or scale <= 0
+            or offset != offset_values
+            or not math.isfinite(depth)
+        ):
+            raise ValueError("invalid_frame_data")
+        scaled_size = (
+            max(1, round(appearance.width * scale)),
+            max(1, round(appearance.height * scale)),
+        )
+        scaled = appearance.resize(scaled_size, Image.Resampling.NEAREST)
+        frame_image = atlas.crop(
+            (
+                index * frame_width,
+                0,
+                (index + 1) * frame_width,
+                frame_height,
+            )
+        )
+        worn = Image.new("RGBA", (frame_width, frame_height), (0, 0, 0, 0))
+        if depth < 0:
+            worn.alpha_composite(scaled, dest=offset)
+            worn.alpha_composite(frame_image)
+        else:
+            worn.alpha_composite(frame_image)
+            worn.alpha_composite(scaled, dest=offset)
+        composite.paste(worn, (index * frame_width, 0))
+
+        target_feature = _resolve_frame_path(frame, feature_anchor)
+        if isinstance(target_feature, list | tuple) and len(target_feature) == 2:
+            target_center = _as_pair(target_feature)
+        else:
+            target_center = _box_center(_as_box(target_feature))
+        placed_center = placed_feature_center(source_feature, scale, offset)
+        diagnostics.append(
+            {
+                "bounds": _placed_box(bounds, scale, offset),
+                "error": (
+                    placed_center[0] - target_center[0],
+                    placed_center[1] - target_center[1],
+                ),
+                "frame_index": index,
+                "placed_feature": placed_center,
+                "protected": _as_box(
+                    _resolve_frame_path(frame, protected_region)
+                ),
+                "target_feature": target_center,
+            }
+        )
+    return composite, diagnostics
+
+
+def _draw_cross(
+    draw: ImageDraw.ImageDraw,
+    center: tuple[float, float],
+    x_offset: int,
+    color: tuple[int, int, int, int],
+) -> None:
+    x = x_offset + round(center[0])
+    y = round(center[1])
+    draw.line((x - 2, y, x + 2, y), fill=color, width=1)
+    draw.line((x, y - 2, x, y + 2), fill=color, width=1)
+
+
+def _draw_diagnostic_evidence(
+    overlay: Image.Image,
+    diagnostics: list[dict[str, object]],
+    frame_width: int,
+) -> None:
+    draw = ImageDraw.Draw(overlay)
+    for diagnostic in diagnostics:
+        frame_index = int(diagnostic["frame_index"])
+        x_offset = frame_index * frame_width
+        bounds = diagnostic["bounds"]
+        protected = diagnostic["protected"]
+        target = diagnostic["target_feature"]
+        placed = diagnostic["placed_feature"]
+        if not isinstance(bounds, Box) or not isinstance(protected, Box):
+            continue
+        if not isinstance(target, tuple) or not isinstance(placed, tuple):
+            continue
+        draw.rectangle(
+            (
+                x_offset + bounds.left,
+                bounds.top,
+                x_offset + bounds.right - 1,
+                bounds.bottom - 1,
+            ),
+            outline=(255, 0, 255, 255),
+            width=1,
+        )
+        draw.rectangle(
+            (
+                x_offset + protected.left,
+                protected.top,
+                x_offset + protected.right - 1,
+                protected.bottom - 1,
+            ),
+            outline=(0, 210, 255, 255),
+            width=1,
+        )
+        target_x = x_offset + round(target[0])
+        target_y = round(target[1])
+        draw.rectangle(
+            (target_x - 2, target_y - 2, target_x + 2, target_y + 2),
+            outline=(0, 255, 96, 255),
+            width=1,
+        )
+        _draw_cross(draw, placed, x_offset, (255, 220, 0, 255))
+        draw.line(
+            (
+                x_offset + round(target[0]),
+                round(target[1]),
+                x_offset + round(placed[0]),
+                round(placed[1]),
+            ),
+            fill=(255, 64, 64, 255),
+            width=1,
+        )
+
+
 def write_harmony_outputs(report: HarmonyReport, inputs: HarmonyInputs) -> None:
     if _has_output_collision(inputs, include_suggestion=False):
         raise ValueError("output_path_collision")
@@ -615,15 +785,31 @@ def write_harmony_outputs(report: HarmonyReport, inputs: HarmonyInputs) -> None:
             atlas = opened_atlas.convert("RGBA")
     except Exception:
         atlas = Image.new("RGBA", (128, 128), (0, 0, 0, 0))
-    overlay = Image.new("RGBA", atlas.size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay)
-    for index, box in enumerate(report.metrics.get("frame_boxes", [])):
-        left, top, right, bottom = (int(value) for value in box)
-        x_offset = index * 128
-        draw.rectangle((x_offset + left, top, x_offset + right - 1, bottom - 1), outline=(255, 0, 255, 255), width=1)
+    try:
+        composite, diagnostics = _diagnostic_composite(inputs, atlas)
+    except Exception:
+        composite = atlas.copy()
+        diagnostics = []
+    overlay = composite.copy()
+    if diagnostics:
+        frame_width = atlas.width // len(diagnostics)
+        _draw_diagnostic_evidence(overlay, diagnostics, frame_width)
+    else:
+        draw = ImageDraw.Draw(overlay)
+        for index, box in enumerate(report.metrics.get("frame_boxes", [])):
+            left, top, right, bottom = (int(value) for value in box)
+            x_offset = index * 128
+            draw.rectangle(
+                (x_offset + left, top, x_offset + right - 1, bottom - 1),
+                outline=(255, 0, 255, 255),
+                width=1,
+            )
     overlay.save(inputs.out_dir / "harmony-overlay.png")
     preview = Image.new("RGBA", (1920, 1080), (18, 22, 30, 255))
-    preview.paste(atlas, ((1920 - atlas.width) // 2, (1080 - atlas.height) // 2), atlas)
+    preview.alpha_composite(
+        composite,
+        dest=((1920 - composite.width) // 2, (1080 - composite.height) // 2),
+    )
     preview.save(inputs.out_dir / "harmony-actual-size.png")
 
 
