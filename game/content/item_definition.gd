@@ -6,6 +6,7 @@ extends GogoContentDefinition
 @export var stat_modifiers: Dictionary = {}
 @export var effect_ids: Array[StringName] = []
 @export var max_count: int = 99
+@export var appearances: Array[GogoAppearanceDefinition] = []
 
 
 func _init() -> void:

@@ -8,6 +8,7 @@ extends GogoContentDefinition
 @export var default_animation: StringName = &""
 @export var visual_scale := Vector2.ONE
 @export var visual_offset := Vector2.ZERO
+@export var appearances: Array[GogoAppearanceDefinition] = []
 
 
 func _init() -> void:

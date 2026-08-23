@@ -46,7 +46,7 @@ func _initialize() -> void:
 	if not _require(camera != null and camera.enabled, "player-following combat camera"):
 		return
 	var actor := world.player_actor
-	var visual := actor.get_node_or_null("CharacterVisual") as AnimatedSprite2D
+	var visual := actor.get_node_or_null("VisualRig/CharacterVisual") as AnimatedSprite2D
 	if not _require(visual != null, "runtime character visual"):
 		return
 	if not _require(visual.sprite_frames.get_frame_count(&"walk_down") == 8, "runtime uses Niko SpriteFrames"):

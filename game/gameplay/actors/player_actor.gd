@@ -9,6 +9,7 @@ var session: GameSession
 var combat_world: CombatWorld
 var weapon_runtime := WeaponRuntimeService.new()
 var weapon_orbit: Node2D
+var visual_rig: CharacterVisualRig
 var character_visual: AnimatedSprite2D
 var damage_cooldown := 0.0
 
@@ -17,6 +18,8 @@ func configure(next_session: GameSession, world: CombatWorld) -> void:
 	session = next_session
 	combat_world = world
 	player_state = session.run_state.player()
+	if not session.state_changed.is_connected(_on_session_state_changed):
+		session.state_changed.connect(_on_session_state_changed)
 
 
 func _ready() -> void:
@@ -26,7 +29,7 @@ func _ready() -> void:
 	circle.radius = 18.0
 	shape.shape = circle
 	add_child(shape)
-	_build_character_visual()
+	_build_character_visual_rig()
 	weapon_orbit = Node2D.new()
 	weapon_orbit.name = "WeaponOrbit"
 	add_child(weapon_orbit)
@@ -78,6 +81,12 @@ func rebuild_weapons() -> void:
 	_build_weapons()
 
 
+func rebuild_appearances() -> void:
+	if visual_rig == null:
+		return
+	visual_rig.rebuild_appearances(_collect_appearances())
+
+
 func _build_weapons() -> void:
 	if player_state == null or session == null:
 		return
@@ -103,7 +112,7 @@ func _draw() -> void:
 	draw_line(Vector2(-6.0, 7.0), Vector2(6.0, 7.0), Color("1a1b20"), 2.0)
 
 
-func _build_character_visual() -> void:
+func _build_character_visual_rig() -> void:
 	if player_state == null or session == null or session.content_snapshot == null:
 		return
 	var definition := session.content_snapshot.definition(player_state.character_id, &"character") as CharacterDefinition
@@ -111,23 +120,39 @@ func _build_character_visual() -> void:
 		return
 	if not definition.sprite_frames.has_animation(definition.default_animation):
 		return
-	character_visual = AnimatedSprite2D.new()
-	character_visual.name = "CharacterVisual"
-	character_visual.sprite_frames = definition.sprite_frames
-	character_visual.animation = definition.default_animation
-	character_visual.centered = true
-	character_visual.position = definition.visual_offset
-	character_visual.scale = definition.visual_scale
-	character_visual.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	character_visual.frame = 0
-	add_child(character_visual)
+	visual_rig = CharacterVisualRig.new()
+	visual_rig.name = "VisualRig"
+	add_child(visual_rig)
+	if visual_rig.configure(definition, _collect_appearances()) != OK:
+		visual_rig.queue_free()
+		visual_rig = null
+		return
+	character_visual = visual_rig.base_sprite
 
 
 func _update_character_visual(direction: Vector2) -> void:
-	if character_visual == null:
+	if visual_rig == null:
 		return
-	if direction.is_zero_approx():
-		character_visual.pause()
-		character_visual.frame = 0
-	elif not character_visual.is_playing():
-		character_visual.play()
+	visual_rig.set_moving(not direction.is_zero_approx())
+
+
+func _collect_appearances() -> Array[GogoAppearanceDefinition]:
+	var result: Array[GogoAppearanceDefinition] = []
+	if session == null or session.content_snapshot == null or player_state == null:
+		return result
+	var character := session.content_snapshot.definition(player_state.character_id, &"character") as CharacterDefinition
+	if character != null:
+		result.append_array(character.appearances)
+	var seen_items: Dictionary = {}
+	for item_id in player_state.item_ids:
+		if seen_items.has(item_id):
+			continue
+		seen_items[item_id] = true
+		var item := session.content_snapshot.definition(item_id, &"item") as GogoItemDefinition
+		if item != null:
+			result.append_array(item.appearances)
+	return result
+
+
+func _on_session_state_changed() -> void:
+	rebuild_appearances()
