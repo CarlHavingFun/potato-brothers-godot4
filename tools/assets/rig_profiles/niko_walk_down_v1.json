@@ -244,7 +244,7 @@
       "flip_behavior": "none",
       "max_feature_center_error_px": 1,
       "max_occlusion_ratio": 0.0,
-      "max_palette_colors": 8,
+      "max_palette_colors": 18,
       "max_residual_jitter_px": 1,
       "outer_width_ratio": [1.05, 1.15],
       "protected_region": "protected_regions.eyes",

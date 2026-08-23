@@ -1,0 +1,272 @@
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+
+import pytest
+from PIL import Image
+
+from tools.assets.build_smoke_shell_helmet_candidate_002 import (
+    BuildInputs,
+    _load_checker,
+    build_candidate_002,
+)
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+CANDIDATE_001 = Path(
+    "E:/01_gobro/GOGOBRO_ASSET_INBOX/02_static_assets/items/"
+    "smoke_shell_helmet/candidate-001"
+)
+APPEARANCE_SOURCE = (
+    CANDIDATE_001 / "cleaned/smoke-shell-helmet-appearance-128.png"
+)
+NIKO_ATLAS = (
+    REPO_ROOT
+    / "game/content/packs/characters/niko/animations/walk_down/sprite-sheet-alpha.png"
+)
+RIG_PROFILE = REPO_ROOT / "tools/assets/rig_profiles/niko_walk_down_v1.json"
+REGISTRY = REPO_ROOT / "game/content/assets/gogobro_static_assets_v1.json"
+LOCKED_NIKO_HASH = "fbc10108d9a665b14dcc376da54bbbf66d89b931ae1189e69fe1c45b31fe579d"
+EXPECTED_ARTIFACTS = {
+    "appearance/anchors-walk-down.json",
+    "derived/appearance-128.png",
+    "derived/icon-256.png",
+    "qa/approval-card.png",
+    "qa/composite-atlas-8x128.png",
+    "qa/composite-frame-001.png",
+    "qa/harmony-actual-size.png",
+    "qa/harmony-overlay.png",
+    "qa/harmony-report.json",
+    "qa/pixel-qa-report.json",
+    "qa/runtime-size-1920x1080.png",
+    "qa/visual-rubric.json",
+}
+
+
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def tree_hashes(root: Path) -> dict[str, str]:
+    return {
+        path.relative_to(root).as_posix(): sha256(path)
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
+
+
+def inputs(output_root: Path) -> BuildInputs:
+    return BuildInputs(
+        appearance_source=APPEARANCE_SOURCE,
+        niko_atlas=NIKO_ATLAS,
+        rig_profile=RIG_PROFILE,
+        registry=REGISTRY,
+        output_root=output_root,
+    )
+
+
+def rgba(path: Path) -> Image.Image:
+    with Image.open(path) as opened:
+        return opened.convert("RGBA")
+
+
+def assert_pixel_contract(image: Image.Image) -> None:
+    pixels = list(image.get_flattened_data())
+    assert {pixel[3] for pixel in pixels} <= {0, 255}
+    assert all(pixel[:3] == (0, 0, 0) for pixel in pixels if pixel[3] == 0)
+
+
+def test_builder_preserves_sources_and_derives_exact_review_candidate(tmp_path: Path) -> None:
+    """Catches source mutation, resampling drift, invalid placement, and accidental curation."""
+    before_hashes = tree_hashes(CANDIDATE_001)
+    before_registry = sha256(REGISTRY)
+    output_root = tmp_path / "candidate-002"
+
+    result = build_candidate_002(inputs(output_root))
+
+    assert tree_hashes(CANDIDATE_001) == before_hashes
+    assert sha256(NIKO_ATLAS) == LOCKED_NIKO_HASH
+    assert sha256(REGISTRY) == before_registry
+    assert result.candidate_id == "candidate-002"
+    metadata = json.loads((output_root / "candidate-metadata.json").read_text("utf-8"))
+    anchors = json.loads(
+        (output_root / "appearance/anchors-walk-down.json").read_text("utf-8")
+    )
+    report = json.loads((output_root / "qa/harmony-report.json").read_text("utf-8"))
+
+    source = rgba(APPEARANCE_SOURCE)
+    appearance = rgba(output_root / "derived/appearance-128.png")
+    icon = rgba(output_root / "derived/icon-256.png")
+    assert appearance.size == (128, 128)
+    assert icon.size == (256, 256)
+    assert (output_root / "derived/appearance-128.png").read_bytes() == APPEARANCE_SOURCE.read_bytes()
+    assert icon.tobytes() == source.resize((256, 256), Image.Resampling.NEAREST).tobytes()
+    assert_pixel_contract(appearance)
+    assert_pixel_contract(icon)
+    profile = json.loads(RIG_PROFILE.read_text("utf-8"))
+    appearance_palette_size = len(
+        {pixel[:3] for pixel in appearance.get_flattened_data() if pixel[3]}
+    )
+    assert appearance_palette_size == 18
+    assert profile["slot_profiles"]["head"]["max_palette_colors"] == appearance_palette_size
+
+    assert metadata["transform"]["shared_scale"] == 0.625
+    assert metadata["metrics"]["outer_width_ratio"] >= 1.05
+    assert metadata["metrics"]["outer_width_ratio"] <= 1.15
+    assert metadata["metrics"]["max_feature_center_error_px"] <= 1
+    assert metadata["metrics"]["max_residual_jitter_px"] <= 1
+    assert metadata["metrics"]["max_protected_occlusion_ratio"] == 0
+    assert report["verdict"] == "review"
+    assert report["reason_codes"] == []
+
+    assert len(anchors["frames"]) == 8
+    assert all(frame["scale"] == 0.625 for frame in anchors["frames"])
+    assert all(frame["depth"] == 40 for frame in anchors["frames"])
+    assert all(
+        isinstance(component, int)
+        for frame in anchors["frames"]
+        for component in frame["offset"]
+    )
+    assert all(
+        0 <= left < right <= 128 and 0 <= top < bottom <= 128
+        for left, top, right, bottom in metadata["metrics"]["frame_boxes"]
+    )
+    assert rgba(output_root / "qa/composite-frame-001.png").size == (128, 128)
+    assert rgba(output_root / "qa/composite-atlas-8x128.png").size == (1024, 128)
+    assert rgba(output_root / "qa/runtime-size-1920x1080.png").size == (1920, 1080)
+    composite = rgba(output_root / "qa/composite-atlas-8x128.png")
+    overlay = rgba(output_root / "qa/harmony-overlay.png")
+    actual_size = rgba(output_root / "qa/harmony-actual-size.png")
+    assert overlay.size == (1024, 128)
+    assert actual_size.size == (1920, 1080)
+    assert any(
+        pixel[3] and pixel[:3] != (255, 0, 255)
+        for pixel in overlay.get_flattened_data()
+    )
+    actual_crop = actual_size.crop((448, 476, 1472, 604))
+    assert all(
+        actual_pixel == composite_pixel
+        for actual_pixel, composite_pixel in zip(
+            actual_crop.get_flattened_data(),
+            composite.get_flattened_data(),
+            strict=True,
+        )
+        if composite_pixel[3] == 255
+    )
+    assert rgba(output_root / "qa/approval-card.png").size == (1800, 1200)
+    assert not (output_root / "curated").exists()
+    assert {artifact["path"] for artifact in metadata["artifacts"]} == EXPECTED_ARTIFACTS
+    artifacts_by_role = {artifact["role"]: artifact for artifact in metadata["artifacts"]}
+    assert set(artifacts_by_role) == {
+        "anchors",
+        "appearance",
+        "approval_card",
+        "composite_atlas",
+        "composite_frame",
+        "harmony_actual_size",
+        "harmony_overlay",
+        "harmony_report",
+        "icon",
+        "pixel_qa_report",
+        "runtime_preview",
+        "visual_rubric",
+    }
+    assert all(artifact["bytes"] > 0 for artifact in metadata["artifacts"])
+    assert all(len(artifact["sha256"]) == 64 for artifact in metadata["artifacts"])
+    assert all("format" in artifact["output_spec"] for artifact in metadata["artifacts"])
+
+
+def test_builder_is_deterministic_and_never_clears_output_root(tmp_path: Path) -> None:
+    """Catches nondeterministic output and recursive cleanup of unrelated evidence."""
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    build_candidate_002(inputs(first))
+    build_candidate_002(inputs(second))
+
+    first_hashes = tree_hashes(first)
+    second_hashes = tree_hashes(second)
+    assert first_hashes == second_hashes
+
+    sentinel = first / "reviewer-note.txt"
+    sentinel.write_text("preserve me\n", encoding="utf-8")
+    rubric_before = (first / "qa/visual-rubric.json").read_bytes()
+    build_candidate_002(inputs(first))
+    assert sentinel.read_text(encoding="utf-8") == "preserve me\n"
+    assert (first / "qa/visual-rubric.json").read_bytes() == rubric_before
+    assert not (first / "curated").exists()
+
+
+def test_candidate_001_existing_scale_and_offsets_fail_harmony(tmp_path: Path) -> None:
+    """Catches a checker regression that would accept the oversized, misaligned candidate 001."""
+    legacy = json.loads(
+        (CANDIDATE_001 / "appearance/anchors-walk-down.json").read_text("utf-8")
+    )
+    checker_anchors = {
+        "candidate_id": "candidate-001",
+        "flip_behavior": "none",
+        "frames": [
+            {
+                "depth": 40,
+                "frame_index": frame["frame_index"],
+                "offset": frame["placement"]["image_offset"],
+                "scale": frame["placement"]["scale"],
+            }
+            for frame in legacy["frames"]
+        ],
+        "occupied_slots": [],
+        "slot": "head",
+    }
+    anchors_path = tmp_path / "candidate-001-anchors.json"
+    anchors_path.write_text(
+        json.dumps(checker_anchors, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    checker = _load_checker()
+    report = checker.analyze_harmony(
+        checker.HarmonyInputs(
+            character_atlas=NIKO_ATLAS,
+            appearance=APPEARANCE_SOURCE,
+            icon=CANDIDATE_001 / "icon/run/frames/icon/frame-0.png",
+            anchors=anchors_path,
+            rig_profile=RIG_PROFILE,
+            slot="head",
+            out_dir=tmp_path / "qa",
+        )
+    )
+
+    assert {frame["scale"] for frame in checker_anchors["frames"]} == {0.75}
+    assert report.verdict == "hard_fail"
+    assert {"scale_ratio_high", "feature_center_offset"} <= set(report.reason_codes)
+    assert report.metrics["outer_width_ratio"] == pytest.approx(76 / 58)
+    assert report.metrics["max_feature_center_error_px"] > 1
+
+
+def test_finalization_applies_rubric_and_preserves_its_bytes(tmp_path: Path) -> None:
+    """Catches rubric replacement, missing rubric provenance, and false finalization."""
+    output_root = tmp_path / "candidate-002"
+    build_candidate_002(inputs(output_root))
+    rubric_path = output_root / "qa/visual-rubric.json"
+    rubric = {
+        "identity": {"score": 2, "evidence": "The smoke-shell silhouette remains immediately identifiable."},
+        "function": {"score": 2, "evidence": "The aperture follows the face in all eight frames."},
+        "material": {"score": 2, "evidence": "Hard shell panels and smoke accents remain readable."},
+        "hierarchy": {"score": 1, "evidence": "The face remains primary at actual size."},
+        "originality": {"score": 1, "evidence": "The tactical shell motif remains distinct."},
+    }
+    rubric_path.write_text(
+        json.dumps(rubric, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    before = rubric_path.read_bytes()
+
+    build_candidate_002(inputs(output_root), visual_rubric=rubric_path)
+
+    assert rubric_path.read_bytes() == before
+    rubric_hash = hashlib.sha256(before).hexdigest()
+    report = json.loads((output_root / "qa/harmony-report.json").read_text("utf-8"))
+    metadata = json.loads((output_root / "candidate-metadata.json").read_text("utf-8"))
+    assert report["verdict"] == "harmony_pass"
+    assert report["metrics"]["visual_rubric_sha256"] == rubric_hash
+    assert metadata["visual_rubric_sha256"] == rubric_hash
+    assert not (output_root / "curated").exists()
