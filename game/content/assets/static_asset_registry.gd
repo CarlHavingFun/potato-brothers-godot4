@@ -389,8 +389,10 @@ static func _validate_candidate_artifacts(artifacts: Array, candidate_id: String
 			errors.append("duplicate candidate artifact role: %s" % role)
 		else:
 			roles[role] = true
-		var path := str(artifact.get("path", "")).strip_edges()
-		if path.is_empty():
+		var path := str(artifact.get("path", ""))
+		if path != path.strip_edges():
+			errors.append("candidate artifact %s path must stay within exact candidate root" % role)
+		elif path.is_empty():
 			errors.append("candidate artifact %s missing path" % role)
 		elif path.begins_with("res://"):
 			errors.append("candidate artifact %s path must stay outside runtime res://" % role)

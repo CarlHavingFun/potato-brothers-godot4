@@ -309,6 +309,19 @@ func test_loader_rejects_malformed_or_unsafe_candidate_history_artifacts() -> vo
 		_candidate_artifact(_candidate_history_entry(_smoke_shell_helmet(escaped_path), "candidate-002"), "icon")["path"] = unsafe_path
 		_assert_fixture_error(escaped_path, "candidate artifact icon path must stay within exact candidate root")
 
+	var exact_icon_path := "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/derived/icon-256.png"
+	for whitespace_wrapped_path in [
+		" " + exact_icon_path,
+		exact_icon_path + " ",
+		"\t" + exact_icon_path,
+		exact_icon_path + "\t",
+		"\n" + exact_icon_path,
+		exact_icon_path + "\r\n",
+	]:
+		var whitespace_path := _canonical_registry()
+		_candidate_artifact(_candidate_history_entry(_smoke_shell_helmet(whitespace_path), "candidate-002"), "icon")["path"] = whitespace_wrapped_path
+		_assert_fixture_error(whitespace_path, "candidate artifact icon path must stay within exact candidate root")
+
 	var canonical_json := FileAccess.get_file_as_string(CANONICAL_PATH)
 	for malformed_byte_literal in ["1.0", "1.5", "1e3", "0", "-1", "\"1\"", "null"]:
 		var malformed_bytes_json := canonical_json.replace("\"bytes\":1968", "\"bytes\":%s" % malformed_byte_literal)
