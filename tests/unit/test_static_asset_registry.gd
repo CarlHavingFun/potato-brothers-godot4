@@ -134,16 +134,16 @@ func test_smoke_shell_helmet_review_record_has_exact_copy_and_candidate_provenan
 	for expected in [
 		["icon", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/derived/icon-256.png", 3030, "9d5d9a14d005be3b08c5cc90f2e11c74ef214bac8c921452f34dc1daef509bec", {"format":"PNG","width":256,"height":256,"alpha":true}],
 		["appearance", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/derived/appearance-128.png", 2206, "b3932e02daf39074ce048e45b6fae7f221019d87ad7b3a4327fa40714f25874a", {"format":"PNG","width":128,"height":128,"alpha":true}],
-		["anchors", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/appearance/anchors-walk-down.json", 1806, "c8bfe6231d40a3ab6643ec06dd7d34287a23729bf39094794b4c46a5c76b024a", {"format":"JSON","state":"walk_down","anchor_count":8}],
+		["anchors", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/appearance/anchors-walk-down.json", 2256, "b0e85dc0e243cb1f9198662efd64737e9f4670fa8a3c3378efcb05fac327ac22", {"format":"JSON","state":"walk_down","anchor_count":8}],
 		["composite_frame", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/composite-frame-001.png", 3241, "7a03b64c3cdba6f0ce701f70ee91f30b61d5b7304a3a1e2ccab65f04e813d08c", {"format":"PNG","width":128,"height":128,"alpha":true}],
 		["composite_atlas", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/composite-atlas-8x128.png", 9271, "ae2951fcc74e76eccb1e4dcb7bba8d9801c80b0bddcf3ecb9af29b4472c00db7", {"format":"PNG","width":1024,"height":128,"alpha":true}],
 		["runtime_preview", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/runtime-size-1920x1080.png", 15371, "03dd0cbfa73f77f47dc3a900c54862a7060444fdf84763359829f046e670377b", {"format":"PNG","width":1920,"height":1080,"alpha":true}],
-		["harmony_overlay", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-overlay.png", 9496, "9e736b02c4584ed8b42abdfe4bd6773e3323dc83d7d14ffeadd5f2fdbde19edf", {"format":"PNG","width":1024,"height":128,"alpha":true}],
+		["harmony_overlay", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-overlay.png", 9781, "83726a06995948ee714a3961ff062a7e4a68532b010a28c4c07c39e075573f45", {"format":"PNG","width":1024,"height":128,"alpha":true}],
 		["harmony_actual_size", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-actual-size.png", 20018, "433d9ea7d9799b90d76f092bc1d44697b9eda2f6ab574ce8f7d9a2d2ba902a1f", {"format":"PNG","width":1920,"height":1080,"alpha":true}],
-		["harmony_report", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-report.json", 1712, "7f365446f5cb930c49d2bae74ff9a85a0e8df4e00bf6b238efd8466573cea030", {"format":"JSON"}],
+		["harmony_report", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-report.json", 5859, "2e28e83314306cdfcdee5c6c008df72914f2da7624d4804128652d26cb3f99d4", {"format":"JSON"}],
 		["visual_rubric", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/visual-rubric.json", 1063, "079bc298093ddc08df5040bd05f51788a9989edc544ffcf75c0a53d40edd9bc9", {"format":"JSON"}],
 		["pixel_qa_report", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/pixel-qa-report.json", 1729, "23be2391ad691928883e9da25af13972b50410cfd90628d2a91a27657dc6c00e", {"format":"JSON"}],
-		["approval_card", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/approval-card.png", 157560, "8ba8369f36bc5ea5a2c07622bdff642651c4a86144473857edf817bda6d86728", {"format":"PNG","width":1800,"height":1200,"alpha":true}],
+		["approval_card", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/approval-card.png", 156769, "3659fb91481827e11d1ca728e8104bfe2393ed898550b856d05e3922673bf05b", {"format":"PNG","width":1800,"height":1200,"alpha":true}],
 	]:
 		var artifact := _candidate_artifact(active_candidate, expected[0])
 		assert_str(str(artifact.get("path", ""))).is_equal(expected[1])
@@ -151,10 +151,10 @@ func test_smoke_shell_helmet_review_record_has_exact_copy_and_candidate_provenan
 		assert_str(str(artifact.get("sha256", ""))).is_equal(expected[3])
 		_assert_output_spec(artifact.get("output_spec", {}) as Dictionary, expected[4] as Dictionary)
 	var metrics := active_candidate.get("metrics", {}) as Dictionary
-	assert_float(float(metrics.get("max_feature_center_error_px", -1.0))).is_equal(0.4375)
+	assert_float(float(metrics.get("max_feature_center_error_px", -1.0))).is_equal(1.0)
 	assert_float(float(metrics.get("max_protected_occlusion_ratio", -1.0))).is_equal(0.0)
 	assert_float(float(metrics.get("max_residual_jitter_px", -1.0))).is_equal(0.0)
-	assert_float(float(metrics.get("outer_width_ratio", -1.0))).is_equal(1.103448275862069)
+	assert_float(float(metrics.get("outer_width_ratio", -1.0))).is_equal(1.0689655172413792)
 	assert_int(int(metrics.get("visual_rubric_total", 0))).is_equal(10)
 	assert_str(str(active_candidate.get("visual_rubric_sha256", ""))).is_equal("079bc298093ddc08df5040bd05f51788a9989edc544ffcf75c0a53d40edd9bc9")
 	var fonts := active_candidate.get("font_provenance", {}) as Dictionary
