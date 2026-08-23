@@ -24,6 +24,13 @@ FRAME_SIZE = (128, 128)
 ICON_SIZE = (256, 256)
 ATLAS_SIZE = (1024, 128)
 LOCKED_NIKO_HASH = "fbc10108d9a665b14dcc376da54bbbf66d89b931ae1189e69fe1c45b31fe579d"
+OUTLINE_COLORS_RGB = (
+    (8, 5, 3),
+    (9, 0, 0),
+    (21, 13, 6),
+    (29, 27, 24),
+    (34, 34, 31),
+)
 DEFAULT_CARD_FONT_REGULAR = Path("C:/Windows/Fonts/msyh.ttc")
 DEFAULT_CARD_FONT_BOLD = Path("C:/Windows/Fonts/msyhbd.ttc")
 TRANSACTION_MARKER = ".candidate-transaction.json"
@@ -534,6 +541,13 @@ def _build_anchors(checker: object, appearance: Image.Image, profile: dict[str, 
         "frame_count": 8,
         "frames": anchor_frames,
         "occupied_slots": [],
+        "pixel_contract": {
+            "appearance_grid_scale": 2,
+            "icon_grid_scale": 4,
+            "logical_canvas": [64, 64],
+            "outline_colors_rgb": [list(color) for color in OUTLINE_COLORS_RGB],
+            "resampling": "nearest",
+        },
         "schema_version": "gogobro-item-anchors-v1",
         "shared_scale": SHARED_SCALE,
         "slot": "head",
@@ -565,33 +579,6 @@ def _save_runtime_preview(composite: Image.Image, path: Path) -> None:
     frame = enlarged.crop((0, 0, 384, 384))
     canvas.alpha_composite(frame, dest=((1920 - 384) // 2, 520))
     path.parent.mkdir(parents=True, exist_ok=True)
-    canvas.save(path)
-
-
-def _save_harmony_overlay(
-    composite: Image.Image, frame_boxes: object, path: Path
-) -> None:
-    overlay = composite.copy()
-    draw = ImageDraw.Draw(overlay)
-    if isinstance(frame_boxes, list):
-        for index, box in enumerate(frame_boxes):
-            if isinstance(box, list) and len(box) == 4:
-                left, top, right, bottom = (int(value) for value in box)
-                x_offset = index * FRAME_SIZE[0]
-                draw.rectangle(
-                    (x_offset + left, top, x_offset + right - 1, bottom - 1),
-                    outline=(255, 0, 255, 255),
-                    width=1,
-                )
-    overlay.save(path)
-
-
-def _save_harmony_actual_size(composite: Image.Image, path: Path) -> None:
-    canvas = Image.new("RGBA", (1920, 1080), (18, 22, 30, 255))
-    canvas.alpha_composite(
-        composite,
-        dest=((canvas.width - composite.width) // 2, (canvas.height - composite.height) // 2),
-    )
     canvas.save(path)
 
 
@@ -833,15 +820,7 @@ def _assert_evidence_only_rubric_revision(
 
 
 def _load_visual_rubric(checker: object, path: Path) -> object:
-    payload = _read_object(path)
-    dimensions: list[tuple[int, str]] = []
-    for name in RUBRIC_DIMENSIONS:
-        value = payload[name]
-        if isinstance(value, dict):
-            dimensions.append((int(value["score"]), str(value["evidence"])))
-        else:
-            dimensions.append((int(value[0]), str(value[1])))
-    return checker.VisualRubric(*dimensions)
+    return checker.load_visual_rubric(path)
 
 
 def _artifact_manifest(stage: Path) -> list[dict[str, object]]:
@@ -1131,7 +1110,11 @@ def build_candidate_002(
         report = checker.analyze_harmony(harmony_inputs)
         if visual_rubric:
             rubric = _load_visual_rubric(checker, visual_rubric)
-            report = checker.apply_visual_rubric(report, rubric)
+            report = checker.apply_visual_rubric(
+                report,
+                rubric,
+                rubric_sha256=rubric_hash,
+            )
             report_metrics = dict(report.metrics)
             report_metrics["visual_rubric_sha256"] = rubric_hash
             report = replace(report, metrics=report_metrics)
@@ -1142,10 +1125,6 @@ def build_candidate_002(
         composite.crop((0, 0, 128, 128)).save(stage / "qa/composite-frame-001.png")
         composite.save(stage / "qa/composite-atlas-8x128.png")
         _save_runtime_preview(composite, stage / "qa/runtime-size-1920x1080.png")
-        _save_harmony_overlay(
-            composite, report.metrics.get("frame_boxes", []), stage / "qa/harmony-overlay.png"
-        )
-        _save_harmony_actual_size(composite, stage / "qa/harmony-actual-size.png")
         if rubric_bytes is None:
             _write_json(stage / "qa/visual-rubric.json", _default_visual_rubric())
         else:
@@ -1244,15 +1223,24 @@ def build_candidate_002(
         )
         _write_json(stage / "candidate-metadata.json", metadata_payload)
 
+        try:
+            current_source_hashes = _source_hashes(
+                inputs,
+                _tree_hashes(candidate_001),
+            )
+        except OSError as error:
+            raise RuntimeError("source_changed") from error
         if (
-            _sha256(inputs.card_font_regular) != font_regular_before
-            or _sha256(inputs.card_font_bold) != font_bold_before
+            current_source_hashes["card_font_regular"] != font_regular_before
+            or current_source_hashes["card_font_bold"] != font_bold_before
         ):
             raise RuntimeError("card_font_changed")
         source_unchanged = (
-            _tree_hashes(candidate_001) == candidate_001_before
-            and _sha256(inputs.niko_atlas) == niko_before == LOCKED_NIKO_HASH
-            and _sha256(inputs.registry) == registry_before
+            current_source_hashes == source_hashes
+            and current_source_hashes["niko_atlas"]
+            == niko_before
+            == LOCKED_NIKO_HASH
+            and current_source_hashes["registry"] == registry_before
         )
         if not source_unchanged:
             raise RuntimeError("source_changed")

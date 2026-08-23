@@ -12,6 +12,8 @@ from PIL import Image
 SCRIPTS = Path(__file__).parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
+import check_item_harmony as checker_module  # noqa: E402
+
 from check_item_harmony import (  # noqa: E402
     Box,
     HarmonyInputs,
@@ -339,6 +341,11 @@ def test_niko_profile_has_explicit_distinct_slot_contracts_and_attachment_boxes(
     assert slots["head"]["outer_width_ratio"] == [1.05, 1.15]
     assert slots["head"]["max_feature_center_error_px"] == 1
     assert slots["head"]["max_residual_jitter_px"] == 1
+    assert slots["head"]["max_opaque_components"] == 1
+    assert all(
+        contract["min_outline_boundary_coverage"] == 1.0
+        for contract in slots.values()
+    )
     required_contract = {
         "feature_anchor",
         "outer_width_ratio",
@@ -352,6 +359,7 @@ def test_niko_profile_has_explicit_distinct_slot_contracts_and_attachment_boxes(
         "feature_center_max_px",
         "residual_jitter_max_px",
         "max_palette_colors",
+        "min_outline_boundary_coverage",
     }
     assert all(required_contract <= set(contract) for contract in slots.values())
     assert all(contract["feature_anchor"] != "face_center" for name, contract in slots.items() if name != "head")
@@ -439,6 +447,45 @@ def test_aperture_offset_is_reported_in_pixels(head_fixture: HeadFixture) -> Non
     assert report.metrics["max_feature_center_error_px"] == 4
 
 
+def test_exact_nearest_raster_drives_scale_ratio_at_point_597(
+    head_fixture: HeadFixture,
+) -> None:
+    """Catches continuous floor/ceil bounds accepting a raster that is one pixel narrow."""
+    inputs = head_fixture._rewrite(outer_width=101, head_width=58)
+    anchors = json.loads(inputs.anchors.read_text(encoding="utf-8"))
+    for anchor in anchors["frames"]:
+        anchor["scale"] = 0.597
+    _write_json(inputs.anchors, anchors)
+
+    report = analyze_harmony(inputs)
+
+    assert report.metrics["outer_width_ratio"] == pytest.approx(60 / 58)
+    assert "scale_ratio_low" in report.reason_codes
+
+
+def test_resized_layer_pixel_drives_protected_region_occlusion(
+    head_fixture: HeadFixture,
+) -> None:
+    """Catches inverse-floor source lookup missing a pixel Pillow actually renders."""
+    inputs = head_fixture.inputs()
+    appearance = Image.open(inputs.appearance).convert("RGBA")
+    appearance.putpixel((2, 2), (17, 13, 9, 255))
+    appearance.save(inputs.appearance)
+    derive_nearest_2x_icon(appearance).save(inputs.icon)
+    anchors = json.loads(inputs.anchors.read_text(encoding="utf-8"))
+    for anchor in anchors["frames"]:
+        anchor["scale"] = 0.597
+    _write_json(inputs.anchors, anchors)
+    profile = json.loads(inputs.rig_profile.read_text(encoding="utf-8"))
+    profile["frames"][0]["protected_regions"]["eyes"] = [1, 1, 2, 2]
+    _write_json(inputs.rig_profile, profile)
+
+    report = analyze_harmony(inputs)
+
+    assert report.metrics["max_protected_occlusion_ratio"] == 1
+    assert "protected_region_occlusion" in report.reason_codes
+
+
 @pytest.mark.filterwarnings("ignore:Image.Image.getdata is deprecated:DeprecationWarning")
 def test_direct_icon_contract_is_exact_nearest_2x(appearance_image: Image.Image) -> None:
     icon = derive_nearest_2x_icon(appearance_image)
@@ -456,6 +503,199 @@ def test_non_nearest_icon_is_hard_fail(head_fixture: HeadFixture) -> None:
     report = analyze_harmony(head_fixture.inputs())
     assert report.verdict == "hard_fail"
     assert "icon_not_nearest_2x" in report.reason_codes
+
+
+def _bind_canonical_atlas_contract(fixture: HeadFixture) -> dict[str, object]:
+    profile = json.loads(fixture.rig_profile.read_text(encoding="utf-8"))
+    profile["schema_version"] = "gogobro-rig-profile-v1"
+    profile["character_atlas_sha256"] = _sha256(fixture.character_atlas).upper()
+    profile["slot_profiles"]["head"].update(
+        {
+            "depth_band": [1, 99],
+            "direct_icon_reuse": True,
+            "feature_anchor": "face_center",
+            "flip_behavior": "none",
+            "max_feature_center_error_px": 1,
+            "max_occlusion_ratio": 0,
+            "max_opaque_components": 1,
+            "max_residual_jitter_px": 1,
+            "min_outline_boundary_coverage": 1.0,
+            "protected_region": "protected_regions.eyes",
+        }
+    )
+    _write_json(fixture.rig_profile, profile)
+    return profile
+
+
+def _bind_formal_pixel_contract(fixture: HeadFixture) -> HarmonyInputs:
+    profile = _bind_canonical_atlas_contract(fixture)
+    profile["slot_profiles"]["head"].update(
+        {
+            "max_opaque_components": 1,
+            "min_outline_boundary_coverage": 1.0,
+        }
+    )
+    _write_json(fixture.rig_profile, profile)
+    logical = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    outline = (8, 5, 3, 255)
+    logical.paste(outline, (15, 25, 47, 46))
+    logical.paste((0, 0, 0, 0), (27, 33, 36, 39))
+    appearance = logical.resize((128, 128), Image.Resampling.NEAREST)
+    appearance.save(fixture.appearance)
+    logical.resize((256, 256), Image.Resampling.NEAREST).save(fixture.icon)
+    anchors = json.loads(fixture.anchors.read_text(encoding="utf-8"))
+    anchors.update(
+        {
+            "schema_version": "gogobro-item-anchors-v1",
+            "pixel_contract": {
+                "appearance_grid_scale": 2,
+                "icon_grid_scale": 4,
+                "logical_canvas": [64, 64],
+                "outline_colors_rgb": [[8, 5, 3]],
+                "resampling": "nearest",
+            },
+        }
+    )
+    _write_json(fixture.anchors, anchors)
+    return fixture.inputs()
+
+
+def test_canonical_rig_rejects_character_atlas_hash_mismatch(
+    head_fixture: HeadFixture,
+) -> None:
+    profile = _bind_canonical_atlas_contract(head_fixture)
+    expected = profile["character_atlas_sha256"]
+    atlas = Image.open(head_fixture.character_atlas).convert("RGBA")
+    atlas.putpixel((0, 0), (1, 2, 3, 255))
+    atlas.save(head_fixture.character_atlas)
+
+    report = analyze_harmony(head_fixture.inputs())
+
+    assert report.verdict == "hard_fail"
+    assert "character_atlas_hash_mismatch" in report.reason_codes
+    assert report.atlas_sha256 == {
+        "actual": _sha256(head_fixture.character_atlas),
+        "expected": str(expected).lower(),
+    }
+
+
+def test_canonical_rig_requires_a_strict_64_hex_character_atlas_hash(
+    head_fixture: HeadFixture,
+) -> None:
+    profile = _bind_canonical_atlas_contract(head_fixture)
+    profile["character_atlas_sha256"] = "not-a-sha256"
+    _write_json(head_fixture.rig_profile, profile)
+
+    report = analyze_harmony(head_fixture.inputs())
+
+    assert report.reason_codes == ("invalid_contract",)
+
+
+def test_direct_icon_reuse_false_permits_an_independent_valid_icon(
+    tmp_path: Path,
+) -> None:
+    fixture = NikoSlotFixture(tmp_path, "back")
+    icon = Image.open(fixture.icon).convert("RGBA")
+    icon.transpose(Image.Transpose.FLIP_LEFT_RIGHT).save(fixture.icon)
+
+    report = analyze_harmony(fixture.inputs())
+
+    assert report.verdict == "review"
+    assert "icon_not_nearest_2x" not in report.reason_codes
+
+
+def test_independent_icon_still_obeys_pixel_hard_gates(
+    head_fixture: HeadFixture,
+) -> None:
+    inputs = _bind_formal_pixel_contract(head_fixture)
+    profile = json.loads(inputs.rig_profile.read_text(encoding="utf-8"))
+    profile["slot_profiles"]["head"]["direct_icon_reuse"] = False
+    _write_json(inputs.rig_profile, profile)
+    icon = Image.open(inputs.icon).convert("RGBA")
+    icon.paste((7, 6, 5, 128), (0, 0, 4, 4))
+    icon.save(inputs.icon)
+
+    report = analyze_harmony(inputs)
+
+    assert "icon_not_nearest_2x" not in report.reason_codes
+    assert "non_binary_alpha" in report.reason_codes
+
+
+def test_direct_icon_reuse_is_an_exact_bool(tmp_path: Path) -> None:
+    fixture = NikoSlotFixture(tmp_path, "back")
+
+    report = analyze_harmony(fixture.rewrite_contract("direct_icon_reuse", 1))
+
+    assert report.reason_codes == ("invalid_contract",)
+
+
+def test_formal_pixel_contract_rejects_a_nonuniform_source_grid(
+    head_fixture: HeadFixture,
+) -> None:
+    inputs = _bind_formal_pixel_contract(head_fixture)
+    appearance = Image.open(inputs.appearance).convert("RGBA")
+    appearance.putpixel((30, 50), (0, 0, 0, 0))
+    appearance.save(inputs.appearance)
+    derive_nearest_2x_icon(appearance).save(inputs.icon)
+
+    report = analyze_harmony(inputs)
+
+    assert "pixel_grid_incompatible" in report.reason_codes
+
+
+def test_formal_pixel_contract_rejects_unapproved_boundary_colors(
+    head_fixture: HeadFixture,
+) -> None:
+    inputs = _bind_formal_pixel_contract(head_fixture)
+    appearance = Image.open(inputs.appearance).convert("RGBA")
+    appearance.paste((90, 80, 70, 255), (30, 50, 32, 52))
+    appearance.save(inputs.appearance)
+    derive_nearest_2x_icon(appearance).save(inputs.icon)
+
+    report = analyze_harmony(inputs)
+
+    assert "outline_discontinuity" in report.reason_codes
+    assert report.metrics["source_outline_boundary_coverage"] < 1
+
+
+def test_formal_head_contract_rejects_multiple_opaque_components(
+    head_fixture: HeadFixture,
+) -> None:
+    inputs = _bind_formal_pixel_contract(head_fixture)
+    appearance = Image.open(inputs.appearance).convert("RGBA")
+    appearance.paste((8, 5, 3, 255), (10, 10, 12, 12))
+    appearance.save(inputs.appearance)
+    derive_nearest_2x_icon(appearance).save(inputs.icon)
+
+    report = analyze_harmony(inputs)
+
+    assert "outline_component_count" in report.reason_codes
+    assert report.metrics["source_opaque_components"] == 2
+
+
+def test_formal_pixel_contract_reports_source_and_rendered_outline_evidence(
+    head_fixture: HeadFixture,
+) -> None:
+    report = analyze_harmony(_bind_formal_pixel_contract(head_fixture))
+
+    assert report.verdict == "review"
+    assert report.metrics["source_opaque_components"] == 1
+    assert report.metrics["rendered_opaque_components"] == [1] * 8
+    assert report.metrics["source_outline_boundary_coverage"] == 1
+    assert report.metrics["rendered_outline_boundary_coverages"] == [1] * 8
+
+
+def test_formal_anchor_schema_requires_the_complete_pixel_contract(
+    head_fixture: HeadFixture,
+) -> None:
+    inputs = _bind_formal_pixel_contract(head_fixture)
+    anchors = json.loads(inputs.anchors.read_text(encoding="utf-8"))
+    anchors.pop("pixel_contract")
+    _write_json(inputs.anchors, anchors)
+
+    report = analyze_harmony(inputs)
+
+    assert report.reason_codes == ("invalid_contract",)
 
 
 @pytest.mark.parametrize(
@@ -640,6 +880,53 @@ def test_source_integrity_marks_a_report_hard_fail_after_a_source_changes(
     assert "source_changed" in report.reason_codes
 
 
+def test_source_integrity_retains_other_after_hashes_when_one_source_is_missing(
+    valid_inputs: HarmonyInputs,
+) -> None:
+    report = analyze_harmony(valid_inputs)
+    expected_hashes = dict(report.input_sha256)
+    valid_inputs.appearance.unlink()
+
+    changed = check_source_integrity(report, valid_inputs, expected_hashes)
+
+    assert changed.verdict == "hard_fail"
+    assert changed.source_integrity["before"] == expected_hashes
+    assert changed.source_integrity["after"]["appearance"] is None
+    assert changed.source_integrity["after"]["icon"] == expected_hashes["icon"]
+    assert changed.source_integrity["changed_keys"] == ["appearance"]
+
+
+def test_harmony_report_serializes_slot_thresholds_atlas_and_source_integrity(
+    valid_inputs: HarmonyInputs,
+) -> None:
+    report = analyze_harmony(valid_inputs)
+    write_harmony_outputs(report, valid_inputs)
+    payload = json.loads(
+        (valid_inputs.out_dir / "harmony-report.json").read_text(encoding="utf-8")
+    )
+
+    assert payload["slot"] == "head"
+    assert payload["thresholds"] == {
+        "max_feature_center_error_px": 1,
+        "max_opaque_components": None,
+        "max_palette_colors": 8,
+        "max_protected_occlusion_ratio": 0,
+        "max_residual_jitter_px": 1,
+        "min_outline_boundary_coverage": None,
+        "outer_width_ratio": [1.05, 1.15],
+    }
+    assert payload["atlas_sha256"] == {
+        "actual": _sha256(valid_inputs.character_atlas),
+        "expected": None,
+    }
+    assert payload["source_integrity"] == {
+        "after": payload["input_sha256"],
+        "before": payload["input_sha256"],
+        "changed_keys": [],
+    }
+    assert payload["metrics"]["outer_width_ratio"] == pytest.approx(64 / 58)
+
+
 @pytest.mark.parametrize(
     ("change", "reason"),
     [
@@ -684,6 +971,89 @@ def test_malformed_visual_rubric_returns_hard_fail_and_exit_two(valid_inputs: Ha
     assert main(_arguments(valid_inputs) + ["--visual-rubric", str(rubric_path)]) == 2
     report = json.loads((valid_inputs.out_dir / "harmony-report.json").read_text(encoding="utf-8"))
     assert "malformed_visual_rubric" in report["reason_codes"]
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            name: {"score": "2", "evidence": "visible evidence"}
+            for name in ("identity", "function", "material", "hierarchy", "originality")
+        },
+        {
+            name: {"score": 2.0, "evidence": "visible evidence"}
+            for name in ("identity", "function", "material", "hierarchy", "originality")
+        },
+        {
+            name: {"score": True, "evidence": "visible evidence"}
+            for name in ("identity", "function", "material", "hierarchy", "originality")
+        },
+        {
+            name: {"score": 2, "evidence": 123}
+            for name in ("identity", "function", "material", "hierarchy", "originality")
+        },
+        {
+            name: {"score": 2, "evidence": "visible evidence"}
+            for name in ("identity", "function", "material", "hierarchy")
+        },
+        {
+            **{
+                name: {"score": 2, "evidence": "visible evidence"}
+                for name in ("identity", "function", "material", "hierarchy", "originality")
+            },
+            "extra": {"score": 2, "evidence": "not a dimension"},
+        },
+        {
+            name: {"score": 2, "evidence": "visible evidence", "extra": True}
+            for name in ("identity", "function", "material", "hierarchy", "originality")
+        },
+    ],
+    ids=[
+        "string-score",
+        "float-score",
+        "bool-score",
+        "integer-evidence",
+        "missing-dimension",
+        "extra-dimension",
+        "extra-dimension-key",
+    ],
+)
+def test_public_visual_rubric_loader_rejects_non_exact_types_and_shapes(
+    tmp_path: Path,
+    payload: dict[str, object],
+) -> None:
+    rubric_path = tmp_path / "rubric.json"
+    _write_json(rubric_path, payload)
+
+    with pytest.raises(ValueError, match="malformed_visual_rubric"):
+        checker_module.load_visual_rubric(rubric_path)
+
+
+@pytest.mark.parametrize(
+    "identity",
+    [
+        (True, "visible evidence"),
+        (2, 123),
+    ],
+    ids=["bool-score", "integer-evidence"],
+)
+def test_apply_visual_rubric_rejects_invalid_direct_values(
+    valid_inputs: HarmonyInputs,
+    identity: tuple[object, object],
+) -> None:
+    valid = rubric([2, 2, 2, 1, 1])
+    malformed = VisualRubric(
+        identity=identity,  # type: ignore[arg-type]
+        function=valid.function,
+        material=valid.material,
+        hierarchy=valid.hierarchy,
+        originality=valid.originality,
+    )
+
+    report = apply_visual_rubric(analyze_harmony(valid_inputs), malformed)
+
+    assert report.verdict == "hard_fail"
+    assert "malformed_visual_rubric" in report.reason_codes
 
 
 def test_each_frame_uses_its_placed_alpha_width_and_own_head_width(
@@ -861,5 +1231,41 @@ def test_optional_visual_rubric_and_transform_suggestion_paths_are_written(
     ) == 0
     report = json.loads((valid_inputs.out_dir / "harmony-report.json").read_text(encoding="utf-8"))
     assert report["verdict"] == "harmony_pass"
-    raw_suggestion = (valid_inputs.out_dir / "transform-suggestion.json").read_bytes()
-    assert raw_suggestion == b'{\n  "reason_codes": []\n}\n'
+    rubric_sha256 = _sha256(rubric_path)
+    assert report["input_sha256"]["visual_rubric"] == rubric_sha256
+    assert report["source_integrity"]["before"]["visual_rubric"] == rubric_sha256
+    assert report["source_integrity"]["after"]["visual_rubric"] == rubric_sha256
+    suggestion_path = valid_inputs.out_dir / "transform-suggestion.json"
+    raw_suggestion = suggestion_path.read_bytes()
+    suggestion = json.loads(raw_suggestion)
+    assert raw_suggestion == (
+        json.dumps(suggestion, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
+    assert suggestion == {
+        "current_scales": [1.0] * 8,
+        "integer_offsets": [[index, 0] for index in range(8)],
+        "objective_measurements": report["metrics"],
+        "reason_codes": [],
+        "shared_scale": 1.0,
+        "slot": "head",
+        "status": "current_transform_passes",
+        "thresholds": report["thresholds"],
+    }
+
+
+def test_failing_transform_suggestion_requires_manual_correction(
+    head_fixture: HeadFixture,
+) -> None:
+    inputs = head_fixture.with_outer_width(76)
+
+    assert main(_arguments(inputs) + ["--suggest-transform"]) == 2
+
+    report = json.loads(
+        (inputs.out_dir / "harmony-report.json").read_text(encoding="utf-8")
+    )
+    suggestion = json.loads(
+        (inputs.out_dir / "transform-suggestion.json").read_text(encoding="utf-8")
+    )
+    assert suggestion["status"] == "manual_correction_required"
+    assert suggestion["reason_codes"] == report["reason_codes"]
+    assert "scale_ratio_high" in suggestion["reason_codes"]

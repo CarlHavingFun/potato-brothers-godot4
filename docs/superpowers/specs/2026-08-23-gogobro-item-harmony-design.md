@@ -57,6 +57,8 @@ Keep the cleaned 128×128 appearance file unchanged and change only its per-fram
 - no opaque helmet pixels may cover the protected eye region;
 - the appearance must remain fully inside the 128×128 frame.
 
+All geometry is measured from the exact Pillow raster used for compositing: resize the full source canvas to `round(source_size × scale)` with nearest-neighbor sampling, then derive alpha bounds, the resized aperture, protected-region occlusion, crop, and diagnostics from that raster. Continuous floor/ceil projections and inverse source-pixel lookup are not valid evidence.
+
 The checker may suggest a neighboring pixel-safe scale in 1/16 increments if `0.625` cannot meet all hard gates, but it must record the reason and may not overwrite source files. Candidate 002 will still contain only one chosen transform.
 
 ## Skill package
@@ -101,6 +103,8 @@ Check mode is read-only with respect to source assets. `--suggest-transform` may
 
 All outputs are deterministic for identical inputs and configuration.
 
+The report also records the selected slot, canonical atlas expected/actual hashes, and `source_integrity.before`, `source_integrity.after`, and sorted `changed_keys`. A used visual rubric is an input and therefore appears in all input-hash evidence. A transform suggestion contains current per-frame integer offsets/scales, objective measurements, thresholds, reasons, and either `current_transform_passes` or `manual_correction_required`; a failing transform is never described as an automatically qualified repair.
+
 ## Rig and slot profiles
 
 The checker consumes an explicit rig profile instead of guessing semantic body regions from alpha alone. The Niko profile records, per frame:
@@ -118,10 +122,11 @@ The checker consumes an explicit rig profile instead of guessing semantic body r
 ### Deterministic hard gates
 
 - expected canvas and atlas dimensions;
-- nearest-compatible pixel grid;
+- a formal `gogobro-item-anchors-v1` pixel binding with logical canvas `64×64`, appearance scale `2`, icon scale `4`, nearest resampling, and a frozen non-empty outline palette;
+- exact block-uniform RGBA nearest down/up round trips for the appearance and icon;
 - binary alpha and RGB zero under transparent pixels;
 - no chroma residue;
-- configured palette range and outline continuity;
+- configured palette range, four-connected opaque-component limits, and 100% source/rendered boundary coverage by the frozen outline palette;
 - unique appearance slot and valid depth expectation;
 - no frame cropping;
 - feature-center alignment within the slot threshold;
@@ -134,6 +139,8 @@ The checker consumes an explicit rig profile instead of guessing semantic body r
 
 Any hard-gate failure returns `hard_fail` and a non-zero process exit. It also reports an actionable correction such as “reduce shared scale” or “align aperture center +3 px on X”; it does not repair the asset automatically.
 
+Canonical v1 rigs require a strict 64-hex `character_atlas_sha256`. Slot `direct_icon_reuse` is an exact boolean: only `true` requires exact nearest 2× appearance reuse; `false` permits an independently drawn icon that still satisfies its formal 4× pixel grid.
+
 ### Visual rubric
 
 After hard gates pass, the skill requires an evidence-based 0–2 score for each dimension:
@@ -145,6 +152,8 @@ After hard gates pass, the skill requires an evidence-based 0–2 score for each
 - tactical-community flavor is original and commercially isolated.
 
 A total below 8/10 or any zero returns `review`. A total of at least 8/10 with no hard failure returns `harmony_pass`. Neither result changes registry approval status automatically.
+
+Rubric JSON has exactly the five named dimensions. Every dimension is exactly `{score, evidence}`, where `type(score) is int` (not boolean), `0≤score≤2`, and evidence is a non-empty string. The CLI, importable checker, and candidate builder share this one strict loader.
 
 ## Candidate and registry data flow
 
@@ -175,6 +184,8 @@ The checker fails without partial approval output when:
 
 Diagnostic files may still be emitted on failure, clearly marked `hard_fail`. Source and prior-candidate files remain untouched.
 
+Safe source hashing is per path: one missing or unreadable input becomes `null` in the after map without discarding the hashes of other sources. The candidate builder rehashes every recorded source, including the rig profile, immediately before atomic publication.
+
 ## Test strategy
 
 Follow RED–GREEN–REFACTOR for both the script and the skill instructions.
@@ -189,9 +200,14 @@ Use candidate 001 as the real regression: ordinary sprite QA passes while the ha
 - oversized item fails with the measured ratio;
 - aperture/face offset fails with X/Y evidence;
 - protected-eye occlusion fails;
+- scale `.597` uses the actual 60 px raster width rather than a theoretical 61 px projection;
+- an occlusion pixel present in the resized layer cannot be missed by inverse-coordinate approximation;
 - cropped appearance fails;
 - two-frame and eight-frame jitter failures are detected;
 - correct nearest 2× icon reuse passes and any pixel difference fails;
+- `direct_icon_reuse:false` accepts an independent grid-valid icon;
+- malformed atlas hashes, atlas mismatches, pixel-grid blocks, outline colors/components, and rubric types/shapes fail actionably;
+- reports and suggestions contain complete thresholds, source-integrity maps, and truthful statuses;
 - slot profiles apply distinct regions and depth expectations;
 - identical runs produce byte-identical JSON metrics and diagnostic rasters;
 - candidate 001 fails for the expected reasons;

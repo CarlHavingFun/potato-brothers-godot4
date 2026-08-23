@@ -8,10 +8,19 @@ import json
 import math
 from collections import deque
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 
 from PIL import Image, ImageDraw
+
+
+RUBRIC_DIMENSIONS = (
+    "identity",
+    "function",
+    "material",
+    "hierarchy",
+    "originality",
+)
 
 
 @dataclass(frozen=True)
@@ -38,7 +47,11 @@ class HarmonyReport:
     verdict: str
     reason_codes: Sequence[str]
     metrics: dict[str, object]
-    input_sha256: dict[str, str]
+    input_sha256: dict[str, str | None]
+    atlas_sha256: dict[str, str | None] = field(default_factory=dict)
+    slot: str | None = None
+    thresholds: dict[str, object] = field(default_factory=dict)
+    source_integrity: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -48,6 +61,13 @@ class VisualRubric:
     material: tuple[int, str]
     hierarchy: tuple[int, str]
     originality: tuple[int, str]
+
+
+@dataclass(frozen=True)
+class _RasterPlacement:
+    layer: Image.Image
+    bounds: Box | None
+    feature_center: tuple[float, float] | None
 
 
 def derive_nearest_2x_icon(appearance: Image.Image) -> Image.Image:
@@ -109,37 +129,57 @@ def _hash_paths(paths: dict[str, Path]) -> dict[str, str]:
     return {name: _sha256(path) for name, path in paths.items()}
 
 
-def _safe_hash_paths(paths: dict[str, Path]) -> dict[str, str]:
-    try:
-        return _hash_paths(paths)
-    except OSError:
-        return {}
+def _safe_hash_paths(paths: dict[str, Path]) -> dict[str, str | None]:
+    hashes: dict[str, str | None] = {}
+    for name, path in paths.items():
+        try:
+            hashes[name] = _sha256(path)
+        except OSError:
+            hashes[name] = None
+    return hashes
+
+
+def _source_integrity(
+    before: dict[str, str | None],
+    after: dict[str, str | None],
+) -> dict[str, object]:
+    keys = sorted(set(before) | set(after))
+    return {
+        "after": {key: after.get(key) for key in keys},
+        "before": {key: before.get(key) for key in keys},
+        "changed_keys": [key for key in keys if before.get(key) != after.get(key)],
+    }
 
 
 def _with_hard_reason(report: HarmonyReport, reason: str) -> HarmonyReport:
-    return HarmonyReport(
-        "hard_fail",
-        tuple(sorted({*report.reason_codes, reason})),
-        dict(report.metrics),
-        report.input_sha256,
+    return replace(
+        report,
+        verdict="hard_fail",
+        reason_codes=tuple(sorted({*report.reason_codes, reason})),
     )
 
 
 def check_source_integrity(
     report: HarmonyReport,
     inputs: HarmonyInputs,
-    expected_hashes: dict[str, str],
+    expected_hashes: dict[str, str | None],
     extra_sources: dict[str, Path] | None = None,
 ) -> HarmonyReport:
     """Return a hard-fail report when any source differs from its initial hash."""
     paths = _input_paths(inputs)
     if extra_sources:
         paths.update(extra_sources)
-    try:
-        current_hashes = _hash_paths(paths)
-    except OSError:
-        return _with_hard_reason(report, "source_changed")
-    return report if current_hashes == expected_hashes else _with_hard_reason(report, "source_changed")
+    current_hashes = _safe_hash_paths(paths)
+    updated = replace(
+        report,
+        input_sha256=dict(expected_hashes),
+        source_integrity=_source_integrity(expected_hashes, current_hashes),
+    )
+    return (
+        updated
+        if current_hashes == expected_hashes
+        else _with_hard_reason(updated, "source_changed")
+    )
 
 
 def _output_paths(inputs: HarmonyInputs, include_suggestion: bool) -> tuple[Path, ...]:
@@ -286,9 +326,13 @@ def _validate_contract(
         expected_depth = (
             None if expected_depth_value is None else float(expected_depth_value)
         )
+        direct_icon_reuse = contract.get("direct_icon_reuse", True)
+        min_outline_coverage = contract.get("min_outline_boundary_coverage")
+        max_opaque_components = contract.get("max_opaque_components")
     except (KeyError, TypeError, ValueError):
         raise ValueError("invalid_contract") from None
     required_slot_fields = {
+        "direct_icon_reuse",
         "feature_anchor",
         "protected_region",
         "max_occlusion_ratio",
@@ -310,6 +354,27 @@ def _validate_contract(
         or depth_low > depth_high
         or flip_behavior not in allowed_flip_behaviors
         or (expected_depth is not None and not math.isfinite(expected_depth))
+        or type(direct_icon_reuse) is not bool
+        or (
+            require_slot_fields
+            and (
+                isinstance(min_outline_coverage, bool)
+                or not isinstance(min_outline_coverage, int | float)
+                or float(min_outline_coverage) != 1.0
+            )
+        )
+        or (
+            max_opaque_components is not None
+            and (
+                type(max_opaque_components) is not int
+                or max_opaque_components < 1
+            )
+        )
+        or (
+            require_slot_fields
+            and feature_anchor == "face_center"
+            and max_opaque_components is None
+        )
         or (require_slot_fields and not required_slot_fields <= set(contract))
     ):
         raise ValueError("invalid_contract")
@@ -334,28 +399,55 @@ def _validate_contract(
             raise ValueError("invalid_contract")
 
 
-def _placed_box(bounds: Box, scale: float, offset: tuple[int, int]) -> Box:
+def _translate_box(bounds: Box, offset: tuple[int, int]) -> Box:
     return Box(
-        math.floor(offset[0] + bounds.left * scale),
-        math.floor(offset[1] + bounds.top * scale),
-        math.ceil(offset[0] + bounds.right * scale),
-        math.ceil(offset[1] + bounds.bottom * scale),
+        offset[0] + bounds.left,
+        offset[1] + bounds.top,
+        offset[0] + bounds.right,
+        offset[1] + bounds.bottom,
     )
 
 
-def _occlusion_ratio(
+def _raster_placement(
     appearance: Image.Image,
-    protected: Box,
     scale: float,
     offset: tuple[int, int],
+    feature_anchor: str,
+) -> _RasterPlacement:
+    size = (
+        max(1, round(appearance.width * scale)),
+        max(1, round(appearance.height * scale)),
+    )
+    layer = appearance.resize(size, Image.Resampling.NEAREST)
+    local_bounds = _alpha_bounds(layer)
+    bounds = None if local_bounds is None else _translate_box(local_bounds, offset)
+    feature_center: tuple[float, float] | None = None
+    if feature_anchor == "face_center":
+        try:
+            feature_center = placed_feature_center(
+                _box_center(find_largest_enclosed_transparent_region(layer)),
+                1,
+                offset,
+            )
+        except ValueError:
+            pass
+    elif local_bounds is not None:
+        feature_center = placed_feature_center(_box_center(local_bounds), 1, offset)
+    return _RasterPlacement(layer, bounds, feature_center)
+
+
+def _occlusion_ratio(
+    layer: Image.Image,
+    protected: Box,
+    offset: tuple[int, int],
 ) -> float:
-    alpha = appearance.convert("RGBA").getchannel("A")
+    alpha = layer.convert("RGBA").getchannel("A")
     opaque_pixels = 0
     for y in range(protected.top, protected.bottom):
         for x in range(protected.left, protected.right):
-            source_x = math.floor((x - offset[0]) / scale)
-            source_y = math.floor((y - offset[1]) / scale)
-            if 0 <= source_x < appearance.width and 0 <= source_y < appearance.height:
+            source_x = x - offset[0]
+            source_y = y - offset[1]
+            if 0 <= source_x < layer.width and 0 <= source_y < layer.height:
                 if alpha.getpixel((source_x, source_y)) != 0:
                     opaque_pixels += 1
     area = (protected.right - protected.left) * (protected.bottom - protected.top)
@@ -377,19 +469,142 @@ def _pixel_reason_codes(appearance: Image.Image, palette_limit: int) -> set[str]
     return reasons
 
 
+def _formal_pixel_contract(anchors: dict[str, object]) -> dict[str, object] | None:
+    if anchors.get("schema_version") != "gogobro-item-anchors-v1":
+        return None
+    contract = anchors.get("pixel_contract")
+    required = {
+        "appearance_grid_scale",
+        "icon_grid_scale",
+        "logical_canvas",
+        "outline_colors_rgb",
+        "resampling",
+    }
+    if type(contract) is not dict or set(contract) != required:
+        raise ValueError("invalid_contract")
+    logical_canvas = contract["logical_canvas"]
+    appearance_scale = contract["appearance_grid_scale"]
+    icon_scale = contract["icon_grid_scale"]
+    colors = contract["outline_colors_rgb"]
+    if (
+        type(logical_canvas) is not list
+        or logical_canvas != [64, 64]
+        or type(appearance_scale) is not int
+        or appearance_scale != 2
+        or type(icon_scale) is not int
+        or icon_scale != 4
+        or contract["resampling"] != "nearest"
+        or type(colors) is not list
+        or not colors
+    ):
+        raise ValueError("invalid_contract")
+    normalized_colors: list[tuple[int, int, int]] = []
+    for color in colors:
+        if (
+            type(color) is not list
+            or len(color) != 3
+            or any(type(component) is not int or not 0 <= component <= 255 for component in color)
+        ):
+            raise ValueError("invalid_contract")
+        normalized_colors.append(tuple(color))
+    if normalized_colors != sorted(set(normalized_colors)):
+        raise ValueError("invalid_contract")
+    return {
+        **contract,
+        "outline_colors_rgb": normalized_colors,
+    }
+
+
+def _grid_round_trip_matches(
+    image: Image.Image,
+    logical_canvas: tuple[int, int],
+    scale: int,
+) -> bool:
+    expected_size = (logical_canvas[0] * scale, logical_canvas[1] * scale)
+    if image.size != expected_size:
+        return False
+    logical = image.resize(logical_canvas, Image.Resampling.NEAREST)
+    restored = logical.resize(expected_size, Image.Resampling.NEAREST)
+    return restored.tobytes() == image.convert("RGBA").tobytes()
+
+
+def _opaque_component_count(image: Image.Image) -> int:
+    alpha = image.convert("RGBA").getchannel("A")
+    opaque = {
+        (x, y)
+        for y in range(image.height)
+        for x in range(image.width)
+        if alpha.getpixel((x, y)) != 0
+    }
+    components = 0
+    while opaque:
+        components += 1
+        queue: deque[tuple[int, int]] = deque([opaque.pop()])
+        while queue:
+            x, y = queue.popleft()
+            for neighbor in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+                if neighbor in opaque:
+                    opaque.remove(neighbor)
+                    queue.append(neighbor)
+    return components
+
+
+def _outline_boundary_evidence(
+    image: Image.Image,
+    outline_colors: set[tuple[int, int, int]],
+) -> tuple[int, int, float]:
+    rgba = image.convert("RGBA")
+    matched = 0
+    total = 0
+    for y in range(rgba.height):
+        for x in range(rgba.width):
+            red, green, blue, alpha = rgba.getpixel((x, y))
+            if alpha == 0:
+                continue
+            boundary = any(
+                neighbor_x < 0
+                or neighbor_y < 0
+                or neighbor_x >= rgba.width
+                or neighbor_y >= rgba.height
+                or rgba.getpixel((neighbor_x, neighbor_y))[3] == 0
+                for neighbor_x, neighbor_y in (
+                    (x - 1, y),
+                    (x + 1, y),
+                    (x, y - 1),
+                    (x, y + 1),
+                )
+            )
+            if boundary:
+                total += 1
+                matched += (red, green, blue) in outline_colors
+    return matched, total, matched / total if total else 0.0
+
+
 def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
     paths = _input_paths(inputs)
     input_sha256 = _hash_paths(paths)
     reasons: set[str] = set()
     anchors = _read_json(inputs.anchors)
+    pixel_contract = _formal_pixel_contract(anchors)
     profile = _read_json(inputs.rig_profile)
     frames = _profile_frames(profile)
     contract = _slot_profile(profile, inputs.slot)
+    canonical_profile = profile.get("schema_version") == "gogobro-rig-profile-v1"
+    expected_atlas_sha256: str | None = None
+    if canonical_profile:
+        expected_hash = profile.get("character_atlas_sha256")
+        if (
+            type(expected_hash) is not str
+            or len(expected_hash) != 64
+            or any(character.lower() not in "0123456789abcdef" for character in expected_hash)
+        ):
+            raise ValueError("invalid_contract")
+        expected_atlas_sha256 = expected_hash.lower()
     if contract:
         _validate_contract(
             contract,
             frames,
-            require_slot_fields=profile.get("schema_version") == "gogobro-rig-profile-v1",
+            require_slot_fields=canonical_profile,
         )
     with Image.open(inputs.character_atlas) as opened_atlas:
         atlas = opened_atlas.convert("RGBA")
@@ -402,11 +617,17 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
     atlas_size = profile.get("atlas_size", [128 * len(frames), 128])
     _add(reasons, tuple(frame_size) != appearance.size, "appearance_dimensions")
     _add(reasons, tuple(atlas_size) != atlas.size, "atlas_dimensions")
+    _add(
+        reasons,
+        expected_atlas_sha256 is not None
+        and input_sha256["character_atlas"].lower() != expected_atlas_sha256,
+        "character_atlas_hash_mismatch",
+    )
     _add(reasons, not contract, "unknown_slot")
     _add(reasons, inputs.slot != anchors.get("slot"), "slot_mismatch")
     _add(reasons, appearance.size != (128, 128), "appearance_dimensions")
     _add(reasons, icon.size != (256, 256), "icon_dimensions")
-    if icon.size == (256, 256):
+    if icon.size == (256, 256) and contract.get("direct_icon_reuse", True) is True:
         _add(
             reasons,
             list(icon.get_flattened_data())
@@ -415,6 +636,49 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
         )
     palette_limit = int(contract.get("max_palette_colors", 8))
     reasons.update(_pixel_reason_codes(appearance, palette_limit))
+    reasons.update(_pixel_reason_codes(icon, palette_limit))
+
+    outline_colors: set[tuple[int, int, int]] = set()
+    source_opaque_components: int | None = None
+    source_outline_matched: int | None = None
+    source_outline_total: int | None = None
+    source_outline_coverage: float | None = None
+    max_opaque_components = contract.get("max_opaque_components")
+    min_outline_coverage = float(
+        contract.get("min_outline_boundary_coverage", 0)
+    )
+    if pixel_contract is not None:
+        logical_canvas = tuple(pixel_contract["logical_canvas"])
+        outline_colors = set(pixel_contract["outline_colors_rgb"])
+        _add(
+            reasons,
+            not _grid_round_trip_matches(
+                appearance,
+                logical_canvas,
+                int(pixel_contract["appearance_grid_scale"]),
+            )
+            or not _grid_round_trip_matches(
+                icon,
+                logical_canvas,
+                int(pixel_contract["icon_grid_scale"]),
+            ),
+            "pixel_grid_incompatible",
+        )
+        source_opaque_components = _opaque_component_count(appearance)
+        source_outline_matched, source_outline_total, source_outline_coverage = (
+            _outline_boundary_evidence(appearance, outline_colors)
+        )
+        _add(
+            reasons,
+            isinstance(max_opaque_components, int)
+            and source_opaque_components > max_opaque_components,
+            "outline_component_count",
+        )
+        _add(
+            reasons,
+            source_outline_coverage < min_outline_coverage,
+            "outline_discontinuity",
+        )
 
     bounds = _alpha_bounds(appearance)
     _add(reasons, bounds is None, "empty_appearance")
@@ -443,12 +707,15 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
         "flip_mismatch",
     )
 
-    ratio_bounds = bounds if bounds is not None else Box(0, 0, 0, 0)
     outer_width_ratios: list[float] = []
     feature_errors: list[float] = []
     residuals: list[tuple[float, float]] = []
     protected_occlusion_ratios: list[float] = []
     frame_boxes: list[list[int]] = []
+    rendered_alpha_boxes: list[list[int]] = []
+    rendered_opaque_components: list[int] = []
+    rendered_outline_coverages: list[float] = []
+    rendered_outline_pixels: list[dict[str, int]] = []
     expected_depth = contract.get("expected_depth")
     for index, (frame, anchor) in enumerate(zip(frames, anchor_frames, strict=False)):
         if not isinstance(frame, dict) or not isinstance(anchor, dict):
@@ -478,7 +745,39 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
             not depth_low <= anchor_depth <= depth_high,
             "depth_band_mismatch",
         )
-        placed = _placed_box(ratio_bounds, scale, offset)
+        placement = _raster_placement(appearance, scale, offset, feature_anchor)
+        placed = placement.bounds or Box(0, 0, 0, 0)
+        local_alpha_bounds = _alpha_bounds(placement.layer)
+        if local_alpha_bounds is not None:
+            rendered_alpha_boxes.append(
+                [
+                    local_alpha_bounds.left,
+                    local_alpha_bounds.top,
+                    local_alpha_bounds.right,
+                    local_alpha_bounds.bottom,
+                ]
+            )
+        if pixel_contract is not None:
+            rendered_components = _opaque_component_count(placement.layer)
+            rendered_matched, rendered_total, rendered_coverage = (
+                _outline_boundary_evidence(placement.layer, outline_colors)
+            )
+            rendered_opaque_components.append(rendered_components)
+            rendered_outline_coverages.append(rendered_coverage)
+            rendered_outline_pixels.append(
+                {"matched": rendered_matched, "total": rendered_total}
+            )
+            _add(
+                reasons,
+                isinstance(max_opaque_components, int)
+                and rendered_components > max_opaque_components,
+                "outline_component_count",
+            )
+            _add(
+                reasons,
+                rendered_coverage < min_outline_coverage,
+                "outline_discontinuity",
+            )
         frame_boxes.append([placed.left, placed.top, placed.right, placed.bottom])
         target_feature = _resolve_frame_path(frame, feature_anchor)
         if isinstance(target_feature, list | tuple) and len(target_feature) == 2:
@@ -495,24 +794,17 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
             "crop",
         )
         protected_box = _as_box(_resolve_frame_path(frame, protected_region))
-        occlusion_ratio = _occlusion_ratio(appearance, protected_box, scale, offset)
+        occlusion_ratio = _occlusion_ratio(placement.layer, protected_box, offset)
         protected_occlusion_ratios.append(occlusion_ratio)
         _add(
             reasons,
             occlusion_ratio > max_occlusion,
             "protected_region_occlusion",
         )
-        if feature_anchor == "face_center" and aperture is not None:
-            source_feature = (
-                aperture.left + (aperture.right - aperture.left - 1) / 2,
-                aperture.top + (aperture.bottom - aperture.top - 1) / 2,
-            )
-        elif bounds is not None:
-            source_feature = _box_center(bounds)
-        else:
-            source_feature = None
-        if source_feature is not None:
-            placed_feature = placed_feature_center(source_feature, scale, offset)
+        if feature_anchor == "face_center" and placement.feature_center is None:
+            reasons.add("missing_feature_aperture")
+        if placement.feature_center is not None:
+            placed_feature = placement.feature_center
             delta = (
                 placed_feature[0] - target_center[0],
                 placed_feature[1] - target_center[1],
@@ -540,7 +832,7 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
     )
     _add(reasons, max_jitter > jitter_limit, "residual_jitter")
 
-    after_sha256 = {name: _sha256(path) for name, path in paths.items()}
+    after_sha256 = _safe_hash_paths(paths)
     _add(reasons, input_sha256 != after_sha256, "source_changed")
     metrics: dict[str, object] = {
         "outer_width_ratio": outer_ratio,
@@ -553,12 +845,49 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
         "frame_boxes": frame_boxes,
         "frame_count": len(frames),
         "aperture_box": asdict(aperture) if aperture else None,
+        "rendered_opaque_components": rendered_opaque_components,
+        "rendered_alpha_box": (
+            rendered_alpha_boxes[0]
+            if rendered_alpha_boxes
+            and all(box == rendered_alpha_boxes[0] for box in rendered_alpha_boxes)
+            else None
+        ),
+        "rendered_alpha_boxes": rendered_alpha_boxes,
+        "rendered_outline_boundary_coverages": rendered_outline_coverages,
+        "rendered_outline_boundary_pixels": rendered_outline_pixels,
+        "source_opaque_components": source_opaque_components,
+        "source_outline_boundary_coverage": source_outline_coverage,
+        "source_outline_boundary_pixels": (
+            None
+            if source_outline_matched is None or source_outline_total is None
+            else {
+                "matched": source_outline_matched,
+                "total": source_outline_total,
+            }
+        ),
     }
     return HarmonyReport(
         verdict="hard_fail" if reasons else "review",
         reason_codes=tuple(sorted(reasons)),
         metrics=metrics,
-        input_sha256=after_sha256,
+        input_sha256=input_sha256,
+        atlas_sha256={
+            "actual": after_sha256["character_atlas"],
+            "expected": expected_atlas_sha256,
+        },
+        slot=inputs.slot,
+        thresholds={
+            "max_feature_center_error_px": feature_limit,
+            "max_opaque_components": max_opaque_components,
+            "max_palette_colors": palette_limit,
+            "max_protected_occlusion_ratio": max_occlusion,
+            "max_residual_jitter_px": jitter_limit,
+            "min_outline_boundary_coverage": contract.get(
+                "min_outline_boundary_coverage"
+            ),
+            "outer_width_ratio": [low_ratio, high_ratio],
+        },
+        source_integrity=_source_integrity(input_sha256, after_sha256),
     )
 
 
@@ -568,17 +897,50 @@ def analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
         return _analyze_harmony(inputs)
     except Exception as error:  # All dependencies below consume user-supplied files.
         reason = "invalid_contract" if str(error) == "invalid_contract" else "malformed_input"
+        input_sha256 = _safe_hash_paths(_input_paths(inputs))
         return HarmonyReport(
             "hard_fail",
             (reason,),
             {"error": type(error).__name__},
-            _safe_hash_paths(_input_paths(inputs)),
+            input_sha256,
+            atlas_sha256={
+                "actual": input_sha256.get("character_atlas"),
+                "expected": None,
+            },
+            slot=inputs.slot,
+            source_integrity=_source_integrity(input_sha256, input_sha256),
         )
 
 
-def apply_visual_rubric(report: HarmonyReport, rubric: VisualRubric) -> HarmonyReport:
-    if report.verdict == "hard_fail":
-        return report
+def _with_input_sha256(
+    report: HarmonyReport,
+    name: str,
+    digest: str | None,
+) -> HarmonyReport:
+    input_sha256 = dict(report.input_sha256)
+    input_sha256[name] = digest
+    before = report.source_integrity.get("before", report.input_sha256)
+    after = report.source_integrity.get("after", report.input_sha256)
+    if not isinstance(before, dict) or not isinstance(after, dict):
+        before = report.input_sha256
+        after = report.input_sha256
+    before_hashes = {**before, name: digest}
+    after_hashes = {**after, name: digest}
+    return replace(
+        report,
+        input_sha256=input_sha256,
+        source_integrity=_source_integrity(before_hashes, after_hashes),
+    )
+
+
+def apply_visual_rubric(
+    report: HarmonyReport,
+    rubric: VisualRubric,
+    *,
+    rubric_sha256: str | None = None,
+) -> HarmonyReport:
+    if rubric_sha256 is not None:
+        report = _with_input_sha256(report, "visual_rubric", rubric_sha256)
     dimensions = (
         rubric.identity,
         rubric.function,
@@ -586,17 +948,32 @@ def apply_visual_rubric(report: HarmonyReport, rubric: VisualRubric) -> HarmonyR
         rubric.hierarchy,
         rubric.originality,
     )
-    complete = all(isinstance(score, int) and 0 <= score <= 2 and bool(evidence.strip()) for score, evidence in dimensions)
-    total = sum(score for score, _ in dimensions) if complete else 0
-    verdict = "harmony_pass" if complete and total >= 8 and all(score > 0 for score, _ in dimensions) else "review"
-    reasons = set(report.reason_codes)
+    complete = all(
+        type(dimension) is tuple
+        and len(dimension) == 2
+        and type(dimension[0]) is int
+        and 0 <= dimension[0] <= 2
+        and type(dimension[1]) is str
+        and bool(dimension[1].strip())
+        for dimension in dimensions
+    )
     if not complete:
-        reasons.add("visual_rubric_incomplete")
-    elif verdict == "review":
+        return _with_hard_reason(report, "malformed_visual_rubric")
+    if report.verdict == "hard_fail":
+        return report
+    total = sum(score for score, _ in dimensions)
+    verdict = "harmony_pass" if total >= 8 and all(score > 0 for score, _ in dimensions) else "review"
+    reasons = set(report.reason_codes)
+    if verdict == "review":
         reasons.add("visual_rubric_review")
     metrics = dict(report.metrics)
     metrics["visual_rubric_total"] = total
-    return HarmonyReport(verdict, tuple(sorted(reasons)), metrics, report.input_sha256)
+    return replace(
+        report,
+        verdict=verdict,
+        reason_codes=tuple(sorted(reasons)),
+        metrics=metrics,
+    )
 
 
 def _write_json(path: Path, payload: object) -> None:
@@ -636,12 +1013,6 @@ def _diagnostic_composite(
     bounds = _alpha_bounds(appearance)
     if bounds is None:
         raise ValueError("empty_appearance")
-    if feature_anchor == "face_center":
-        aperture = find_largest_enclosed_transparent_region(appearance)
-        source_feature = _box_center(aperture)
-    else:
-        source_feature = _box_center(bounds)
-
     composite = Image.new("RGBA", atlas.size, (0, 0, 0, 0))
     diagnostics: list[dict[str, object]] = []
     for index, (frame, anchor) in enumerate(
@@ -660,11 +1031,9 @@ def _diagnostic_composite(
             or not math.isfinite(depth)
         ):
             raise ValueError("invalid_frame_data")
-        scaled_size = (
-            max(1, round(appearance.width * scale)),
-            max(1, round(appearance.height * scale)),
-        )
-        scaled = appearance.resize(scaled_size, Image.Resampling.NEAREST)
+        placement = _raster_placement(appearance, scale, offset, feature_anchor)
+        if placement.bounds is None or placement.feature_center is None:
+            raise ValueError("invalid_frame_data")
         frame_image = atlas.crop(
             (
                 index * frame_width,
@@ -675,11 +1044,11 @@ def _diagnostic_composite(
         )
         worn = Image.new("RGBA", (frame_width, frame_height), (0, 0, 0, 0))
         if depth < 0:
-            worn.alpha_composite(scaled, dest=offset)
+            worn.alpha_composite(placement.layer, dest=offset)
             worn.alpha_composite(frame_image)
         else:
             worn.alpha_composite(frame_image)
-            worn.alpha_composite(scaled, dest=offset)
+            worn.alpha_composite(placement.layer, dest=offset)
         composite.paste(worn, (index * frame_width, 0))
 
         target_feature = _resolve_frame_path(frame, feature_anchor)
@@ -687,10 +1056,10 @@ def _diagnostic_composite(
             target_center = _as_pair(target_feature)
         else:
             target_center = _box_center(_as_box(target_feature))
-        placed_center = placed_feature_center(source_feature, scale, offset)
+        placed_center = placement.feature_center
         diagnostics.append(
             {
-                "bounds": _placed_box(bounds, scale, offset),
+                "bounds": placement.bounds,
                 "error": (
                     placed_center[0] - target_center[0],
                     placed_center[1] - target_center[1],
@@ -813,16 +1182,75 @@ def write_harmony_outputs(report: HarmonyReport, inputs: HarmonyInputs) -> None:
     preview.save(inputs.out_dir / "harmony-actual-size.png")
 
 
-def _rubric_from_json(path: Path) -> VisualRubric:
+def load_visual_rubric(path: Path) -> VisualRubric:
     payload = _read_json(path)
+    if set(payload) != set(RUBRIC_DIMENSIONS):
+        raise ValueError("malformed_visual_rubric")
     values: list[tuple[int, str]] = []
-    for name in ("identity", "function", "material", "hierarchy", "originality"):
+    for name in RUBRIC_DIMENSIONS:
         value = payload[name]
-        if isinstance(value, dict):
-            values.append((int(value["score"]), str(value["evidence"])))
-        else:
-            values.append((int(value[0]), str(value[1])))
+        if type(value) is not dict or set(value) != {"score", "evidence"}:
+            raise ValueError("malformed_visual_rubric")
+        score = value["score"]
+        evidence = value["evidence"]
+        if (
+            type(score) is not int
+            or not 0 <= score <= 2
+            or type(evidence) is not str
+            or not evidence.strip()
+        ):
+            raise ValueError("malformed_visual_rubric")
+        values.append((score, evidence))
     return VisualRubric(*values)
+
+
+def _transform_suggestion(
+    report: HarmonyReport,
+    inputs: HarmonyInputs,
+) -> dict[str, object]:
+    current_scales: list[float] = []
+    integer_offsets: list[list[int]] = []
+    try:
+        anchors = _read_json(inputs.anchors)
+        frames = anchors.get("frames")
+        if not isinstance(frames, list):
+            raise ValueError
+        for frame in frames:
+            if not isinstance(frame, dict):
+                raise ValueError
+            scale = float(frame["scale"])
+            offset = frame["offset"]
+            if (
+                not math.isfinite(scale)
+                or type(offset) is not list
+                or len(offset) != 2
+                or any(type(component) is not int for component in offset)
+            ):
+                raise ValueError
+            current_scales.append(scale)
+            integer_offsets.append(list(offset))
+    except (KeyError, TypeError, ValueError):
+        current_scales = []
+        integer_offsets = []
+    shared_scale = (
+        current_scales[0]
+        if current_scales and all(scale == current_scales[0] for scale in current_scales)
+        else None
+    )
+    return {
+        "current_scales": current_scales,
+        "integer_offsets": integer_offsets,
+        "objective_measurements": report.metrics,
+        "reason_codes": list(report.reason_codes),
+        "shared_scale": shared_scale,
+        "slot": inputs.slot,
+        "status": (
+            "manual_correction_required"
+            if report.verdict == "hard_fail"
+            else "current_transform_passes"
+        ),
+        "thresholds": report.thresholds,
+    }
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -859,16 +1287,34 @@ def main(argv: Sequence[str] | None = None) -> int:
     report = analyze_harmony(inputs)
     if arguments.visual_rubric:
         try:
-            report = apply_visual_rubric(report, _rubric_from_json(arguments.visual_rubric))
+            report = apply_visual_rubric(
+                report,
+                load_visual_rubric(arguments.visual_rubric),
+                rubric_sha256=initial_hashes.get("visual_rubric"),
+            )
         except Exception:
+            report = _with_input_sha256(
+                report,
+                "visual_rubric",
+                initial_hashes.get("visual_rubric"),
+            )
             report = _with_hard_reason(report, "malformed_visual_rubric")
+    report = check_source_integrity(report, inputs, initial_hashes, extra_sources)
     write_harmony_outputs(report, inputs)
     if arguments.suggest_transform:
-        _write_json(inputs.out_dir / "transform-suggestion.json", {"reason_codes": list(report.reason_codes)})
+        _write_json(
+            inputs.out_dir / "transform-suggestion.json",
+            _transform_suggestion(report, inputs),
+        )
     report_after_outputs = check_source_integrity(report, inputs, initial_hashes, extra_sources)
     if report_after_outputs != report:
         write_harmony_outputs(report_after_outputs, inputs)
         report = check_source_integrity(report_after_outputs, inputs, initial_hashes, extra_sources)
+        if arguments.suggest_transform:
+            _write_json(
+                inputs.out_dir / "transform-suggestion.json",
+                _transform_suggestion(report, inputs),
+            )
     return 2 if report.verdict == "hard_fail" else 0
 
 

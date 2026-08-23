@@ -189,6 +189,15 @@ def test_direct_icon_contract_is_exact_nearest_2x(appearance_image):
 
 Add separate failures for binary alpha, transparent RGB, chroma, palette limits, crop, protected-eye occlusion, wrong depth, duplicate slot, anchor count, and two-frame/eight-frame residual jitter.
 
+Add exact-rendering and provenance regressions:
+
+- scale `.597` measures the Pillow nearest raster as `60/58`, not the continuous projection `61/58`;
+- protected-region occlusion samples the actual resized layer, including a pixel missed by inverse-floor lookup;
+- canonical atlas hash format/mismatch and exact-boolean `direct_icon_reuse` are enforced;
+- formal 64×64 logical contracts reject nonuniform 2×/4× blocks, unapproved boundary colors, and excess source/rendered four-connected components;
+- malformed rubric root/dimension shapes, strings/floats/bools as scores, and non-string evidence are rejected without coercion;
+- report/source-integrity/suggestion schemas retain per-path hashes, thresholds, objective metrics, and truthful status.
+
 Add rubric-state tests:
 
 ```python
@@ -217,7 +226,7 @@ Implement these stable interfaces:
 
 ```python
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from PIL import Image
@@ -247,7 +256,11 @@ class HarmonyReport:
     verdict: str
     reason_codes: Sequence[str]
     metrics: dict[str, object]
-    input_sha256: dict[str, str]
+    input_sha256: dict[str, str | None]
+    atlas_sha256: dict[str, str | None] = field(default_factory=dict)
+    slot: str | None = None
+    thresholds: dict[str, object] = field(default_factory=dict)
+    source_integrity: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -267,11 +280,13 @@ def placed_feature_center(source_center: tuple[float, float], scale: float, offs
     return (offset[0] + source_center[0] * scale, offset[1] + source_center[1] * scale)
 ```
 
-Also implement `find_largest_enclosed_transparent_region(image) -> Box`, `analyze_harmony(inputs) -> HarmonyReport`, `apply_visual_rubric(report, rubric) -> HarmonyReport`, and `write_harmony_outputs(report, inputs) -> None`. Use four-connected flood fill for enclosed transparency. Measure a placed feature with `placed_feature_center`, compute outer ratio from the placed alpha bounds, and compute residual jitter after subtracting the rig-profile face-anchor movement. A hard-pass report remains `review` until a complete rubric is applied.
+Also implement `find_largest_enclosed_transparent_region(image) -> Box`, `analyze_harmony(inputs) -> HarmonyReport`, `load_visual_rubric(path) -> VisualRubric`, `apply_visual_rubric(report, rubric) -> HarmonyReport`, and `write_harmony_outputs(report, inputs) -> None`. Use four-connected flood fill for enclosed transparency. For every anchor, resize the full appearance canvas with Pillow nearest sampling to `round(source_size × scale)` and use that same layer for alpha bounds, resized feature center, crop, occlusion, diagnostics, and compositing. Compute residual jitter from those raster feature deltas. A hard-pass report remains `review` until a complete strict rubric is applied.
+
+Formal `gogobro-item-anchors-v1` data includes a `pixel_contract` with logical canvas `[64,64]`, appearance/icon scales `2/4`, `nearest`, and a frozen outline RGB list. Validate exact nearest down/up RGBA block round trips, four-connected component counts, and source/rendered opaque-boundary coverage. Canonical slot coverage is non-relaxable at `1.0`; head permits one opaque component.
 
 - [ ] **Step 4: Implement deterministic output and CLI behavior**
 
-The JSON writer uses `sort_keys=True`, UTF-8, two-space indentation, and a terminal newline. PNG diagnostics use fixed colors, nearest sampling, and no timestamps. Hash each source before and after processing and return `hard_fail` if any source changes.
+The JSON writer uses `sort_keys=True`, UTF-8, two-space indentation, and a terminal newline. PNG diagnostics use fixed colors, nearest sampling, and no timestamps. Hash each source independently before and after processing and return `hard_fail` if any source changes. The report includes slot, metrics, thresholds, reasons/verdict, complete input hashes, atlas expected/actual, and source-integrity before/after/changed keys. A used rubric is a hashed input. A transform suggestion includes current scales, integer offsets, objective measurements, thresholds, reasons, and a truthful status; failing geometry without a measured passing alternative is `manual_correction_required`.
 
 CLI parser:
 
@@ -336,9 +351,16 @@ assert all(frame["face_center"][1] == 71 for frame in profile["frames"])
 assert profile["slot_profiles"]["head"]["outer_width_ratio"] == [1.05, 1.15]
 assert profile["slot_profiles"]["head"]["max_feature_center_error_px"] == 1
 assert profile["slot_profiles"]["head"]["max_residual_jitter_px"] == 1
+assert profile["slot_profiles"]["head"]["max_opaque_components"] == 1
+assert all(
+    slot["min_outline_boundary_coverage"] == 1.0
+    for slot in profile["slot_profiles"].values()
+)
 ```
 
 The Niko profile uses frame X shifts from the existing alpha geometry, face ROI `[44, 50, 80, 92]`, and protected-eye ROI `[48, 64, 78, 80]`, shifting both regions +2 px for frames 4 and 5. Store torso, back, wrist, feet, side, and trinket regions for future item checks as explicit integer boxes.
+
+The candidate-002 anchor builder freezes `pixel_contract` to logical `[64,64]`, scales `2/4`, nearest sampling, and outline colors `[[8,5,3],[9,0,0],[21,13,6],[29,27,24],[34,34,31]]`; the checker never derives this accepted palette from submitted pixels.
 
 - [ ] **Step 2: Run tests to verify the missing profile fails**
 
@@ -498,7 +520,7 @@ Implement `build_candidate_002(inputs: BuildInputs) -> CandidateMetadata`. Find 
 
 Load the canonical checker module from `tools/codex_skills/checking-gogobro-item-harmony/scripts/check_item_harmony.py` with `importlib.util.spec_from_file_location`; do not duplicate checker logic in the builder. The builder CLI also accepts optional `--visual-rubric path/to/visual-rubric.json` and passes it through `apply_visual_rubric` during finalization.
 
-The builder writes only its explicit artifact manifest and never recursively clears `output_root`. A finalization run reads and hashes `visual-rubric.json` before replacing generated report/metadata files, leaves the rubric unchanged, and refuses to reuse a non-empty directory whose `candidate_id` or source hashes differ.
+The builder writes only its explicit artifact manifest and never recursively clears `output_root`. A finalization run reads and hashes `visual-rubric.json` before replacing generated report/metadata files, loads it through the checker's strict public loader, leaves the rubric unchanged, and refuses to reuse a non-empty directory whose `candidate_id` or source hashes differ. Immediately before atomic publication it rehashes every recorded source, including the rig profile. The checker is the sole writer of `harmony-overlay.png` and `harmony-actual-size.png`.
 
 - [ ] **Step 4: Produce review artifacts from structured data**
 

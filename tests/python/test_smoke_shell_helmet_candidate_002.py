@@ -105,6 +105,30 @@ def assert_manifest_matches(root: Path) -> None:
         assert sha256(path) == artifact["sha256"]
 
 
+def write_passing_rubric(path: Path) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                name: {
+                    "score": 2,
+                    "evidence": f"Concrete reviewed {name} evidence.",
+                }
+                for name in (
+                    "identity",
+                    "function",
+                    "material",
+                    "hierarchy",
+                    "originality",
+                )
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
 def register_candidate_metadata(registry_path: Path, candidate_root: Path) -> None:
     """Mirror one generated review candidate into a test-only registry copy."""
     registry = json.loads(registry_path.read_text("utf-8"))
@@ -149,6 +173,27 @@ def register_candidate_metadata(registry_path: Path, candidate_root: Path) -> No
     )
 
 
+def test_anchor_builder_binds_the_frozen_candidate_pixel_contract() -> None:
+    checker = _load_checker()
+    profile = json.loads(RIG_PROFILE.read_text(encoding="utf-8"))
+    anchors = builder._build_anchors(checker, rgba(APPEARANCE_SOURCE), profile)
+
+    assert anchors["schema_version"] == "gogobro-item-anchors-v1"
+    assert anchors["pixel_contract"] == {
+        "appearance_grid_scale": 2,
+        "icon_grid_scale": 4,
+        "logical_canvas": [64, 64],
+        "outline_colors_rgb": [
+            [8, 5, 3],
+            [9, 0, 0],
+            [21, 13, 6],
+            [29, 27, 24],
+            [34, 34, 31],
+        ],
+        "resampling": "nearest",
+    }
+
+
 def test_builder_preserves_sources_and_derives_exact_review_candidate(tmp_path: Path) -> None:
     """Catches source mutation, resampling drift, invalid placement, and accidental curation."""
     before_hashes = tree_hashes(CANDIDATE_001)
@@ -184,11 +229,28 @@ def test_builder_preserves_sources_and_derives_exact_review_candidate(tmp_path: 
     assert profile["slot_profiles"]["head"]["max_palette_colors"] == appearance_palette_size
 
     assert metadata["transform"]["shared_scale"] == 0.625
-    assert metadata["metrics"]["outer_width_ratio"] >= 1.05
-    assert metadata["metrics"]["outer_width_ratio"] <= 1.15
-    assert metadata["metrics"]["max_feature_center_error_px"] <= 1
-    assert metadata["metrics"]["max_residual_jitter_px"] <= 1
+    assert metadata["metrics"]["rendered_alpha_box"] == [9, 6, 71, 74]
+    assert metadata["metrics"]["frame_boxes"] == [
+        [34, 29, 96, 97],
+        [34, 29, 96, 97],
+        [34, 29, 96, 97],
+        [34, 29, 96, 97],
+        [36, 29, 98, 97],
+        [36, 29, 98, 97],
+        [34, 29, 96, 97],
+        [34, 29, 96, 97],
+    ]
+    assert metadata["metrics"]["outer_width_ratio"] == pytest.approx(62 / 58)
+    assert metadata["metrics"]["max_feature_center_error_px"] == 1
+    assert metadata["metrics"]["max_residual_jitter_px"] == 0
     assert metadata["metrics"]["max_protected_occlusion_ratio"] == 0
+    assert metadata["metrics"]["source_outline_boundary_pixels"] == {
+        "matched": 563,
+        "total": 563,
+    }
+    assert metadata["metrics"]["rendered_outline_boundary_pixels"] == [
+        {"matched": 329, "total": 329}
+    ] * 8
     assert report["verdict"] == "review"
     assert report["reason_codes"] == []
 
@@ -216,6 +278,16 @@ def test_builder_preserves_sources_and_derives_exact_review_candidate(tmp_path: 
         pixel[3] and pixel[:3] != (255, 0, 255)
         for pixel in overlay.get_flattened_data()
     )
+    overlay_colors = {
+        pixel[:3] for pixel in overlay.get_flattened_data() if pixel[3]
+    }
+    assert {
+        (255, 0, 255),
+        (0, 210, 255),
+        (0, 255, 96),
+        (255, 220, 0),
+        (255, 64, 64),
+    } <= overlay_colors
     actual_crop = actual_size.crop((448, 476, 1472, 604))
     assert all(
         actual_pixel == composite_pixel
@@ -619,6 +691,9 @@ def test_finalization_applies_rubric_and_preserves_its_bytes(tmp_path: Path) -> 
     metadata = json.loads((output_root / "candidate-metadata.json").read_text("utf-8"))
     assert report["verdict"] == "harmony_pass"
     assert report["metrics"]["visual_rubric_sha256"] == rubric_hash
+    assert report["input_sha256"]["visual_rubric"] == rubric_hash
+    assert report["source_integrity"]["before"]["visual_rubric"] == rubric_hash
+    assert report["source_integrity"]["after"]["visual_rubric"] == rubric_hash
     assert metadata["visual_rubric_sha256"] == rubric_hash
     assert not (output_root / "curated").exists()
 
@@ -837,6 +912,9 @@ def test_finalization_refuses_a_different_existing_rubric_before_writes(tmp_path
     """Catches report/metadata provenance that disagrees with retained rubric bytes."""
     output_root = tmp_path / "candidate-002"
     build_candidate_002(inputs(output_root))
+    rubric_path = output_root / "qa/visual-rubric.json"
+    write_passing_rubric(rubric_path)
+    build_candidate_002(inputs(output_root), visual_rubric=rubric_path)
     before = tree_hashes(output_root)
     different_rubric = tmp_path / "different-rubric.json"
     different_rubric.write_text(
@@ -864,6 +942,9 @@ def test_publication_failure_rolls_back_the_old_valid_generation(
     """Catches a recoverable write failure leaving metadata and artifacts mixed."""
     output_root = tmp_path / "candidate-002"
     build_candidate_002(inputs(output_root))
+    rubric_path = output_root / "qa/visual-rubric.json"
+    write_passing_rubric(rubric_path)
+    build_candidate_002(inputs(output_root), visual_rubric=rubric_path)
     before = tree_hashes(output_root)
     real_replace = getattr(builder, "_replace_file", lambda source, target: source.replace(target))
     calls = 0
@@ -892,6 +973,9 @@ def test_interrupted_publication_is_marked_and_recovered_on_next_run(
     """Catches an interrupted multi-file publish being mistaken for a valid candidate."""
     output_root = tmp_path / "candidate-002"
     build_candidate_002(inputs(output_root))
+    rubric_path = output_root / "qa/visual-rubric.json"
+    write_passing_rubric(rubric_path)
+    build_candidate_002(inputs(output_root), visual_rubric=rubric_path)
     real_replace = getattr(builder, "_replace_file", lambda source, target: source.replace(target))
     calls = 0
 
@@ -1037,6 +1121,65 @@ def test_builder_detects_registry_change_after_source_provenance_capture(
         "_assert_reusable_output",
         mutate_registry_after_source_capture,
     )
+
+    with pytest.raises(RuntimeError, match="source_changed"):
+        build_candidate_002(build_inputs)
+
+    assert not (build_inputs.output_root / "candidate-metadata.json").exists()
+
+
+def test_builder_reuses_the_checker_strict_visual_rubric_loader(
+    tmp_path: Path,
+) -> None:
+    """Catches builder-side coercion bypassing the public checker contract."""
+    output_root = tmp_path / "candidate-002"
+    malformed_rubric = tmp_path / "malformed-rubric.json"
+    malformed_rubric.write_text(
+        json.dumps(
+            {
+                name: {"score": "2", "evidence": "Concrete visual evidence."}
+                for name in (
+                    "identity",
+                    "function",
+                    "material",
+                    "hierarchy",
+                    "originality",
+                )
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="malformed_visual_rubric"):
+        build_candidate_002(inputs(output_root), visual_rubric=malformed_rubric)
+
+    assert not (output_root / "candidate-metadata.json").exists()
+
+
+def test_builder_detects_rig_change_after_checker_analysis_before_publish(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Catches publication with a stale recorded rig-profile hash."""
+    rig_copy = tmp_path / "rig.json"
+    shutil.copyfile(RIG_PROFILE, rig_copy)
+    build_inputs = replace(inputs(tmp_path / "candidate-002"), rig_profile=rig_copy)
+    real_approval_card = builder._approval_card
+
+    def mutate_rig_after_analysis(*args: object, **kwargs: object) -> Image.Image:
+        card = real_approval_card(*args, **kwargs)
+        profile = json.loads(rig_copy.read_text(encoding="utf-8"))
+        profile["test_mutation_after_analysis"] = True
+        rig_copy.write_text(
+            json.dumps(profile, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return card
+
+    monkeypatch.setattr(builder, "_approval_card", mutate_rig_after_analysis)
 
     with pytest.raises(RuntimeError, match="source_changed"):
         build_candidate_002(build_inputs)
