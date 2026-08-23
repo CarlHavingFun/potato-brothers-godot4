@@ -1,0 +1,4 @@
+interface:
+  display_name: "GOGOBRO Item Harmony"
+  short_description: "Validate item and character visual harmony"
+  default_prompt: "Use $checking-gogobro-item-harmony to check this GOGOBRO item icon and character appearance for deterministic geometry and visual harmony."
