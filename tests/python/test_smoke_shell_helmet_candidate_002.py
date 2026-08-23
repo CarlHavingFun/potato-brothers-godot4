@@ -341,6 +341,106 @@ def test_builder_is_deterministic_and_never_clears_output_root(tmp_path: Path) -
     assert not (first / "curated").exists()
 
 
+def test_no_rubric_placeholder_rebuild_is_byte_idempotent(tmp_path: Path) -> None:
+    """Catches a blank rubric being promoted to reviewed provenance on rebuild."""
+    output_root = tmp_path / "candidate-002"
+    build_inputs = inputs(output_root)
+    build_candidate_002(build_inputs)
+    before = tree_hashes(output_root)
+
+    build_candidate_002(build_inputs)
+
+    assert tree_hashes(output_root) == before
+    metadata = json.loads((output_root / "candidate-metadata.json").read_text("utf-8"))
+    report = json.loads((output_root / "qa/harmony-report.json").read_text("utf-8"))
+    assert metadata["visual_rubric_sha256"] is None
+    assert "visual_rubric_sha256" not in metadata["metrics"]
+    assert "visual_rubric" not in report["input_sha256"]
+    assert "visual_rubric_sha256" not in report["metrics"]
+    assert_manifest_matches(output_root)
+
+
+def test_completed_preserved_rubric_is_reapplied_on_no_arg_rebuild(
+    tmp_path: Path,
+) -> None:
+    """Catches a no-arg rebuild dropping an already reviewed rubric verdict."""
+    output_root = tmp_path / "candidate-002"
+    build_inputs = inputs(output_root)
+    build_candidate_002(build_inputs)
+    rubric_path = output_root / "qa/visual-rubric.json"
+    write_passing_rubric(rubric_path)
+    build_candidate_002(build_inputs, visual_rubric=rubric_path)
+    before = tree_hashes(output_root)
+    expected_hash = sha256(rubric_path)
+
+    build_candidate_002(build_inputs)
+
+    assert tree_hashes(output_root) == before
+    report = json.loads((output_root / "qa/harmony-report.json").read_text("utf-8"))
+    metadata = json.loads((output_root / "candidate-metadata.json").read_text("utf-8"))
+    rubric_artifact = next(
+        artifact
+        for artifact in metadata["artifacts"]
+        if artifact["path"] == "qa/visual-rubric.json"
+    )
+    assert report["verdict"] == "harmony_pass"
+    assert report["metrics"]["visual_rubric_total"] == 10
+    assert report["metrics"]["visual_rubric_sha256"] == expected_hash
+    assert report["input_sha256"]["visual_rubric"] == expected_hash
+    assert metadata["visual_rubric_sha256"] == expected_hash
+    assert rubric_artifact["sha256"] == expected_hash == sha256(rubric_path)
+    assert_manifest_matches(output_root)
+
+
+def test_malformed_preserved_rubric_aborts_a_no_arg_rebuild(tmp_path: Path) -> None:
+    """Catches unchecked target rubric bytes surviving as reviewed provenance."""
+    output_root = tmp_path / "candidate-002"
+    build_inputs = inputs(output_root)
+    build_candidate_002(build_inputs)
+    rubric_path = output_root / "qa/visual-rubric.json"
+    rubric_path.write_text('{"identity": {"score": "2"}}\n', encoding="utf-8")
+    metadata_before = (output_root / "candidate-metadata.json").read_bytes()
+
+    with pytest.raises(ValueError, match="malformed_visual_rubric"):
+        build_candidate_002(build_inputs)
+
+    assert (output_root / "candidate-metadata.json").read_bytes() == metadata_before
+    assert not (output_root / ".candidate-transaction.json").exists()
+
+
+def test_preserved_rubric_change_after_capture_aborts_before_publish(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Catches publishing metadata for preserved rubric bytes that changed in flight."""
+    output_root = tmp_path / "candidate-002"
+    build_inputs = inputs(output_root)
+    build_candidate_002(build_inputs)
+    rubric_path = output_root / "qa/visual-rubric.json"
+    write_passing_rubric(rubric_path)
+    build_candidate_002(build_inputs, visual_rubric=rubric_path)
+    metadata_before = (output_root / "candidate-metadata.json").read_bytes()
+    real_approval_card = builder._approval_card
+
+    def mutate_preserved_rubric(*args: object, **kwargs: object) -> Image.Image:
+        card = real_approval_card(*args, **kwargs)
+        payload = json.loads(rubric_path.read_text(encoding="utf-8"))
+        payload["identity"]["evidence"] = "Concurrent reviewed identity evidence."
+        rubric_path.write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return card
+
+    monkeypatch.setattr(builder, "_approval_card", mutate_preserved_rubric)
+
+    with pytest.raises(RuntimeError, match="visual_rubric_changed"):
+        build_candidate_002(build_inputs)
+
+    assert (output_root / "candidate-metadata.json").read_bytes() == metadata_before
+    assert not (output_root / ".candidate-transaction.json").exists()
+
+
 def test_registered_review_candidate_can_be_rebuilt_from_exact_current_registry(
     tmp_path: Path,
 ) -> None:
@@ -639,6 +739,7 @@ def test_candidate_001_existing_scale_and_offsets_fail_harmony(tmp_path: Path) -
             for frame in legacy["frames"]
         ],
         "occupied_slots": [],
+        "schema_version": legacy["schema_version"],
         "slot": "head",
     }
     anchors_path = tmp_path / "candidate-001-anchors.json"

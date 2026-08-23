@@ -591,6 +591,62 @@ def test_canonical_rig_requires_a_strict_64_hex_character_atlas_hash(
     assert report.reason_codes == ("invalid_contract",)
 
 
+def test_explicit_unknown_anchor_schema_is_invalid_contract(
+    head_fixture: HeadFixture,
+) -> None:
+    anchors = json.loads(head_fixture.anchors.read_text(encoding="utf-8"))
+    anchors["schema_version"] = "gogobro-item-anchors-v999"
+    _write_json(head_fixture.anchors, anchors)
+
+    report = apply_visual_rubric(
+        analyze_harmony(head_fixture.inputs()),
+        rubric(scores=[2, 2, 2, 1, 1]),
+    )
+
+    assert report.verdict == "hard_fail"
+    assert report.reason_codes == ("invalid_contract",)
+    assert main(_arguments(head_fixture.inputs()) + ["--suggest-transform"]) == 2
+    suggestion = json.loads(
+        (head_fixture.out_dir / "transform-suggestion.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert suggestion["status"] == "manual_correction_required"
+    assert suggestion["reason_codes"] == ["invalid_contract"]
+
+
+def test_explicit_unknown_rig_schema_is_invalid_contract(
+    head_fixture: HeadFixture,
+) -> None:
+    profile = json.loads(head_fixture.rig_profile.read_text(encoding="utf-8"))
+    profile["schema_version"] = "gogobro-rig-profile-v999"
+    _write_json(head_fixture.rig_profile, profile)
+
+    report = apply_visual_rubric(
+        analyze_harmony(head_fixture.inputs()),
+        rubric(scores=[2, 2, 2, 1, 1]),
+    )
+
+    assert report.verdict == "hard_fail"
+    assert report.reason_codes == ("invalid_contract",)
+
+
+def test_recognized_legacy_anchor_schema_remains_auditable(
+    head_fixture: HeadFixture,
+) -> None:
+    inputs = head_fixture._rewrite(outer_width=76, head_width=58)
+    anchors = json.loads(inputs.anchors.read_text(encoding="utf-8"))
+    anchors["schema_version"] = 1
+    _write_json(inputs.anchors, anchors)
+
+    report = analyze_harmony(inputs)
+
+    assert report.verdict == "hard_fail"
+    assert "invalid_contract" not in report.reason_codes
+    assert "scale_ratio_high" in report.reason_codes
+    assert report.metrics["outer_width_ratio"] == pytest.approx(76 / 58)
+
+
 def test_direct_icon_reuse_false_permits_an_independent_valid_icon(
     tmp_path: Path,
 ) -> None:
@@ -683,6 +739,37 @@ def test_formal_pixel_contract_reports_source_and_rendered_outline_evidence(
     assert report.metrics["rendered_opaque_components"] == [1] * 8
     assert report.metrics["source_outline_boundary_coverage"] == 1
     assert report.metrics["rendered_outline_boundary_coverages"] == [1] * 8
+
+
+def test_formal_candidate_threshold_snapshot_contains_every_hard_gate(
+    head_fixture: HeadFixture,
+) -> None:
+    report = analyze_harmony(_bind_formal_pixel_contract(head_fixture))
+
+    assert report.thresholds == {
+        "appearance_size": [128, 128],
+        "atlas_size": [1024, 128],
+        "depth_band": [1, 99],
+        "direct_icon_reuse": True,
+        "expected_depth": 40,
+        "flip_behavior": "none",
+        "frame_count": 8,
+        "icon_size": [256, 256],
+        "max_feature_center_error_px": 1,
+        "max_opaque_components": 1,
+        "max_palette_colors": 8,
+        "max_protected_occlusion_ratio": 0,
+        "max_residual_jitter_px": 1,
+        "min_outline_boundary_coverage": 1.0,
+        "outer_width_ratio": [1.05, 1.15],
+        "pixel_contract": {
+            "appearance_grid_scale": 2,
+            "icon_grid_scale": 4,
+            "logical_canvas": [64, 64],
+            "outline_colors_rgb": [[8, 5, 3]],
+            "resampling": "nearest",
+        },
+    }
 
 
 def test_formal_anchor_schema_requires_the_complete_pixel_contract(
@@ -896,6 +983,27 @@ def test_source_integrity_retains_other_after_hashes_when_one_source_is_missing(
     assert changed.source_integrity["changed_keys"] == ["appearance"]
 
 
+def test_source_integrity_refreshes_the_reported_actual_atlas_digest(
+    head_fixture: HeadFixture,
+) -> None:
+    _bind_canonical_atlas_contract(head_fixture)
+    inputs = head_fixture.inputs()
+    report = analyze_harmony(inputs)
+    expected_hashes = dict(report.input_sha256)
+    expected_atlas = report.atlas_sha256["expected"]
+    atlas = Image.open(inputs.character_atlas).convert("RGBA")
+    atlas.putpixel((0, 0), (12, 34, 56, 255))
+    atlas.save(inputs.character_atlas)
+
+    changed = check_source_integrity(report, inputs, expected_hashes)
+
+    assert changed.verdict == "hard_fail"
+    assert changed.atlas_sha256 == {
+        "actual": _sha256(inputs.character_atlas),
+        "expected": expected_atlas,
+    }
+
+
 def test_harmony_report_serializes_slot_thresholds_atlas_and_source_integrity(
     valid_inputs: HarmonyInputs,
 ) -> None:
@@ -907,6 +1015,14 @@ def test_harmony_report_serializes_slot_thresholds_atlas_and_source_integrity(
 
     assert payload["slot"] == "head"
     assert payload["thresholds"] == {
+        "appearance_size": [128, 128],
+        "atlas_size": [1024, 128],
+        "depth_band": [None, None],
+        "direct_icon_reuse": True,
+        "expected_depth": 40,
+        "flip_behavior": "none",
+        "frame_count": 8,
+        "icon_size": [256, 256],
         "max_feature_center_error_px": 1,
         "max_opaque_components": None,
         "max_palette_colors": 8,
@@ -914,6 +1030,7 @@ def test_harmony_report_serializes_slot_thresholds_atlas_and_source_integrity(
         "max_residual_jitter_px": 1,
         "min_outline_boundary_coverage": None,
         "outer_width_ratio": [1.05, 1.15],
+        "pixel_contract": None,
     }
     assert payload["atlas_sha256"] == {
         "actual": _sha256(valid_inputs.character_atlas),
@@ -932,7 +1049,7 @@ def test_harmony_report_serializes_slot_thresholds_atlas_and_source_integrity(
     [
         ("bad_json", "malformed_input"),
         ("bad_image", "malformed_input"),
-        ("bad_coordinate", "invalid_frame_data"),
+        ("bad_coordinate", "invalid_contract"),
         ("bad_contract", "invalid_contract"),
         ("zero_scale", "invalid_scale"),
     ],
@@ -963,6 +1080,73 @@ def test_malformed_required_input_returns_hard_fail_report_and_cli_two(
     assert main(_arguments(inputs)) == 2
     persisted = json.loads((inputs.out_dir / "harmony-report.json").read_text(encoding="utf-8"))
     assert persisted["verdict"] == "hard_fail"
+
+
+@pytest.mark.parametrize(
+    ("mutation", "value"),
+    [
+        ("scale", True),
+        ("scale", "1"),
+        ("scale", float("inf")),
+        ("depth", True),
+        ("depth", "40"),
+        ("depth", float("nan")),
+        ("offset", [True, 0]),
+        ("offset", ["0", 0]),
+        ("offset", [0.0, 0]),
+        ("face_center", [True, 71]),
+        ("face_center", ["62", 71]),
+        ("protected_box", [True, 68, 67, 73]),
+        ("occupied_slots", "head"),
+        ("occupied_slots", [1]),
+        ("anchor_frames", {}),
+        ("profile_frames", {}),
+    ],
+    ids=[
+        "bool-scale",
+        "string-scale",
+        "infinite-scale",
+        "bool-depth",
+        "string-depth",
+        "nan-depth",
+        "bool-offset",
+        "string-offset",
+        "float-offset",
+        "bool-coordinate",
+        "string-coordinate",
+        "bool-box-coordinate",
+        "string-occupied-slots",
+        "non-string-occupied-slot",
+        "object-anchor-frames",
+        "object-profile-frames",
+    ],
+)
+def test_raw_json_contract_rejects_coercible_types_and_wrong_containers(
+    head_fixture: HeadFixture,
+    mutation: str,
+    value: object,
+) -> None:
+    anchors = json.loads(head_fixture.anchors.read_text(encoding="utf-8"))
+    profile = json.loads(head_fixture.rig_profile.read_text(encoding="utf-8"))
+    if mutation in {"scale", "depth", "offset"}:
+        anchors["frames"][0][mutation] = value
+    elif mutation == "face_center":
+        profile["frames"][0]["face_center"] = value
+    elif mutation == "protected_box":
+        profile["frames"][0]["protected_regions"]["eyes"] = value
+    elif mutation == "occupied_slots":
+        anchors["occupied_slots"] = value
+    elif mutation == "anchor_frames":
+        anchors["frames"] = value
+    else:
+        profile["frames"] = value
+    _write_json(head_fixture.anchors, anchors)
+    _write_json(head_fixture.rig_profile, profile)
+
+    report = analyze_harmony(head_fixture.inputs())
+
+    assert report.verdict == "hard_fail"
+    assert report.reason_codes == ("invalid_contract",)
 
 
 def test_malformed_visual_rubric_returns_hard_fail_and_exit_two(valid_inputs: HarmonyInputs) -> None:
@@ -1269,3 +1453,28 @@ def test_failing_transform_suggestion_requires_manual_correction(
     assert suggestion["status"] == "manual_correction_required"
     assert suggestion["reason_codes"] == report["reason_codes"]
     assert "scale_ratio_high" in suggestion["reason_codes"]
+
+
+@pytest.mark.parametrize("anchor_failure", ["missing", "unreadable"])
+def test_suggest_transform_writes_manual_evidence_for_unreadable_anchors(
+    head_fixture: HeadFixture,
+    anchor_failure: str,
+) -> None:
+    inputs = head_fixture.inputs()
+    inputs.anchors.unlink()
+    if anchor_failure == "unreadable":
+        inputs.anchors.mkdir()
+
+    assert main(_arguments(inputs) + ["--suggest-transform"]) == 2
+
+    report = json.loads(
+        (inputs.out_dir / "harmony-report.json").read_text(encoding="utf-8")
+    )
+    suggestion = json.loads(
+        (inputs.out_dir / "transform-suggestion.json").read_text(encoding="utf-8")
+    )
+    assert report["verdict"] == "hard_fail"
+    assert suggestion["status"] == "manual_correction_required"
+    assert suggestion["current_scales"] == []
+    assert suggestion["integer_offsets"] == []
+    assert suggestion["reason_codes"] == report["reason_codes"]

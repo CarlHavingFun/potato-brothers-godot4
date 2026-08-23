@@ -170,8 +170,11 @@ def check_source_integrity(
     if extra_sources:
         paths.update(extra_sources)
     current_hashes = _safe_hash_paths(paths)
+    atlas_sha256 = dict(report.atlas_sha256)
+    atlas_sha256["actual"] = current_hashes.get("character_atlas")
     updated = replace(
         report,
+        atlas_sha256=atlas_sha256,
         input_sha256=dict(expected_hashes),
         source_integrity=_source_integrity(expected_hashes, current_hashes),
     )
@@ -224,37 +227,69 @@ def _add(reasons: set[str], condition: bool, code: str) -> None:
 
 
 def _profile_frames(profile: dict[str, object]) -> list[dict[str, object]]:
-    frames = profile.get("frames", [])
-    return frames if isinstance(frames, list) else []
+    frames = profile.get("frames")
+    if (
+        type(frames) is not list
+        or not frames
+        or any(type(frame) is not dict for frame in frames)
+    ):
+        raise ValueError("invalid_contract")
+    return frames
 
 
 def _slot_profile(profile: dict[str, object], slot: str) -> dict[str, object]:
     profiles = profile.get("slot_profiles", {})
-    if not isinstance(profiles, dict):
-        return {}
+    if type(profiles) is not dict:
+        raise ValueError("invalid_contract")
     selected = profiles.get(slot, {})
-    return selected if isinstance(selected, dict) else {}
+    if type(selected) is not dict:
+        raise ValueError("invalid_contract")
+    return selected
+
+
+def _as_finite_number(value: object) -> float:
+    if type(value) not in (int, float):
+        raise ValueError("invalid_contract")
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError("invalid_contract")
+    return number
+
+
+def _as_integer_pair(value: object) -> tuple[int, int]:
+    if (
+        type(value) is not list
+        or len(value) != 2
+        or any(type(component) is not int for component in value)
+    ):
+        raise ValueError("invalid_contract")
+    return value[0], value[1]
+
+
+def _as_size(value: object) -> tuple[int, int]:
+    if (
+        type(value) is not list
+        or len(value) != 2
+        or any(type(component) is not int or component <= 0 for component in value)
+    ):
+        raise ValueError("invalid_contract")
+    return value[0], value[1]
 
 
 def _as_pair(value: object) -> tuple[float, float]:
-    if not isinstance(value, list | tuple) or len(value) != 2:
-        raise ValueError("expected coordinate pair")
-    pair = (float(value[0]), float(value[1]))
-    if not all(math.isfinite(component) for component in pair):
-        raise ValueError("expected finite coordinate pair")
-    return pair
+    if type(value) is not list or len(value) != 2:
+        raise ValueError("invalid_contract")
+    return _as_finite_number(value[0]), _as_finite_number(value[1])
 
 
 def _as_box(value: object) -> Box:
-    if not isinstance(value, list | tuple) or len(value) != 4:
+    if (
+        type(value) is not list
+        or len(value) != 4
+        or any(type(component) is not int for component in value)
+    ):
         raise ValueError("invalid_contract")
-    try:
-        coordinates = tuple(int(component) for component in value)
-    except (TypeError, ValueError):
-        raise ValueError("invalid_contract") from None
-    if tuple(value) != coordinates:
-        raise ValueError("invalid_contract")
-    box = Box(*coordinates)
+    box = Box(*value)
     if box.right <= box.left or box.bottom <= box.top:
         raise ValueError("invalid_contract")
     return box
@@ -280,12 +315,18 @@ def _contract_limit(
     contract: dict[str, object], canonical_name: str, legacy_name: str
 ) -> float:
     if canonical_name in contract and legacy_name in contract:
-        canonical = float(contract[canonical_name])
-        legacy = float(contract[legacy_name])
+        canonical = _as_finite_number(contract[canonical_name])
+        legacy = _as_finite_number(contract[legacy_name])
         if canonical != legacy:
             raise ValueError("invalid_contract")
         return canonical
-    return float(contract.get(canonical_name, contract[legacy_name]))
+    if canonical_name in contract:
+        value = contract[canonical_name]
+    elif legacy_name in contract:
+        value = contract[legacy_name]
+    else:
+        raise ValueError("invalid_contract") from None
+    return _as_finite_number(value)
 
 
 def _validate_contract(
@@ -304,9 +345,9 @@ def _validate_contract(
     }
     try:
         ratio = contract["outer_width_ratio"]
-        if not isinstance(ratio, list | tuple) or len(ratio) != 2:
+        if type(ratio) is not list or len(ratio) != 2:
             raise ValueError
-        low, high = (float(value) for value in ratio)
+        low, high = (_as_finite_number(value) for value in ratio)
         palette_limit = contract["max_palette_colors"]
         feature_limit = _contract_limit(
             contract, "max_feature_center_error_px", "feature_center_max_px"
@@ -314,17 +355,24 @@ def _validate_contract(
         jitter_limit = _contract_limit(
             contract, "max_residual_jitter_px", "residual_jitter_max_px"
         )
-        feature_anchor = str(contract.get("feature_anchor", "face_center"))
-        protected_region = str(contract.get("protected_region", "protected_regions.eyes"))
-        max_occlusion = float(contract.get("max_occlusion_ratio", 0))
-        flip_behavior = str(contract.get("flip_behavior", "none"))
-        depth_band_value = contract.get("depth_band", [-math.inf, math.inf])
-        if not isinstance(depth_band_value, list | tuple) or len(depth_band_value) != 2:
+        feature_anchor = contract.get("feature_anchor", "face_center")
+        protected_region = contract.get("protected_region", "protected_regions.eyes")
+        max_occlusion = _as_finite_number(contract.get("max_occlusion_ratio", 0))
+        flip_behavior = contract.get("flip_behavior", "none")
+        depth_band_value = contract.get("depth_band")
+        if depth_band_value is None:
+            depth_low, depth_high = -math.inf, math.inf
+        elif type(depth_band_value) is not list or len(depth_band_value) != 2:
             raise ValueError
-        depth_low, depth_high = (float(value) for value in depth_band_value)
+        else:
+            depth_low, depth_high = (
+                _as_finite_number(value) for value in depth_band_value
+            )
         expected_depth_value = contract.get("expected_depth")
         expected_depth = (
-            None if expected_depth_value is None else float(expected_depth_value)
+            None
+            if expected_depth_value is None
+            else _as_finite_number(expected_depth_value)
         )
         direct_icon_reuse = contract.get("direct_icon_reuse", True)
         min_outline_coverage = contract.get("min_outline_boundary_coverage")
@@ -345,9 +393,11 @@ def _validate_contract(
         or high < low
         or feature_limit < 0
         or jitter_limit < 0
-        or not isinstance(palette_limit, int)
+        or type(palette_limit) is not int
         or palette_limit < 1
+        or type(feature_anchor) is not str
         or not feature_anchor
+        or type(protected_region) is not str
         or not protected_region
         or not math.isfinite(max_occlusion)
         or not 0 <= max_occlusion <= 1
@@ -359,7 +409,8 @@ def _validate_contract(
             require_slot_fields
             and (
                 isinstance(min_outline_coverage, bool)
-                or not isinstance(min_outline_coverage, int | float)
+                or type(min_outline_coverage) not in (int, float)
+                or not math.isfinite(float(min_outline_coverage))
                 or float(min_outline_coverage) != 1.0
             )
         )
@@ -380,11 +431,11 @@ def _validate_contract(
         raise ValueError("invalid_contract")
     for frame in frames:
         feature = _resolve_frame_path(frame, feature_anchor)
-        if isinstance(feature, list | tuple) and len(feature) == 2:
+        if type(feature) is list and len(feature) == 2:
             _as_pair(feature)
             try:
-                reference_width = float(frame["head_width"])
-            except (KeyError, TypeError, ValueError):
+                reference_width = _as_finite_number(frame["head_width"])
+            except (KeyError, ValueError):
                 raise ValueError("invalid_contract") from None
             if not math.isfinite(reference_width) or reference_width <= 0:
                 raise ValueError("invalid_contract")
@@ -470,8 +521,11 @@ def _pixel_reason_codes(appearance: Image.Image, palette_limit: int) -> set[str]
 
 
 def _formal_pixel_contract(anchors: dict[str, object]) -> dict[str, object] | None:
-    if anchors.get("schema_version") != "gogobro-item-anchors-v1":
+    schema_version = anchors.get("schema_version")
+    if schema_version is None or type(schema_version) is int and schema_version == 1:
         return None
+    if schema_version != "gogobro-item-anchors-v1":
+        raise ValueError("invalid_contract")
     contract = anchors.get("pixel_contract")
     required = {
         "appearance_grid_scale",
@@ -589,7 +643,10 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
     profile = _read_json(inputs.rig_profile)
     frames = _profile_frames(profile)
     contract = _slot_profile(profile, inputs.slot)
-    canonical_profile = profile.get("schema_version") == "gogobro-rig-profile-v1"
+    profile_schema = profile.get("schema_version")
+    if profile_schema not in (None, "gogobro-rig-profile-v1"):
+        raise ValueError("invalid_contract")
+    canonical_profile = profile_schema == "gogobro-rig-profile-v1"
     expected_atlas_sha256: str | None = None
     if canonical_profile:
         expected_hash = profile.get("character_atlas_sha256")
@@ -613,10 +670,10 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
     with Image.open(inputs.icon) as opened_icon:
         icon = opened_icon.convert("RGBA")
 
-    frame_size = profile.get("frame_size", [128, 128])
-    atlas_size = profile.get("atlas_size", [128 * len(frames), 128])
-    _add(reasons, tuple(frame_size) != appearance.size, "appearance_dimensions")
-    _add(reasons, tuple(atlas_size) != atlas.size, "atlas_dimensions")
+    frame_size = _as_size(profile.get("frame_size", [128, 128]))
+    atlas_size = _as_size(profile.get("atlas_size", [128 * len(frames), 128]))
+    _add(reasons, frame_size != appearance.size, "appearance_dimensions")
+    _add(reasons, atlas_size != atlas.size, "atlas_dimensions")
     _add(
         reasons,
         expected_atlas_sha256 is not None
@@ -634,7 +691,9 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
             != list(derive_nearest_2x_icon(appearance).get_flattened_data()),
             "icon_not_nearest_2x",
         )
-    palette_limit = int(contract.get("max_palette_colors", 8))
+    palette_limit = contract.get("max_palette_colors", 8)
+    if type(palette_limit) is not int:
+        raise ValueError("invalid_contract")
     reasons.update(_pixel_reason_codes(appearance, palette_limit))
     reasons.update(_pixel_reason_codes(icon, palette_limit))
 
@@ -644,7 +703,7 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
     source_outline_total: int | None = None
     source_outline_coverage: float | None = None
     max_opaque_components = contract.get("max_opaque_components")
-    min_outline_coverage = float(
+    min_outline_coverage = _as_finite_number(
         contract.get("min_outline_boundary_coverage", 0)
     )
     if pixel_contract is not None:
@@ -655,12 +714,12 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
             not _grid_round_trip_matches(
                 appearance,
                 logical_canvas,
-                int(pixel_contract["appearance_grid_scale"]),
+                pixel_contract["appearance_grid_scale"],
             )
             or not _grid_round_trip_matches(
                 icon,
                 logical_canvas,
-                int(pixel_contract["icon_grid_scale"]),
+                pixel_contract["icon_grid_scale"],
             ),
             "pixel_grid_incompatible",
         )
@@ -682,12 +741,19 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
 
     bounds = _alpha_bounds(appearance)
     _add(reasons, bounds is None, "empty_appearance")
-    feature_anchor = str(contract.get("feature_anchor", "face_center"))
-    protected_region = str(contract.get("protected_region", "protected_regions.eyes"))
-    max_occlusion = float(contract.get("max_occlusion_ratio", 0))
-    flip_behavior = str(contract.get("flip_behavior", "none"))
-    depth_band = contract.get("depth_band", [-math.inf, math.inf])
-    depth_low, depth_high = (float(value) for value in depth_band)
+    feature_anchor = contract.get("feature_anchor", "face_center")
+    protected_region = contract.get("protected_region", "protected_regions.eyes")
+    max_occlusion = _as_finite_number(contract.get("max_occlusion_ratio", 0))
+    flip_behavior = contract.get("flip_behavior", "none")
+    if not isinstance(feature_anchor, str) or not isinstance(protected_region, str):
+        raise ValueError("invalid_contract")
+    depth_band = contract.get("depth_band")
+    if depth_band is None:
+        depth_low, depth_high = -math.inf, math.inf
+    else:
+        depth_low, depth_high = (
+            _as_finite_number(value) for value in depth_band
+        )
     aperture = None
     if feature_anchor == "face_center":
         try:
@@ -695,12 +761,17 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
         except ValueError:
             reasons.add("missing_feature_aperture")
 
-    anchor_frames = anchors.get("frames", [])
-    if not isinstance(anchor_frames, list):
-        anchor_frames = []
+    anchor_frames = anchors.get("frames")
+    if type(anchor_frames) is not list:
+        raise ValueError("invalid_contract")
     _add(reasons, len(anchor_frames) != len(frames), "anchor_count")
     occupied = anchors.get("occupied_slots", [])
-    _add(reasons, isinstance(occupied, list) and inputs.slot in occupied, "duplicate_slot")
+    if (
+        type(occupied) is not list
+        or any(type(occupied_slot) is not str for occupied_slot in occupied)
+    ):
+        raise ValueError("invalid_contract")
+    _add(reasons, inputs.slot in occupied, "duplicate_slot")
     _add(
         reasons,
         anchors.get("flip_behavior", "none") != flip_behavior,
@@ -718,28 +789,22 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
     rendered_outline_pixels: list[dict[str, int]] = []
     expected_depth = contract.get("expected_depth")
     for index, (frame, anchor) in enumerate(zip(frames, anchor_frames, strict=False)):
-        if not isinstance(frame, dict) or not isinstance(anchor, dict):
-            reasons.add("invalid_frame_data")
-            continue
+        if type(frame) is not dict or type(anchor) is not dict:
+            raise ValueError("invalid_contract")
         try:
-            scale = float(anchor["scale"])
-            offset_values = _as_pair(anchor["offset"])
-            offset = (int(offset_values[0]), int(offset_values[1]))
-            if offset != offset_values:
-                reasons.add("non_integer_offset")
-        except (KeyError, TypeError, ValueError):
-            reasons.add("invalid_frame_data")
-            continue
-        if not math.isfinite(scale) or scale <= 0:
+            scale = _as_finite_number(anchor["scale"])
+            offset = _as_integer_pair(anchor["offset"])
+        except KeyError:
+            raise ValueError("invalid_contract") from None
+        if scale <= 0:
             reasons.add("invalid_scale")
             continue
         if expected_depth is not None:
             _add(reasons, anchor.get("depth") != expected_depth, "depth_mismatch")
         try:
-            anchor_depth = float(anchor["depth"])
-        except (KeyError, TypeError, ValueError):
-            reasons.add("invalid_frame_data")
-            continue
+            anchor_depth = _as_finite_number(anchor["depth"])
+        except KeyError:
+            raise ValueError("invalid_contract") from None
         _add(
             reasons,
             not depth_low <= anchor_depth <= depth_high,
@@ -780,9 +845,9 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
             )
         frame_boxes.append([placed.left, placed.top, placed.right, placed.bottom])
         target_feature = _resolve_frame_path(frame, feature_anchor)
-        if isinstance(target_feature, list | tuple) and len(target_feature) == 2:
+        if type(target_feature) is list and len(target_feature) == 2:
             target_center = _as_pair(target_feature)
-            reference_width = float(frame["head_width"])
+            reference_width = _as_finite_number(frame["head_width"])
         else:
             target_box = _as_box(target_feature)
             target_center = _box_center(target_box)
@@ -813,8 +878,11 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
             residuals.append(delta)
 
     outer_ratio = max(outer_width_ratios, default=0)
-    allowed_ratio = contract.get("outer_width_ratio", [0, float("inf")])
-    low_ratio, high_ratio = (float(allowed_ratio[0]), float(allowed_ratio[1]))
+    allowed_ratio = contract["outer_width_ratio"]
+    low_ratio, high_ratio = (
+        _as_finite_number(allowed_ratio[0]),
+        _as_finite_number(allowed_ratio[1]),
+    )
     _add(reasons, any(ratio < low_ratio for ratio in outer_width_ratios), "scale_ratio_low")
     _add(reasons, any(ratio > high_ratio for ratio in outer_width_ratios), "scale_ratio_high")
     max_feature_error = max(feature_errors, default=0)
@@ -866,6 +934,19 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
             }
         ),
     }
+    pixel_thresholds = (
+        None
+        if pixel_contract is None
+        else {
+            "appearance_grid_scale": pixel_contract["appearance_grid_scale"],
+            "icon_grid_scale": pixel_contract["icon_grid_scale"],
+            "logical_canvas": list(pixel_contract["logical_canvas"]),
+            "outline_colors_rgb": [
+                list(color) for color in pixel_contract["outline_colors_rgb"]
+            ],
+            "resampling": pixel_contract["resampling"],
+        }
+    )
     return HarmonyReport(
         verdict="hard_fail" if reasons else "review",
         reason_codes=tuple(sorted(reasons)),
@@ -877,6 +958,18 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
         },
         slot=inputs.slot,
         thresholds={
+            "appearance_size": [128, 128],
+            "atlas_size": list(atlas_size),
+            "depth_band": (
+                list(contract["depth_band"])
+                if "depth_band" in contract
+                else [None, None]
+            ),
+            "direct_icon_reuse": contract.get("direct_icon_reuse", True),
+            "expected_depth": expected_depth,
+            "flip_behavior": flip_behavior,
+            "frame_count": len(frames),
+            "icon_size": [256, 256],
             "max_feature_center_error_px": feature_limit,
             "max_opaque_components": max_opaque_components,
             "max_palette_colors": palette_limit,
@@ -886,6 +979,7 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
                 "min_outline_boundary_coverage"
             ),
             "outer_width_ratio": [low_ratio, high_ratio],
+            "pixel_contract": pixel_thresholds,
         },
         source_integrity=_source_integrity(input_sha256, after_sha256),
     )
@@ -993,12 +1087,10 @@ def _diagnostic_composite(
     profile = _read_json(inputs.rig_profile)
     frames = _profile_frames(profile)
     anchor_frames = anchors.get("frames")
-    if not isinstance(anchor_frames, list) or len(anchor_frames) != len(frames):
+    if type(anchor_frames) is not list or len(anchor_frames) != len(frames):
         raise ValueError("invalid_frame_data")
     frame_size_value = profile.get("frame_size", [128, 128])
-    if not isinstance(frame_size_value, list | tuple) or len(frame_size_value) != 2:
-        raise ValueError("invalid_contract")
-    frame_width, frame_height = (int(value) for value in frame_size_value)
+    frame_width, frame_height = _as_size(frame_size_value)
     if (
         frame_width <= 0
         or frame_height <= 0
@@ -1018,18 +1110,12 @@ def _diagnostic_composite(
     for index, (frame, anchor) in enumerate(
         zip(frames, anchor_frames, strict=True)
     ):
-        if not isinstance(frame, dict) or not isinstance(anchor, dict):
+        if type(frame) is not dict or type(anchor) is not dict:
             raise ValueError("invalid_frame_data")
-        scale = float(anchor["scale"])
-        offset_values = _as_pair(anchor["offset"])
-        offset = (int(offset_values[0]), int(offset_values[1]))
-        depth = float(anchor["depth"])
-        if (
-            not math.isfinite(scale)
-            or scale <= 0
-            or offset != offset_values
-            or not math.isfinite(depth)
-        ):
+        scale = _as_finite_number(anchor["scale"])
+        offset = _as_integer_pair(anchor["offset"])
+        depth = _as_finite_number(anchor["depth"])
+        if scale <= 0:
             raise ValueError("invalid_frame_data")
         placement = _raster_placement(appearance, scale, offset, feature_anchor)
         if placement.bounds is None or placement.feature_center is None:
@@ -1052,7 +1138,7 @@ def _diagnostic_composite(
         composite.paste(worn, (index * frame_width, 0))
 
         target_feature = _resolve_frame_path(frame, feature_anchor)
-        if isinstance(target_feature, list | tuple) and len(target_feature) == 2:
+        if type(target_feature) is list and len(target_feature) == 2:
             target_center = _as_pair(target_feature)
         else:
             target_center = _box_center(_as_box(target_feature))
@@ -1213,23 +1299,18 @@ def _transform_suggestion(
     try:
         anchors = _read_json(inputs.anchors)
         frames = anchors.get("frames")
-        if not isinstance(frames, list):
+        if type(frames) is not list:
             raise ValueError
         for frame in frames:
-            if not isinstance(frame, dict):
+            if type(frame) is not dict:
                 raise ValueError
-            scale = float(frame["scale"])
-            offset = frame["offset"]
-            if (
-                not math.isfinite(scale)
-                or type(offset) is not list
-                or len(offset) != 2
-                or any(type(component) is not int for component in offset)
-            ):
+            scale = _as_finite_number(frame["scale"])
+            offset = _as_integer_pair(frame["offset"])
+            if scale <= 0:
                 raise ValueError
             current_scales.append(scale)
             integer_offsets.append(list(offset))
-    except (KeyError, TypeError, ValueError):
+    except (KeyError, OSError, TypeError, ValueError):
         current_scales = []
         integer_offsets = []
     shared_scale = (

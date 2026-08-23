@@ -4,6 +4,8 @@ Use this reference only when choosing or reviewing an appearance slot. The rig p
 
 Canonical v1 slot contracts require `min_outline_boundary_coverage: 1.0`; this applies to the source and every actual nearest-resized render. The `head` contract also requires `max_opaque_components: 1`. Formal `gogobro-item-anchors-v1` data binds logical canvas `[64,64]`, appearance/icon grid scales `2/4`, `resampling: nearest`, and a frozen non-empty sorted `outline_colors_rgb` list. Both source PNGs must survive exact nearest down/up RGBA round trips. Boundary colors and four-connected opaque components are measured again after each frame's real resize.
 
+Schema and raw JSON validation are type-exact. Unknown explicit anchor/rig schemas fail `invalid_contract`; formal anchors require the complete pixel contract. Integer-schema-`1` legacy anchors remain measurable for audit, while schema-less fixtures are the only generic legacy form. Coordinates/scales/depths cannot be bools or numeric strings, scales/depths must be finite, offsets and boxes use exact integer arrays, frames use arrays of objects, and `occupied_slots` uses an array of strings.
+
 `direct_icon_reuse` is an exact boolean. Only `true` requires the icon to equal the appearance's nearest 2× derivation; `false` permits an independent icon that still satisfies the 4× grid. Niko currently uses direct reuse for `head` and independent-icon policy for every other slot.
 
 | Slot | Feature anchor | Allowed silhouette ratio | Protected ROI | Maximum occlusion | Depth band | Flip behavior |
@@ -22,5 +24,7 @@ Canonical v1 slot contracts require `min_outline_boundary_coverage: 1.0`; this a
 For `head`, align the aperture to the face within 1 px per frame and keep residual jitter at or below 1 px. Other slots use their own named boxes and limits; never substitute the head aperture or head ratio.
 
 Geometry, crop, protected-region occlusion, feature centers, and diagnostics come from the exact Pillow nearest raster at `round(source_size × scale)`. Do not use continuous floor/ceil projection or inverse-map destination pixels back into the source.
+
+The report threshold snapshot repeats the applied appearance/icon/atlas sizes, frame count, ratio, feature/jitter/occlusion/palette/outline/component limits, depth band and expected depth, direct-icon policy, flip behavior, and formal pixel contract. Transform suggestions copy this map exactly. If anchors are missing or unreadable, the suggestion contains no claimed current transform and remains `manual_correction_required`.
 
 The canonical Niko walk-down boxes and machine-readable thresholds are in `tools/assets/rig_profiles/niko_walk_down_v1.json`.

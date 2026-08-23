@@ -22,10 +22,10 @@ Return the verdict and evidence in this order:
 
 When choosing or reviewing a slot profile, read [slot-profiles.md](references/slot-profiles.md). Use the rig's exact named feature and protected regions; do not apply head geometry to another slot.
 
-Formal v1 anchors bind a 64×64 logical canvas, exact 2× appearance and 4× icon grids, nearest resampling, and a frozen outline palette. Never derive or relax that palette during review. Canonical v1 rigs bind the character-atlas SHA-256. `direct_icon_reuse:true` requires exact nearest 2× reuse; `false` permits an independent icon that still passes its 4× grid.
+Formal v1 anchors bind a 64×64 logical canvas, exact 2× appearance and 4× icon grids, nearest resampling, and a frozen outline palette. Never derive or relax that palette during review. Unknown explicit anchor or rig schemas are invalid; formal anchors cannot omit `pixel_contract`. Recognized integer-`1` legacy anchors remain measurable audit evidence. Canonical v1 rigs bind the character-atlas SHA-256. `direct_icon_reuse:true` requires exact nearest 2× reuse; `false` permits an independent icon that still passes its 4× grid. Treat JSON types exactly: never coerce bools or numeric strings; offsets/boxes are integer arrays and `occupied_slots` is a string array.
 
 ## Output contract
 
-The checker measures the exact nearest-resized raster used in its composite, not continuous projected geometry. `harmony-report.json` includes slot, measurements, thresholds, input hashes, atlas expected/actual, and source-integrity before/after/changed keys. A missing source is `null` without erasing other hashes. A failing suggestion remains `manual_correction_required` unless a measured passing transform exists.
+The checker measures the exact nearest-resized raster used in its composite, not continuous projected geometry. `harmony-report.json` includes slot, measurements, every applied size/count/geometry/pixel/outline/depth/icon/flip threshold, input hashes, final atlas expected/actual, and source-integrity before/after/changed keys. A missing source is `null` without erasing other hashes. Suggestions inherit the exact threshold map; missing or unreadable anchors still yield `manual_correction_required` and exit `2`.
 
 The checker returns `hard_fail`, `review`, or `harmony_pass`. Include reason codes, measured values, visual-rubric evidence, and the final verdict. `hard_fail` blocks approval. `harmony_pass` confirms this gate only; explicit human approval is still required.

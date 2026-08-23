@@ -103,7 +103,7 @@ Check mode is read-only with respect to source assets. `--suggest-transform` may
 
 All outputs are deterministic for identical inputs and configuration.
 
-The report also records the selected slot, canonical atlas expected/actual hashes, and `source_integrity.before`, `source_integrity.after`, and sorted `changed_keys`. A used visual rubric is an input and therefore appears in all input-hash evidence. A transform suggestion contains current per-frame integer offsets/scales, objective measurements, thresholds, reasons, and either `current_transform_passes` or `manual_correction_required`; a failing transform is never described as an automatically qualified repair.
+The report also records the selected slot, canonical atlas expected/actual hashes, and `source_integrity.before`, `source_integrity.after`, and sorted `changed_keys`. The final integrity check refreshes the reported actual atlas digest. Its self-contained threshold snapshot includes appearance/icon/atlas sizes, frame count, ratio, feature, jitter, occlusion, palette, outline and component limits, depth band and expected depth, direct-icon and flip policies, plus the complete formal pixel contract when applied. A used visual rubric is an input and therefore appears in all input-hash evidence. A transform suggestion inherits that exact threshold map and contains current per-frame integer offsets/scales, objective measurements, reasons, and either `current_transform_passes` or `manual_correction_required`; missing or unreadable anchors still produce exit `2` and truthful manual-correction evidence rather than an exception.
 
 ## Rig and slot profiles
 
@@ -140,6 +140,8 @@ The checker consumes an explicit rig profile instead of guessing semantic body r
 Any hard-gate failure returns `hard_fail` and a non-zero process exit. It also reports an actionable correction such as “reduce shared scale” or “align aperture center +3 px on X”; it does not repair the asset automatically.
 
 Canonical v1 rigs require a strict 64-hex `character_atlas_sha256`. Slot `direct_icon_reuse` is an exact boolean: only `true` requires exact nearest 2× appearance reuse; `false` permits an independently drawn icon that still satisfies its formal 4× pixel grid.
+
+Schema selection is an allowlist, never a fallback: formal anchors accept only `gogobro-item-anchors-v1`, recognized legacy candidate anchors use integer schema `1` (or the schema-less generic test form), canonical rigs accept only `gogobro-rig-profile-v1`, and schema-less generic rigs remain supported. Any other explicit schema is `invalid_contract`. Formal v1 anchors must include the complete pixel contract. Raw JSON is type-exact: containers are arrays/objects as specified, offsets and boxes use non-boolean integers, scale/depth and other numeric values are finite non-boolean numbers, coordinates cannot be numeric strings, and `occupied_slots` is an array of strings.
 
 ### Visual rubric
 
@@ -207,7 +209,8 @@ Use candidate 001 as the real regression: ordinary sprite QA passes while the ha
 - correct nearest 2× icon reuse passes and any pixel difference fails;
 - `direct_icon_reuse:false` accepts an independent grid-valid icon;
 - malformed atlas hashes, atlas mismatches, pixel-grid blocks, outline colors/components, and rubric types/shapes fail actionably;
-- reports and suggestions contain complete thresholds, source-integrity maps, and truthful statuses;
+- unknown explicit schemas, coercible raw numeric types, malformed containers, and malformed occupied-slot lists fail as `invalid_contract`;
+- reports and suggestions contain complete thresholds, final atlas/source-integrity maps, and truthful statuses even when anchors cannot be read;
 - slot profiles apply distinct regions and depth expectations;
 - identical runs produce byte-identical JSON metrics and diagnostic rasters;
 - candidate 001 fails for the expected reasons;

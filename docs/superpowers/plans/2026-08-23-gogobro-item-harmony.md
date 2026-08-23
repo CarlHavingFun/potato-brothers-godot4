@@ -195,8 +195,10 @@ Add exact-rendering and provenance regressions:
 - protected-region occlusion samples the actual resized layer, including a pixel missed by inverse-floor lookup;
 - canonical atlas hash format/mismatch and exact-boolean `direct_icon_reuse` are enforced;
 - formal 64×64 logical contracts reject nonuniform 2×/4× blocks, unapproved boundary colors, and excess source/rendered four-connected components;
+- unknown explicit anchor/rig schemas fail `invalid_contract`; only the documented schema-less and integer-`1` legacy forms remain auditable, while canonical v1 anchors require the formal pixel contract;
+- raw anchor/rig JSON rejects bool/string numeric coercion, non-finite scale/depth, non-integer offsets/boxes, malformed frame containers, and non-list/non-string `occupied_slots`;
 - malformed rubric root/dimension shapes, strings/floats/bools as scores, and non-string evidence are rejected without coercion;
-- report/source-integrity/suggestion schemas retain per-path hashes, thresholds, objective metrics, and truthful status.
+- report/source-integrity/suggestion schemas retain per-path hashes, the complete hard-gate threshold snapshot, objective metrics, final actual atlas digest, and truthful status; missing/unreadable anchors still write a manual suggestion and exit `2`.
 
 Add rubric-state tests:
 
@@ -282,11 +284,11 @@ def placed_feature_center(source_center: tuple[float, float], scale: float, offs
 
 Also implement `find_largest_enclosed_transparent_region(image) -> Box`, `analyze_harmony(inputs) -> HarmonyReport`, `load_visual_rubric(path) -> VisualRubric`, `apply_visual_rubric(report, rubric) -> HarmonyReport`, and `write_harmony_outputs(report, inputs) -> None`. Use four-connected flood fill for enclosed transparency. For every anchor, resize the full appearance canvas with Pillow nearest sampling to `round(source_size × scale)` and use that same layer for alpha bounds, resized feature center, crop, occlusion, diagnostics, and compositing. Compute residual jitter from those raster feature deltas. A hard-pass report remains `review` until a complete strict rubric is applied.
 
-Formal `gogobro-item-anchors-v1` data includes a `pixel_contract` with logical canvas `[64,64]`, appearance/icon scales `2/4`, `nearest`, and a frozen outline RGB list. Validate exact nearest down/up RGBA block round trips, four-connected component counts, and source/rendered opaque-boundary coverage. Canonical slot coverage is non-relaxable at `1.0`; head permits one opaque component.
+Formal `gogobro-item-anchors-v1` data includes a required `pixel_contract` with logical canvas `[64,64]`, appearance/icon scales `2/4`, `nearest`, and a frozen outline RGB list. Reject every unrecognized explicit anchor/rig schema rather than treating it as legacy. Recognize only schema-less generic fixtures and integer-schema-`1` legacy anchors; those remain auditable but cannot bypass measured failures. Validate raw JSON without coercion, exact nearest down/up RGBA block round trips, four-connected component counts, and source/rendered opaque-boundary coverage. Canonical slot coverage is non-relaxable at `1.0`; head permits one opaque component.
 
 - [ ] **Step 4: Implement deterministic output and CLI behavior**
 
-The JSON writer uses `sort_keys=True`, UTF-8, two-space indentation, and a terminal newline. PNG diagnostics use fixed colors, nearest sampling, and no timestamps. Hash each source independently before and after processing and return `hard_fail` if any source changes. The report includes slot, metrics, thresholds, reasons/verdict, complete input hashes, atlas expected/actual, and source-integrity before/after/changed keys. A used rubric is a hashed input. A transform suggestion includes current scales, integer offsets, objective measurements, thresholds, reasons, and a truthful status; failing geometry without a measured passing alternative is `manual_correction_required`.
+The JSON writer uses `sort_keys=True`, UTF-8, two-space indentation, and a terminal newline. PNG diagnostics use fixed colors, nearest sampling, and no timestamps. Hash each source independently before and after processing and return `hard_fail` if any source changes; refresh `atlas_sha256.actual` from that final digest. The report includes slot, metrics, reasons/verdict, complete input hashes, atlas expected/actual, source-integrity before/after/changed keys, and a self-contained threshold snapshot covering all applied size, count, geometry, pixel, outline, depth, icon, and flip gates. A used rubric is a hashed input. A transform suggestion includes current scales, integer offsets, objective measurements, that exact threshold map, reasons, and a truthful status; failing or unreadable geometry without a measured passing alternative is `manual_correction_required`.
 
 CLI parser:
 
@@ -520,7 +522,7 @@ Implement `build_candidate_002(inputs: BuildInputs) -> CandidateMetadata`. Find 
 
 Load the canonical checker module from `tools/codex_skills/checking-gogobro-item-harmony/scripts/check_item_harmony.py` with `importlib.util.spec_from_file_location`; do not duplicate checker logic in the builder. The builder CLI also accepts optional `--visual-rubric path/to/visual-rubric.json` and passes it through `apply_visual_rubric` during finalization.
 
-The builder writes only its explicit artifact manifest and never recursively clears `output_root`. A finalization run reads and hashes `visual-rubric.json` before replacing generated report/metadata files, loads it through the checker's strict public loader, leaves the rubric unchanged, and refuses to reuse a non-empty directory whose `candidate_id` or source hashes differ. Immediately before atomic publication it rehashes every recorded source, including the rig profile. The checker is the sole writer of `harmony-overlay.png` and `harmony-actual-size.png`.
+The builder writes only its explicit artifact manifest and never recursively clears `output_root`. Only the exact deterministically serialized blank rubric is an unreviewed placeholder: repeated no-argument placeholder builds are byte-idempotent and retain null/absent rubric provenance. A no-argument rebuild with a completed preserved rubric captures stable bytes, strict-loads and reapplies them, and records one consistent hash in report, metadata, and artifact manifest; malformed preserved bytes fail. Immediately before atomic publication the builder rechecks both supplied and preserved rubric sources plus every recorded source, including the rig profile. The staged captured rubric is always part of the transaction, so unchecked target bytes are never preserved. The checker is the sole writer of `harmony-overlay.png` and `harmony-actual-size.png`.
 
 - [ ] **Step 4: Produce review artifacts from structured data**
 

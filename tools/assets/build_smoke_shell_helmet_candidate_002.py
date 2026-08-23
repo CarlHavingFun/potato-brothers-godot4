@@ -137,11 +137,13 @@ def _tree_hashes(root: Path) -> dict[str, str]:
 
 def _write_json(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(
-        (json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode(
-            "utf-8"
-        )
-    )
+    path.write_bytes(_json_bytes(payload))
+
+
+def _json_bytes(payload: object) -> bytes:
+    return (
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
 
 
 def _read_object(path: Path) -> dict[str, object]:
@@ -785,6 +787,10 @@ def _default_visual_rubric() -> dict[str, object]:
     }
 
 
+def _blank_visual_rubric_bytes() -> bytes:
+    return _json_bytes(_default_visual_rubric())
+
+
 def _rubric_scores_for_evidence_revision(payload: bytes) -> dict[str, int]:
     rubric = json.loads(payload.decode("utf-8"))
     if not isinstance(rubric, dict) or set(rubric) != set(RUBRIC_DIMENSIONS):
@@ -972,13 +978,9 @@ def _recover_transaction(output_root: Path) -> None:
         raise RuntimeError("invalid_transaction_phase")
 
 
-def _publish(stage: Path, output_root: Path, *, preserve_rubric: bool) -> None:
+def _publish(stage: Path, output_root: Path) -> None:
     output_root.mkdir(parents=True, exist_ok=True)
-    relatives = [
-        relative
-        for relative in ARTIFACT_PATHS
-        if not (relative == "qa/visual-rubric.json" and preserve_rubric)
-    ]
+    relatives = list(ARTIFACT_PATHS)
     relatives.append("candidate-metadata.json")
     backup_dir = Path(
         tempfile.mkdtemp(prefix=".candidate-002-txn-", dir=output_root.parent)
@@ -1055,7 +1057,6 @@ def build_candidate_002(
         existing_rubric_path.read_bytes() if existing_rubric_path.is_file() else None
     )
     supplied_rubric_bytes = visual_rubric.read_bytes() if visual_rubric else None
-    rubric_revision = False
     if revise_rubric_evidence and (
         supplied_rubric_bytes is None or existing_rubric_bytes is None
     ):
@@ -1071,13 +1072,20 @@ def build_candidate_002(
             existing_rubric_bytes,
             supplied_rubric_bytes,
         )
-        rubric_revision = True
-    rubric_bytes = (
-        supplied_rubric_bytes
-        if supplied_rubric_bytes is not None
-        else existing_rubric_bytes
+    blank_rubric_bytes = _blank_visual_rubric_bytes()
+    preserved_completed_rubric = (
+        supplied_rubric_bytes is None
+        and existing_rubric_bytes is not None
+        and existing_rubric_bytes != blank_rubric_bytes
     )
-    rubric_hash = hashlib.sha256(rubric_bytes).hexdigest() if rubric_bytes is not None else None
+    apply_rubric = supplied_rubric_bytes is not None or preserved_completed_rubric
+    if supplied_rubric_bytes is not None:
+        rubric_bytes = supplied_rubric_bytes
+    elif existing_rubric_bytes is not None:
+        rubric_bytes = existing_rubric_bytes
+    else:
+        rubric_bytes = blank_rubric_bytes
+    rubric_hash = hashlib.sha256(rubric_bytes).hexdigest() if apply_rubric else None
 
     appearance, atlas = _load_images(inputs)
     profile = _read_object(inputs.rig_profile)
@@ -1097,6 +1105,9 @@ def build_candidate_002(
         icon = checker.derive_nearest_2x_icon(appearance)
         icon.save(derived_icon)
         _write_json(stage / "appearance/anchors-walk-down.json", anchors)
+        staged_rubric_path = stage / "qa/visual-rubric.json"
+        staged_rubric_path.parent.mkdir(parents=True, exist_ok=True)
+        staged_rubric_path.write_bytes(rubric_bytes)
 
         harmony_inputs = checker.HarmonyInputs(
             character_atlas=inputs.niko_atlas,
@@ -1108,8 +1119,8 @@ def build_candidate_002(
             out_dir=stage / "qa",
         )
         report = checker.analyze_harmony(harmony_inputs)
-        if visual_rubric:
-            rubric = _load_visual_rubric(checker, visual_rubric)
+        if apply_rubric:
+            rubric = _load_visual_rubric(checker, staged_rubric_path)
             report = checker.apply_visual_rubric(
                 report,
                 rubric,
@@ -1125,10 +1136,6 @@ def build_candidate_002(
         composite.crop((0, 0, 128, 128)).save(stage / "qa/composite-frame-001.png")
         composite.save(stage / "qa/composite-atlas-8x128.png")
         _save_runtime_preview(composite, stage / "qa/runtime-size-1920x1080.png")
-        if rubric_bytes is None:
-            _write_json(stage / "qa/visual-rubric.json", _default_visual_rubric())
-        else:
-            (stage / "qa/visual-rubric.json").write_bytes(rubric_bytes)
 
         appearance_checks = _image_checks(appearance)
         icon_checks = _image_checks(icon)
@@ -1244,19 +1251,24 @@ def build_candidate_002(
         )
         if not source_unchanged:
             raise RuntimeError("source_changed")
-        if (
-            supplied_rubric_bytes is not None
-            and visual_rubric is not None
-            and visual_rubric.read_bytes() != supplied_rubric_bytes
-        ):
+        try:
+            supplied_rubric_unchanged = (
+                supplied_rubric_bytes is None
+                or (
+                    visual_rubric is not None
+                    and visual_rubric.read_bytes() == supplied_rubric_bytes
+                )
+            )
+            existing_rubric_unchanged = (
+                existing_rubric_path.read_bytes() == existing_rubric_bytes
+                if existing_rubric_bytes is not None
+                else not existing_rubric_path.exists()
+            )
+        except OSError as error:
+            raise RuntimeError("visual_rubric_changed") from error
+        if not supplied_rubric_unchanged or not existing_rubric_unchanged:
             raise RuntimeError("visual_rubric_changed")
-        _publish(
-            stage,
-            inputs.output_root,
-            preserve_rubric=(
-                existing_rubric_bytes is not None and not rubric_revision
-            ),
-        )
+        _publish(stage, inputs.output_root)
     return metadata
 
 
