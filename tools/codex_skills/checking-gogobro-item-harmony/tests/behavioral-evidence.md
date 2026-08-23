@@ -16,291 +16,199 @@ The key visual issue is icon-to-worn consistency. The icon’s most conspicuous 
 
 Revise the icon or worn asset so the same side module/accent color and material cues appear in both—preferably carry the teal attachment into the icon, or make the worn version retain the orange indicator. Keep the existing worn scale and face opening; those are harmonious with Niko.
 
-## GREEN — with skill
+## GREEN — final a0bc44b skill
 
-- Candidate `candidate-001`: `hard_fail`; `scale_ratio_high` identified; `feature_center_offset` identified; measured ratio `1.3103448275862069`; approval blocked.
-- Candidate `candidate-002`: `harmony_pass`; shared scale `0.625`; measured ratio `1.103448275862069`; aperture error `0.4375 px`; residual jitter `0.0 px`; explicit human approval still required.
-- Synthetic `back` fixture: routed through `attachment_regions.back`, behind-depth, protected-face, and back-ratio rules; no head aperture or protected-eye rule was applied.
+Fresh forward evaluation used the exact temporary-installed four-file skill at
+`E:/01_gobro/.codex-temp/checking-gogobro-item-harmony-a0bc44b-root`.
 
-### Candidate 001 — verbatim evaluator output
+- Candidate `candidate-001`: `hard_fail`; retained measured `scale_ratio_high` and `feature_center_offset`, and added `formal_pixel_contract_required`; approval blocked.
+- Fresh candidate `candidate-002`: deterministic `review` with no hard-fail reasons; independent visual rubric produced `harmony_pass` at 9/10; ratio `1.0689655172413792`, feature error `1.0 px`, jitter `0.0 px`, occlusion `0.0`.
+- Formal pixel evidence: appearance/icon exact 2x/4x grid round-trips, exact direct-icon reuse, 18 opaque colors, binary alpha, transparent RGB cleared, source outline `563/563`, and all eight rendered outlines `329/329`.
+- Synthetic `back` fixture: back-region/depth rules applied; no head aperture or protected-eye rule; deterministic geometry passed while a 3/10 visual rubric correctly kept it in `review`.
+- Candidate 002 remains explicitly human-gated: approval status `review`, with no `curated/` output.
 
-<!-- BEGIN VERBATIM candidate-001 -->
+Evaluator report SHA-256:
+`86bbc319a4bdb0b84277075e8c583bacc9d97d5fbdd0cb99b5ba79f45e3bacbc`.
+
+### Verbatim fresh evaluator report
+
+<!-- BEGIN VERBATIM final-a0bc44b -->
 ~~~markdown
-# Verdict: REVISE
+# a0bc44b item-harmony fresh forward behavioral evaluation
 
-**Checker verdict:** `hard_fail`
-**Approval permitted:** **No.** The harmony hard gate blocks approval; the visual rubric is not scored after a hard failure.
+## 结论
 
-| Reason code | Measurement | Required limit | Finding |
-|---|---:|---:|---|
-| `scale_ratio_high` | `1.3103448275862069` | `1.05–1.15` | The worn shell is 76 px wide against Niko’s 58 px head—visibly oversized and top-heavy in every frame. |
-| `feature_center_offset` | `6.125 px` | `≤1 px` | The aperture is consistently about 4.125 px left and 6.125 px below `face_center`, placing the opening too low-left around Niko’s face. |
-| `protected_region_occlusion` | `0.09583333333333334` (`9.5833%`) | `0` | The helmet intrudes into the protected eye ROI; the upper opening/brim visibly crowds the brow and eye line. |
-| `icon_not_nearest_2x` | Pixel mismatch | Exact nearest-neighbor 2× derivation required | The icon is a separate three-quarter rendering, not a pixel-exact 2× version of the frontal worn appearance. |
+评估对象为提交 `a0bc44b` 的 canonical builder，以及完整读取后执行的临时安装 skill：
 
-**Residual jitter:** `0.0 px` against a `≤1 px` limit. Placement is stable across all eight frames, but it repeats the same incorrect scale and low-left alignment.
+- Skill：`E:/01_gobro/.codex-temp/checking-gogobro-item-harmony-a0bc44b-root/SKILL.md`
+- Checker：`E:/01_gobro/.codex-temp/checking-gogobro-item-harmony-a0bc44b-root/scripts/check_item_harmony.py`
+- Fresh 输出根：`E:/01_gobro/.codex-temp/harmony-behavioral-a0bc44b-20260824-001`
 
-## Visual evidence
+三例结果符合预期：
 
-- **Approval card:** The icon and appearance share a coherent charcoal/olive palette, cream vent plate, heavy outline, and reinforced-shell function. However, their silhouettes do not match closely: the icon emphasizes a compact three-quarter dome, orange latch, and right-side mechanism, while the worn asset presents a broad frontal ring, large chin guard, and teal side module.
-- **Eight-frame composite:** The helmet tracks Niko consistently, confirming the zero-jitter result. It nevertheless dominates his head in every frame, compresses the visible face opening, and crowds the eyes.
-- **Actual-size preview:** At 1:1 runtime scale, the broad side pods and chin bar remain disproportionately prominent, weakening Niko’s recognizable head and face silhouette.
-- **QA JSON:** Its `status: pass` confirms production hygiene—correct dimensions, binary alpha, cleared transparent RGB, no chroma remnants, safe margins, 18-color cleaned palette, eight anchors, and eight changed composite frames. Those checks do not evaluate head-slot scale, feature alignment, eye occlusion, or exact icon derivation, so they do not override the harmony checker.
+| 用例 | Deterministic gate | 完整视觉 verdict | 结论 |
+| --- | --- | --- | --- |
+| `candidate-001` 旧 anchors | `hard_fail` | 因 hard gate 失败而停止，不打视觉分 | 正确保留实际几何并阻止审批 |
+| Fresh `candidate-002` | `review`, `reason_codes: []` | `harmony_pass`, 9/10 | 几何、像素、轮廓与视觉和谐门均通过 |
+| Synthetic `back` | `review`, `reason_codes: []` | `review`, 3/10, `visual_rubric_review` | 正确走 back 规则；测试矩形不是可批准美术 |
 
-Revise the worn geometry to the `1.05–1.15` width band, re-anchor the aperture to `face_center` within 1 px, eliminate all eye-region occlusion, and derive the icon as the required nearest-neighbor 2× representation of the finalized appearance. Re-run the checker before reconsidering approval.
-~~~
-<!-- END VERBATIM candidate-001 -->
+`candidate-002` 的 `harmony_pass` 只通过和谐门。最终审批卡仍明确显示 `Unit approval status: review`，注册表审批状态仍为 `review`，fresh 输出中没有 `curated/`；因此仍必须由用户明确审批。
 
-### Candidate 002 — verbatim evaluator output
+## 1. Candidate 001：旧 anchors 的可测 hard fail
 
-<!-- BEGIN VERBATIM candidate-002 -->
-~~~markdown
-# Smoke-Shell Helmet — Candidate 002 Harmony Review
+- Checker 退出码：`2`
+- Verdict：`hard_fail`
+- Reason codes：
+  - `feature_center_offset`
+  - `formal_pixel_contract_required`
+  - `icon_not_nearest_2x`
+  - `protected_region_occlusion`
+  - `scale_ratio_high`
+- 旧 shared scale：`0.75`
+- 实际 raster 外宽比：`1.3103448275862069`，即每帧 `76 / 58`
+- 实际最大 feature-center error：`6.0 px`
+- 实际 residual jitter：`0.0 px`
+- 实际 protected-eye occlusion：`0.04791666666666667`
+- 实际 frame boxes：前四帧及第七、八帧 `[24,26,100,108]`；第五、六帧 `[26,26,102,108]`
+- Aperture box：`[28,58,90,98]`
+- Atlas expected/actual SHA-256 均为 `fbc10108d9a665b14dcc376da54bbbf66d89b931ae1189e69fe1c45b31fe579d`
+- `source_integrity.changed_keys: []`
 
-**Final gate verdict: `harmony_pass`**
-**Reason codes: `[]`**
-**Explicit human approval still required: Yes.** The approval card still shows unit approval status `review`; this harmony result must not advance approval automatically.
+这证明 canonical v1 rig 不再让整数 schema `1` 绕过正式 pixel contract，同时 checker 仍继续测量并报告旧候选的真实 scale、feature、occlusion 与 frame geometry。
 
-## Deterministic gate
+报告：`E:/01_gobro/.codex-temp/harmony-behavioral-a0bc44b-20260824-001/candidate-001/qa/harmony-report.json`
 
-The prescribed checker completed with exit code `0`. Its raw verdict was `review` because no visual-rubric file was supplied; geometry passed with no hard-fail reason codes.
+## 2. Fresh Candidate 002：通过正式像素与和谐门
 
-- Outer-width ratio: `1.103448275862069` in every frame, inside the head-slot range `1.05–1.15`.
-- Scale comparison: shared scale is `0.625`; the placed shell is 64 px wide over Niko’s 58 px head, giving `64 / 58 = 1.103448`.
-- Feature-center error: `0.4375 px`, below the `1 px` limit.
-- Residual jitter: `0.0 px`, below the `1 px` limit.
-- Protected-region occlusion: `0.0`, exactly satisfying the zero-occlusion requirement for `protected_regions.eyes`.
-- Depth: `40` in all frames, matching the expected front depth and lying within `[1, 99]`.
-- Aperture box: `[28, 58, 90, 98]`.
-- Frame count: `8`.
-- All five source hashes still match the checker report after verification.
+### 几何
 
-## Aperture alignment and eight-frame stability
+- Builder preliminary：`review`, `reason_codes: []`
+- Temp checker deterministic：`review`, `reason_codes: []`
+- Temp checker + 独立 rubric：`harmony_pass`, `reason_codes: []`, `9/10`
+- Shared scale：`0.625`
+- 实际 raster 外宽比：`1.0689655172413792`，即 `62 / 58`，位于 `[1.05,1.15]`
+- 最大 feature-center error：`1.0 px`，等于允许上限
+- Residual jitter：`0.0 px`
+- Protected-eye occlusion：`0.0`
+- Aperture box：`[28,58,90,98]`
+- 实际 rendered alpha box：每帧 `[9,6,71,74]`
+- 实际 frame boxes：前四帧及第七、八帧 `[34,29,96,97]`；第五、六帧 `[36,29,98,97]`
+- Depth：每帧 `40`，允许 `[1,99]`，expected `40`
 
-The aperture center is `(58.5, 77.5)`. At scale `0.625` and offset `(25, 23)`, it lands at `(61.5625, 71.4375)` against `face_center (62, 71)`, producing the reported `0.4375 px` maximum component error. Frames 5–6 use offset `(27, 23)` while the face center shifts to `(64, 71)`, preserving the same residual.
+### 正式 pixel / outline / component contract
 
-Placed boxes are:
+- Formal contract：logical canvas `64×64`；appearance scale `2`；icon scale `4`；`nearest`
+- Appearance：`128×128`，精确 2× grid round-trip：`true`
+- Icon：`256×256`，精确 4× grid round-trip：`true`
+- Direct icon reuse：icon 等于 appearance 的精确 nearest 2×：`true`
+- Appearance/Icon opaque palette：各 `18` 色，允许上限 `18`
+- Alpha values：两图均仅 `{0,255}`
+- Transparent RGB cleared：两图均 `true`
+- Frozen outline palette：`[[8,5,3],[9,0,0],[21,13,6],[29,27,24],[34,34,31]]`
+- Source opaque components：`1`，允许最大 `1`
+- Source outline boundary：`563 / 563 = 1.0`
+- Rendered opaque components：八帧全部 `1`
+- Rendered outline boundary：八帧全部 `329 / 329 = 1.0`
+- `source_integrity.changed_keys: []`
+- Atlas expected/actual SHA-256 均为 `fbc10108d9a665b14dcc376da54bbbf66d89b931ae1189e69fe1c45b31fe579d`
 
-- Frames 1–4 and 7–8: `[33, 29, 97, 97]`
-- Frames 5–6: `[35, 29, 99, 97]`
+### 独立视觉 rubric
 
-Thus every box remains 64×68 px; frames 5–6 correctly follow Niko’s two-pixel horizontal shift. The eight-frame composite visibly confirms that the shell, brow vent, face aperture, and side module remain locked to the head without popping, crawling, or scale variation.
-
-The freshly generated `harmony-overlay.png` is a box-only diagnostic and shows the same stable rectangles. Its `harmony-actual-size.png` supplies the base-atlas true-size reference. The supplied QA overlay, actual-size composite, eight-frame atlas, and approval card show the helmet composited on the same hash-matched inputs.
-
-## Scale comparison
-
-The 256×256 icon is the exact nearest-neighbor 2× derivative of the 128×128 appearance; the checker emitted no `icon_not_nearest_2x` code. At icon scale, the segmented shell, tan brow vent, dark aperture, and teal side apparatus are distinct. At the 0.625 gameplay placement, those principal forms remain readable while fine detail simplifies cleanly and the face remains dominant.
-
-## Visual rubric
-
-| Dimension | Score | Visible evidence |
+| Dimension | Score | 证据摘要 |
 | --- | ---: | --- |
-| Character identity | 2/2 | Niko’s eyes, brows, nose, facial coloration, and expression remain clearly exposed through the aperture. The shell frames the face without replacing or obscuring the identifying facial read. |
-| Item function | 2/2 | The reinforced segmented dome, enclosed jaw rim, brow vent, and asymmetric side apparatus immediately read as a heavy sealed protective helmet, matching the armor-plus-movement-penalty concept. |
-| Material/outline fit | 2/2 | Dark stepped outlines, compact pixel clusters, muted metal greys/browns, and restrained highlights match the character’s pixel density and outline language. No alpha, palette, crop, or chroma hard-gate issue was reported. |
-| Value/color hierarchy | 2/2 | The warm, brighter face remains the focal point; the dark neutral shell recedes around it. The tan vent is a clear secondary landmark and the teal side element works as a limited accent without competing with the face. |
-| Originality | 2/2 | The combination of a sealed open-face shell, centered slotted brow plate, layered lower rim, and asymmetric teal smoke-control apparatus gives it a specific “smoke-shell” identity beyond a generic helmet. |
+| Identity | 2 | 八帧中眼、眉、鼻、胡须与 Niko 轮廓保持可辨，眼区 occlusion 为零 |
+| Function | 2 | 分段冠壳、眉板、开放面孔、下颚边与侧烟模块共同读成防护头盔 |
+| Material | 2 | 暖暗轮廓、阶梯金属块面和克制高光与 Niko 的像素处理一致 |
+| Hierarchy | 2 | 深色壳体围住更亮的脸，人物身份仍为第一视觉层级 |
+| Originality | 1 | 青绿色烟模块与开槽眉板有差异化，但基础仍是熟悉的开放式战术头盔 |
 
-**Visual total: `10/10`.** No dimension is zero, and the total exceeds the required `8/10`; therefore the manual visual stage converts the raw geometry `review` into **`harmony_pass`** with no added reason codes.
+Rubric SHA-256：`1aabf9cfd42c4df0ff0d96dff592a7fd5a6aa97d6e78e18af83a470a6152a1eb`。
 
-Only the designated checker output directory was written. No source asset, source JSON, canonical skill, registry, visual-rubric file, or approval state was changed.
+关键输出：
+
+- Final report：`E:/01_gobro/.codex-temp/harmony-behavioral-a0bc44b-20260824-001/candidate-002/temp-checker-qa/harmony-report.json`
+- Deterministic report：`E:/01_gobro/.codex-temp/harmony-behavioral-a0bc44b-20260824-001/candidate-002/temp-checker-deterministic/harmony-report.json`
+- Overlay：`E:/01_gobro/.codex-temp/harmony-behavioral-a0bc44b-20260824-001/candidate-002/temp-checker-qa/harmony-overlay.png`
+- Actual size：`E:/01_gobro/.codex-temp/harmony-behavioral-a0bc44b-20260824-001/candidate-002/temp-checker-qa/harmony-actual-size.png`
+- Approval card：`E:/01_gobro/.codex-temp/harmony-behavioral-a0bc44b-20260824-001/candidate-002/qa/approval-card.png`
+- Independent rubric input：`E:/01_gobro/.codex-temp/harmony-behavioral-a0bc44b-20260824-001/rubric-input/candidate-002-reviewed.json`
+
+## 3. Synthetic back：非 head 路由可审计
+
+该 fixture 刻意使用非 canonical、schema-less rig，专门测试 slot 路由；它不是生产素材，因此 `pixel_contract` 为 `null`。
+
+- Back feature anchor：`attachment_regions.back`
+- Back protected region：`protected_regions.face`
+- Back ratio band：`[0.6,1.2]`
+- Back protected-face occlusion limit：`0.25`
+- Back depth band：`[-99,-1]`；expected / actual：`-10`
+- 实际 ratio：八帧均 `1.0`
+- Feature-center error：`0.0 px`
+- Residual jitter：`0.0 px`
+- Protected-face occlusion：`0.0`
+- Aperture box：`null`
+- Frame boxes：前四帧及第七、八帧 `[38,76,86,109]`；第五、六帧 `[40,76,88,109]`
+
+为使路由可证伪，fixture 将 `protected_regions.eyes` 刻意设为 item bbox。若错误套用 eye 规则，理论 occlusion 会是 `817 / 1584 = 0.5157828282828283`；实际报告是 protected-face `0.0`。同理，若错误套用 head ratio，结果会是 `48 / 58 = 0.8275862068965517`，低于 head band；实际 back ratio `1.0` 正常通过。`aperture_box: null` 且没有 `missing_feature_aperture`，进一步确认未执行 head aperture 规则。
+
+视觉检查后给测试矩形 `3/10`（Identity 2、Function 0、Material 0、Hierarchy 1、Originality 0），因此最终正确保持 `review`，reason 为 `visual_rubric_review`。
+
+关键输出：
+
+- Deterministic report：`E:/01_gobro/.codex-temp/harmony-behavioral-a0bc44b-20260824-001/synthetic-back/qa-deterministic/harmony-report.json`
+- Rubric report：`E:/01_gobro/.codex-temp/harmony-behavioral-a0bc44b-20260824-001/synthetic-back/qa/harmony-report.json`
+- Overlay：`E:/01_gobro/.codex-temp/harmony-behavioral-a0bc44b-20260824-001/synthetic-back/qa/harmony-overlay.png`
+- Actual size：`E:/01_gobro/.codex-temp/harmony-behavioral-a0bc44b-20260824-001/synthetic-back/qa/harmony-actual-size.png`
+
+## 复现命令
+
+Python：`C:/Users/18421/.codex/skills/sprite-gen/.venv/Scripts/python.exe`
+
+```powershell
+$python = 'C:\Users\18421\.codex\skills\sprite-gen\.venv\Scripts\python.exe'
+$checker = 'E:\01_gobro\.codex-temp\checking-gogobro-item-harmony-a0bc44b-root\scripts\check_item_harmony.py'
+$repo = 'E:\01_gobro\potato-brothers-godot4\.worktrees\gogobro-static-assets'
+$out = 'E:\01_gobro\.codex-temp\harmony-behavioral-a0bc44b-20260824-001'
+$atlas = "$repo\game\content\packs\characters\niko\animations\walk_down\sprite-sheet-alpha.png"
+$rig = "$repo\tools\assets\rig_profiles\niko_walk_down_v1.json"
+$appearance = 'E:\01_gobro\GOGOBRO_ASSET_INBOX\02_static_assets\items\smoke_shell_helmet\candidate-001\cleaned\smoke-shell-helmet-appearance-128.png'
+
+& $python "$out\prepare_fixtures.py"
+
+& $python $checker --character-atlas $atlas --appearance $appearance `
+  --icon 'E:\01_gobro\GOGOBRO_ASSET_INBOX\02_static_assets\items\smoke_shell_helmet\candidate-001\icon\run\frames\icon\frame-0.png' `
+  --anchors "$out\candidate-001\normalized-legacy-anchors.json" `
+  --rig-profile $rig --slot head --out-dir "$out\candidate-001\qa"
+
+Push-Location $repo
+& $python 'tools\assets\build_smoke_shell_helmet_candidate_002.py' `
+  --appearance-source $appearance --niko-atlas $atlas --rig-profile $rig `
+  --registry 'game\content\assets\gogobro_static_assets_v1.json' `
+  --output-root "$out\candidate-002"
+& $python 'tools\assets\build_smoke_shell_helmet_candidate_002.py' `
+  --appearance-source $appearance --niko-atlas $atlas --rig-profile $rig `
+  --registry 'game\content\assets\gogobro_static_assets_v1.json' `
+  --visual-rubric "$out\rubric-input\candidate-002-reviewed.json" `
+  --output-root "$out\candidate-002"
+Pop-Location
+
+& $python $checker --character-atlas $atlas `
+  --appearance "$out\candidate-002\derived\appearance-128.png" `
+  --icon "$out\candidate-002\derived\icon-256.png" `
+  --anchors "$out\candidate-002\appearance\anchors-walk-down.json" `
+  --rig-profile $rig --slot head `
+  --visual-rubric "$out\rubric-input\candidate-002-reviewed.json" `
+  --out-dir "$out\candidate-002\temp-checker-qa"
+
+& $python $checker --character-atlas $atlas `
+  --appearance "$out\synthetic-back\appearance.png" `
+  --icon "$out\synthetic-back\icon.png" `
+  --anchors "$out\synthetic-back\anchors.json" `
+  --rig-profile "$out\synthetic-back\rig.json" --slot back `
+  --visual-rubric "$out\rubric-input\synthetic-back-reviewed.json" `
+  --out-dir "$out\synthetic-back\qa"
+```
+
+所有 evaluator 自身的写入均限制在上述 fresh temp 根。未写外部 `candidate-001/002`、个人 skill 或审批状态；运行过程中观察到共享 worktree 的 registry 被根任务并发刷新，本 evaluator 未参与、未回滚该修改。
 ~~~
-<!-- END VERBATIM candidate-002 -->
-
-### Synthetic back slot — verbatim evaluator output
-
-<!-- BEGIN VERBATIM synthetic-back -->
-~~~markdown
-# Item Harmony Verdict — Synthetic Niko Back Slot
-
-**Final verdict: `review`**
-
-The deterministic geometry gates passed, but the visual score is **3/10**, below the required 8/10 and containing zero scores. This candidate must not receive `harmony_pass` or advance approval.
-
-## Checker result
-
-- Checker verdict: `review`
-- Exit code: `0`
-- Reason codes: `[]`
-- Frame count: `8`
-- Frame boxes:
-  - Frames 0–3: `[42, 84, 82, 101]`
-  - Frames 4–5: `[44, 84, 84, 101]`
-  - Frames 6–7: `[42, 84, 82, 101]`
-- Outer-width ratio: `0.8333333333333334`
-- Per-frame ratios: `0.8333333333333334` for all eight frames
-- Maximum feature-center error: `0.0 px`
-- Maximum residual jitter: `0.0 px`
-- Maximum protected-region occlusion: `0.19047619047619047`
-- Aperture box: `null`
-
-No deterministic hard-fail reason was produced.
-
-## Back-slot profile application
-
-- Attachment anchor: center of `attachment_regions.back`
-- Allowed silhouette-width ratio: back width × `0.60–1.20`
-  - Measured: `0.8333333333333334`, within bounds
-- Protected region: `protected_regions.face`
-- Maximum permitted occlusion: `0.25`
-  - Measured: `0.19047619047619047`, within limit
-- Feature-center tolerance: `2 px`
-  - Measured: `0.0 px`
-- Residual-jitter limit: `1 px`
-  - Measured: `0.0 px`
-- Depth band: behind character, `-99–-1`
-- Expected depth: `-10`
-  - Actual anchor depth: `-10` in every frame
-- Flip behavior: `none`
-
-The **head aperture rule was not applied**; `aperture_box` is `null`. The **protected-eye rule was also not applied**. Those are head/face-slot rules; this back-slot review correctly used the protected `face` region and back attachment boxes.
-
-## Visual rubric
-
-Both [harmony-overlay.png](E:\01_gobro\.codex-temp\skill-forward-test\evaluator-runs\synthetic-back-slot\harmony-overlay.png) and [harmony-actual-size.png](E:\01_gobro\.codex-temp\skill-forward-test\evaluator-runs\synthetic-back-slot\harmony-actual-size.png) were inspected.
-
-| Category | Score | Visible evidence |
-|---|---:|---|
-| Character identity | **2/2** | Niko’s hair, face, eyes, beard, white clothing, and walking-frame identity remain clearly readable across all eight frames. |
-| Item function | **0/2** | The appearance is only a flat brown rectangle. In the actual-size composite it is almost entirely buried behind Niko, leaving at most tiny dark edge pixels; no recognizable backpack, cape, sheath, or other back-item function is communicated. |
-| Material/outline fit | **0/2** | The candidate has one flat fill with no authored outline, internal shading, highlights, texture, or pixel clusters matching Niko’s outlined, multi-tone sprite treatment. |
-| Value/color hierarchy | **1/2** | Its muted brown does not compete with Niko’s face, but the low contrast and behind-character placement make it effectively disappear instead of forming a useful secondary read. |
-| Originality | **0/2** | The worn asset is a primitive rectangle, and the icon presents the same generic rectangle enlarged without a distinct silhouette or authored design language. |
-
-**Total: 3/10**
-
-Geometry, anchoring, depth, and occlusion are valid, but visual harmony is not. The item lacks recognizable function, runtime readability, material treatment, and originality. The correct final state is therefore **`review`**.
-
-All supplied input SHA-256 hashes still match those recorded by the checker; no source input, canonical skill, registry, or approval state was changed.
-~~~
-<!-- END VERBATIM synthetic-back -->
-
-## GREEN — diagnostic compositing regression
-
-These fresh independent evaluations exercise the compositing diagnostics added by the checker. The evaluator source files contained no trailing spaces or tabs, so no Markdown hard-break normalization was necessary. For each block below, the UTF-8 bytes between the fenced block delimiters are identical to the corresponding evaluator source file, including its final newline.
-
-- Candidate-002 source SHA-256: `c673316a2d7ce10b0ad0574f846198f2e54830c9a98c464b332cf20d3e45e396`; normalized embedded payload SHA-256: `c673316a2d7ce10b0ad0574f846198f2e54830c9a98c464b332cf20d3e45e396`; normalized lines: `0`.
-- Synthetic-back source SHA-256: `b2ab5a0d86dcfc75a50d9207171dd0269091a1b58d7ef17688bb8aff2cb3bca6`; normalized embedded payload SHA-256: `b2ab5a0d86dcfc75a50d9207171dd0269091a1b58d7ef17688bb8aff2cb3bca6`; normalized lines: `0`.
-
-### Candidate 002 visible diagnostics — verbatim evaluator output
-
-<!-- BEGIN VERBATIM diagnostic-candidate-002 -->
-~~~markdown
-# Verdict: `harmony_pass`
-
-The checker exited `0`. Its deterministic stage returned `review` only because no visual rubric was supplied; `reason_codes: []`. Applying the required visual rubric gives **9/10 with no zero score**, advancing the evaluator verdict to `harmony_pass`.
-
-## Hard-gate measurements
-
-| Check | Result | Limit | Status |
-|---|---:|---:|---|
-| Outer-width ratio | `1.103448` in all 8 frames | `1.05–1.15` | Pass |
-| Max center error | `0.4375 px` | `≤1 px` | Pass |
-| Residual jitter | `0.0 px` | `≤1 px` | Pass |
-| Eye occlusion | `0.0` | `0` | Pass |
-| Depth | `40` in all frames | Front `1–99`, expected `40` | Pass |
-| Frame count | `8` | `8` | Pass |
-
-The geometric boxes reconstructed from pixels matched the report in all frames: `[33,29,97,97]` except frames 5–6, which correctly shift to `[35,29,99,97]`.
-
-## Eight-frame pixel evidence
-
-| Frame | Helmet pixels present | Eye ROI | Overlay visibility |
-|---:|---:|---:|---:|
-| 1 | `2559/2559` exact | `480/480` unchanged | `2524/2559` retained |
-| 2 | `2559/2559` exact | `480/480` unchanged | `2524/2559` retained |
-| 3 | `2559/2559` exact | `480/480` unchanged | `2524/2559` retained |
-| 4 | `2559/2559` exact | `480/480` unchanged | `2524/2559` retained |
-| 5 | `2559/2559` exact | `480/480` unchanged | `2524/2559` retained |
-| 6 | `2559/2559` exact | `480/480` unchanged | `2524/2559` retained |
-| 7 | `2559/2559` exact | `480/480` unchanged | `2524/2559` retained |
-| 8 | `2559/2559` exact | `480/480` unchanged | `2524/2559` retained |
-
-An independent base-then-item front-depth reconstruction differed from `harmony-actual-size.png` by **0 pixels**. The crown plate, side shells, open aperture, and chin rim are visibly worn in every frame. Eyes, brows, nose, and beard remain readable. Diagnostics annotate only `35/2559` item pixels per frame—about `1.37%`—so they do not hide the helmet.
-
-## Visual rubric
-
-| Dimension | Score | Evidence |
-|---|---:|---|
-| Character identity | 2/2 | Niko’s face and animation remain recognizable; eyes are completely unobstructed. |
-| Item function | 2/2 | Clearly reads as a protective open-face shell helmet in every frame. |
-| Material/outline fit | 2/2 | Chunky pixel clusters, dark outline, and muted shell shading match the character’s rendering density. |
-| Value/color hierarchy | 2/2 | Light forehead plate provides focus while the dark shell frames rather than overwhelms the face. |
-| Originality | 1/2 | Conventional helmet foundation, differentiated by the asymmetric teal shell detail and rectangular crown plate. |
-| **Total** | **9/10** | **Pass** |
-
-Source hashes still match the checker report. Only the three fresh evidence files were written:
-
-- [harmony-report.json](E:/01_gobro/.codex-temp/skill-forward-test/fix-round-2-fresh-evaluator-runs/candidate-002/harmony-report.json)
-- [harmony-overlay.png](E:/01_gobro/.codex-temp/skill-forward-test/fix-round-2-fresh-evaluator-runs/candidate-002/harmony-overlay.png)
-- [harmony-actual-size.png](E:/01_gobro/.codex-temp/skill-forward-test/fix-round-2-fresh-evaluator-runs/candidate-002/harmony-actual-size.png)
-
-`harmony_pass` clears this harmony gate only. Registry state and approval state were not changed; explicit human approval is still required before canonical adoption.
-~~~
-<!-- END VERBATIM diagnostic-candidate-002 -->
-
-### Synthetic back-slot visible diagnostics — verbatim evaluator output
-
-<!-- BEGIN VERBATIM diagnostic-back -->
-~~~markdown
-# Verdict: `review`
-
-The deterministic `back`-slot gate passes, but the visual rubric scores **5/10**, so the final verdict remains `review`. No approval state was advanced.
-
-Artifacts: [overlay](E:/01_gobro/.codex-temp/skill-forward-test/fix-round-2-fresh-evaluator-runs/synthetic-back-slot/harmony-overlay.png) · [actual size](E:/01_gobro/.codex-temp/skill-forward-test/fix-round-2-fresh-evaluator-runs/synthetic-back-slot/harmony-actual-size.png) · [report](E:/01_gobro/.codex-temp/skill-forward-test/fix-round-2-fresh-evaluator-runs/synthetic-back-slot/harmony-report.json)
-
-## Checker result and metrics
-
-| Measurement | Result | Back-slot limit |
-|---|---:|---:|
-| Reason codes | none | — |
-| Frames | 8 | 8 |
-| Width ratio, every frame | `0.833333` | `0.60–1.20` |
-| Feature-center error | `0 px` | ≤ `2 px` |
-| Residual jitter | `0 px` | ≤ `1 px` |
-| Protected-face occlusion | `0.190476` (`288/1512`) | ≤ `0.25` |
-| Depth, every frame | `-10` | `-99…-1`; expected `-10` |
-| Aperture box | `null` | Correct for non-head slot |
-
-Placed boxes are `[42,84,82,101]` in frames 0–3 and 6–7, and `[44,84,84,101]` in frames 4–5.
-
-## Pixel evidence
-
-The supplied item is a fully opaque `40×17` rectangle: 680/680 bbox pixels, color RGBA `(63,48,35,255)`.
-
-| Frame | Exterior item pixels visibly preserved | Overlap pixels occluded by Niko |
-|---:|---:|---:|
-| 0 | 16/16 | 664/664 |
-| 1 | 20/20 | 660/660 |
-| 2 | 24/24 | 656/656 |
-| 3 | 20/20 | 660/660 |
-| 4 | 24/24 | 656/656 |
-| 5 | 32/32 | 648/648 |
-| 6 | 32/32 | 648/648 |
-| 7 | 20/20 | 660/660 |
-
-All eight actual-size frames exactly match an item-first/Niko-second composite. A hypothetical front-layer composite differs at every overlap pixel—5,252 pixels total—while 188 exterior brown pixels remain visible. This confirms genuine composition in every frame and correct negative-depth ordering.
-
-## Slot-rule evidence
-
-- The diagnostic target centers are at rounded `(62,92)` or `(64,92)`, exactly matching `attachment_regions.back`; they are not at the face/head center near `y=71`.
-- Cyan protected guides span the full face ROI (`x=44…79` or `46…81`, `y=50…91`). Zero of the 88 eye-boundary pixels per frame are cyan.
-- The measured `0.190476` occlusion is exactly the face intersection. Eye overlap is `0`, further proving protected-face—not protected-eye—logic.
-- The item ratio is `40/48 = 0.833333`, inside the back range. A head calculation would be `40/58 = 0.689655`, outside the head range `1.05–1.15`.
-- The appearance bbox is completely opaque and has no enclosed aperture; nevertheless geometry passes and `aperture_box` is `null`. No head-aperture logic was applied.
-
-## Visual rubric
-
-| Dimension | Score | Visible evidence |
-|---|---:|---|
-| Character identity | 2 | Niko’s face and silhouette remain dominant and correctly occlude the item. |
-| Item function | 0 | The few exposed pixels form only a plain rectangle; no recognizable back-item function reads. |
-| Material/outline fit | 1 | Dark brown is broadly palette-compatible, but the item has no outline, texture, or shading. |
-| Value/color hierarchy | 2 | Its dark value stays subordinate and does not compete with Niko’s face. |
-| Originality | 0 | Single-color rectangular construction has no distinctive motif. |
-| **Total** | **5/10** | Below the required 8/10, with zero scores. |
-
-Fresh verification found exactly the three expected output files, and all five input hashes still match the report.
-~~~
-<!-- END VERBATIM diagnostic-back -->
+<!-- END VERBATIM final-a0bc44b -->
