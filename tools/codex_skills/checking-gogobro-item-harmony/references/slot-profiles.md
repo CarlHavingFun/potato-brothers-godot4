@@ -8,7 +8,7 @@ Use this reference only when choosing or reviewing an appearance slot. The rig p
 | `face` | center of `face_roi` | face width × `0.55–0.90` | `eyes` | `0` | front `1–99`; expected `40` | none |
 | `torso` | center of `attachment_regions.torso` | torso width × `0.55–1.00` | `face` | `0.15` | front `1–99`; expected `40` | none |
 | `back` | center of `attachment_regions.back` | back width × `0.60–1.20` | `face` | `0.25` | behind `-99–-1`; expected `-10` | none |
-| `wrist` | center of the selected wrist box | wrist width × `0.25–0.60` | `face` | `0.10` | front `1–99`; expected `40` | mirror between wrist boxes |
+| `wrist` | center of `attachment_regions.wrist_right` (`selected_side: right`) | right-wrist width × `0.25–0.60` | `face` | `0.10` | front `1–99`; expected `40` | mirror between wrist boxes |
 | `feet` | center of `attachment_regions.feet` | feet width × `0.55–1.10` | `face` | `0.15` | front `1–99`; expected `40` | none |
 | `side_left` | center of `attachment_regions.side_left` | side width × `0.40–0.90` | `face` | `0.10` | front `1–99`; expected `40` | mirror to right |
 | `side_right` | center of `attachment_regions.side_right` | side width × `0.40–0.90` | `face` | `0.10` | front `1–99`; expected `40` | mirror from left |

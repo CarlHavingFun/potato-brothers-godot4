@@ -24,9 +24,13 @@ def manifest_hashes(root: Path) -> dict[str, str]:
     }
 
 
-def run_installer(source: Path, target: Path) -> subprocess.CompletedProcess[str]:
+def run_installer(
+    source: Path, target: Path, *, resolve_arguments: bool = True
+) -> subprocess.CompletedProcess[str]:
     powershell = shutil.which("pwsh") or shutil.which("powershell")
     assert powershell is not None
+    source_argument = source.resolve() if resolve_arguments else source
+    target_argument = target.resolve() if resolve_arguments else target
     return subprocess.run(
         [
             powershell,
@@ -38,9 +42,9 @@ def run_installer(source: Path, target: Path) -> subprocess.CompletedProcess[str
             "-File",
             str(INSTALLER.resolve()),
             "-SourceRoot",
-            str(source.resolve()),
+            str(source_argument),
             "-TargetRoot",
-            str(target.resolve()),
+            str(target_argument),
         ],
         cwd=REPO_ROOT,
         capture_output=True,
@@ -51,16 +55,26 @@ def run_installer(source: Path, target: Path) -> subprocess.CompletedProcess[str
 
 def test_installer_copies_only_manifest_files_and_preserves_hashes(tmp_path: Path) -> None:
     target = tmp_path / "checking-gogobro-item-harmony"
+    sentinel = target / "unrelated" / "sentinel.txt"
+    sentinel.parent.mkdir(parents=True)
+    sentinel.write_text("preserve me", encoding="utf-8")
     result = run_installer(source=SKILL_SOURCE, target=target)
     assert result.returncode == 0, result.stdout + result.stderr
     assert manifest_hashes(SKILL_SOURCE) == manifest_hashes(target)
+    assert sentinel.read_text(encoding="utf-8") == "preserve me"
     assert {
         path.relative_to(target).as_posix() for path in target.rglob("*") if path.is_file()
-    } == {path.as_posix() for path in MANIFEST}
+    } == {path.as_posix() for path in MANIFEST} | {"unrelated/sentinel.txt"}
     assert not any(path.name == "__pycache__" for path in tmp_path.rglob("*"))
 
 
 def test_installer_rejects_identical_resolved_roots() -> None:
-    result = run_installer(source=SKILL_SOURCE, target=SKILL_SOURCE)
+    aliased_target = SKILL_SOURCE / "agents" / ".."
+    result = run_installer(
+        source=SKILL_SOURCE,
+        target=aliased_target,
+        resolve_arguments=False,
+    )
     assert result.returncode != 0
     assert "SourceRoot and TargetRoot must differ" in result.stdout + result.stderr
+    assert str(aliased_target) in result.args

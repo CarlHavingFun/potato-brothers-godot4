@@ -338,7 +338,8 @@
       "max_residual_jitter_px": 1,
       "outer_width_ratio": [0.25, 0.6],
       "protected_region": "protected_regions.face",
-      "residual_jitter_max_px": 1
+      "residual_jitter_max_px": 1,
+      "selected_side": "right"
     }
   }
 }

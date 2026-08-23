@@ -187,6 +187,75 @@ class HeadFixture:
         return self._rewrite(face_center=value)
 
 
+class NikoSlotFixture:
+    _APPEARANCE_BOXES = {
+        "torso": [52, 83, 72, 108],
+        "side_left": [31, 78, 43, 106],
+    }
+
+    def __init__(self, root: Path, slot: str) -> None:
+        self.root = root
+        self.slot = slot
+        self.character_atlas = NIKO_ATLAS
+        self.appearance = root / "appearance.png"
+        self.icon = root / "icon.png"
+        self.anchors = root / "anchors.json"
+        self.rig_profile = root / "rig.json"
+        self.out_dir = root / "out"
+
+        profile = json.loads(NIKO_RIG_PROFILE.read_text(encoding="utf-8"))
+        left, top, right, bottom = self._APPEARANCE_BOXES[slot]
+        image = Image.new("RGBA", (128, 128), (0, 0, 0, 0))
+        image.putpixel((left, top), (40, 30, 20, 255))
+        image.paste((40, 30, 20, 255), (left, 92, right, bottom))
+        image.save(self.appearance)
+        derive_nearest_2x_icon(image).save(self.icon)
+
+        shifts = [0, 0, 0, 0, 2, 2, 0, 0]
+        for frame, shift in zip(profile["frames"], shifts, strict=True):
+            frame["protected_regions"]["eyes"] = [
+                left + shift,
+                top,
+                right + shift,
+                bottom,
+            ]
+        _write_json(self.rig_profile, profile)
+        _write_json(
+            self.anchors,
+            {
+                "slot": slot,
+                "flip_behavior": profile["slot_profiles"][slot]["flip_behavior"],
+                "frames": [
+                    {"scale": 1, "offset": [shift, 0], "depth": 40}
+                    for shift in shifts
+                ],
+            },
+        )
+
+    def inputs(self) -> HarmonyInputs:
+        return HarmonyInputs(
+            character_atlas=self.character_atlas,
+            appearance=self.appearance,
+            icon=self.icon,
+            anchors=self.anchors,
+            rig_profile=self.rig_profile,
+            slot=self.slot,
+            out_dir=self.out_dir,
+        )
+
+    def rewrite_contract(self, field: str, value: object) -> HarmonyInputs:
+        profile = json.loads(self.rig_profile.read_text(encoding="utf-8"))
+        profile["slot_profiles"][self.slot][field] = value
+        _write_json(self.rig_profile, profile)
+        return self.inputs()
+
+    def rewrite_anchors(self, **changes: object) -> HarmonyInputs:
+        anchors = json.loads(self.anchors.read_text(encoding="utf-8"))
+        anchors.update(changes)
+        _write_json(self.anchors, anchors)
+        return self.inputs()
+
+
 @pytest.fixture
 def head_fixture(tmp_path: Path) -> HeadFixture:
     return HeadFixture(tmp_path)
@@ -283,6 +352,8 @@ def test_niko_profile_has_explicit_distinct_slot_contracts_and_attachment_boxes(
     assert all(contract["feature_anchor"] != "face_center" for name, contract in slots.items() if name != "head")
     assert slots["side_left"] != slots["side_right"]
     assert slots["trinket_left"] != slots["trinket_right"]
+    assert slots["wrist"]["selected_side"] == "right"
+    assert slots["wrist"]["feature_anchor"] == "attachment_regions.wrist_right"
 
     region_names = {
         "torso",
@@ -302,6 +373,52 @@ def test_niko_profile_has_explicit_distinct_slot_contracts_and_attachment_boxes(
             len(box) == 4 and all(isinstance(coordinate, int) for coordinate in box)
             for box in regions.values()
         )
+
+
+def test_torso_contract_consumes_non_head_anchor_ratio_and_allowed_roi_occlusion(
+    tmp_path: Path,
+) -> None:
+    report = analyze_harmony(NikoSlotFixture(tmp_path, "torso").inputs())
+    assert report.verdict == "review"
+    assert report.metrics["outer_width_ratio"] == pytest.approx(20 / 34)
+    assert report.metrics["max_feature_center_error_px"] == 0
+    assert report.metrics["max_protected_occlusion_ratio"] == pytest.approx(1 / (36 * 42))
+    assert report.metrics["aperture_box"] is None
+
+
+def test_non_head_depth_band_is_enforced(tmp_path: Path) -> None:
+    fixture = NikoSlotFixture(tmp_path, "torso")
+    anchors = json.loads(fixture.anchors.read_text(encoding="utf-8"))
+    for anchor in anchors["frames"]:
+        anchor["depth"] = 100
+    _write_json(fixture.anchors, anchors)
+    report = analyze_harmony(fixture.inputs())
+    assert "depth_band_mismatch" in report.reason_codes
+
+
+def test_non_head_flip_behavior_is_enforced(tmp_path: Path) -> None:
+    fixture = NikoSlotFixture(tmp_path, "side_left")
+    report = analyze_harmony(fixture.rewrite_anchors(flip_behavior="none"))
+    assert "flip_mismatch" in report.reason_codes
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("feature_anchor", "attachment_regions.troso"),
+        ("protected_region", "protected_regions.faec"),
+        ("max_occlusion_ratio", 1.1),
+        ("depth_band", [99, 1]),
+        ("flip_behavior", "miror_to_right"),
+    ],
+)
+def test_invalid_non_head_contract_fields_hard_fail_actionably(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    fixture = NikoSlotFixture(tmp_path, "torso")
+    report = analyze_harmony(fixture.rewrite_contract(field, value))
+    assert report.verdict == "hard_fail"
+    assert report.reason_codes == ("invalid_contract",)
 
 
 def test_oversized_head_item_is_hard_fail(head_fixture: HeadFixture) -> None:

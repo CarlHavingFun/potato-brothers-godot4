@@ -205,17 +205,96 @@ def _as_pair(value: object) -> tuple[float, float]:
     return pair
 
 
-def _validate_contract(contract: dict[str, object]) -> None:
+def _as_box(value: object) -> Box:
+    if not isinstance(value, list | tuple) or len(value) != 4:
+        raise ValueError("invalid_contract")
+    try:
+        coordinates = tuple(int(component) for component in value)
+    except (TypeError, ValueError):
+        raise ValueError("invalid_contract") from None
+    if tuple(value) != coordinates:
+        raise ValueError("invalid_contract")
+    box = Box(*coordinates)
+    if box.right <= box.left or box.bottom <= box.top:
+        raise ValueError("invalid_contract")
+    return box
+
+
+def _resolve_frame_path(frame: dict[str, object], path: str) -> object:
+    value: object = frame
+    for component in path.split("."):
+        if not component or not isinstance(value, dict) or component not in value:
+            raise ValueError("invalid_contract")
+        value = value[component]
+    return value
+
+
+def _box_center(box: Box) -> tuple[float, float]:
+    return (
+        box.left + (box.right - box.left - 1) / 2,
+        box.top + (box.bottom - box.top - 1) / 2,
+    )
+
+
+def _contract_limit(
+    contract: dict[str, object], canonical_name: str, legacy_name: str
+) -> float:
+    if canonical_name in contract and legacy_name in contract:
+        canonical = float(contract[canonical_name])
+        legacy = float(contract[legacy_name])
+        if canonical != legacy:
+            raise ValueError("invalid_contract")
+        return canonical
+    return float(contract.get(canonical_name, contract[legacy_name]))
+
+
+def _validate_contract(
+    contract: dict[str, object],
+    frames: list[dict[str, object]],
+    *,
+    require_slot_fields: bool,
+) -> None:
+    allowed_flip_behaviors = {
+        "none",
+        "mirror_between_wrists",
+        "mirror_from_side_left",
+        "mirror_from_trinket_left",
+        "mirror_to_side_right",
+        "mirror_to_trinket_right",
+    }
     try:
         ratio = contract["outer_width_ratio"]
         if not isinstance(ratio, list | tuple) or len(ratio) != 2:
             raise ValueError
         low, high = (float(value) for value in ratio)
         palette_limit = contract["max_palette_colors"]
-        feature_limit = float(contract["feature_center_max_px"])
-        jitter_limit = float(contract["residual_jitter_max_px"])
+        feature_limit = _contract_limit(
+            contract, "max_feature_center_error_px", "feature_center_max_px"
+        )
+        jitter_limit = _contract_limit(
+            contract, "max_residual_jitter_px", "residual_jitter_max_px"
+        )
+        feature_anchor = str(contract.get("feature_anchor", "face_center"))
+        protected_region = str(contract.get("protected_region", "protected_regions.eyes"))
+        max_occlusion = float(contract.get("max_occlusion_ratio", 0))
+        flip_behavior = str(contract.get("flip_behavior", "none"))
+        depth_band_value = contract.get("depth_band", [-math.inf, math.inf])
+        if not isinstance(depth_band_value, list | tuple) or len(depth_band_value) != 2:
+            raise ValueError
+        depth_low, depth_high = (float(value) for value in depth_band_value)
+        expected_depth_value = contract.get("expected_depth")
+        expected_depth = (
+            None if expected_depth_value is None else float(expected_depth_value)
+        )
     except (KeyError, TypeError, ValueError):
         raise ValueError("invalid_contract") from None
+    required_slot_fields = {
+        "feature_anchor",
+        "protected_region",
+        "max_occlusion_ratio",
+        "depth_band",
+        "flip_behavior",
+    }
     if (
         not all(math.isfinite(value) for value in (low, high, feature_limit, jitter_limit))
         or low < 0
@@ -224,8 +303,35 @@ def _validate_contract(contract: dict[str, object]) -> None:
         or jitter_limit < 0
         or not isinstance(palette_limit, int)
         or palette_limit < 1
+        or not feature_anchor
+        or not protected_region
+        or not math.isfinite(max_occlusion)
+        or not 0 <= max_occlusion <= 1
+        or depth_low > depth_high
+        or flip_behavior not in allowed_flip_behaviors
+        or (expected_depth is not None and not math.isfinite(expected_depth))
+        or (require_slot_fields and not required_slot_fields <= set(contract))
     ):
         raise ValueError("invalid_contract")
+    for frame in frames:
+        feature = _resolve_frame_path(frame, feature_anchor)
+        if isinstance(feature, list | tuple) and len(feature) == 2:
+            _as_pair(feature)
+            try:
+                reference_width = float(frame["head_width"])
+            except (KeyError, TypeError, ValueError):
+                raise ValueError("invalid_contract") from None
+            if not math.isfinite(reference_width) or reference_width <= 0:
+                raise ValueError("invalid_contract")
+        else:
+            _as_box(feature)
+        _as_box(_resolve_frame_path(frame, protected_region))
+    if feature_anchor.startswith("attachment_regions.wrist_"):
+        selected_side = contract.get("selected_side")
+        if selected_side not in {"left", "right"}:
+            raise ValueError("invalid_contract")
+        if feature_anchor != f"attachment_regions.wrist_{selected_side}":
+            raise ValueError("invalid_contract")
 
 
 def _placed_box(bounds: Box, scale: float, offset: tuple[int, int]) -> Box:
@@ -237,24 +343,23 @@ def _placed_box(bounds: Box, scale: float, offset: tuple[int, int]) -> Box:
     )
 
 
-def _has_occlusion(
+def _occlusion_ratio(
     appearance: Image.Image,
-    protected: list[object],
+    protected: Box,
     scale: float,
     offset: tuple[int, int],
-) -> bool:
-    if len(protected) != 4:
-        return True
+) -> float:
     alpha = appearance.convert("RGBA").getchannel("A")
-    left, top, right, bottom = (int(value) for value in protected)
-    for y in range(top, bottom):
-        for x in range(left, right):
+    opaque_pixels = 0
+    for y in range(protected.top, protected.bottom):
+        for x in range(protected.left, protected.right):
             source_x = math.floor((x - offset[0]) / scale)
             source_y = math.floor((y - offset[1]) / scale)
             if 0 <= source_x < appearance.width and 0 <= source_y < appearance.height:
                 if alpha.getpixel((source_x, source_y)) != 0:
-                    return True
-    return False
+                    opaque_pixels += 1
+    area = (protected.right - protected.left) * (protected.bottom - protected.top)
+    return opaque_pixels / area
 
 
 def _pixel_reason_codes(appearance: Image.Image, palette_limit: int) -> set[str]:
@@ -281,7 +386,11 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
     frames = _profile_frames(profile)
     contract = _slot_profile(profile, inputs.slot)
     if contract:
-        _validate_contract(contract)
+        _validate_contract(
+            contract,
+            frames,
+            require_slot_fields=profile.get("schema_version") == "gogobro-rig-profile-v1",
+        )
     with Image.open(inputs.character_atlas) as opened_atlas:
         atlas = opened_atlas.convert("RGBA")
     with Image.open(inputs.appearance) as opened_appearance:
@@ -309,11 +418,18 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
 
     bounds = _alpha_bounds(appearance)
     _add(reasons, bounds is None, "empty_appearance")
-    try:
-        aperture = find_largest_enclosed_transparent_region(appearance)
-    except ValueError:
-        aperture = None
-        reasons.add("missing_feature_aperture")
+    feature_anchor = str(contract.get("feature_anchor", "face_center"))
+    protected_region = str(contract.get("protected_region", "protected_regions.eyes"))
+    max_occlusion = float(contract.get("max_occlusion_ratio", 0))
+    flip_behavior = str(contract.get("flip_behavior", "none"))
+    depth_band = contract.get("depth_band", [-math.inf, math.inf])
+    depth_low, depth_high = (float(value) for value in depth_band)
+    aperture = None
+    if feature_anchor == "face_center":
+        try:
+            aperture = find_largest_enclosed_transparent_region(appearance)
+        except ValueError:
+            reasons.add("missing_feature_aperture")
 
     anchor_frames = anchors.get("frames", [])
     if not isinstance(anchor_frames, list):
@@ -321,11 +437,17 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
     _add(reasons, len(anchor_frames) != len(frames), "anchor_count")
     occupied = anchors.get("occupied_slots", [])
     _add(reasons, isinstance(occupied, list) and inputs.slot in occupied, "duplicate_slot")
+    _add(
+        reasons,
+        anchors.get("flip_behavior", "none") != flip_behavior,
+        "flip_mismatch",
+    )
 
     ratio_bounds = bounds if bounds is not None else Box(0, 0, 0, 0)
     outer_width_ratios: list[float] = []
     feature_errors: list[float] = []
     residuals: list[tuple[float, float]] = []
+    protected_occlusion_ratios: list[float] = []
     frame_boxes: list[list[int]] = []
     expected_depth = contract.get("expected_depth")
     for index, (frame, anchor) in enumerate(zip(frames, anchor_frames, strict=False)):
@@ -338,7 +460,6 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
             offset = (int(offset_values[0]), int(offset_values[1]))
             if offset != offset_values:
                 reasons.add("non_integer_offset")
-            face = _as_pair(frame["face_center"])
         except (KeyError, TypeError, ValueError):
             reasons.add("invalid_frame_data")
             continue
@@ -347,32 +468,55 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
             continue
         if expected_depth is not None:
             _add(reasons, anchor.get("depth") != expected_depth, "depth_mismatch")
-        placed = _placed_box(ratio_bounds, scale, offset)
-        frame_boxes.append([placed.left, placed.top, placed.right, placed.bottom])
         try:
-            head_width = float(frame["head_width"])
+            anchor_depth = float(anchor["depth"])
         except (KeyError, TypeError, ValueError):
             reasons.add("invalid_frame_data")
             continue
-        if not math.isfinite(head_width) or head_width <= 0:
-            reasons.add("invalid_frame_data")
-            continue
-        outer_width_ratios.append((placed.right - placed.left) / head_width)
+        _add(
+            reasons,
+            not depth_low <= anchor_depth <= depth_high,
+            "depth_band_mismatch",
+        )
+        placed = _placed_box(ratio_bounds, scale, offset)
+        frame_boxes.append([placed.left, placed.top, placed.right, placed.bottom])
+        target_feature = _resolve_frame_path(frame, feature_anchor)
+        if isinstance(target_feature, list | tuple) and len(target_feature) == 2:
+            target_center = _as_pair(target_feature)
+            reference_width = float(frame["head_width"])
+        else:
+            target_box = _as_box(target_feature)
+            target_center = _box_center(target_box)
+            reference_width = target_box.right - target_box.left
+        outer_width_ratios.append((placed.right - placed.left) / reference_width)
         _add(
             reasons,
             placed.left < 0 or placed.top < 0 or placed.right > appearance.width or placed.bottom > appearance.height,
             "crop",
         )
-        protected = frame.get("protected_regions", {})
-        eyes = protected.get("eyes", []) if isinstance(protected, dict) else []
-        _add(reasons, _has_occlusion(appearance, eyes, scale, offset), "protected_region_occlusion")
-        if aperture is not None:
+        protected_box = _as_box(_resolve_frame_path(frame, protected_region))
+        occlusion_ratio = _occlusion_ratio(appearance, protected_box, scale, offset)
+        protected_occlusion_ratios.append(occlusion_ratio)
+        _add(
+            reasons,
+            occlusion_ratio > max_occlusion,
+            "protected_region_occlusion",
+        )
+        if feature_anchor == "face_center" and aperture is not None:
             source_feature = (
                 aperture.left + (aperture.right - aperture.left - 1) / 2,
                 aperture.top + (aperture.bottom - aperture.top - 1) / 2,
             )
+        elif bounds is not None:
+            source_feature = _box_center(bounds)
+        else:
+            source_feature = None
+        if source_feature is not None:
             placed_feature = placed_feature_center(source_feature, scale, offset)
-            delta = (placed_feature[0] - face[0], placed_feature[1] - face[1])
+            delta = (
+                placed_feature[0] - target_center[0],
+                placed_feature[1] - target_center[1],
+            )
             feature_errors.append(max(abs(delta[0]), abs(delta[1])))
             residuals.append(delta)
 
@@ -382,13 +526,19 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
     _add(reasons, any(ratio < low_ratio for ratio in outer_width_ratios), "scale_ratio_low")
     _add(reasons, any(ratio > high_ratio for ratio in outer_width_ratios), "scale_ratio_high")
     max_feature_error = max(feature_errors, default=0)
-    _add(reasons, max_feature_error > float(contract.get("feature_center_max_px", 1)), "feature_center_offset")
+    feature_limit = _contract_limit(
+        contract, "max_feature_center_error_px", "feature_center_max_px"
+    )
+    _add(reasons, max_feature_error > feature_limit, "feature_center_offset")
     first_residual = residuals[0] if residuals else (0.0, 0.0)
     max_jitter = max(
         (max(abs(value[0] - first_residual[0]), abs(value[1] - first_residual[1])) for value in residuals),
         default=0,
     )
-    _add(reasons, max_jitter > float(contract.get("residual_jitter_max_px", 1)), "residual_jitter")
+    jitter_limit = _contract_limit(
+        contract, "max_residual_jitter_px", "residual_jitter_max_px"
+    )
+    _add(reasons, max_jitter > jitter_limit, "residual_jitter")
 
     after_sha256 = {name: _sha256(path) for name, path in paths.items()}
     _add(reasons, input_sha256 != after_sha256, "source_changed")
@@ -397,6 +547,9 @@ def _analyze_harmony(inputs: HarmonyInputs) -> HarmonyReport:
         "outer_width_ratios": outer_width_ratios,
         "max_feature_center_error_px": max_feature_error,
         "max_residual_jitter_px": max_jitter,
+        "max_protected_occlusion_ratio": max(
+            protected_occlusion_ratios, default=0
+        ),
         "frame_boxes": frame_boxes,
         "frame_count": len(frames),
         "aperture_box": asdict(aperture) if aperture else None,
