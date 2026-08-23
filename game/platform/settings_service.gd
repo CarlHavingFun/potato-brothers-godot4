@@ -24,3 +24,15 @@ func load_settings() -> Error:
 	for key in values:
 		if parsed.has(key): values[key] = parsed[key]
 	return OK
+
+
+func apply_display_settings() -> void:
+	var target_mode := resolved_window_mode()
+	if DisplayServer.window_get_mode() != target_mode:
+		DisplayServer.window_set_mode(target_mode)
+
+
+func resolved_window_mode() -> DisplayServer.WindowMode:
+	return DisplayServer.WINDOW_MODE_FULLSCREEN \
+		if bool(values.get("fullscreen", false)) \
+		else DisplayServer.WINDOW_MODE_WINDOWED

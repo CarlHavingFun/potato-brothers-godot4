@@ -46,6 +46,7 @@ func boot() -> BootResult:
 		boot_result = BootResult.failure(BootResult.Status.SERVICE_ERROR, "设置加载失败", [error_string(settings_error)])
 		boot_completed.emit(boot_result)
 		return boot_result
+	settings_service.apply_display_settings()
 	var profile_error := profile_service.load_profile()
 	if profile_error != OK:
 		boot_result = BootResult.failure(BootResult.Status.SAVE_ERROR, "存档加载失败", [profile_service.last_error])
