@@ -5,12 +5,14 @@ const Registry = preload("res://game/content/assets/static_asset_registry.gd")
 const CANONICAL_PATH := "res://game/content/assets/gogobro_static_assets_v1.json"
 
 
-func test_canonical_registry_loads_all_seventy_six_planned_approval_units() -> void:
+func test_canonical_registry_loads_seventy_five_planned_and_one_review_approval_unit() -> void:
 	var result := Registry.load_registry(CANONICAL_PATH)
 	var errors := result.get("errors", PackedStringArray()) as PackedStringArray
 	var registry := result.get("registry", {}) as Dictionary
 	assert_int(errors.size()).is_equal(0)
 	assert_int((registry.get("units", []) as Array).size()).is_equal(76)
+	assert_int(_approval_status_count(registry, "planned")).is_equal(75)
+	assert_int(_approval_status_count(registry, "review")).is_equal(1)
 	var category_counts := registry.get("category_counts", {}) as Dictionary
 	assert_int(int(category_counts.get("character_creature", 0))).is_equal(5)
 	assert_int(int(category_counts.get("weapon", 0))).is_equal(13)
@@ -53,7 +55,8 @@ func test_loader_rejects_each_required_malformed_temporary_fixture() -> void:
 func test_loader_accepts_only_the_canonical_approval_states() -> void:
 	for approval_status in ["planned", "generated", "review", "approved", "integrated", "qa_passed"]:
 		var accepted := _canonical_registry()
-		((accepted["units"] as Array)[0] as Dictionary)["approval_status"] = approval_status
+		var accepted_unit := _smoke_shell_helmet(accepted) if approval_status == "review" else (accepted["units"] as Array)[0] as Dictionary
+		accepted_unit["approval_status"] = approval_status
 		_assert_fixture_has_no_errors(accepted)
 	for approval_status in ["draft", "rejected"]:
 		var rejected := _canonical_registry()
@@ -76,6 +79,60 @@ func test_loader_requires_bilingual_descriptions_and_category_flavor_without_num
 	var character_copy := ((_first_unit_in_category(numeric_flavor, "character_creature") as Dictionary)["localization"] as Dictionary)["en"] as Dictionary
 	character_copy["flavor"] = "Wins with 3 precise moves."
 	_assert_fixture_error(numeric_flavor, "handwritten numeric effect text")
+
+
+func test_smoke_shell_helmet_review_record_has_exact_copy_and_candidate_provenance() -> void:
+	var result := Registry.load_registry(CANONICAL_PATH)
+	var helmet := _smoke_shell_helmet(result.get("registry", {}) as Dictionary)
+	var localization := helmet.get("localization", {}) as Dictionary
+	assert_str(str(helmet.get("approval_status", ""))).is_equal("review")
+	assert_str(str(helmet.get("candidate_id", ""))).is_equal("candidate-001")
+	assert_str(str(((localization["zh_CN"] as Dictionary).get("description", "")))).is_equal("加固外壳提高防护，但沉重结构会拖慢转点。")
+	assert_str(str(((localization["en"] as Dictionary).get("description", "")))).is_equal("A reinforced shell improves protection, but its weight slows every rotate.")
+	assert_str(str(((localization["zh_CN"] as Dictionary).get("flavor", "")))).is_equal("烟封好了，脚步也顺便封住了。")
+	assert_str(str(((localization["en"] as Dictionary).get("flavor", "")))).is_equal("The smoke is sealed. So is your sprint.")
+	assert_int((helmet.get("candidate_artifacts", []) as Array).size()).is_equal(10)
+	var provenance := helmet.get("candidate_provenance", {}) as Dictionary
+	assert_str(str(provenance.get("prompt_version", ""))).is_equal("gogobro-static-v1")
+	for expected in [
+		["icon", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/icon/run/frames/icon/frame-0.png", 1968, "C0AD74445595D80A61BA979B4E668B1FF12A566FEDEF91EC801E38240F29002C"],
+		["appearance", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/cleaned/smoke-shell-helmet-appearance-128.png", 2206, "B3932E02DAF39074CE048E45B6FAE7F221019D87AD7B3A4327FA40714F25874A"],
+		["anchors", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/appearance/anchors-walk-down.json", 8359, "BB07E3105A39B9071AD1A5706AE74CD48FAB2D7AE25D13CFE2EE1F86C1010D13"],
+		["composite_frame", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/qa/composite-frame-001.png", 3295, "491710EE2758D826B90B614C95ED54FB0AE675F7C16C60D974306AE6B370D14A"],
+		["composite_atlas", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/qa/composite-atlas-8x128.png", 9223, "1B80D5DD228D215F058D4B289C194F55C4191C9408941F9DAC5E67AB29D88D66"],
+		["runtime_preview", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/qa/runtime-size-1920x1080.png", 14125, "DFA42A196AA3B05C78DF7970EBBF40A3D37766638317683FEFE1374169642D8B"],
+		["approval_card", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/qa/approval-card.png", 168311, "44E594051E8522988372FB8C73C04220FA0490F7263C0D075CD3D2DC4C5B140D"],
+		["qa_report", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/qa/candidate-qa-report.json", 8367, "030155097E2892F706E4246316D8E926D73D52A69F88D212A0792D46B1D06A3E"],
+		["icon_request", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/requests/icon-request.json", 268, "4A8A4E327FFEDDDC95324070B7BD5D20B68218F801632A2E1388DA58CE708C79"],
+		["appearance_request", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-001/requests/appearance-request.json", 294, "13CD24D70593147C20EEFC8EAC6E229A21DE59B6B454522ECD3A1D707111E32D"],
+	]:
+		var artifact := _candidate_artifact(helmet, expected[0])
+		assert_str(str(artifact.get("path", ""))).is_equal(expected[1])
+		assert_int(int(artifact.get("bytes", 0))).is_equal(expected[2])
+		assert_str(str(artifact.get("sha256", ""))).is_equal(expected[3])
+		assert_bool((artifact.get("output_spec", {}) as Dictionary).has("format")).is_true()
+
+
+func test_loader_rejects_review_candidate_missing_required_provenance_or_safe_artifacts() -> void:
+	var missing_candidate_id := _canonical_registry()
+	_smoke_shell_helmet(missing_candidate_id).erase("candidate_id")
+	_assert_fixture_error(missing_candidate_id, "review unit missing candidate_id")
+
+	var missing_required_role := _canonical_registry()
+	_remove_candidate_role(_smoke_shell_helmet(missing_required_role), "qa_report")
+	_assert_fixture_error(missing_required_role, "review item missing required candidate artifact role: qa_report")
+
+	var malformed_hash := _canonical_registry()
+	(_candidate_artifact(_smoke_shell_helmet(malformed_hash), "icon") as Dictionary)["sha256"] = "bad-hash"
+	_assert_fixture_error(malformed_hash, "candidate artifact icon has invalid sha256")
+
+	var runtime_path := _canonical_registry()
+	(_candidate_artifact(_smoke_shell_helmet(runtime_path), "icon") as Dictionary)["path"] = "res://game/assets/items/smoke_shell_helmet.png"
+	_assert_fixture_error(runtime_path, "candidate artifact icon path must stay outside runtime res://")
+
+	var curated_path := _canonical_registry()
+	(_candidate_artifact(_smoke_shell_helmet(curated_path), "icon") as Dictionary)["path"] = "workspace://GOGOBRO_ASSET_INBOX/curated/smoke-shell-helmet.png"
+	_assert_fixture_error(curated_path, "candidate artifact icon path must not contain /curated/")
 
 
 func _canonical_registry() -> Dictionary:
@@ -109,3 +166,33 @@ func _first_unit_in_category(registry: Dictionary, category: String) -> Dictiona
 		if (unit as Dictionary).get("category", "") == category:
 			return unit as Dictionary
 	return {}
+
+
+func _smoke_shell_helmet(registry: Dictionary) -> Dictionary:
+	for unit in registry.get("units", []) as Array:
+		if (unit as Dictionary).get("asset_id", "") == "smoke_shell_helmet":
+			return unit as Dictionary
+	return {}
+
+
+func _candidate_artifact(unit: Dictionary, role: String) -> Dictionary:
+	for artifact in unit.get("candidate_artifacts", []) as Array:
+		if (artifact as Dictionary).get("role", "") == role:
+			return artifact as Dictionary
+	return {}
+
+
+func _remove_candidate_role(unit: Dictionary, role: String) -> void:
+	var artifacts := unit.get("candidate_artifacts", []) as Array
+	for index in artifacts.size():
+		if (artifacts[index] as Dictionary).get("role", "") == role:
+			artifacts.remove_at(index)
+			return
+
+
+func _approval_status_count(registry: Dictionary, approval_status: String) -> int:
+	var count := 0
+	for unit in registry.get("units", []) as Array:
+		if (unit as Dictionary).get("approval_status", "") == approval_status:
+			count += 1
+	return count

@@ -13,6 +13,15 @@ const EXPECTED_CATEGORY_COUNTS := {
 	"ui_brand": 10,
 }
 const VALID_STATUSES := ["planned", "generated", "review", "approved", "integrated", "qa_passed"]
+const REVIEW_ITEM_REQUIRED_ARTIFACT_ROLES := [
+	"icon",
+	"appearance",
+	"anchors",
+	"composite_atlas",
+	"runtime_preview",
+	"approval_card",
+	"qa_report",
+]
 const REQUIRED_ENTRY_FIELDS := [
 	"asset_id",
 	"category",
@@ -93,8 +102,11 @@ static func validate_registry(registry: Dictionary) -> PackedStringArray:
 			errors.append("unknown category: %s" % category)
 		else:
 			category_counts[category] = int(category_counts.get(category, 0)) + 1
-		if not VALID_STATUSES.has(unit.get("approval_status")):
-			errors.append("unknown approval_status: %s" % str(unit.get("approval_status")))
+		var approval_status := str(unit.get("approval_status", ""))
+		if not VALID_STATUSES.has(approval_status):
+			errors.append("unknown approval_status: %s" % approval_status)
+		elif approval_status == "review":
+			_validate_review_candidate(unit, label, category, errors)
 		_validate_localization(
 			unit.get("localization"),
 			label,
@@ -153,6 +165,55 @@ static func _contains_numeric_effect_text(description: String) -> bool:
 		if character >= "0" and character <= "9":
 			return true
 	return false
+
+
+static func _validate_review_candidate(unit: Dictionary, label: String, category: String, errors: PackedStringArray) -> void:
+	if str(unit.get("candidate_id", "")).strip_edges().is_empty():
+		errors.append("%s review unit missing candidate_id" % label)
+	var provenance: Variant = unit.get("candidate_provenance")
+	if not provenance is Dictionary or str((provenance as Dictionary).get("prompt_version", "")).strip_edges().is_empty():
+		errors.append("%s review unit missing candidate prompt provenance" % label)
+	var artifacts: Variant = unit.get("candidate_artifacts")
+	if not artifacts is Array or (artifacts as Array).is_empty():
+		errors.append("%s review unit missing candidate_artifacts" % label)
+		return
+	var roles := {}
+	var sha256_pattern := RegEx.new()
+	sha256_pattern.compile("^[A-Fa-f0-9]{64}$")
+	for artifact_variant in artifacts as Array:
+		if not artifact_variant is Dictionary:
+			errors.append("%s candidate artifact must be an object" % label)
+			continue
+		var artifact := artifact_variant as Dictionary
+		var role := str(artifact.get("role", "")).strip_edges()
+		if role.is_empty():
+			errors.append("%s candidate artifact missing role" % label)
+			continue
+		roles[role] = true
+		var path := str(artifact.get("path", "")).strip_edges()
+		if path.is_empty():
+			errors.append("candidate artifact %s missing path" % role)
+		elif path.begins_with("res://"):
+			errors.append("candidate artifact %s path must stay outside runtime res://" % role)
+		elif path.to_lower().contains("/curated/"):
+			errors.append("candidate artifact %s path must not contain /curated/" % role)
+		elif not path.begins_with("workspace://") or path.contains("\\"):
+			errors.append("candidate artifact %s path must use a workspace:// forward-slash path" % role)
+		var sha256 := str(artifact.get("sha256", "")).strip_edges()
+		if sha256_pattern.search(sha256) == null:
+			errors.append("candidate artifact %s has invalid sha256" % role)
+		var bytes: Variant = artifact.get("bytes")
+		if not bytes is int and not bytes is float:
+			errors.append("candidate artifact %s has invalid byte size" % role)
+		elif int(bytes) <= 0 or float(bytes) != floor(float(bytes)):
+			errors.append("candidate artifact %s has invalid byte size" % role)
+		var output_spec: Variant = artifact.get("output_spec")
+		if not output_spec is Dictionary or (output_spec as Dictionary).is_empty() or str((output_spec as Dictionary).get("format", "")).strip_edges().is_empty():
+			errors.append("candidate artifact %s missing structured output_spec" % role)
+	if category == "item":
+		for required_role in REVIEW_ITEM_REQUIRED_ARTIFACT_ROLES:
+			if not roles.has(required_role):
+				errors.append("review item missing required candidate artifact role: %s" % required_role)
 
 
 static func _validate_item(unit: Dictionary, label: String, errors: PackedStringArray) -> void:
