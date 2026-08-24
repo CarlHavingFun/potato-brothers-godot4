@@ -1,0 +1,2181 @@
+{
+  "schema_version": "gogobro-character-attachment-rig-v2",
+  "rig_id": "niko_walk_down_attachment_v2",
+  "character_id": "character.niko:character/niko",
+  "source_profile": "tools/assets/rig_profiles/niko_walk_down_v1.json",
+  "atlas": {
+    "path": "res://game/content/packs/characters/niko/animations/walk_down/sprite-sheet-alpha.png",
+    "sha256": "fbc10108d9a665b14dcc376da54bbbf66d89b931ae1189e69fe1c45b31fe579d",
+    "frame_size": [
+      128,
+      128
+    ],
+    "atlas_size": [
+      1024,
+      128
+    ]
+  },
+  "socket_catalog": {
+    "back_center": {
+      "slot_id": "back",
+      "allowed_modes": [
+        "RIGID"
+      ],
+      "default_depth": -10,
+      "reference_region": "back",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "back_lower": {
+      "slot_id": "back",
+      "allowed_modes": [
+        "RIGID"
+      ],
+      "default_depth": -10,
+      "reference_region": "back",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "back_upper": {
+      "slot_id": "back",
+      "allowed_modes": [
+        "RIGID"
+      ],
+      "default_depth": -10,
+      "reference_region": "back",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "chest_center": {
+      "slot_id": "torso",
+      "allowed_modes": [
+        "FRAME_OVERLAY"
+      ],
+      "default_depth": 40,
+      "reference_region": "torso",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "chest_left": {
+      "slot_id": "torso",
+      "allowed_modes": [
+        "FRAME_OVERLAY"
+      ],
+      "default_depth": 40,
+      "reference_region": "torso",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "clothes_body": {
+      "slot_id": "clothes",
+      "allowed_modes": [
+        "FRAME_OVERLAY"
+      ],
+      "default_depth": 20,
+      "reference_region": "clothes_body",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "face_mask": {
+      "slot_id": "face",
+      "allowed_modes": [
+        "RIGID"
+      ],
+      "default_depth": 40,
+      "reference_region": "face",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "feet_pair": {
+      "slot_id": "feet",
+      "allowed_modes": [
+        "FRAME_OVERLAY"
+      ],
+      "default_depth": 40,
+      "reference_region": "feet",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "forehead": {
+      "slot_id": "head",
+      "allowed_modes": [
+        "RIGID"
+      ],
+      "default_depth": 40,
+      "reference_region": "head",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "forearm_left": {
+      "slot_id": "arm_left",
+      "allowed_modes": [
+        "RIGID",
+        "FRAME_OVERLAY"
+      ],
+      "default_depth": 50,
+      "reference_region": "forearm_left",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "forearm_right": {
+      "slot_id": "arm_right",
+      "allowed_modes": [
+        "RIGID",
+        "FRAME_OVERLAY"
+      ],
+      "default_depth": 50,
+      "reference_region": "forearm_right",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "hand_left": {
+      "slot_id": "arm_left",
+      "allowed_modes": [
+        "RIGID",
+        "FRAME_OVERLAY"
+      ],
+      "default_depth": 50,
+      "reference_region": "hand_left",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "hand_right": {
+      "slot_id": "arm_right",
+      "allowed_modes": [
+        "RIGID",
+        "FRAME_OVERLAY"
+      ],
+      "default_depth": 50,
+      "reference_region": "hand_right",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "head_shell": {
+      "slot_id": "head",
+      "allowed_modes": [
+        "RIGID"
+      ],
+      "default_depth": 40,
+      "reference_region": "face",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "hip_left": {
+      "slot_id": "side_left",
+      "allowed_modes": [
+        "RIGID"
+      ],
+      "default_depth": 40,
+      "reference_region": "hip_left",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "hip_right": {
+      "slot_id": "side_right",
+      "allowed_modes": [
+        "RIGID"
+      ],
+      "default_depth": 40,
+      "reference_region": "hip_right",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "shoulder_left": {
+      "slot_id": "arm_left",
+      "allowed_modes": [
+        "RIGID",
+        "FRAME_OVERLAY"
+      ],
+      "default_depth": 50,
+      "reference_region": "shoulder_left",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "shoulder_right": {
+      "slot_id": "arm_right",
+      "allowed_modes": [
+        "RIGID",
+        "FRAME_OVERLAY"
+      ],
+      "default_depth": 50,
+      "reference_region": "shoulder_right",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "trinket_left": {
+      "slot_id": "trinket_left",
+      "allowed_modes": [
+        "RIGID"
+      ],
+      "default_depth": 40,
+      "reference_region": "trinket_left",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "trinket_right": {
+      "slot_id": "trinket_right",
+      "allowed_modes": [
+        "RIGID"
+      ],
+      "default_depth": 40,
+      "reference_region": "trinket_right",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "upper_arm_left": {
+      "slot_id": "arm_left",
+      "allowed_modes": [
+        "RIGID",
+        "FRAME_OVERLAY"
+      ],
+      "default_depth": 50,
+      "reference_region": "upper_arm_left",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "upper_arm_right": {
+      "slot_id": "arm_right",
+      "allowed_modes": [
+        "RIGID",
+        "FRAME_OVERLAY"
+      ],
+      "default_depth": 50,
+      "reference_region": "upper_arm_right",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "wrist_left": {
+      "slot_id": "wrist",
+      "allowed_modes": [
+        "FRAME_OVERLAY"
+      ],
+      "default_depth": 40,
+      "reference_region": "wrist_left",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    },
+    "wrist_right": {
+      "slot_id": "wrist",
+      "allowed_modes": [
+        "FRAME_OVERLAY"
+      ],
+      "default_depth": 40,
+      "reference_region": "wrist_right",
+      "flip_h": false,
+      "max_residual_jitter_px": 0
+    }
+  },
+  "animations": {
+    "walk_down": {
+      "frame_count": 8,
+      "fps": 8.0,
+      "row": 0,
+      "frames": [
+        {
+          "frame_index": 0,
+          "frame_name": "walk_down_01",
+          "protected_regions": {
+            "eyes": [
+              48,
+              64,
+              78,
+              80
+            ],
+            "face": [
+              44,
+              50,
+              80,
+              92
+            ]
+          },
+          "regions": {
+            "back": [
+              38,
+              76,
+              86,
+              109
+            ],
+            "clothes_body": [
+              47,
+              94,
+              80,
+              111
+            ],
+            "forearm_left": [
+              34,
+              97,
+              44,
+              105
+            ],
+            "forearm_right": [
+              80,
+              97,
+              90,
+              105
+            ],
+            "hand_left": [
+              34,
+              99,
+              40,
+              105
+            ],
+            "hand_right": [
+              84,
+              99,
+              90,
+              105
+            ],
+            "shoulder_left": [
+              41,
+              92,
+              55,
+              102
+            ],
+            "shoulder_right": [
+              71,
+              92,
+              85,
+              102
+            ],
+            "upper_arm_left": [
+              37,
+              94,
+              49,
+              104
+            ],
+            "upper_arm_right": [
+              76,
+              94,
+              88,
+              104
+            ],
+            "face": [
+              44,
+              50,
+              80,
+              92
+            ],
+            "feet": [
+              38,
+              104,
+              88,
+              118
+            ],
+            "head": [
+              33,
+              28,
+              91,
+              72
+            ],
+            "hip_left": [
+              28,
+              78,
+              46,
+              106
+            ],
+            "hip_right": [
+              78,
+              78,
+              96,
+              106
+            ],
+            "torso": [
+              45,
+              83,
+              79,
+              108
+            ],
+            "trinket_left": [
+              30,
+              94,
+              42,
+              114
+            ],
+            "trinket_right": [
+              86,
+              94,
+              98,
+              114
+            ],
+            "wrist_left": [
+              34,
+              82,
+              48,
+              100
+            ],
+            "wrist_right": [
+              76,
+              82,
+              90,
+              100
+            ]
+          },
+          "sockets": {
+            "back_center": [
+              62,
+              92
+            ],
+            "back_lower": [
+              62,
+              102
+            ],
+            "back_upper": [
+              62,
+              84
+            ],
+            "clothes_body": [
+              63,
+              103
+            ],
+            "forearm_left": [
+              39,
+              101
+            ],
+            "forearm_right": [
+              85,
+              101
+            ],
+            "hand_left": [
+              37,
+              102
+            ],
+            "hand_right": [
+              87,
+              102
+            ],
+            "shoulder_left": [
+              48,
+              97
+            ],
+            "shoulder_right": [
+              78,
+              97
+            ],
+            "upper_arm_left": [
+              43,
+              99
+            ],
+            "upper_arm_right": [
+              82,
+              99
+            ],
+            "chest_center": [
+              62,
+              95
+            ],
+            "chest_left": [
+              54,
+              93
+            ],
+            "face_mask": [
+              62,
+              71
+            ],
+            "feet_pair": [
+              63,
+              111
+            ],
+            "forehead": [
+              62,
+              60
+            ],
+            "head_shell": [
+              62,
+              71
+            ],
+            "hip_left": [
+              37,
+              92
+            ],
+            "hip_right": [
+              87,
+              92
+            ],
+            "trinket_left": [
+              36,
+              104
+            ],
+            "trinket_right": [
+              92,
+              104
+            ],
+            "wrist_left": [
+              41,
+              91
+            ],
+            "wrist_right": [
+              83,
+              91
+            ]
+          }
+        },
+        {
+          "frame_index": 1,
+          "frame_name": "walk_down_02",
+          "protected_regions": {
+            "eyes": [
+              48,
+              64,
+              78,
+              80
+            ],
+            "face": [
+              44,
+              50,
+              80,
+              92
+            ]
+          },
+          "regions": {
+            "back": [
+              38,
+              76,
+              86,
+              109
+            ],
+            "clothes_body": [
+              48,
+              95,
+              81,
+              112
+            ],
+            "forearm_left": [
+              34,
+              97,
+              44,
+              105
+            ],
+            "forearm_right": [
+              82,
+              97,
+              92,
+              105
+            ],
+            "hand_left": [
+              34,
+              99,
+              40,
+              105
+            ],
+            "hand_right": [
+              86,
+              99,
+              92,
+              105
+            ],
+            "shoulder_left": [
+              41,
+              93,
+              55,
+              103
+            ],
+            "shoulder_right": [
+              72,
+              93,
+              86,
+              103
+            ],
+            "upper_arm_left": [
+              37,
+              95,
+              49,
+              105
+            ],
+            "upper_arm_right": [
+              78,
+              95,
+              90,
+              105
+            ],
+            "face": [
+              44,
+              50,
+              80,
+              92
+            ],
+            "feet": [
+              38,
+              104,
+              88,
+              118
+            ],
+            "head": [
+              33,
+              28,
+              91,
+              72
+            ],
+            "hip_left": [
+              28,
+              78,
+              46,
+              106
+            ],
+            "hip_right": [
+              78,
+              78,
+              96,
+              106
+            ],
+            "torso": [
+              45,
+              83,
+              79,
+              108
+            ],
+            "trinket_left": [
+              30,
+              94,
+              42,
+              114
+            ],
+            "trinket_right": [
+              86,
+              94,
+              98,
+              114
+            ],
+            "wrist_left": [
+              34,
+              82,
+              48,
+              100
+            ],
+            "wrist_right": [
+              76,
+              82,
+              90,
+              100
+            ]
+          },
+          "sockets": {
+            "back_center": [
+              62,
+              92
+            ],
+            "back_lower": [
+              62,
+              102
+            ],
+            "back_upper": [
+              62,
+              84
+            ],
+            "clothes_body": [
+              64,
+              104
+            ],
+            "forearm_left": [
+              39,
+              101
+            ],
+            "forearm_right": [
+              87,
+              101
+            ],
+            "hand_left": [
+              37,
+              102
+            ],
+            "hand_right": [
+              89,
+              102
+            ],
+            "shoulder_left": [
+              48,
+              98
+            ],
+            "shoulder_right": [
+              79,
+              98
+            ],
+            "upper_arm_left": [
+              43,
+              100
+            ],
+            "upper_arm_right": [
+              84,
+              100
+            ],
+            "chest_center": [
+              62,
+              95
+            ],
+            "chest_left": [
+              54,
+              93
+            ],
+            "face_mask": [
+              62,
+              71
+            ],
+            "feet_pair": [
+              63,
+              111
+            ],
+            "forehead": [
+              62,
+              60
+            ],
+            "head_shell": [
+              62,
+              71
+            ],
+            "hip_left": [
+              37,
+              92
+            ],
+            "hip_right": [
+              87,
+              92
+            ],
+            "trinket_left": [
+              36,
+              104
+            ],
+            "trinket_right": [
+              92,
+              104
+            ],
+            "wrist_left": [
+              41,
+              91
+            ],
+            "wrist_right": [
+              83,
+              91
+            ]
+          }
+        },
+        {
+          "frame_index": 2,
+          "frame_name": "walk_down_03",
+          "protected_regions": {
+            "eyes": [
+              48,
+              64,
+              78,
+              80
+            ],
+            "face": [
+              44,
+              50,
+              80,
+              92
+            ]
+          },
+          "regions": {
+            "back": [
+              38,
+              76,
+              86,
+              109
+            ],
+            "clothes_body": [
+              47,
+              95,
+              80,
+              112
+            ],
+            "forearm_left": [
+              37,
+              97,
+              47,
+              105
+            ],
+            "forearm_right": [
+              83,
+              96,
+              93,
+              104
+            ],
+            "hand_left": [
+              38,
+              99,
+              44,
+              105
+            ],
+            "hand_right": [
+              86,
+              99,
+              92,
+              105
+            ],
+            "shoulder_left": [
+              43,
+              93,
+              57,
+              103
+            ],
+            "shoulder_right": [
+              73,
+              91,
+              87,
+              101
+            ],
+            "upper_arm_left": [
+              40,
+              95,
+              52,
+              105
+            ],
+            "upper_arm_right": [
+              80,
+              93,
+              92,
+              103
+            ],
+            "face": [
+              44,
+              50,
+              80,
+              92
+            ],
+            "feet": [
+              38,
+              104,
+              88,
+              118
+            ],
+            "head": [
+              33,
+              28,
+              91,
+              72
+            ],
+            "hip_left": [
+              28,
+              78,
+              46,
+              106
+            ],
+            "hip_right": [
+              78,
+              78,
+              96,
+              106
+            ],
+            "torso": [
+              45,
+              83,
+              79,
+              108
+            ],
+            "trinket_left": [
+              30,
+              94,
+              42,
+              114
+            ],
+            "trinket_right": [
+              86,
+              94,
+              98,
+              114
+            ],
+            "wrist_left": [
+              34,
+              82,
+              48,
+              100
+            ],
+            "wrist_right": [
+              76,
+              82,
+              90,
+              100
+            ]
+          },
+          "sockets": {
+            "back_center": [
+              62,
+              92
+            ],
+            "back_lower": [
+              62,
+              102
+            ],
+            "back_upper": [
+              62,
+              84
+            ],
+            "clothes_body": [
+              63,
+              104
+            ],
+            "forearm_left": [
+              42,
+              101
+            ],
+            "forearm_right": [
+              88,
+              100
+            ],
+            "hand_left": [
+              41,
+              102
+            ],
+            "hand_right": [
+              89,
+              102
+            ],
+            "shoulder_left": [
+              50,
+              98
+            ],
+            "shoulder_right": [
+              80,
+              96
+            ],
+            "upper_arm_left": [
+              46,
+              100
+            ],
+            "upper_arm_right": [
+              86,
+              98
+            ],
+            "chest_center": [
+              62,
+              95
+            ],
+            "chest_left": [
+              54,
+              93
+            ],
+            "face_mask": [
+              62,
+              71
+            ],
+            "feet_pair": [
+              63,
+              111
+            ],
+            "forehead": [
+              62,
+              60
+            ],
+            "head_shell": [
+              62,
+              71
+            ],
+            "hip_left": [
+              37,
+              92
+            ],
+            "hip_right": [
+              87,
+              92
+            ],
+            "trinket_left": [
+              36,
+              104
+            ],
+            "trinket_right": [
+              92,
+              104
+            ],
+            "wrist_left": [
+              41,
+              91
+            ],
+            "wrist_right": [
+              83,
+              91
+            ]
+          }
+        },
+        {
+          "frame_index": 3,
+          "frame_name": "walk_down_04",
+          "protected_regions": {
+            "eyes": [
+              48,
+              64,
+              78,
+              80
+            ],
+            "face": [
+              44,
+              50,
+              80,
+              92
+            ]
+          },
+          "regions": {
+            "back": [
+              38,
+              76,
+              86,
+              109
+            ],
+            "clothes_body": [
+              47,
+              95,
+              80,
+              112
+            ],
+            "forearm_left": [
+              34,
+              97,
+              44,
+              105
+            ],
+            "forearm_right": [
+              82,
+              97,
+              92,
+              105
+            ],
+            "hand_left": [
+              34,
+              99,
+              40,
+              105
+            ],
+            "hand_right": [
+              86,
+              99,
+              92,
+              105
+            ],
+            "shoulder_left": [
+              41,
+              93,
+              55,
+              103
+            ],
+            "shoulder_right": [
+              72,
+              93,
+              86,
+              103
+            ],
+            "upper_arm_left": [
+              37,
+              95,
+              49,
+              105
+            ],
+            "upper_arm_right": [
+              78,
+              95,
+              90,
+              105
+            ],
+            "face": [
+              44,
+              50,
+              80,
+              92
+            ],
+            "feet": [
+              38,
+              104,
+              88,
+              118
+            ],
+            "head": [
+              33,
+              28,
+              91,
+              72
+            ],
+            "hip_left": [
+              28,
+              78,
+              46,
+              106
+            ],
+            "hip_right": [
+              78,
+              78,
+              96,
+              106
+            ],
+            "torso": [
+              45,
+              83,
+              79,
+              108
+            ],
+            "trinket_left": [
+              30,
+              94,
+              42,
+              114
+            ],
+            "trinket_right": [
+              86,
+              94,
+              98,
+              114
+            ],
+            "wrist_left": [
+              34,
+              82,
+              48,
+              100
+            ],
+            "wrist_right": [
+              76,
+              82,
+              90,
+              100
+            ]
+          },
+          "sockets": {
+            "back_center": [
+              62,
+              92
+            ],
+            "back_lower": [
+              62,
+              102
+            ],
+            "back_upper": [
+              62,
+              84
+            ],
+            "clothes_body": [
+              63,
+              104
+            ],
+            "forearm_left": [
+              39,
+              101
+            ],
+            "forearm_right": [
+              87,
+              101
+            ],
+            "hand_left": [
+              37,
+              102
+            ],
+            "hand_right": [
+              89,
+              102
+            ],
+            "shoulder_left": [
+              48,
+              98
+            ],
+            "shoulder_right": [
+              79,
+              98
+            ],
+            "upper_arm_left": [
+              43,
+              100
+            ],
+            "upper_arm_right": [
+              84,
+              100
+            ],
+            "chest_center": [
+              62,
+              95
+            ],
+            "chest_left": [
+              54,
+              93
+            ],
+            "face_mask": [
+              62,
+              71
+            ],
+            "feet_pair": [
+              63,
+              111
+            ],
+            "forehead": [
+              62,
+              60
+            ],
+            "head_shell": [
+              62,
+              71
+            ],
+            "hip_left": [
+              37,
+              92
+            ],
+            "hip_right": [
+              87,
+              92
+            ],
+            "trinket_left": [
+              36,
+              104
+            ],
+            "trinket_right": [
+              92,
+              104
+            ],
+            "wrist_left": [
+              41,
+              91
+            ],
+            "wrist_right": [
+              83,
+              91
+            ]
+          }
+        },
+        {
+          "frame_index": 4,
+          "frame_name": "walk_down_05",
+          "protected_regions": {
+            "eyes": [
+              50,
+              64,
+              80,
+              80
+            ],
+            "face": [
+              46,
+              50,
+              82,
+              92
+            ]
+          },
+          "regions": {
+            "back": [
+              40,
+              76,
+              88,
+              109
+            ],
+            "clothes_body": [
+              49,
+              94,
+              82,
+              111
+            ],
+            "forearm_left": [
+              36,
+              97,
+              46,
+              105
+            ],
+            "forearm_right": [
+              82,
+              97,
+              92,
+              105
+            ],
+            "hand_left": [
+              36,
+              99,
+              42,
+              105
+            ],
+            "hand_right": [
+              84,
+              99,
+              90,
+              105
+            ],
+            "shoulder_left": [
+              43,
+              92,
+              57,
+              102
+            ],
+            "shoulder_right": [
+              73,
+              92,
+              87,
+              102
+            ],
+            "upper_arm_left": [
+              39,
+              94,
+              51,
+              104
+            ],
+            "upper_arm_right": [
+              78,
+              94,
+              90,
+              104
+            ],
+            "face": [
+              46,
+              50,
+              82,
+              92
+            ],
+            "feet": [
+              40,
+              104,
+              90,
+              118
+            ],
+            "head": [
+              35,
+              28,
+              93,
+              72
+            ],
+            "hip_left": [
+              30,
+              78,
+              48,
+              106
+            ],
+            "hip_right": [
+              80,
+              78,
+              98,
+              106
+            ],
+            "torso": [
+              47,
+              83,
+              81,
+              108
+            ],
+            "trinket_left": [
+              32,
+              94,
+              44,
+              114
+            ],
+            "trinket_right": [
+              88,
+              94,
+              100,
+              114
+            ],
+            "wrist_left": [
+              36,
+              82,
+              50,
+              100
+            ],
+            "wrist_right": [
+              78,
+              82,
+              92,
+              100
+            ]
+          },
+          "sockets": {
+            "back_center": [
+              64,
+              92
+            ],
+            "back_lower": [
+              64,
+              102
+            ],
+            "back_upper": [
+              64,
+              84
+            ],
+            "clothes_body": [
+              65,
+              103
+            ],
+            "forearm_left": [
+              41,
+              101
+            ],
+            "forearm_right": [
+              87,
+              101
+            ],
+            "hand_left": [
+              39,
+              102
+            ],
+            "hand_right": [
+              87,
+              102
+            ],
+            "shoulder_left": [
+              50,
+              97
+            ],
+            "shoulder_right": [
+              80,
+              97
+            ],
+            "upper_arm_left": [
+              45,
+              99
+            ],
+            "upper_arm_right": [
+              84,
+              99
+            ],
+            "chest_center": [
+              64,
+              95
+            ],
+            "chest_left": [
+              56,
+              93
+            ],
+            "face_mask": [
+              64,
+              71
+            ],
+            "feet_pair": [
+              65,
+              111
+            ],
+            "forehead": [
+              64,
+              60
+            ],
+            "head_shell": [
+              64,
+              71
+            ],
+            "hip_left": [
+              39,
+              92
+            ],
+            "hip_right": [
+              89,
+              92
+            ],
+            "trinket_left": [
+              38,
+              104
+            ],
+            "trinket_right": [
+              94,
+              104
+            ],
+            "wrist_left": [
+              43,
+              91
+            ],
+            "wrist_right": [
+              85,
+              91
+            ]
+          }
+        },
+        {
+          "frame_index": 5,
+          "frame_name": "walk_down_06",
+          "protected_regions": {
+            "eyes": [
+              50,
+              64,
+              80,
+              80
+            ],
+            "face": [
+              46,
+              50,
+              82,
+              92
+            ]
+          },
+          "regions": {
+            "back": [
+              40,
+              76,
+              88,
+              109
+            ],
+            "clothes_body": [
+              49,
+              95,
+              82,
+              112
+            ],
+            "forearm_left": [
+              36,
+              97,
+              46,
+              105
+            ],
+            "forearm_right": [
+              81,
+              97,
+              91,
+              105
+            ],
+            "hand_left": [
+              36,
+              99,
+              42,
+              105
+            ],
+            "hand_right": [
+              84,
+              99,
+              90,
+              105
+            ],
+            "shoulder_left": [
+              43,
+              93,
+              57,
+              103
+            ],
+            "shoulder_right": [
+              72,
+              93,
+              86,
+              103
+            ],
+            "upper_arm_left": [
+              39,
+              95,
+              51,
+              105
+            ],
+            "upper_arm_right": [
+              78,
+              95,
+              90,
+              105
+            ],
+            "face": [
+              46,
+              50,
+              82,
+              92
+            ],
+            "feet": [
+              40,
+              104,
+              90,
+              118
+            ],
+            "head": [
+              35,
+              28,
+              93,
+              72
+            ],
+            "hip_left": [
+              30,
+              78,
+              48,
+              106
+            ],
+            "hip_right": [
+              80,
+              78,
+              98,
+              106
+            ],
+            "torso": [
+              47,
+              83,
+              81,
+              108
+            ],
+            "trinket_left": [
+              32,
+              94,
+              44,
+              114
+            ],
+            "trinket_right": [
+              88,
+              94,
+              100,
+              114
+            ],
+            "wrist_left": [
+              36,
+              82,
+              50,
+              100
+            ],
+            "wrist_right": [
+              78,
+              82,
+              92,
+              100
+            ]
+          },
+          "sockets": {
+            "back_center": [
+              64,
+              92
+            ],
+            "back_lower": [
+              64,
+              102
+            ],
+            "back_upper": [
+              64,
+              84
+            ],
+            "clothes_body": [
+              65,
+              104
+            ],
+            "forearm_left": [
+              41,
+              101
+            ],
+            "forearm_right": [
+              86,
+              101
+            ],
+            "hand_left": [
+              39,
+              102
+            ],
+            "hand_right": [
+              87,
+              102
+            ],
+            "shoulder_left": [
+              50,
+              98
+            ],
+            "shoulder_right": [
+              79,
+              98
+            ],
+            "upper_arm_left": [
+              45,
+              100
+            ],
+            "upper_arm_right": [
+              84,
+              100
+            ],
+            "chest_center": [
+              64,
+              95
+            ],
+            "chest_left": [
+              56,
+              93
+            ],
+            "face_mask": [
+              64,
+              71
+            ],
+            "feet_pair": [
+              65,
+              111
+            ],
+            "forehead": [
+              64,
+              60
+            ],
+            "head_shell": [
+              64,
+              71
+            ],
+            "hip_left": [
+              39,
+              92
+            ],
+            "hip_right": [
+              89,
+              92
+            ],
+            "trinket_left": [
+              38,
+              104
+            ],
+            "trinket_right": [
+              94,
+              104
+            ],
+            "wrist_left": [
+              43,
+              91
+            ],
+            "wrist_right": [
+              85,
+              91
+            ]
+          }
+        },
+        {
+          "frame_index": 6,
+          "frame_name": "walk_down_07",
+          "protected_regions": {
+            "eyes": [
+              48,
+              64,
+              78,
+              80
+            ],
+            "face": [
+              44,
+              50,
+              80,
+              92
+            ]
+          },
+          "regions": {
+            "back": [
+              38,
+              76,
+              86,
+              109
+            ],
+            "clothes_body": [
+              49,
+              95,
+              82,
+              112
+            ],
+            "forearm_left": [
+              37,
+              97,
+              47,
+              105
+            ],
+            "forearm_right": [
+              84,
+              96,
+              94,
+              104
+            ],
+            "hand_left": [
+              38,
+              99,
+              44,
+              105
+            ],
+            "hand_right": [
+              86,
+              99,
+              92,
+              105
+            ],
+            "shoulder_left": [
+              43,
+              93,
+              57,
+              103
+            ],
+            "shoulder_right": [
+              75,
+              91,
+              89,
+              101
+            ],
+            "upper_arm_left": [
+              40,
+              95,
+              52,
+              105
+            ],
+            "upper_arm_right": [
+              81,
+              93,
+              93,
+              103
+            ],
+            "face": [
+              44,
+              50,
+              80,
+              92
+            ],
+            "feet": [
+              38,
+              104,
+              88,
+              118
+            ],
+            "head": [
+              33,
+              28,
+              91,
+              72
+            ],
+            "hip_left": [
+              28,
+              78,
+              46,
+              106
+            ],
+            "hip_right": [
+              78,
+              78,
+              96,
+              106
+            ],
+            "torso": [
+              45,
+              83,
+              79,
+              108
+            ],
+            "trinket_left": [
+              30,
+              94,
+              42,
+              114
+            ],
+            "trinket_right": [
+              86,
+              94,
+              98,
+              114
+            ],
+            "wrist_left": [
+              34,
+              82,
+              48,
+              100
+            ],
+            "wrist_right": [
+              76,
+              82,
+              90,
+              100
+            ]
+          },
+          "sockets": {
+            "back_center": [
+              62,
+              92
+            ],
+            "back_lower": [
+              62,
+              102
+            ],
+            "back_upper": [
+              62,
+              84
+            ],
+            "clothes_body": [
+              65,
+              104
+            ],
+            "forearm_left": [
+              42,
+              101
+            ],
+            "forearm_right": [
+              89,
+              100
+            ],
+            "hand_left": [
+              41,
+              102
+            ],
+            "hand_right": [
+              89,
+              102
+            ],
+            "shoulder_left": [
+              50,
+              98
+            ],
+            "shoulder_right": [
+              82,
+              96
+            ],
+            "upper_arm_left": [
+              46,
+              100
+            ],
+            "upper_arm_right": [
+              87,
+              98
+            ],
+            "chest_center": [
+              62,
+              95
+            ],
+            "chest_left": [
+              54,
+              93
+            ],
+            "face_mask": [
+              62,
+              71
+            ],
+            "feet_pair": [
+              63,
+              111
+            ],
+            "forehead": [
+              62,
+              60
+            ],
+            "head_shell": [
+              62,
+              71
+            ],
+            "hip_left": [
+              37,
+              92
+            ],
+            "hip_right": [
+              87,
+              92
+            ],
+            "trinket_left": [
+              36,
+              104
+            ],
+            "trinket_right": [
+              92,
+              104
+            ],
+            "wrist_left": [
+              41,
+              91
+            ],
+            "wrist_right": [
+              83,
+              91
+            ]
+          }
+        },
+        {
+          "frame_index": 7,
+          "frame_name": "walk_down_08",
+          "protected_regions": {
+            "eyes": [
+              48,
+              64,
+              78,
+              80
+            ],
+            "face": [
+              44,
+              50,
+              80,
+              92
+            ]
+          },
+          "regions": {
+            "back": [
+              38,
+              76,
+              86,
+              109
+            ],
+            "clothes_body": [
+              47,
+              95,
+              80,
+              112
+            ],
+            "forearm_left": [
+              34,
+              97,
+              44,
+              105
+            ],
+            "forearm_right": [
+              81,
+              97,
+              91,
+              105
+            ],
+            "hand_left": [
+              34,
+              99,
+              40,
+              105
+            ],
+            "hand_right": [
+              84,
+              99,
+              90,
+              105
+            ],
+            "shoulder_left": [
+              41,
+              93,
+              55,
+              103
+            ],
+            "shoulder_right": [
+              72,
+              93,
+              86,
+              103
+            ],
+            "upper_arm_left": [
+              37,
+              95,
+              49,
+              105
+            ],
+            "upper_arm_right": [
+              78,
+              95,
+              90,
+              105
+            ],
+            "face": [
+              44,
+              50,
+              80,
+              92
+            ],
+            "feet": [
+              38,
+              104,
+              88,
+              118
+            ],
+            "head": [
+              33,
+              28,
+              91,
+              72
+            ],
+            "hip_left": [
+              28,
+              78,
+              46,
+              106
+            ],
+            "hip_right": [
+              78,
+              78,
+              96,
+              106
+            ],
+            "torso": [
+              45,
+              83,
+              79,
+              108
+            ],
+            "trinket_left": [
+              30,
+              94,
+              42,
+              114
+            ],
+            "trinket_right": [
+              86,
+              94,
+              98,
+              114
+            ],
+            "wrist_left": [
+              34,
+              82,
+              48,
+              100
+            ],
+            "wrist_right": [
+              76,
+              82,
+              90,
+              100
+            ]
+          },
+          "sockets": {
+            "back_center": [
+              62,
+              92
+            ],
+            "back_lower": [
+              62,
+              102
+            ],
+            "back_upper": [
+              62,
+              84
+            ],
+            "clothes_body": [
+              63,
+              104
+            ],
+            "forearm_left": [
+              39,
+              101
+            ],
+            "forearm_right": [
+              86,
+              101
+            ],
+            "hand_left": [
+              37,
+              102
+            ],
+            "hand_right": [
+              87,
+              102
+            ],
+            "shoulder_left": [
+              48,
+              98
+            ],
+            "shoulder_right": [
+              79,
+              98
+            ],
+            "upper_arm_left": [
+              43,
+              100
+            ],
+            "upper_arm_right": [
+              84,
+              100
+            ],
+            "chest_center": [
+              62,
+              95
+            ],
+            "chest_left": [
+              54,
+              93
+            ],
+            "face_mask": [
+              62,
+              71
+            ],
+            "feet_pair": [
+              63,
+              111
+            ],
+            "forehead": [
+              62,
+              60
+            ],
+            "head_shell": [
+              62,
+              71
+            ],
+            "hip_left": [
+              37,
+              92
+            ],
+            "hip_right": [
+              87,
+              92
+            ],
+            "trinket_left": [
+              36,
+              104
+            ],
+            "trinket_right": [
+              92,
+              104
+            ],
+            "wrist_left": [
+              41,
+              91
+            ],
+            "wrist_right": [
+              83,
+              91
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

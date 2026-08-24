@@ -78,6 +78,88 @@ func _initialize() -> void:
 		return
 	if not _require(sprites[1].get_meta(&"appearance_id") == &"test/hat_low", "lower priority hat restored after removal"):
 		return
+
+	var actor := world.player_actor
+	var player := session.run_state.player()
+	player.final_stats[&"dodge"] = 0.0
+	actor.damage_cooldown = 0.0
+	var health_before_hit := player.current_health
+	actor.take_damage(1.0)
+	if not _require(player.current_health < health_before_hit, "non-dodged damage changes health"):
+		return
+	var flash_material := rig.base_sprite.material as ShaderMaterial
+	if not _require(
+		rig.is_hit_flash_active() and flash_material != null,
+		"effective damage flashes the base character"
+	):
+		return
+	for sprite in rig.appearance_sprites():
+		if not _require(sprite.material == flash_material, "effective damage flashes every appearance"):
+			return
+	actor._physics_process(GogoPlayerActor.HIT_FLASH_DURATION)
+	if not _require(
+		not rig.is_hit_flash_active() and rig.base_sprite.material == null,
+		"hit flash clears after its short duration"
+	):
+		return
+
+	var health_before_heal := player.current_health
+	actor.heal(1.0)
+	if not _require(
+		player.current_health > health_before_heal and not rig.is_hit_flash_active(),
+		"healing does not trigger hit flash"
+	):
+		return
+
+	var dodge_seed := _seed_that_dodges(0.6)
+	if not _require(dodge_seed >= 0, "deterministic dodge seed"):
+		return
+	session.rng.seed = dodge_seed
+	player.final_stats[&"dodge"] = 0.6
+	actor.damage_cooldown = 0.0
+	var health_before_dodge := player.current_health
+	actor.take_damage(100.0)
+	if not _require(
+		player.current_health == health_before_dodge and not rig.is_hit_flash_active(),
+		"dodge does not trigger hit flash"
+	):
+		return
+
+	player.final_stats[&"dodge"] = 0.0
+	player.current_health = 1.0
+	actor.damage_cooldown = 0.0
+	var lethal_health_state := {
+		"called": false,
+		"appearance_hidden": false,
+		"flash_cleared": false,
+	}
+	actor.health_changed.connect(func(_current: float, _maximum: float) -> void:
+		lethal_health_state["called"] = true
+		lethal_health_state["appearance_hidden"] = not rig.appearance_layer.visible
+		lethal_health_state["flash_cleared"] = not rig.is_hit_flash_active()
+	)
+	actor.take_damage(100.0)
+	if not _require(
+		session.run_state.ended
+		and not rig.is_hit_flash_active()
+		and rig.base_sprite.visible
+		and rig.base_sprite.material == null
+		and not rig.appearance_layer.visible,
+		"lethal damage clears flash and hides equipment before death handling"
+	):
+		return
+	if not _require(
+		bool(lethal_health_state["called"])
+		and bool(lethal_health_state["appearance_hidden"])
+		and bool(lethal_health_state["flash_cleared"]),
+		"death visual state is applied before health and death observers run"
+	):
+		return
+	if not _require(
+		rig.appearance_sprites().size() == 2 and not rig.appearance_layer.visible,
+		"death-triggered session rebuild keeps appearances hidden"
+	):
+		return
 	print("ITEM_APPEARANCE_V2_SMOKE_OK overlays=%d" % sprites.size())
 	quit(0)
 
@@ -86,6 +168,15 @@ func _texture(color: Color) -> ImageTexture:
 	var image := Image.create(8, 8, false, Image.FORMAT_RGBA8)
 	image.fill(color)
 	return ImageTexture.create_from_image(image)
+
+
+func _seed_that_dodges(chance: float) -> int:
+	for candidate_seed in 1024:
+		var probe := RandomNumberGenerator.new()
+		probe.seed = candidate_seed
+		if probe.randf() < chance:
+			return candidate_seed
+	return -1
 
 
 func _require(condition: bool, label: String) -> bool:

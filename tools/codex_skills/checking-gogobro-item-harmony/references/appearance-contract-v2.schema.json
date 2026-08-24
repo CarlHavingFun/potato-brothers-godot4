@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gogobro.local/schemas/item-appearance-contract-v2.schema.json",
+  "title": "GOGOBRO item appearance contract v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "asset_id",
+    "character_id",
+    "animation_id",
+    "appearance",
+    "pixel_contract",
+    "source_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "gogobro-item-appearance-contract-v2"},
+    "asset_id": {"type": "string", "minLength": 1},
+    "character_id": {"type": "string", "minLength": 1},
+    "animation_id": {"type": "string", "minLength": 1},
+    "appearance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "slot",
+        "socket",
+        "mode",
+        "depth",
+        "render_scale",
+        "rendered_pivot_px",
+        "local_offset_px"
+      ],
+      "properties": {
+        "slot": {"type": "string", "minLength": 1},
+        "socket": {"type": "string", "minLength": 1},
+        "mode": {"enum": ["RIGID", "FRAME_OVERLAY"]},
+        "depth": {"type": "integer"},
+        "render_scale": {
+          "type": "array",
+          "prefixItems": [
+            {"type": "number", "exclusiveMinimum": 0, "maximum": 8},
+            {"type": "number", "exclusiveMinimum": 0, "maximum": 8}
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "rendered_pivot_px": {"$ref": "#/$defs/integer_pair"},
+        "local_offset_px": {"$ref": "#/$defs/integer_pair"}
+      }
+    },
+    "pixel_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "frame_size_px",
+        "source_size_px",
+        "frame_layout",
+        "logical_pixel_scale",
+        "resampling",
+        "alpha",
+        "transparent_rgb",
+        "source_pivot_px"
+      ],
+      "properties": {
+        "frame_size_px": {"$ref": "#/$defs/positive_size"},
+        "source_size_px": {"$ref": "#/$defs/positive_size"},
+        "frame_layout": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["columns", "rows", "frame_count", "frame_order"],
+          "properties": {
+            "columns": {"type": "integer", "minimum": 1},
+            "rows": {"type": "integer", "minimum": 1},
+            "frame_count": {"type": "integer", "minimum": 1},
+            "frame_order": {"enum": ["single", "animation_sequence"]}
+          }
+        },
+        "logical_pixel_scale": {"type": "integer", "minimum": 1},
+        "resampling": {"const": "nearest"},
+        "alpha": {"const": "binary"},
+        "transparent_rgb": {"const": "zero"},
+        "source_pivot_px": {"$ref": "#/$defs/integer_pair"}
+      }
+    },
+    "source_sha256": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "character_rig",
+        "asset_registry",
+        "character_atlas",
+        "appearance"
+      ],
+      "properties": {
+        "character_rig": {"$ref": "#/$defs/sha256"},
+        "asset_registry": {"$ref": "#/$defs/sha256"},
+        "character_atlas": {"$ref": "#/$defs/sha256"},
+        "appearance": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "appearance": {"properties": {"mode": {"const": "RIGID"}}}
+        }
+      },
+      "then": {
+        "properties": {
+          "pixel_contract": {
+            "properties": {
+              "frame_layout": {
+                "const": {
+                  "columns": 1,
+                  "rows": 1,
+                  "frame_count": 1,
+                  "frame_order": "single"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "appearance": {"properties": {"mode": {"const": "FRAME_OVERLAY"}}}
+        }
+      },
+      "then": {
+        "properties": {
+          "appearance": {
+            "properties": {
+              "render_scale": {"const": [1, 1]},
+              "rendered_pivot_px": {"const": [0, 0]}
+            }
+          },
+          "pixel_contract": {
+            "properties": {
+              "source_pivot_px": {"const": [0, 0]},
+              "frame_layout": {
+                "properties": {
+                  "rows": {"const": 1},
+                  "frame_order": {"const": "animation_sequence"}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "integer_pair": {
+      "type": "array",
+      "prefixItems": [{"type": "integer"}, {"type": "integer"}],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "positive_size": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "integer", "minimum": 1},
+        {"type": "integer", "minimum": 1}
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

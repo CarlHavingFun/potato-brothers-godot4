@@ -1,0 +1,37 @@
+{
+  "schema_version": "gogobro-trusted-character-animation-bindings-v1",
+  "characters": {
+    "character.niko:character/niko": {
+      "playable": true,
+      "profile_kind": "humanoid_v1",
+      "registry": {
+        "schema_version": "gogobro-static-assets-v1",
+        "item_count": 30,
+        "mapping_sha256": "8dbf5588ea2e60a58f9a625f5620a420ae4c62f351dae693fce97dc1fa58a21d"
+      },
+      "animations": {
+        "walk_down": {
+          "rig_id": "niko_walk_down_attachment_v2",
+          "rig_sha256": "91a7c516f3d3a4f9dbd7c8e29060d673eb99f378ebd5cd5d5cb915f8d0323ad1",
+          "source_profile": {
+            "relative_path": "tools/assets/rig_profiles/niko_walk_down_v1.json",
+            "schema_version": "gogobro-rig-profile-v1",
+            "sha256": "505fe0c22a36fb92362ddac1da18944d90e9fdf5265ad5a62727ebd80b89731a"
+          },
+          "atlas": {
+            "sha256": "fbc10108d9a665b14dcc376da54bbbf66d89b931ae1189e69fe1c45b31fe579d",
+            "frame_size": [128, 128],
+            "atlas_size": [1024, 128],
+            "grid": {
+              "columns": 8,
+              "rows": 1,
+              "row": 0
+            }
+          },
+          "frame_count": 8,
+          "fps": 8
+        }
+      }
+    }
+  }
+}

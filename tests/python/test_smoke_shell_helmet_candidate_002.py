@@ -4,6 +4,7 @@ import copy
 import hashlib
 import json
 import shutil
+import threading
 from dataclasses import replace
 from pathlib import Path
 
@@ -65,12 +66,37 @@ def tree_hashes(root: Path) -> dict[str, str]:
     }
 
 
+def review_registry_payload() -> dict[str, object]:
+    registry = json.loads(REGISTRY.read_text("utf-8"))
+    helmet = next(
+        unit for unit in registry["units"] if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    helmet["approval_status"] = "review"
+    helmet.pop("approval_history", None)
+    return registry
+
+
+def write_review_registry(path: Path) -> None:
+    path.write_text(
+        json.dumps(
+            review_registry_payload(),
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
 def inputs(output_root: Path) -> BuildInputs:
+    registry = output_root.parent / f".{output_root.name}-review-registry.json"
+    if not registry.exists():
+        write_review_registry(registry)
     return BuildInputs(
         appearance_source=APPEARANCE_SOURCE,
         niko_atlas=NIKO_ATLAS,
         rig_profile=RIG_PROFILE,
-        registry=REGISTRY,
+        registry=registry,
         output_root=output_root,
     )
 
@@ -173,6 +199,97 @@ def register_candidate_metadata(registry_path: Path, candidate_root: Path) -> No
     )
 
 
+def approval_event(timestamp: str = "2026-08-24T12:04:47Z") -> dict[str, str]:
+    return {
+        "candidate_id": "candidate-002",
+        "decision": "approved",
+        "authority": "explicit_user_approval_in_current_task",
+        "approved_at_utc": timestamp,
+    }
+
+
+def approve_registered_candidate(registry_path: Path) -> None:
+    registry = json.loads(registry_path.read_text("utf-8"))
+    helmet = next(
+        unit for unit in registry["units"] if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    helmet["approval_status"] = "approved"
+    helmet["approval_history"] = [approval_event()]
+    registry_path.write_text(
+        json.dumps(registry, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+
+
+def prepare_registered_candidate(
+    tmp_path: Path,
+    *,
+    with_passing_rubric: bool,
+) -> tuple[BuildInputs, Path, Path]:
+    registry_path = tmp_path / "registry.json"
+    write_review_registry(registry_path)
+    output_root = tmp_path / "candidate-002"
+    build_inputs = replace(inputs(output_root), registry=registry_path)
+    build_candidate_002(build_inputs)
+    if with_passing_rubric:
+        rubric = tmp_path / "passing-rubric.json"
+        write_passing_rubric(rubric)
+        build_candidate_002(build_inputs, visual_rubric=rubric)
+    register_candidate_metadata(registry_path, output_root)
+    return build_inputs, registry_path, output_root
+
+
+def generated_candidate_binding(
+    output_root: Path,
+    registry_path: Path,
+) -> dict[str, object]:
+    metadata = json.loads((output_root / "candidate-metadata.json").read_text("utf-8"))
+    registry = json.loads(registry_path.read_text("utf-8"))
+    helmet = next(
+        unit
+        for unit in registry["units"]
+        if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    active = next(
+        candidate
+        for candidate in helmet["candidate_history"]
+        if candidate["candidate_id"] == "candidate-002"
+    )
+    return {
+        "approval_event": approval_event(),
+        "artifacts": [
+            {
+                "bytes": artifact["bytes"],
+                "path": artifact["path"],
+                "role": artifact["role"],
+                "sha256": artifact["sha256"],
+            }
+            for artifact in metadata["artifacts"]
+        ],
+        "asset_id": "smoke_shell_helmet",
+        "candidate_id": "candidate-002",
+        "review_registry_normalized_sha256": (
+            builder._approved_review_registry_digest(registry)
+        ),
+        "review_source_registry_sha256": active["source_sha256"]["registry"],
+    }
+
+
+def pin_generated_candidate_binding(
+    monkeypatch: pytest.MonkeyPatch,
+    output_root: Path,
+    registry_path: Path,
+) -> dict[str, object]:
+    """Simulate the package binding being explicitly updated at approval time."""
+    binding = generated_candidate_binding(output_root, registry_path)
+    monkeypatch.setattr(
+        builder,
+        "_load_approved_binding",
+        lambda: copy.deepcopy(binding),
+    )
+    return binding
+
+
 def test_anchor_builder_binds_the_frozen_candidate_pixel_contract() -> None:
     checker = _load_checker()
     profile = json.loads(RIG_PROFILE.read_text(encoding="utf-8"))
@@ -213,6 +330,8 @@ def test_builder_preserves_sources_and_derives_exact_review_candidate(tmp_path: 
     assert sha256(REGISTRY) == before_registry
     assert result.candidate_id == "candidate-002"
     metadata = json.loads((output_root / "candidate-metadata.json").read_text("utf-8"))
+    assert metadata["registry_snapshot"]["approval_status"] == "review"
+    assert metadata["registry_snapshot"]["approval_history"] == []
     anchors = json.loads(
         (output_root / "appearance/anchors-walk-down.json").read_text("utf-8")
     )
@@ -548,50 +667,635 @@ def test_preserved_rubric_change_after_capture_aborts_before_publish(
     assert not (output_root / ".candidate-transaction.json").exists()
 
 
-def test_registered_review_candidate_can_be_rebuilt_from_exact_current_registry(
+def test_fresh_output_cannot_inherit_registry_approval(
     tmp_path: Path,
 ) -> None:
-    """Catches self-provenance blocking a candidate whose registry mirrors prior output."""
+    """Approval is bound to existing reviewed bytes, never a newly generated output."""
     registry_copy = tmp_path / "registry.json"
     shutil.copyfile(REGISTRY, registry_copy)
     output_root = tmp_path / "candidate-002"
     build_inputs = replace(inputs(output_root), registry=registry_copy)
+    registry_before = registry_copy.read_bytes()
+
+    with pytest.raises(
+        ValueError,
+        match="approved_registry_requires_existing_candidate",
+    ):
+        build_candidate_002(build_inputs)
+
+    assert not output_root.exists()
+    assert registry_copy.read_bytes() == registry_before
+
+
+def test_package_owned_binding_matches_the_user_approved_candidate() -> None:
+    binding = builder._load_approved_binding()
+    candidate_root = Path(
+        "E:/01_gobro/GOGOBRO_ASSET_INBOX/02_static_assets/items/"
+        "smoke_shell_helmet/candidate-002"
+    )
+    metadata = json.loads(
+        (candidate_root / "candidate-metadata.json").read_text("utf-8")
+    )
+    registry = json.loads(REGISTRY.read_text("utf-8"))
+    helmet = next(
+        unit for unit in registry["units"] if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    approval_snapshot = builder._registry_approval_snapshot(helmet)
+
+    assert binding["approval_event"] == approval_event()
+    assert len(binding["artifacts"]) == 12
+    assert builder._approved_binding_matches(
+        registry,
+        candidate_root,
+        metadata,
+        approval_snapshot,
+    )
+    assert binding["review_registry_normalized_sha256"] == (
+        builder._approved_review_registry_digest(registry)
+    )
+    active = next(
+        candidate
+        for candidate in helmet["candidate_history"]
+        if candidate["candidate_id"] == "candidate-002"
+    )
+    assert binding["review_source_registry_sha256"] == active["source_sha256"][
+        "registry"
+    ]
+
+
+def test_real_package_binding_requires_code_reviewed_approval_migration(
+    tmp_path: Path,
+) -> None:
+    """Runtime code never promotes review metadata, even with the real binding."""
+    approved_root = Path(
+        "E:/01_gobro/GOGOBRO_ASSET_INBOX/02_static_assets/items/"
+        "smoke_shell_helmet/candidate-002"
+    )
+    output_root = tmp_path / "candidate-002"
+    shutil.copytree(approved_root, output_root)
+    registry_path = tmp_path / "registry.json"
+    shutil.copyfile(REGISTRY, registry_path)
+
+    metadata_path = output_root / "candidate-metadata.json"
+    metadata = json.loads(metadata_path.read_text("utf-8"))
+    metadata["registry_snapshot"]["approval_status"] = "review"
+    metadata["registry_snapshot"]["approval_history"] = []
+    prior_registry = json.loads(registry_path.read_text("utf-8"))
+    prior_helmet = next(
+        unit
+        for unit in prior_registry["units"]
+        if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    prior_helmet["approval_status"] = "review"
+    prior_helmet.pop("approval_history")
+    metadata["registry_snapshot"]["refresh_guard"] = builder._registry_refresh_guard(
+        prior_registry,
+        metadata,
+    )
+    metadata_path.write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    before = tree_hashes(output_root)
+    build_inputs = BuildInputs(
+        appearance_source=APPEARANCE_SOURCE,
+        niko_atlas=NIKO_ATLAS,
+        rig_profile=RIG_PROFILE,
+        registry=registry_path,
+        output_root=output_root,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="approved_candidate_requires_explicit_package_migration",
+    ):
+        build_candidate_002(build_inputs)
+
+    assert tree_hashes(output_root) == before
+
+
+@pytest.mark.parametrize("mutation", ["armor", "top_level", "source_registry"])
+def test_package_binding_rejects_coordinated_registry_semantic_rewrite(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """A recomputed metadata guard is not approval authority."""
+    approved_root = Path(
+        "E:/01_gobro/GOGOBRO_ASSET_INBOX/02_static_assets/items/"
+        "smoke_shell_helmet/candidate-002"
+    )
+    output_root = tmp_path / "candidate-002"
+    shutil.copytree(approved_root, output_root)
+    registry_path = tmp_path / "registry.json"
+    shutil.copyfile(REGISTRY, registry_path)
+    metadata_path = output_root / "candidate-metadata.json"
+    metadata = json.loads(metadata_path.read_text("utf-8"))
+    registry = json.loads(registry_path.read_text("utf-8"))
+    helmet = next(
+        unit
+        for unit in registry["units"]
+        if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    if mutation == "armor":
+        helmet["effects"][0]["value"] = 999
+        metadata["registry_snapshot"]["effects"] = copy.deepcopy(helmet["effects"])
+    elif mutation == "top_level":
+        registry["forged_transition_field"] = True
+    else:
+        active = next(
+            candidate
+            for candidate in helmet["candidate_history"]
+            if candidate["candidate_id"] == "candidate-002"
+        )
+        active["source_sha256"]["registry"] = "0" * 64
+    registry_path.write_text(
+        json.dumps(registry, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    metadata["source_sha256"]["registry"] = sha256(registry_path)
+    metadata["registry_snapshot"]["refresh_guard"] = builder._registry_refresh_guard(
+        registry,
+        metadata,
+    )
+    metadata_path.write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    approval = builder._registry_approval_snapshot(helmet)
+    assert builder._registered_candidate_matches_metadata(
+        registry_path,
+        output_root,
+        metadata,
+    )
+    assert not builder._approved_binding_matches(
+        registry,
+        output_root,
+        metadata,
+        approval,
+    )
+    before = tree_hashes(output_root)
+    build_inputs = BuildInputs(
+        appearance_source=APPEARANCE_SOURCE,
+        niko_atlas=NIKO_ATLAS,
+        rig_profile=RIG_PROFILE,
+        registry=registry_path,
+        output_root=output_root,
+    )
+
+    with pytest.raises(ValueError, match="approved_candidate_provenance_mismatch"):
+        build_candidate_002(build_inputs)
+
+    assert tree_hashes(output_root) == before
+
+
+@pytest.mark.parametrize("status", ["review", "approved"])
+def test_active_candidate_mismatch_fails_before_generation(
+    tmp_path: Path,
+    status: str,
+) -> None:
+    registry = (
+        review_registry_payload()
+        if status == "review"
+        else json.loads(REGISTRY.read_text("utf-8"))
+    )
+    helmet = next(
+        unit for unit in registry["units"] if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    helmet["active_candidate_id"] = "candidate-001"
+    registry_path = tmp_path / "registry.json"
+    registry_path.write_text(
+        json.dumps(registry, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    output_root = tmp_path / "candidate-002"
+    build_inputs = replace(inputs(output_root), registry=registry_path)
+
+    with pytest.raises(ValueError, match="active_candidate_id_mismatch"):
+        build_candidate_002(build_inputs)
+
+    assert not output_root.exists()
+
+
+def test_registered_review_candidate_cannot_auto_advance_to_user_approval(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Approval is a code-reviewed package update, never a runtime write."""
+    registry_copy = tmp_path / "registry.json"
+    registry = json.loads(REGISTRY.read_text("utf-8"))
+    helmet = next(
+        unit for unit in registry["units"] if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    helmet["approval_status"] = "review"
+    helmet.pop("approval_history")
+    registry_copy.write_text(
+        json.dumps(registry, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    output_root = tmp_path / "candidate-002"
+    build_inputs = replace(inputs(output_root), registry=registry_copy)
     build_candidate_002(build_inputs)
     rubric_input = tmp_path / "passing-rubric.json"
-    rubric_input.write_text(
-        json.dumps(
-            {
-                name: {
-                    "score": 2,
-                    "evidence": f"Concrete reviewed {name} evidence.",
-                }
-                for name in (
-                    "identity",
-                    "function",
-                    "material",
-                    "hierarchy",
-                    "originality",
-                )
-            },
-            indent=2,
-            sort_keys=True,
-        )
+    write_passing_rubric(rubric_input)
+    build_candidate_002(build_inputs, visual_rubric=rubric_input)
+    register_candidate_metadata(registry_copy, output_root)
+    pin_generated_candidate_binding(monkeypatch, output_root, registry_copy)
+    approved_registry = json.loads(registry_copy.read_text("utf-8"))
+    approved_helmet = next(
+        unit
+        for unit in approved_registry["units"]
+        if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    approved_helmet["approval_status"] = "approved"
+    approved_helmet["approval_history"] = [
+        {
+            "candidate_id": "candidate-002",
+            "decision": "approved",
+            "authority": "explicit_user_approval_in_current_task",
+            "approved_at_utc": "2026-08-24T12:04:47Z",
+        }
+    ]
+    registry_copy.write_text(
+        json.dumps(approved_registry, ensure_ascii=False, separators=(",", ":"))
         + "\n",
         encoding="utf-8",
     )
-    build_candidate_002(build_inputs, visual_rubric=rubric_input)
-    register_candidate_metadata(registry_copy, output_root)
-    prebuild_registry_bytes = registry_copy.read_bytes()
-    prebuild_registry_hash = hashlib.sha256(prebuild_registry_bytes).hexdigest()
+    before = tree_hashes(output_root)
+    approved_registry_bytes = registry_copy.read_bytes()
 
-    build_candidate_002(build_inputs)
+    with pytest.raises(
+        ValueError,
+        match="approved_candidate_requires_explicit_package_migration",
+    ):
+        build_candidate_002(build_inputs)
 
-    refreshed = json.loads(
+    assert tree_hashes(output_root) == before
+    assert registry_copy.read_bytes() == approved_registry_bytes
+
+
+def test_review_writer_lock_blocks_concurrent_approval_verification(
+    tmp_path: Path,
+) -> None:
+    build_inputs, registry_path, output_root = prepare_registered_candidate(
+        tmp_path,
+        with_passing_rubric=True,
+    )
+    approve_registered_candidate(registry_path)
+    before = tree_hashes(output_root)
+
+    with builder._exclusive_approval_update_lock(output_root):
+        with pytest.raises(RuntimeError, match="approval_update_locked"):
+            build_candidate_002(build_inputs)
+
+    assert tree_hashes(output_root) == before
+    assert not (output_root / builder.APPROVAL_UPDATE_LOCK).exists()
+
+
+def test_review_publish_lock_is_acquired_before_recovery_and_registry_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A paused review build cannot be recovered or overwritten by approval work."""
+    review_inputs, review_registry, output_root = prepare_registered_candidate(
+        tmp_path,
+        with_passing_rubric=True,
+    )
+    approved_registry = tmp_path / "approved-registry.json"
+    shutil.copyfile(review_registry, approved_registry)
+    approve_registered_candidate(approved_registry)
+    approval_inputs = replace(review_inputs, registry=approved_registry)
+    entered_locked_build = threading.Event()
+    release_locked_build = threading.Event()
+    original_locked_build = builder._build_candidate_002_locked
+    worker_errors: list[BaseException] = []
+
+    def pause_review_build(*args: object, **kwargs: object) -> object:
+        entered_locked_build.set()
+        if not release_locked_build.wait(timeout=5):
+            raise RuntimeError("review_build_release_timeout")
+        return original_locked_build(*args, **kwargs)
+
+    monkeypatch.setattr(builder, "_build_candidate_002_locked", pause_review_build)
+
+    def run_review_build() -> None:
+        try:
+            build_candidate_002(review_inputs)
+        except BaseException as error:
+            worker_errors.append(error)
+
+    worker = threading.Thread(target=run_review_build, daemon=True)
+    worker.start()
+    assert entered_locked_build.wait(timeout=5)
+    try:
+        with pytest.raises(RuntimeError, match="approval_update_locked"):
+            build_candidate_002(approval_inputs)
+    finally:
+        release_locked_build.set()
+        worker.join(timeout=10)
+
+    assert not worker.is_alive()
+    assert worker_errors == []
+    metadata = json.loads(
         (output_root / "candidate-metadata.json").read_text("utf-8")
     )
-    assert refreshed["source_sha256"]["registry"] == prebuild_registry_hash
-    assert registry_copy.read_bytes() == prebuild_registry_bytes
-    assert refreshed["harmony_verdict"] == "harmony_pass"
+    assert metadata["registry_snapshot"]["approval_status"] == "review"
+    assert not (output_root / builder.APPROVAL_UPDATE_LOCK).exists()
+    assert not (output_root / builder.TRANSACTION_MARKER).exists()
+
+
+def test_approval_transition_requires_completed_harmony_and_visual_rubric(
+    tmp_path: Path,
+) -> None:
+    build_inputs, registry_path, output_root = prepare_registered_candidate(
+        tmp_path,
+        with_passing_rubric=False,
+    )
+    approve_registered_candidate(registry_path)
+    before = tree_hashes(output_root)
+
+    with pytest.raises(
+        ValueError,
+        match="approved_candidate_requires_explicit_package_migration",
+    ):
+        build_candidate_002(build_inputs)
+
+    assert tree_hashes(output_root) == before
+
+
+def test_legacy_metadata_without_explicit_review_snapshot_cannot_be_approved(
+    tmp_path: Path,
+) -> None:
+    build_inputs, registry_path, output_root = prepare_registered_candidate(
+        tmp_path,
+        with_passing_rubric=True,
+    )
+    approve_registered_candidate(registry_path)
+    metadata_path = output_root / "candidate-metadata.json"
+    metadata = json.loads(metadata_path.read_text("utf-8"))
+    metadata["registry_snapshot"].pop("approval_status")
+    metadata["registry_snapshot"].pop("approval_history")
+    metadata_path.write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    before = tree_hashes(output_root)
+
+    with pytest.raises(ValueError, match="approved_candidate_provenance_mismatch"):
+        build_candidate_002(build_inputs)
+
+    assert tree_hashes(output_root) == before
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "candidate_id",
+        "decision",
+        "authority",
+        "timestamp",
+        "extra_field",
+        "duplicate_event",
+    ],
+)
+def test_forged_approval_event_never_mutates_existing_candidate(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    build_inputs, registry_path, output_root = prepare_registered_candidate(
+        tmp_path,
+        with_passing_rubric=True,
+    )
+    approve_registered_candidate(registry_path)
+    registry = json.loads(registry_path.read_text("utf-8"))
+    helmet = next(
+        unit for unit in registry["units"] if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    event = helmet["approval_history"][0]
+    if mutation == "candidate_id":
+        event["candidate_id"] = "candidate-001"
+    elif mutation == "decision":
+        event["decision"] = "review"
+    elif mutation == "authority":
+        event["authority"] = "forged_approval"
+    elif mutation == "timestamp":
+        event["approved_at_utc"] = "not-a-timeZ"
+    elif mutation == "extra_field":
+        event["forged"] = True
+    else:
+        helmet["approval_history"].append(copy.deepcopy(event))
+    registry_path.write_text(
+        json.dumps(registry, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    before = tree_hashes(output_root)
+
+    with pytest.raises(ValueError, match="invalid_approval_history"):
+        build_candidate_002(build_inputs)
+
+    assert tree_hashes(output_root) == before
+
+
+def test_valid_approval_history_rewrite_and_rollback_are_rejected(
+    tmp_path: Path,
+) -> None:
+    approved_root = Path(
+        "E:/01_gobro/GOGOBRO_ASSET_INBOX/02_static_assets/items/"
+        "smoke_shell_helmet/candidate-002"
+    )
+    output_root = tmp_path / "candidate-002"
+    shutil.copytree(approved_root, output_root)
+    registry_path = tmp_path / "registry.json"
+    shutil.copyfile(REGISTRY, registry_path)
+    build_inputs = BuildInputs(
+        appearance_source=APPEARANCE_SOURCE,
+        niko_atlas=NIKO_ATLAS,
+        rig_profile=RIG_PROFILE,
+        registry=registry_path,
+        output_root=output_root,
+    )
+
+    rewritten = json.loads(registry_path.read_text("utf-8"))
+    rewritten_helmet = next(
+        unit
+        for unit in rewritten["units"]
+        if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    rewritten_helmet["approval_history"][0]["approved_at_utc"] = (
+        "2026-08-24T12:05:47Z"
+    )
+    registry_path.write_text(
+        json.dumps(rewritten, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    metadata_path = output_root / "candidate-metadata.json"
+    rewritten_metadata = json.loads(metadata_path.read_text("utf-8"))
+    rewritten_metadata["registry_snapshot"]["approval_history"][0][
+        "approved_at_utc"
+    ] = "2026-08-24T12:05:47Z"
+    rewritten_metadata["source_sha256"]["registry"] = sha256(registry_path)
+    normalized = builder._normalized_registered_registry(rewritten)
+    rewritten_metadata["registry_snapshot"]["refresh_guard"] = {
+        "excluded_fields": list(builder.REGISTRY_REFRESH_EXCLUDED_FIELDS),
+        "normalized_sha256": hashlib.sha256(
+            builder._canonical_json_bytes(normalized)
+        ).hexdigest(),
+        "schema_version": builder.REGISTRY_REFRESH_GUARD_SCHEMA,
+    }
+    metadata_path.write_text(
+        json.dumps(rewritten_metadata, ensure_ascii=False, indent=2, sort_keys=True)
+        + "\n",
+        encoding="utf-8",
+    )
+    coordinated_rewrite = tree_hashes(output_root)
+
+    with pytest.raises(ValueError, match="invalid_approval_history"):
+        build_candidate_002(build_inputs)
+    assert tree_hashes(output_root) == coordinated_rewrite
+
+    rollback = copy.deepcopy(rewritten)
+    rollback_helmet = next(
+        unit for unit in rollback["units"] if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    rollback_helmet["approval_status"] = "review"
+    rollback_helmet.pop("approval_history")
+    registry_path.write_text(
+        json.dumps(rollback, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="source_hash_mismatch"):
+        build_candidate_002(build_inputs)
+    assert tree_hashes(output_root) == coordinated_rewrite
+
+
+@pytest.mark.parametrize("mutation", ["artifact_hash", "unrelated_registry_field"])
+def test_approval_transition_rejects_candidate_or_registry_rewrite(
+    tmp_path: Path,
+    mutation: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    build_inputs, registry_path, output_root = prepare_registered_candidate(
+        tmp_path,
+        with_passing_rubric=True,
+    )
+    pin_generated_candidate_binding(monkeypatch, output_root, registry_path)
+    approve_registered_candidate(registry_path)
+    registry = json.loads(registry_path.read_text("utf-8"))
+    helmet = next(
+        unit for unit in registry["units"] if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    if mutation == "artifact_hash":
+        active = next(
+            candidate
+            for candidate in helmet["candidate_history"]
+            if candidate["candidate_id"] == "candidate-002"
+        )
+        active["artifacts"][0]["sha256"] = "0" * 64
+    else:
+        registry["forged_transition_field"] = True
+    registry_path.write_text(
+        json.dumps(registry, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    before = tree_hashes(output_root)
+
+    with pytest.raises(
+        ValueError,
+        match="approved_candidate_requires_explicit_package_migration",
+    ):
+        build_candidate_002(build_inputs)
+
+    assert tree_hashes(output_root) == before
+
+
+def test_package_binding_rejects_coordinated_icon_metadata_and_registry_swap(
+    tmp_path: Path,
+) -> None:
+    approved_root = Path(
+        "E:/01_gobro/GOGOBRO_ASSET_INBOX/02_static_assets/items/"
+        "smoke_shell_helmet/candidate-002"
+    )
+    output_root = tmp_path / "candidate-002"
+    shutil.copytree(approved_root, output_root)
+    registry_path = tmp_path / "registry.json"
+    shutil.copyfile(REGISTRY, registry_path)
+    build_inputs = BuildInputs(
+        appearance_source=APPEARANCE_SOURCE,
+        niko_atlas=NIKO_ATLAS,
+        rig_profile=RIG_PROFILE,
+        registry=registry_path,
+        output_root=output_root,
+    )
+    original_binding = builder._load_approved_binding()
+
+    icon_path = output_root / "derived/icon-256.png"
+    Image.new("RGBA", (256, 256), (255, 0, 255, 255)).save(icon_path)
+    swapped_bytes = icon_path.stat().st_size
+    swapped_sha256 = sha256(icon_path)
+
+    metadata_path = output_root / "candidate-metadata.json"
+    metadata = json.loads(metadata_path.read_text("utf-8"))
+    metadata_icon = next(
+        artifact
+        for artifact in metadata["artifacts"]
+        if artifact["path"] == "derived/icon-256.png"
+    )
+    metadata_icon["bytes"] = swapped_bytes
+    metadata_icon["sha256"] = swapped_sha256
+
+    registry = json.loads(registry_path.read_text("utf-8"))
+    helmet = next(
+        unit for unit in registry["units"] if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    active = next(
+        candidate
+        for candidate in helmet["candidate_history"]
+        if candidate["candidate_id"] == "candidate-002"
+    )
+    registry_icon = next(
+        artifact
+        for artifact in active["artifacts"]
+        if artifact["path"].endswith("/derived/icon-256.png")
+    )
+    registry_icon["bytes"] = swapped_bytes
+    registry_icon["sha256"] = swapped_sha256
+
+    registry_path.write_text(
+        json.dumps(registry, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    metadata["source_sha256"]["registry"] = sha256(registry_path)
+    metadata["registry_snapshot"]["refresh_guard"] = builder._registry_refresh_guard(
+        registry,
+        metadata,
+    )
+    metadata_path.write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    attacked_output = tree_hashes(output_root)
+
+    with pytest.raises(ValueError, match="approved_candidate_provenance_mismatch"):
+        build_candidate_002(build_inputs)
+
+    assert tree_hashes(output_root) == attacked_output
+    assert generated_candidate_binding(output_root, registry_path) != original_binding
+
+
+@pytest.mark.parametrize(
+    "timestamp",
+    ["Z", "not-a-timeZ", "2026-99-99T99:99:99Z", "2026-02-31T12:00:00Z"],
+)
+def test_registry_approval_snapshot_rejects_malformed_timestamp(
+    timestamp: str,
+) -> None:
+    registry = json.loads(REGISTRY.read_text("utf-8"))
+    helmet = next(
+        unit for unit in registry["units"] if unit["asset_id"] == "smoke_shell_helmet"
+    )
+    helmet["approval_history"][0]["approved_at_utc"] = timestamp
+
+    with pytest.raises(ValueError, match="invalid_approval_history"):
+        builder._registry_approval_snapshot(helmet)
 
 
 def test_registered_refresh_rejects_registry_that_does_not_match_metadata(
@@ -599,7 +1303,7 @@ def test_registered_refresh_rejects_registry_that_does_not_match_metadata(
 ) -> None:
     """Catches the self-provenance exception accepting a tampered registry mirror."""
     registry_copy = tmp_path / "registry.json"
-    shutil.copyfile(REGISTRY, registry_copy)
+    write_review_registry(registry_copy)
     output_root = tmp_path / "candidate-002"
     build_inputs = replace(inputs(output_root), registry=registry_copy)
     build_candidate_002(build_inputs)
@@ -637,7 +1341,7 @@ def test_registered_refresh_rejects_non_exact_artifact_byte_types_without_mutati
 ) -> None:
     """Catches Python numeric equality authorizing a malformed registered refresh."""
     registry_copy = tmp_path / "registry.json"
-    shutil.copyfile(REGISTRY, registry_copy)
+    write_review_registry(registry_copy)
     output_root = tmp_path / "candidate-002"
     build_inputs = replace(inputs(output_root), registry=registry_copy)
     build_candidate_002(build_inputs)
@@ -765,7 +1469,7 @@ def test_registered_refresh_rejects_every_non_self_registry_mutation(
 ) -> None:
     """Catches refresh authorization that fingerprints only the active helmet record."""
     registry_copy = tmp_path / "registry.json"
-    shutil.copyfile(REGISTRY, registry_copy)
+    write_review_registry(registry_copy)
     output_root = tmp_path / "candidate-002"
     build_inputs = replace(inputs(output_root), registry=registry_copy)
     build_candidate_002(build_inputs)
@@ -808,7 +1512,7 @@ def test_registry_refresh_guard_is_stable_across_repeated_exact_refreshes(
 ) -> None:
     """Catches a self-referential guard that cannot authorize its next exact generation."""
     registry_copy = tmp_path / "registry.json"
-    shutil.copyfile(REGISTRY, registry_copy)
+    write_review_registry(registry_copy)
     output_root = tmp_path / "candidate-002"
     build_inputs = replace(inputs(output_root), registry=registry_copy)
     build_candidate_002(build_inputs)
@@ -1308,7 +2012,7 @@ def test_builder_detects_registry_change_after_source_provenance_capture(
 ) -> None:
     """Catches metadata recording a registry hash older than the registry it rendered."""
     registry_copy = tmp_path / "registry.json"
-    shutil.copyfile(REGISTRY, registry_copy)
+    write_review_registry(registry_copy)
     build_inputs = replace(
         inputs(tmp_path / "candidate-002"),
         registry=registry_copy,

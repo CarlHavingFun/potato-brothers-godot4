@@ -4,16 +4,49 @@ extends GdUnitTestSuite
 const Registry = preload("res://game/content/assets/static_asset_registry.gd")
 const CANONICAL_PATH := "res://game/content/assets/gogobro_static_assets_v1.json"
 const CANDIDATE_002_METADATA_PATH := "E:/01_gobro/GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/candidate-metadata.json"
+const EXPECTED_ITEM_APPEARANCES := {
+	"ballistic_liner": ["torso", "chest_center", "FRAME_OVERLAY", 40],
+	"silent_step_insoles": ["feet", "feet_pair", "FRAME_OVERLAY", 40],
+	"crosshair_shim": ["wrist", "wrist_right", "FRAME_OVERLAY", 40],
+	"supply_radar": ["side_left", "hip_left", "RIGID", 40],
+	"trade_guard": ["wrist", "wrist_left", "FRAME_OVERLAY", 40],
+	"tactical_med_patch": ["torso", "chest_left", "FRAME_OVERLAY", 40],
+	"smoke_shell_helmet": ["head", "head_shell", "RIGID", 40],
+	"force_buy_runners": ["feet", "feet_pair", "FRAME_OVERLAY", 40],
+	"eco_round_coin_pouch": ["side_right", "hip_right", "RIGID", 40],
+	"rebound_fire_bottle": ["side_left", "hip_left", "RIGID", 40],
+	"entry_fragger_dumbbell": ["back", "back_upper", "RIGID", -10],
+	"corner_lucky_claw": ["trinket_left", "trinket_left", "RIGID", 40],
+	"scorched_defuse_pliers": ["side_right", "hip_right", "RIGID", 40],
+	"save_time_watch": ["wrist", "wrist_right", "FRAME_OVERLAY", 40],
+	"skyline_grenade": ["side_left", "hip_left", "RIGID", 40],
+	"post_match_analysis_desk": ["back", "back_center", "RIGID", -10],
+	"one_missed_shot": ["trinket_right", "trinket_right", "RIGID", 40],
+	"falling_sniper_charm": ["trinket_left", "trinket_left", "RIGID", 40],
+	"boost_step_stool": ["back", "back_lower", "RIGID", -10],
+	"post_match_mic": ["torso", "chest_center", "FRAME_OVERLAY", 40],
+	"halftime_tactics_board": ["back", "back_center", "RIGID", -10],
+	"hand_cannon_ace_coin": ["trinket_right", "trinket_right", "RIGID", 40],
+	"sneaky_site_mask": ["face", "face_mask", "RIGID", 40],
+	"arena_chant_cassette": ["side_right", "hip_right", "RIGID", 40],
+	"mouse_lift_pad": ["back", "back_upper", "RIGID", -10],
+	"lineup_chalk": ["side_left", "hip_left", "RIGID", 40],
+	"site_hold_bandana": ["head", "forehead", "RIGID", 40],
+	"airshot_wing_charm": ["trinket_left", "trinket_left", "RIGID", 40],
+	"clutch_stopwatch": ["wrist", "wrist_left", "FRAME_OVERLAY", 40],
+	"three_beat_magazine": ["side_right", "hip_right", "RIGID", 40],
+}
 
 
-func test_canonical_registry_loads_seventy_five_planned_and_one_review_approval_unit() -> void:
+func test_canonical_registry_loads_seventy_five_planned_and_one_human_approved_unit() -> void:
 	var result := Registry.load_registry(CANONICAL_PATH)
 	var errors := result.get("errors", PackedStringArray()) as PackedStringArray
 	var registry := result.get("registry", {}) as Dictionary
 	assert_array(errors).is_empty()
 	assert_int((registry.get("units", []) as Array).size()).is_equal(76)
 	assert_int(_approval_status_count(registry, "planned")).is_equal(75)
-	assert_int(_approval_status_count(registry, "review")).is_equal(1)
+	assert_int(_approval_status_count(registry, "review")).is_equal(0)
+	assert_int(_approval_status_count(registry, "approved")).is_equal(1)
 	var category_counts := registry.get("category_counts", {}) as Dictionary
 	assert_int(int(category_counts.get("character_creature", 0))).is_equal(5)
 	assert_int(int(category_counts.get("weapon", 0))).is_equal(13)
@@ -22,6 +55,24 @@ func test_canonical_registry_loads_seventy_five_planned_and_one_review_approval_
 	assert_int(int(category_counts.get("upgrade", 0))).is_equal(6)
 	assert_int(int(category_counts.get("world", 0))).is_equal(11)
 	assert_int(int(category_counts.get("ui_brand", 0))).is_equal(10)
+
+
+func test_all_thirty_items_keep_the_fixed_slot_socket_mode_and_depth_mapping() -> void:
+	var registry := _canonical_registry()
+	var actual := {}
+	for unit_variant in registry.get("units", []) as Array:
+		var unit := unit_variant as Dictionary
+		if unit.get("category") != "item":
+			continue
+		var appearance := unit.get("appearance", {}) as Dictionary
+		actual[str(unit.get("asset_id"))] = [
+			appearance.get("slot"),
+			appearance.get("socket"),
+			appearance.get("mode"),
+			int(appearance.get("depth", 0)),
+		]
+	assert_int(actual.size()).is_equal(30)
+	assert_dict(actual).is_equal(EXPECTED_ITEM_APPEARANCES)
 
 
 func test_loader_rejects_each_required_malformed_temporary_fixture() -> void:
@@ -47,6 +98,35 @@ func test_loader_rejects_each_required_malformed_temporary_fixture() -> void:
 	(_first_unit_in_category(missing_item_effects, "item") as Dictionary).erase("effects")
 	_assert_fixture_error(missing_item_effects, "item missing effects")
 
+	var missing_item_socket := _canonical_registry()
+	((_first_unit_in_category(missing_item_socket, "item") as Dictionary)["appearance"] as Dictionary).erase("socket")
+	_assert_fixture_error(missing_item_socket, "item appearance missing socket")
+
+	var mismatched_item_socket := _canonical_registry()
+	((_first_unit_in_category(mismatched_item_socket, "item") as Dictionary)["appearance"] as Dictionary)["socket"] = "head_shell"
+	_assert_fixture_error(mismatched_item_socket, "item appearance slot/socket mismatch")
+
+	var front_layer_back_item := _canonical_registry()
+	var back_item := _unit_by_asset_id(front_layer_back_item, "entry_fragger_dumbbell")
+	(back_item["appearance"] as Dictionary)["depth"] = 40
+	_assert_fixture_error(front_layer_back_item, "back appearance depth must be negative")
+
+	var valid_but_wrong_item_socket := _canonical_registry()
+	var supply_radar := _unit_by_asset_id(valid_but_wrong_item_socket, "supply_radar")
+	(supply_radar["appearance"] as Dictionary)["slot"] = "side_right"
+	(supply_radar["appearance"] as Dictionary)["socket"] = "hip_right"
+	_assert_fixture_error(valid_but_wrong_item_socket, "item appearance violates fixed slot contract")
+
+	var wrong_front_depth := _canonical_registry()
+	var front_item := _unit_by_asset_id(wrong_front_depth, "supply_radar")
+	(front_item["appearance"] as Dictionary)["depth"] = -10
+	_assert_fixture_error(wrong_front_depth, "item appearance violates fixed depth contract")
+
+	var fractional_depth := _canonical_registry()
+	var fractional_item := _unit_by_asset_id(fractional_depth, "supply_radar")
+	(fractional_item["appearance"] as Dictionary)["depth"] = 40.5
+	_assert_fixture_error(fractional_depth, "item appearance depth must be an integer")
+
 	var handwritten_effect_copy := _canonical_registry()
 	var english_copy := ((_first_unit_in_category(handwritten_effect_copy, "item") as Dictionary)["localization"] as Dictionary)["en"] as Dictionary
 	english_copy["description"] = "+3 max health"
@@ -58,6 +138,8 @@ func test_loader_accepts_only_the_canonical_approval_states() -> void:
 		var accepted := _canonical_registry()
 		var accepted_unit := _smoke_shell_helmet(accepted) if approval_status == "review" else (accepted["units"] as Array)[0] as Dictionary
 		accepted_unit["approval_status"] = approval_status
+		if approval_status == "review":
+			accepted_unit.erase("approval_history")
 		_assert_fixture_has_no_errors(accepted)
 	for approval_status in ["draft", "rejected"]:
 		var rejected := _canonical_registry()
@@ -82,13 +164,19 @@ func test_loader_requires_bilingual_descriptions_and_category_flavor_without_num
 	_assert_fixture_error(numeric_flavor, "handwritten numeric effect text")
 
 
-func test_smoke_shell_helmet_review_record_has_exact_copy_and_candidate_provenance() -> void:
+func test_smoke_shell_helmet_approval_preserves_candidate_provenance_and_human_evidence() -> void:
 	var result := Registry.load_registry(CANONICAL_PATH)
 	var helmet := _smoke_shell_helmet(result.get("registry", {}) as Dictionary)
 	var localization := helmet.get("localization", {}) as Dictionary
-	assert_str(str(helmet.get("approval_status", ""))).is_equal("review")
+	assert_str(str(helmet.get("approval_status", ""))).is_equal("approved")
 	assert_str(str(helmet.get("active_candidate_id", ""))).is_equal("candidate-002")
 	assert_int((helmet.get("candidate_history", []) as Array).size()).is_equal(2)
+	assert_array(helmet.get("approval_history", []) as Array).contains_exactly([{
+		"candidate_id": "candidate-002",
+		"decision": "approved",
+		"authority": "explicit_user_approval_in_current_task",
+		"approved_at_utc": "2026-08-24T12:04:47Z",
+	}])
 	assert_str(str(((localization["zh_CN"] as Dictionary).get("description", "")))).is_equal("加固外壳提高防护，但沉重结构会拖慢转点。")
 	assert_str(str(((localization["en"] as Dictionary).get("description", "")))).is_equal("A reinforced shell improves protection, but its weight slows every rotate.")
 	assert_str(str(((localization["zh_CN"] as Dictionary).get("flavor", "")))).is_equal("烟封好了，脚步也顺便封住了。")
@@ -140,7 +228,7 @@ func test_smoke_shell_helmet_review_record_has_exact_copy_and_candidate_provenan
 		["runtime_preview", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/runtime-size-1920x1080.png", 15373, "ae675561f3c102769dd07a6258131ef64d7a7209880578a9380e1eb4f0ce2462", {"format":"PNG","width":1920,"height":1080,"alpha":true}],
 		["harmony_overlay", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-overlay.png", 9789, "d766e2b6de396977f522b13677df105467acf2cebe9ae71ceb46d609eafb59b6", {"format":"PNG","width":1024,"height":128,"alpha":true}],
 		["harmony_actual_size", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-actual-size.png", 20053, "8de757de73a37158c7592e33867510e009cae3dc04dd91d4228202dcc6b4cb60", {"format":"PNG","width":1920,"height":1080,"alpha":true}],
-		["harmony_report", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-report.json", 5859, "fe28994182b1998fc02b4f38bfe5c5d1ce739a06a8a7f0bb87747815e14b6677", {"format":"JSON"}],
+		["harmony_report", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/harmony-report.json", 5859, "4d21dbb98d13b9ca24363af75c4426f3d017e0bed17562d242d77bec29dc82b1", {"format":"JSON"}],
 		["visual_rubric", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/visual-rubric.json", 1094, "617b7c1a95917a9a8f903a54a5be68cc49b6162c9593c8f73960450e5cad0c6b", {"format":"JSON"}],
 		["pixel_qa_report", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/pixel-qa-report.json", 1729, "23be2391ad691928883e9da25af13972b50410cfd90628d2a91a27657dc6c00e", {"format":"JSON"}],
 		["approval_card", "workspace://GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/qa/approval-card.png", 156765, "d231f9c62df796df79b64e22e70a83baf9c57d3a3628b4fac31057ca10961820", {"format":"PNG","width":1800,"height":1200,"alpha":true}],
@@ -172,7 +260,7 @@ func test_smoke_shell_helmet_review_record_has_exact_copy_and_candidate_provenan
 func test_loader_rejects_missing_duplicate_or_unresolved_active_candidate_history() -> void:
 	var missing_active := _canonical_registry()
 	_smoke_shell_helmet(missing_active).erase("active_candidate_id")
-	_assert_fixture_error(missing_active, "review unit missing active_candidate_id")
+	_assert_fixture_error(missing_active, "candidate history unit missing active_candidate_id")
 
 	var duplicate_id := _canonical_registry()
 	var duplicate_history := _smoke_shell_helmet(duplicate_id).get("candidate_history", []) as Array
@@ -340,14 +428,64 @@ func test_loader_rejects_malformed_or_unsafe_candidate_history_artifacts() -> vo
 	_assert_fixture_error(duplicate_role, "duplicate candidate artifact role: icon")
 
 
-func test_loader_keeps_active_harmony_candidate_in_review() -> void:
+func test_loader_keeps_harmony_verdict_mechanical_after_human_approval() -> void:
 	var approved_harmony := _canonical_registry()
 	_candidate_history_entry(_smoke_shell_helmet(approved_harmony), "candidate-002")["harmony_verdict"] = "approved"
 	_assert_fixture_error(approved_harmony, "active candidate harmony_verdict must be harmony_pass or review")
 
-	var approved_unit := _canonical_registry()
-	_smoke_shell_helmet(approved_unit)["approval_status"] = "approved"
-	_assert_fixture_error(approved_unit, "candidate history unit approval_status must remain review")
+
+func test_loader_rejects_forged_or_non_append_only_human_approval_transitions() -> void:
+	var no_prior_review := _canonical_registry()
+	_candidate_history_entry(_smoke_shell_helmet(no_prior_review), "candidate-002")["decision"] = "approved"
+	_assert_fixture_error(no_prior_review, "approved candidate must preserve prior review decision")
+
+	var non_active_candidate := _canonical_registry()
+	_approval_event(_smoke_shell_helmet(non_active_candidate))["candidate_id"] = "candidate-001"
+	_assert_fixture_error(non_active_candidate, "approval decision must target active_candidate_id")
+
+	var multiple_approved := _canonical_registry()
+	var approval_history := _smoke_shell_helmet(multiple_approved).get("approval_history", []) as Array
+	approval_history.append((approval_history[0] as Dictionary).duplicate(true))
+	_assert_fixture_error(multiple_approved, "approved unit must contain exactly one approval decision")
+
+	for forged_status in ["integrated", "qa_passed"]:
+		var forged := _canonical_registry()
+		_smoke_shell_helmet(forged)["approval_status"] = forged_status
+		_assert_fixture_error(forged, "candidate history unit cannot advance directly to approval_status: %s" % forged_status)
+
+	var removed_provenance := _canonical_registry()
+	var stripped_helmet := _smoke_shell_helmet(removed_provenance)
+	stripped_helmet.erase("active_candidate_id")
+	stripped_helmet.erase("candidate_history")
+	stripped_helmet.erase("approval_history")
+	_assert_fixture_error(removed_provenance, "candidate history unit missing candidate_history")
+
+	var review_with_approval := _canonical_registry()
+	_smoke_shell_helmet(review_with_approval)["approval_status"] = "review"
+	_assert_fixture_error(review_with_approval, "review unit must not contain approval_history")
+
+
+func test_loader_requires_exact_human_approval_evidence() -> void:
+	var missing_history := _canonical_registry()
+	_smoke_shell_helmet(missing_history).erase("approval_history")
+	_assert_fixture_error(missing_history, "approved unit missing approval_history")
+
+	var wrong_decision := _canonical_registry()
+	_approval_event(_smoke_shell_helmet(wrong_decision))["decision"] = "integrated"
+	_assert_fixture_error(wrong_decision, "approval decision must be approved")
+
+	var wrong_authority := _canonical_registry()
+	_approval_event(_smoke_shell_helmet(wrong_authority))["authority"] = "assistant_self_approval"
+	_assert_fixture_error(wrong_authority, "approval decision must cite explicit user authority")
+
+	for invalid_timestamp in ["2026-08-24", "2026-08-24T12:04:47+08:00", "2026-99-99T99:99:99Z"]:
+		var malformed_time := _canonical_registry()
+		_approval_event(_smoke_shell_helmet(malformed_time))["approved_at_utc"] = invalid_timestamp
+		_assert_fixture_error(malformed_time, "approval decision approved_at_utc must be RFC 3339 UTC")
+
+	var extra_claim := _canonical_registry()
+	_approval_event(_smoke_shell_helmet(extra_claim))["integrated"] = true
+	_assert_fixture_error(extra_claim, "approval decision fields must match exact schema")
 
 
 func _canonical_registry() -> Dictionary:
@@ -424,6 +562,14 @@ func _first_unit_in_category(registry: Dictionary, category: String) -> Dictiona
 	return {}
 
 
+func _unit_by_asset_id(registry: Dictionary, asset_id: String) -> Dictionary:
+	for unit_variant in registry.get("units", []) as Array:
+		var unit := unit_variant as Dictionary
+		if unit != null and unit.get("asset_id") == asset_id:
+			return unit
+	return {}
+
+
 func _smoke_shell_helmet(registry: Dictionary) -> Dictionary:
 	for unit in registry.get("units", []) as Array:
 		if (unit as Dictionary).get("asset_id", "") == "smoke_shell_helmet":
@@ -436,6 +582,11 @@ func _candidate_history_entry(unit: Dictionary, candidate_id: String) -> Diction
 		if (candidate as Dictionary).get("candidate_id", "") == candidate_id:
 			return candidate as Dictionary
 	return {}
+
+
+func _approval_event(unit: Dictionary) -> Dictionary:
+	var history := unit.get("approval_history", []) as Array
+	return history[0] as Dictionary if not history.is_empty() else {}
 
 
 func _candidate_artifact(candidate: Dictionary, role: String) -> Dictionary:

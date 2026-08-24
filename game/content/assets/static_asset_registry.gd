@@ -13,6 +13,55 @@ const EXPECTED_CATEGORY_COUNTS := {
 	"ui_brand": 10,
 }
 const VALID_STATUSES := ["planned", "generated", "review", "approved", "integrated", "qa_passed"]
+const SOCKET_CONTRACTS := {
+	"back_center": {"slot": "back", "modes": ["RIGID"]},
+	"back_lower": {"slot": "back", "modes": ["RIGID"]},
+	"back_upper": {"slot": "back", "modes": ["RIGID"]},
+	"chest_center": {"slot": "torso", "modes": ["FRAME_OVERLAY"]},
+	"chest_left": {"slot": "torso", "modes": ["FRAME_OVERLAY"]},
+	"face_mask": {"slot": "face", "modes": ["RIGID"]},
+	"feet_pair": {"slot": "feet", "modes": ["FRAME_OVERLAY"]},
+	"forehead": {"slot": "head", "modes": ["RIGID"]},
+	"head_shell": {"slot": "head", "modes": ["RIGID"]},
+	"hip_left": {"slot": "side_left", "modes": ["RIGID"]},
+	"hip_right": {"slot": "side_right", "modes": ["RIGID"]},
+	"trinket_left": {"slot": "trinket_left", "modes": ["RIGID"]},
+	"trinket_right": {"slot": "trinket_right", "modes": ["RIGID"]},
+	"wrist_left": {"slot": "wrist", "modes": ["FRAME_OVERLAY"]},
+	"wrist_right": {"slot": "wrist", "modes": ["FRAME_OVERLAY"]},
+}
+const ITEM_APPEARANCE_CONTRACTS := {
+	"ballistic_liner": {"slot": "torso", "socket": "chest_center", "mode": "FRAME_OVERLAY", "depth": 40},
+	"silent_step_insoles": {"slot": "feet", "socket": "feet_pair", "mode": "FRAME_OVERLAY", "depth": 40},
+	"crosshair_shim": {"slot": "wrist", "socket": "wrist_right", "mode": "FRAME_OVERLAY", "depth": 40},
+	"supply_radar": {"slot": "side_left", "socket": "hip_left", "mode": "RIGID", "depth": 40},
+	"trade_guard": {"slot": "wrist", "socket": "wrist_left", "mode": "FRAME_OVERLAY", "depth": 40},
+	"tactical_med_patch": {"slot": "torso", "socket": "chest_left", "mode": "FRAME_OVERLAY", "depth": 40},
+	"smoke_shell_helmet": {"slot": "head", "socket": "head_shell", "mode": "RIGID", "depth": 40},
+	"force_buy_runners": {"slot": "feet", "socket": "feet_pair", "mode": "FRAME_OVERLAY", "depth": 40},
+	"eco_round_coin_pouch": {"slot": "side_right", "socket": "hip_right", "mode": "RIGID", "depth": 40},
+	"rebound_fire_bottle": {"slot": "side_left", "socket": "hip_left", "mode": "RIGID", "depth": 40},
+	"entry_fragger_dumbbell": {"slot": "back", "socket": "back_upper", "mode": "RIGID", "depth": -10},
+	"corner_lucky_claw": {"slot": "trinket_left", "socket": "trinket_left", "mode": "RIGID", "depth": 40},
+	"scorched_defuse_pliers": {"slot": "side_right", "socket": "hip_right", "mode": "RIGID", "depth": 40},
+	"save_time_watch": {"slot": "wrist", "socket": "wrist_right", "mode": "FRAME_OVERLAY", "depth": 40},
+	"skyline_grenade": {"slot": "side_left", "socket": "hip_left", "mode": "RIGID", "depth": 40},
+	"post_match_analysis_desk": {"slot": "back", "socket": "back_center", "mode": "RIGID", "depth": -10},
+	"one_missed_shot": {"slot": "trinket_right", "socket": "trinket_right", "mode": "RIGID", "depth": 40},
+	"falling_sniper_charm": {"slot": "trinket_left", "socket": "trinket_left", "mode": "RIGID", "depth": 40},
+	"boost_step_stool": {"slot": "back", "socket": "back_lower", "mode": "RIGID", "depth": -10},
+	"post_match_mic": {"slot": "torso", "socket": "chest_center", "mode": "FRAME_OVERLAY", "depth": 40},
+	"halftime_tactics_board": {"slot": "back", "socket": "back_center", "mode": "RIGID", "depth": -10},
+	"hand_cannon_ace_coin": {"slot": "trinket_right", "socket": "trinket_right", "mode": "RIGID", "depth": 40},
+	"sneaky_site_mask": {"slot": "face", "socket": "face_mask", "mode": "RIGID", "depth": 40},
+	"arena_chant_cassette": {"slot": "side_right", "socket": "hip_right", "mode": "RIGID", "depth": 40},
+	"mouse_lift_pad": {"slot": "back", "socket": "back_upper", "mode": "RIGID", "depth": -10},
+	"lineup_chalk": {"slot": "side_left", "socket": "hip_left", "mode": "RIGID", "depth": 40},
+	"site_hold_bandana": {"slot": "head", "socket": "forehead", "mode": "RIGID", "depth": 40},
+	"airshot_wing_charm": {"slot": "trinket_left", "socket": "trinket_left", "mode": "RIGID", "depth": 40},
+	"clutch_stopwatch": {"slot": "wrist", "socket": "wrist_left", "mode": "FRAME_OVERLAY", "depth": 40},
+	"three_beat_magazine": {"slot": "side_right", "socket": "hip_right", "mode": "RIGID", "depth": 40},
+}
 const ACTIVE_ITEM_REQUIRED_ARTIFACT_ROLES := [
 	"icon",
 	"appearance",
@@ -48,8 +97,11 @@ const CANDIDATE_002_SOURCE_KEYS := [
 	"rig_profile",
 ]
 const CANDIDATE_002_SOURCE_TREE_SIZE := 52
-const CANDIDATE_002_SOURCE_FINGERPRINT := "5a5ee371e690fe65206702975f60cbfb8949177d98991d7a95abca6ca45c1541"
+const CANDIDATE_002_SOURCE_FINGERPRINT := "9d211a174a8453cb87df6a61b203800d68ef07236e2637e21da8916cf770e576"
 const OBSOLETE_SINGLE_CANDIDATE_FIELDS := ["candidate_id", "candidate_provenance", "candidate_artifacts"]
+const REQUIRED_CANDIDATE_HISTORY_ASSET_IDS := ["smoke_shell_helmet"]
+const APPROVAL_EVENT_FIELDS := ["candidate_id", "decision", "authority", "approved_at_utc"]
+const EXPLICIT_USER_APPROVAL_AUTHORITY := "explicit_user_approval_in_current_task"
 const CANDIDATE_ARTIFACT_OUTPUT_SPEC_VARIANTS := {
 	"icon": [{"format": "PNG", "width": 256, "height": 256, "alpha": true}],
 	"appearance": [
@@ -241,7 +293,13 @@ static func validate_registry(registry: Dictionary) -> PackedStringArray:
 		var approval_status := str(unit.get("approval_status", ""))
 		if not VALID_STATUSES.has(approval_status):
 			errors.append("unknown approval_status: %s" % approval_status)
-		if approval_status == "review" or unit.has("active_candidate_id") or unit.has("candidate_history"):
+		if (
+			REQUIRED_CANDIDATE_HISTORY_ASSET_IDS.has(asset_id)
+			or approval_status == "review"
+			or unit.has("active_candidate_id")
+			or unit.has("candidate_history")
+			or unit.has("approval_history")
+		):
 			_validate_candidate_history(unit, label, category, errors)
 		_validate_localization(
 			unit.get("localization"),
@@ -304,17 +362,18 @@ static func _contains_numeric_effect_text(description: String) -> bool:
 
 
 static func _validate_candidate_history(unit: Dictionary, label: String, category: String, errors: PackedStringArray) -> void:
-	if str(unit.get("approval_status", "")) != "review":
-		errors.append("candidate history unit approval_status must remain review")
+	var approval_status := str(unit.get("approval_status", ""))
+	if not ["review", "approved"].has(approval_status):
+		errors.append("candidate history unit cannot advance directly to approval_status: %s" % approval_status)
 	for obsolete_field in OBSOLETE_SINGLE_CANDIDATE_FIELDS:
 		if unit.has(obsolete_field):
 			errors.append("candidate history unit must not contain obsolete field: %s" % obsolete_field)
 	var active_candidate_id := str(unit.get("active_candidate_id", "")).strip_edges()
 	if active_candidate_id.is_empty():
-		errors.append("%s review unit missing active_candidate_id" % label)
+		errors.append("%s candidate history unit missing active_candidate_id" % label)
 	var history_variant: Variant = unit.get("candidate_history")
 	if not history_variant is Array or (history_variant as Array).is_empty():
-		errors.append("%s review unit missing candidate_history" % label)
+		errors.append("%s candidate history unit missing candidate_history" % label)
 		return
 	var candidate_ids := {}
 	var review_count := 0
@@ -372,6 +431,70 @@ static func _validate_candidate_history(unit: Dictionary, label: String, categor
 		if str(active_candidate.get("decision", "")) != "review":
 			errors.append("active candidate decision must be review")
 		_validate_active_candidate(active_candidate, category, errors)
+	_validate_approval_history(
+		unit,
+		approval_status,
+		active_candidate_id,
+		active_candidate,
+		candidate_ids,
+		errors
+	)
+
+
+static func _validate_approval_history(
+	unit: Dictionary,
+	approval_status: String,
+	active_candidate_id: String,
+	active_candidate: Dictionary,
+	candidate_ids: Dictionary,
+	errors: PackedStringArray
+) -> void:
+	var approval_history: Variant = unit.get("approval_history")
+	if approval_status == "review":
+		if unit.has("approval_history"):
+			errors.append("review unit must not contain approval_history")
+		return
+	if approval_status != "approved":
+		return
+	if not approval_history is Array:
+		errors.append("approved unit missing approval_history")
+		return
+	if (approval_history as Array).size() != 1:
+		errors.append("approved unit must contain exactly one approval decision")
+		return
+	var event_variant: Variant = (approval_history as Array)[0]
+	if not event_variant is Dictionary:
+		errors.append("approval decision must be an object")
+		return
+	var event := event_variant as Dictionary
+	if event.size() != APPROVAL_EVENT_FIELDS.size():
+		errors.append("approval decision fields must match exact schema")
+	else:
+		for field in APPROVAL_EVENT_FIELDS:
+			if not event.has(field):
+				errors.append("approval decision fields must match exact schema")
+				break
+	if str(event.get("decision", "")) != "approved":
+		errors.append("approval decision must be approved")
+	var approved_candidate_id := str(event.get("candidate_id", "")).strip_edges()
+	if not candidate_ids.has(approved_candidate_id):
+		errors.append("approval decision candidate_id must resolve to preserved candidate history")
+	if approved_candidate_id != active_candidate_id:
+		errors.append("approval decision must target active_candidate_id")
+	if str(active_candidate.get("decision", "")) != "review":
+		errors.append("approved candidate must preserve prior review decision")
+	if str(active_candidate.get("harmony_verdict", "")) != "harmony_pass":
+		errors.append("approved candidate must have harmony_pass evidence")
+	if str(event.get("authority", "")) != EXPLICIT_USER_APPROVAL_AUTHORITY:
+		errors.append("approval decision must cite explicit user authority")
+	if not _is_rfc3339_utc(str(event.get("approved_at_utc", ""))):
+		errors.append("approval decision approved_at_utc must be RFC 3339 UTC")
+
+
+static func _is_rfc3339_utc(value: String) -> bool:
+	var pattern := RegEx.new()
+	pattern.compile("^20[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z$")
+	return pattern.search(value) != null
 
 
 static func _validate_candidate_artifacts(artifacts: Array, candidate_id: String, asset_id: String, errors: PackedStringArray) -> void:
@@ -560,9 +683,36 @@ static func _validate_item(unit: Dictionary, label: String, errors: PackedString
 	if not appearance is Dictionary:
 		errors.append("%s item missing appearance" % label)
 		return
-	for field in ["slot", "mode", "depth"]:
+	for field in ["slot", "socket", "mode", "depth"]:
 		if not (appearance as Dictionary).has(field):
 			errors.append("%s item appearance missing %s" % [label, field])
+	var appearance_data := appearance as Dictionary
+	var socket_id := str(appearance_data.get("socket", ""))
+	var raw_socket_contract: Variant = SOCKET_CONTRACTS.get(socket_id)
+	if not raw_socket_contract is Dictionary:
+		errors.append("%s item appearance has unknown socket" % label)
+		return
+	var socket_contract := raw_socket_contract as Dictionary
+	if appearance_data.get("slot") != socket_contract.get("slot"):
+		errors.append("%s item appearance slot/socket mismatch" % label)
+	if appearance_data.get("mode") not in (socket_contract.get("modes", []) as Array):
+		errors.append("%s item appearance mode/socket mismatch" % label)
+	var depth: Variant = appearance_data.get("depth")
+	if not _is_json_integer(depth):
+		errors.append("%s item appearance depth must be an integer" % label)
+	elif appearance_data.get("slot") == "back" and float(depth) >= 0.0:
+		errors.append("%s back appearance depth must be negative" % label)
+	var asset_id := str(unit.get("asset_id", ""))
+	var raw_item_contract: Variant = ITEM_APPEARANCE_CONTRACTS.get(asset_id)
+	if not raw_item_contract is Dictionary:
+		errors.append("%s item has no fixed appearance contract" % label)
+		return
+	var item_contract := raw_item_contract as Dictionary
+	for field in ["slot", "socket", "mode"]:
+		if appearance_data.get(field) != item_contract.get(field):
+			errors.append("%s item appearance violates fixed %s contract" % [label, field])
+	if _is_json_integer(depth) and int(depth) != int(item_contract.get("depth")):
+		errors.append("%s item appearance violates fixed depth contract" % label)
 
 
 static func _validate_upgrade(unit: Dictionary, label: String, errors: PackedStringArray) -> void:
@@ -574,3 +724,12 @@ static func _validate_upgrade(unit: Dictionary, label: String, errors: PackedStr
 		if not effect_variant is Dictionary or not (effect_variant as Dictionary).get("tiers") is Array or ((effect_variant as Dictionary).get("tiers") as Array).size() != 4:
 			errors.append("%s upgrade effects must define four structured tiers" % label)
 			return
+
+
+static func _is_json_integer(value: Variant) -> bool:
+	# Godot's JSON parser exposes JSON numbers as floats. Reject fractions,
+	# non-finite values and booleans while accepting integral JSON numbers.
+	if typeof(value) not in [TYPE_INT, TYPE_FLOAT]:
+		return false
+	var number := float(value)
+	return is_finite(number) and number == floor(number)

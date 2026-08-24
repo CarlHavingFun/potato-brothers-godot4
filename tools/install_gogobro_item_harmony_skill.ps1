@@ -43,8 +43,18 @@ function Install-GogobroItemHarmonySkill {
     $manifest = @(
         'SKILL.md',
         'agents\openai.yaml',
+        'references\appearance-contract-v2.md',
+        'references\appearance-contract-v2.schema.json',
+        'references\attachment-rig-schema.md',
+        'references\character-item-appearance-matrix-v1.schema.json',
         'references\slot-profiles.md',
-        'scripts\check_item_harmony.py'
+        'references\trusted-bindings-and-appearance-matrix.md',
+        'references\trusted-character-animation-bindings-v1.json',
+        'scripts\check_character_item_appearance_matrix.py',
+        'scripts\check_character_socket_rig.py',
+        'scripts\check_item_harmony.py',
+        'scripts\check_item_socket_harmony_v2.py',
+        'scripts\trusted_character_bindings.py'
     )
 
     foreach ($relativePath in $manifest) {

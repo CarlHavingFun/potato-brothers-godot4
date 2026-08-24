@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gogobro.local/schemas/character-item-appearance-matrix-v1.schema.json",
+  "title": "GOGOBRO character-item appearance coverage matrix v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "entries"],
+  "properties": {
+    "schema_version": {"const": "gogobro-character-item-appearance-matrix-v1"},
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "character_id",
+          "animation_id",
+          "asset_id",
+          "contract",
+          "harmony_report",
+          "rig",
+          "atlas",
+          "appearance",
+          "visual_rubric"
+        ],
+        "properties": {
+          "character_id": {"type": "string", "minLength": 1},
+          "animation_id": {"type": "string", "minLength": 1},
+          "asset_id": {"type": "string", "minLength": 1},
+          "contract": {"$ref": "#/$defs/relative_path"},
+          "harmony_report": {"$ref": "#/$defs/relative_path"},
+          "rig": {"$ref": "#/$defs/relative_path"},
+          "atlas": {"$ref": "#/$defs/relative_path"},
+          "appearance": {"$ref": "#/$defs/relative_path"},
+          "visual_rubric": {"$ref": "#/$defs/relative_path"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$)).+$"
+    }
+  }
+}

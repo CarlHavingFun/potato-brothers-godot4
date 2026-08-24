@@ -1,6 +1,8 @@
 class_name GogoPlayerActor
 extends CharacterBody2D
 
+const HIT_FLASH_DURATION := 0.12
+
 signal died
 signal health_changed(current: float, maximum: float)
 
@@ -12,6 +14,7 @@ var weapon_orbit: Node2D
 var visual_rig: CharacterVisualRig
 var character_visual: AnimatedSprite2D
 var damage_cooldown := 0.0
+var hit_flash_remaining := 0.0
 
 
 func configure(next_session: GameSession, world: CombatWorld) -> void:
@@ -39,6 +42,10 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	damage_cooldown = maxf(damage_cooldown - delta, 0.0)
+	if hit_flash_remaining > 0.0:
+		hit_flash_remaining = maxf(hit_flash_remaining - delta, 0.0)
+		if hit_flash_remaining <= 0.0 and visual_rig != null:
+			visual_rig.set_hit_flash(false)
 	if player_state == null:
 		return
 	var direction := Input.get_vector("move_left", "move_right", "move_up", "move_down")
@@ -61,9 +68,18 @@ func take_damage(amount: float) -> void:
 	var final_damage := maxf(amount * (1.0 - reduction), 1.0)
 	player_state.current_health = maxf(player_state.current_health - final_damage, 0.0)
 	damage_cooldown = 0.35
+	var lethal := player_state.current_health <= 0.0
+	if lethal:
+		hit_flash_remaining = 0.0
+		if visual_rig != null:
+			visual_rig.set_dead(true)
+	else:
+		hit_flash_remaining = HIT_FLASH_DURATION
+		if visual_rig != null:
+			visual_rig.set_hit_flash(true)
 	health_changed.emit(player_state.current_health, player_state.max_health)
 	queue_redraw()
-	if player_state.current_health <= 0.0:
+	if lethal:
 		died.emit()
 
 

@@ -12,8 +12,18 @@ SKILL_SOURCE = REPO_ROOT / "tools" / "codex_skills" / "checking-gogobro-item-har
 MANIFEST = (
     Path("SKILL.md"),
     Path("agents/openai.yaml"),
+    Path("references/appearance-contract-v2.md"),
+    Path("references/appearance-contract-v2.schema.json"),
+    Path("references/attachment-rig-schema.md"),
+    Path("references/character-item-appearance-matrix-v1.schema.json"),
     Path("references/slot-profiles.md"),
+    Path("references/trusted-bindings-and-appearance-matrix.md"),
+    Path("references/trusted-character-animation-bindings-v1.json"),
+    Path("scripts/check_character_item_appearance_matrix.py"),
+    Path("scripts/check_character_socket_rig.py"),
     Path("scripts/check_item_harmony.py"),
+    Path("scripts/check_item_socket_harmony_v2.py"),
+    Path("scripts/trusted_character_bindings.py"),
 )
 
 
