@@ -192,6 +192,12 @@ def test_anchor_builder_binds_the_frozen_candidate_pixel_contract() -> None:
         ],
         "resampling": "nearest",
     }
+    assert [frame["offset"] for frame in anchors["frames"]] == (
+        [[26, 23]] * 4 + [[28, 23]] * 2 + [[26, 23]] * 2
+    )
+    assert anchors["algorithm"]["offset"] == (
+        "round(face_center - nearest-resized aperture_center)"
+    )
 
 
 def test_builder_preserves_sources_and_derives_exact_review_candidate(tmp_path: Path) -> None:
@@ -231,17 +237,17 @@ def test_builder_preserves_sources_and_derives_exact_review_candidate(tmp_path: 
     assert metadata["transform"]["shared_scale"] == 0.625
     assert metadata["metrics"]["rendered_alpha_box"] == [9, 6, 71, 74]
     assert metadata["metrics"]["frame_boxes"] == [
-        [34, 29, 96, 97],
-        [34, 29, 96, 97],
-        [34, 29, 96, 97],
-        [34, 29, 96, 97],
-        [36, 29, 98, 97],
-        [36, 29, 98, 97],
-        [34, 29, 96, 97],
-        [34, 29, 96, 97],
+        [35, 29, 97, 97],
+        [35, 29, 97, 97],
+        [35, 29, 97, 97],
+        [35, 29, 97, 97],
+        [37, 29, 99, 97],
+        [37, 29, 99, 97],
+        [35, 29, 97, 97],
+        [35, 29, 97, 97],
     ]
     assert metadata["metrics"]["outer_width_ratio"] == pytest.approx(62 / 58)
-    assert metadata["metrics"]["max_feature_center_error_px"] == 1
+    assert metadata["metrics"]["max_feature_center_error_px"] == 0
     assert metadata["metrics"]["max_residual_jitter_px"] == 0
     assert metadata["metrics"]["max_protected_occlusion_ratio"] == 0
     assert metadata["metrics"]["source_outline_boundary_pixels"] == {

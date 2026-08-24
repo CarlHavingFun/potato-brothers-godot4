@@ -503,7 +503,8 @@ def _load_images(inputs: BuildInputs) -> tuple[Image.Image, Image.Image]:
 
 
 def _build_anchors(checker: object, appearance: Image.Image, profile: dict[str, object]) -> dict[str, object]:
-    aperture = checker.find_largest_enclosed_transparent_region(appearance)
+    rendered_appearance = _scaled_appearance(appearance)
+    aperture = checker.find_largest_enclosed_transparent_region(rendered_appearance)
     aperture_center = (
         aperture.left + (aperture.right - aperture.left - 1) / 2,
         aperture.top + (aperture.bottom - aperture.top - 1) / 2,
@@ -519,8 +520,8 @@ def _build_anchors(checker: object, appearance: Image.Image, profile: dict[str, 
         if not isinstance(face_center, list) or len(face_center) != 2:
             raise ValueError("invalid_face_center")
         offset = [
-            round(float(face_center[0]) - aperture_center[0] * SHARED_SCALE),
-            round(float(face_center[1]) - aperture_center[1] * SHARED_SCALE),
+            round(float(face_center[0]) - aperture_center[0]),
+            round(float(face_center[1]) - aperture_center[1]),
         ]
         anchor_frames.append(
             {
@@ -533,8 +534,8 @@ def _build_anchors(checker: object, appearance: Image.Image, profile: dict[str, 
         )
     return {
         "algorithm": {
-            "feature": "largest four-connected enclosed transparent aperture",
-            "offset": "round(face_center - aperture_center * shared_scale)",
+            "feature": "largest four-connected enclosed transparent aperture in exact nearest-resized raster",
+            "offset": "round(face_center - nearest-resized aperture_center)",
             "resampling": "nearest for QA composite only; source appearance remains unchanged",
         },
         "asset_id": ASSET_ID,
