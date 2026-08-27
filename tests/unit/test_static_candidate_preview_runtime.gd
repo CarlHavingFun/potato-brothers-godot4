@@ -131,22 +131,39 @@ func test_shipping_service_requires_explicit_development_authorization_before_pr
 	assert_bool(bool(allowed.active_snapshot().call("is_development_preview"))).is_true()
 
 
-func test_brotato_weapon_layout_keeps_six_weapons_evenly_orbiting_niko() -> void:
+func test_brotato_weapon_layout_keeps_one_and_six_weapons_close_and_evenly_spaced() -> void:
 	var actor := auto_free(GogoPlayerActor.new()) as GogoPlayerActor
+	var single := actor.call("weapon_orbit_offset", 0, 1) as Vector2
+	assert_float(single.length()).is_between(28.0, 32.0)
 	var offsets: Array[Vector2] = []
 	for index in 6:
 		offsets.append(actor.call("weapon_orbit_offset", index, 6) as Vector2)
 	var expected := [
-		Vector2(72.0, 0.0),
-		Vector2(36.0, 62.353828),
-		Vector2(-36.0, 62.353828),
-		Vector2(-72.0, 0.0),
-		Vector2(-36.0, -62.353828),
-		Vector2(36.0, -62.353828),
+		Vector2(56.0, 0.0),
+		Vector2(28.0, 48.497423),
+		Vector2(-28.0, 48.497423),
+		Vector2(-56.0, 0.0),
+		Vector2(-28.0, -48.497423),
+		Vector2(28.0, -48.497423),
 	]
 	for index in 6:
 		assert_vector(offsets[index]).is_equal_approx(expected[index], Vector2(0.001, 0.001))
-		assert_float(offsets[index].length()).is_equal_approx(72.0, 0.001)
+		assert_float(offsets[index].length()).is_between(54.0, 60.0)
+
+
+func test_weapon_orbit_radius_derives_from_body_bounds_and_rejects_invalid_slots() -> void:
+	var actor := auto_free(GogoPlayerActor.new()) as GogoPlayerActor
+	assert_bool(actor.has_method("weapon_orbit_radius")).is_true()
+	if not actor.has_method("weapon_orbit_radius"):
+		return
+	var standard_bounds: Array[Vector2i] = [Vector2i(96, 64)]
+	var taller_bounds: Array[Vector2i] = [Vector2i(96, 80)]
+	assert_float(float(actor.call("weapon_orbit_radius", 1, standard_bounds))).is_equal_approx(30.0, 0.001)
+	assert_float(float(actor.call("weapon_orbit_radius", 6, standard_bounds))).is_equal_approx(56.0, 0.001)
+	assert_float(float(actor.call("weapon_orbit_radius", 6, taller_bounds))).is_equal_approx(70.0, 0.001)
+	assert_vector(actor.call("weapon_orbit_offset", -1, 6)).is_equal(Vector2.ZERO)
+	assert_vector(actor.call("weapon_orbit_offset", 6, 6)).is_equal(Vector2.ZERO)
+	assert_vector(actor.call("weapon_orbit_offset", 0, 0)).is_equal(Vector2.ZERO)
 
 
 func test_app_kernel_debug_boot_activates_candidate_overlay_without_shipping_approval() -> void:

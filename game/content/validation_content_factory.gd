@@ -107,7 +107,7 @@ static func _weapon_pack(id: StringName, melee: bool) -> GogoContentPackDefiniti
 	pack.pack_kind = &"weapon"
 	var weapon := GogoWeaponDefinition.new()
 	weapon.content_id = id
-	weapon.display_name = "训练短刃" if melee else "训练发射器"
+	weapon.display_name = "蝴蝶刀" if melee else "Glock-18"
 	weapon.icon_asset_id = &"warmup_shiv" if melee else &"service_pistol"
 	weapon.mode = GogoWeaponDefinition.Mode.MELEE if melee else GogoWeaponDefinition.Mode.RANGED
 	weapon.damage = 7.0 if melee else 4.0

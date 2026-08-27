@@ -1,15 +1,15 @@
 {
   "schema_version": "gogobro-static-preview-content-v1",
   "weapons": [
-    {"asset_id":"community_tapper","name":"社区连点器","damage":3.0,"cooldown":0.18,"range":420.0,"projectile_speed":650.0,"knockback":10.0,"price":12,"profile":"rapid"},
-    {"asset_id":"wood_stock_assault_rifle","name":"木托突击步枪","damage":8.0,"cooldown":0.34,"range":560.0,"projectile_speed":760.0,"knockback":24.0,"price":22,"profile":"rifle"},
-    {"asset_id":"heavy_bolt_sniper","name":"重型栓动狙","damage":30.0,"cooldown":1.45,"range":820.0,"projectile_speed":980.0,"knockback":70.0,"price":34,"profile":"heavy"},
-    {"asset_id":"suppressed_carbine","name":"消音卡宾枪","damage":7.0,"cooldown":0.38,"range":540.0,"projectile_speed":740.0,"knockback":18.0,"price":23,"profile":"suppressed"},
-    {"asset_id":"suppressed_tactical_pistol","name":"消音战术手枪","damage":6.0,"cooldown":0.42,"range":470.0,"projectile_speed":700.0,"knockback":16.0,"price":18,"profile":"suppressed"},
-    {"asset_id":"heavy_hand_cannon","name":"重型手炮","damage":18.0,"cooldown":0.82,"range":520.0,"projectile_speed":800.0,"knockback":52.0,"price":28,"profile":"heavy"},
-    {"asset_id":"box_submachine_gun","name":"盒式冲锋枪","damage":4.0,"cooldown":0.16,"range":390.0,"projectile_speed":650.0,"knockback":9.0,"price":17,"profile":"rapid"},
-    {"asset_id":"compact_submachine_gun","name":"紧凑冲锋枪","damage":4.5,"cooldown":0.15,"range":370.0,"projectile_speed":660.0,"knockback":9.0,"price":18,"profile":"rapid"},
-    {"asset_id":"bullpup_pdw","name":"牛头式 PDW","damage":5.0,"cooldown":0.20,"range":430.0,"projectile_speed":690.0,"knockback":12.0,"price":20,"profile":"rapid"},
-    {"asset_id":"folding_stock_submachine_gun","name":"折叠托冲锋枪","damage":5.5,"cooldown":0.22,"range":450.0,"projectile_speed":700.0,"knockback":14.0,"price":20,"profile":"rifle"}
+    {"asset_id":"community_tapper","name":"爪子刀","mode":"melee","damage":3.0,"cooldown":0.18,"range":420.0,"projectile_speed":650.0,"knockback":10.0,"price":12,"profile":"rapid"},
+    {"asset_id":"wood_stock_assault_rifle","name":"AK-47","mode":"ranged","damage":8.0,"cooldown":0.34,"range":560.0,"projectile_speed":760.0,"knockback":24.0,"price":22,"profile":"rifle","impact_kind":"pierce_exit"},
+    {"asset_id":"heavy_bolt_sniper","name":"AWP","mode":"ranged","damage":30.0,"cooldown":1.45,"range":820.0,"projectile_speed":980.0,"knockback":70.0,"price":34,"profile":"heavy","impact_kind":"critical"},
+    {"asset_id":"suppressed_carbine","name":"M4A1-S","mode":"ranged","damage":7.0,"cooldown":0.38,"range":540.0,"projectile_speed":740.0,"knockback":18.0,"price":23,"profile":"suppressed"},
+    {"asset_id":"suppressed_tactical_pistol","name":"USP-S","mode":"ranged","damage":6.0,"cooldown":0.42,"range":470.0,"projectile_speed":700.0,"knockback":16.0,"price":18,"profile":"suppressed"},
+    {"asset_id":"heavy_hand_cannon","name":"Desert Eagle","mode":"ranged","damage":18.0,"cooldown":0.82,"range":520.0,"projectile_speed":800.0,"knockback":52.0,"price":28,"profile":"heavy"},
+    {"asset_id":"box_submachine_gun","name":"MAC-10","mode":"ranged","damage":4.0,"cooldown":0.16,"range":390.0,"projectile_speed":650.0,"knockback":9.0,"price":17,"profile":"rapid"},
+    {"asset_id":"compact_submachine_gun","name":"MP9","mode":"ranged","damage":4.5,"cooldown":0.15,"range":370.0,"projectile_speed":660.0,"knockback":9.0,"price":18,"profile":"rapid"},
+    {"asset_id":"bullpup_pdw","name":"P90","mode":"ranged","damage":5.0,"cooldown":0.20,"range":430.0,"projectile_speed":690.0,"knockback":12.0,"price":20,"profile":"rapid"},
+    {"asset_id":"folding_stock_submachine_gun","name":"UMP-45","mode":"ranged","damage":5.5,"cooldown":0.22,"range":450.0,"projectile_speed":700.0,"knockback":14.0,"price":20,"profile":"rifle"}
   ]
 }

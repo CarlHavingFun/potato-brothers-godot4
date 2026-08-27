@@ -2,7 +2,11 @@ class_name GogoPlayerActor
 extends CharacterBody2D
 
 const HIT_FLASH_DURATION := 0.12
-const WEAPON_ORBIT_RADIUS := 72.0
+const PLAYER_BODY_RADIUS := 18.0
+const DEFAULT_WEAPON_DISPLAY_BOUNDS := Vector2i(96, 64)
+const SINGLE_SLOT_BOUND_FRACTION := 0.1875
+const MULTI_SLOT_TANGENTIAL_FRACTION := 0.875
+const MAX_WEAPON_SLOTS := 6
 
 signal died
 signal health_changed(current: float, maximum: float)
@@ -32,7 +36,7 @@ func _ready() -> void:
 	add_to_group(&"gogo_player")
 	var shape := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
-	circle.radius = 18.0
+	circle.radius = PLAYER_BODY_RADIUS
 	shape.shape = circle
 	add_child(shape)
 	_build_character_visual_rig()
@@ -109,21 +113,67 @@ func rebuild_appearances() -> void:
 func _build_weapons() -> void:
 	if player_state == null or session == null:
 		return
-	var count := mini(player_state.weapon_ids.size(), 6)
-	for index in count:
+	var instances: Array[GogoWeaponInstance] = []
+	var display_bounds: Array[Vector2i] = []
+	var requested_count := mini(player_state.weapon_ids.size(), MAX_WEAPON_SLOTS)
+	for index in requested_count:
 		var definition := session.content_snapshot.definition(player_state.weapon_ids[index], &"weapon") as GogoWeaponDefinition
+		if definition == null:
+			continue
 		var runtime_stats := weapon_runtime.build_instance(definition, player_state)
+		if runtime_stats == null:
+			continue
 		var instance := GogoWeaponInstance.new()
-		instance.position = weapon_orbit_offset(index, count)
 		weapon_orbit.add_child(instance)
 		instance.configure(runtime_stats, self)
+		instances.append(instance)
+		if instance.weapon_visual_handle != null:
+			display_bounds.append(instance.weapon_visual_handle.display_size_px)
+		else:
+			display_bounds.append(DEFAULT_WEAPON_DISPLAY_BOUNDS)
+	var count := instances.size()
+	var radius := weapon_orbit_radius(count, display_bounds)
+	for index in count:
+		instances[index].position = weapon_orbit_offset(index, count, radius)
 
 
-func weapon_orbit_offset(index: int, count: int) -> Vector2:
-	if count <= 0 or index < 0 or index >= count:
+func weapon_orbit_radius(count: int, weapon_display_bounds: Array[Vector2i] = []) -> float:
+	if count <= 0 or count > MAX_WEAPON_SLOTS:
+		return 0.0
+	var tangential_extent := 0.0
+	for bounds in weapon_display_bounds:
+		if bounds.x <= 0 or bounds.y <= 0:
+			continue
+		tangential_extent = maxf(tangential_extent, float(mini(bounds.x, bounds.y)))
+	if tangential_extent <= 0.0:
+		tangential_extent = float(mini(
+			DEFAULT_WEAPON_DISPLAY_BOUNDS.x,
+			DEFAULT_WEAPON_DISPLAY_BOUNDS.y
+		))
+	var close_radius := PLAYER_BODY_RADIUS + tangential_extent * SINGLE_SLOT_BOUND_FRACTION
+	if count == 1:
+		return close_radius
+	var half_socket_angle := PI / float(count)
+	var socket_sine := sin(half_socket_angle)
+	if socket_sine <= 0.0 or not is_finite(socket_sine):
+		return 0.0
+	var collision_radius := (
+		tangential_extent * MULTI_SLOT_TANGENTIAL_FRACTION
+		/ (2.0 * socket_sine)
+	)
+	return maxf(close_radius, collision_radius)
+
+
+func weapon_orbit_offset(index: int, count: int, radius: float = -1.0) -> Vector2:
+	if count <= 0 or count > MAX_WEAPON_SLOTS or index < 0 or index >= count:
+		return Vector2.ZERO
+	var resolved_radius := radius
+	if not is_finite(resolved_radius) or resolved_radius <= 0.0:
+		resolved_radius = weapon_orbit_radius(count, [DEFAULT_WEAPON_DISPLAY_BOUNDS])
+	if resolved_radius <= 0.0:
 		return Vector2.ZERO
 	var angle := TAU * float(index) / float(count)
-	return Vector2.RIGHT.rotated(angle) * WEAPON_ORBIT_RADIUS
+	return Vector2.RIGHT.rotated(angle) * resolved_radius
 
 
 func _draw() -> void:

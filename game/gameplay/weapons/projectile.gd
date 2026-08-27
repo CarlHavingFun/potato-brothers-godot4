@@ -23,6 +23,9 @@ const VALID_FEEDBACK_PROFILES: Array[StringName] = [&"rapid", &"rifle", &"heavy"
 const VALID_IMPACT_KINDS: Array[StringName] = [&"normal", &"critical", &"pierce_exit", &"explosion"]
 const PROJECTILE_ASSET_ID: StringName = &"projectile_hit_kit"
 const PROJECTILE_ROLE: StringName = &"projectile_sprite"
+const SKYLINE_GRENADE_SOURCE_ITEM_ID: StringName = &"gogobro.preview:item/skyline_grenade"
+const SKYLINE_GRENADE_ASSET_ID: StringName = &"skyline_grenade"
+const TRIGGERED_ITEM_PROJECTILE_SCALE := Vector2(0.5, 0.5)
 const PROJECTILE_SELECTORS := {
 	&"rapid": &"pistol_smg_round",
 	&"rifle": &"rifle_round",
@@ -43,6 +46,7 @@ var projectile_sequence := 0
 var feedback_profile_id: StringName = &"rifle"
 var damage_kind: StringName = &"ballistic"
 var impact_kind: StringName = &"normal"
+var source_item_id: StringName = &""
 var contact_sequence := 0
 var contact_committed := false
 var active := true
@@ -60,7 +64,8 @@ func activate(
 	next_projectile_sequence: int,
 	next_feedback_profile_id: StringName,
 	next_damage_kind: StringName,
-	next_impact_kind: StringName
+	next_impact_kind: StringName,
+	next_source_item_id: StringName = &""
 ) -> void:
 	combat_world = next_world
 	runtime_instance_id = next_runtime_instance_id
@@ -70,6 +75,7 @@ func activate(
 	feedback_profile_id = next_feedback_profile_id if VALID_FEEDBACK_PROFILES.has(next_feedback_profile_id) else &""
 	damage_kind = next_damage_kind
 	impact_kind = next_impact_kind if VALID_IMPACT_KINDS.has(next_impact_kind) else &"normal"
+	source_item_id = next_source_item_id
 	contact_sequence = 0
 	contact_committed = false
 	active = true
@@ -88,29 +94,40 @@ func _build_static_visual() -> void:
 		projectile_sprite.free()
 	projectile_sprite = null
 	projectile_visual_handle = null
+	var asset_id := PROJECTILE_ASSET_ID
+	var role := PROJECTILE_ROLE
 	var selector := selector_for_feedback_profile(feedback_profile_id)
-	if selector.is_empty():
+	var triggered_item_visual := source_item_id == SKYLINE_GRENADE_SOURCE_ITEM_ID
+	if triggered_item_visual:
+		asset_id = SKYLINE_GRENADE_ASSET_ID
+		role = &"icon"
+		selector = &""
+	elif selector.is_empty():
 		return
 	var snapshot := static_asset_snapshot_override
 	if snapshot == null and combat_world != null and combat_world.session != null:
 		snapshot = combat_world.session.static_asset_snapshot
 	if snapshot == null:
 		return
-	projectile_visual_handle = snapshot.resolve_asset(PROJECTILE_ASSET_ID, PROJECTILE_ROLE, selector)
+	projectile_visual_handle = snapshot.resolve_asset(asset_id, role, selector)
 	if projectile_visual_handle == null or projectile_visual_handle.texture == null:
 		projectile_visual_handle = null
 		return
 	projectile_sprite = Sprite2D.new()
-	projectile_sprite.name = "ProjectileSprite"
+	projectile_sprite.name = "TriggeredItemProjectileSprite" if triggered_item_visual else "ProjectileSprite"
 	projectile_sprite.centered = false
 	projectile_sprite.texture = projectile_visual_handle.texture
 	projectile_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	projectile_sprite.position = -Vector2(projectile_visual_handle.pivot_px)
+	if triggered_item_visual:
+		projectile_sprite.scale = TRIGGERED_ITEM_PROJECTILE_SCALE
+	projectile_sprite.position = (
+		-Vector2(projectile_visual_handle.pivot_px) * projectile_sprite.scale
+	)
 	add_child(projectile_sprite)
 	GogoStaticConsumerRegistry.observe_handle(
 		projectile_visual_handle,
 		"res://game/gameplay/weapons/projectile.gd",
-		"ProjectileSprite/%s" % String(projectile_visual_handle.selector)
+		"%s/%s" % [projectile_sprite.name, String(projectile_visual_handle.selector)]
 	)
 	queue_redraw()
 
@@ -322,6 +339,11 @@ func retire() -> void:
 
 func _draw() -> void:
 	if projectile_sprite != null:
+		return
+	if source_item_id == SKYLINE_GRENADE_SOURCE_ITEM_ID:
+		draw_circle(Vector2.ZERO, 8.0, Color("252b2d"))
+		draw_circle(Vector2.ZERO, 5.0, Color("64735b"))
+		draw_line(Vector2(-2.0, -7.0), Vector2(4.0, -11.0), Color("f2a23a"), 3.0, false)
 		return
 	draw_circle(Vector2.ZERO, PROJECTILE_RADIUS, Color("f5d76e"))
 	draw_circle(Vector2.ZERO, 2.0, Color.WHITE)

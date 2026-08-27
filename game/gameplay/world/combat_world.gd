@@ -36,6 +36,7 @@ signal projectile_contact(
 	impact_kind: StringName,
 	contact_sequence: int
 )
+signal projectile_contact_published(event: Dictionary)
 signal enemy_defeated(
 	enemy_instance_id: int,
 	integer_death_global_position: Vector2i,
@@ -54,11 +55,13 @@ var effect_layer: Node2D
 var player_camera: GogoCombatCamera
 var feedback_presenter: GogoCombatFeedbackPresenter
 var static_world_presenter: GogoStaticWorldPresenter
+var weapon_trigger_runtime := GogoWeaponTriggerRuntime.new()
 var arena_rect := Rect2(Vector2.ZERO, Vector2(2048.0, 1536.0))
 var running := false
 var _active_enemies: Array[GogoEnemyActor] = []
 var _active_enemies_by_runtime_id: Dictionary = {}
 var _pending_spawn_enemies: Dictionary = {}
+var _projectile_source_item_ids: Dictionary = {}
 var _wave_transition_committed := false
 
 
@@ -152,8 +155,26 @@ func bind_weapon_feedback(weapon: GogoWeaponInstance) -> void:
 
 
 func bind_projectile_feedback(projectile: GogoProjectile) -> void:
-	if projectile != null and not projectile.projectile_contact.is_connected(_on_projectile_contact):
+	if projectile == null:
+		return
+	if not projectile.source_item_id.is_empty() and projectile.runtime_instance_id > 0:
+		_projectile_source_item_ids[projectile.runtime_instance_id] = projectile.source_item_id
+	if not projectile.projectile_contact.is_connected(_on_projectile_contact):
 		projectile.projectile_contact.connect(_on_projectile_contact)
+
+
+func note_ranged_attack(weapon_definition_id: StringName) -> Array[Dictionary]:
+	if (
+		weapon_definition_id.is_empty()
+		or session == null
+		or session.run_state == null
+		or session.run_state.player() == null
+	):
+		return []
+	return weapon_trigger_runtime.note_ranged_attack(
+		weapon_definition_id,
+		session.run_state.player().item_ids
+	)
 
 
 func bind_enemy_feedback(enemy: GogoEnemyActor) -> void:
@@ -454,6 +475,17 @@ func _on_projectile_contact(
 		impact_kind,
 		contact_sequence
 	)
+	projectile_contact_published.emit({
+		"projectile_instance_id": projectile_instance_id,
+		"target_instance_id": target_instance_id,
+		"feedback_profile_id": feedback_profile_id,
+		"integer_contact_global_position": integer_contact_global_position,
+		"contact_normal": contact_normal,
+		"damage_kind": damage_kind,
+		"impact_kind": impact_kind,
+		"contact_sequence": contact_sequence,
+		"source_item_id": StringName(_projectile_source_item_ids.get(projectile_instance_id, &"")),
+	})
 
 
 func _on_melee_contact(
@@ -518,6 +550,8 @@ func _finish_wave() -> void:
 
 
 func _clear_active_combat_actors() -> void:
+	weapon_trigger_runtime.reset()
+	_projectile_source_item_ids.clear()
 	_active_enemies.clear()
 	_active_enemies_by_runtime_id.clear()
 	if enemy_layer != null:

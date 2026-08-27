@@ -22,6 +22,7 @@ signal melee_contact(
 
 const PROCEDURAL_MUZZLE_LOCAL_POSITION := Vector2(28.0, 0.0)
 const MELEE_CONTACT_RADIUS := 14.0
+const TRIGGERED_PROJECTILE_SPEED_SCALE := 0.5
 const VALID_FEEDBACK_PROFILES: Array[StringName] = [&"rapid", &"rifle", &"heavy", &"suppressed"]
 const RECOIL_PIXELS := {
 	&"rapid": 2,
@@ -199,7 +200,49 @@ func _fire_projectiles(base_direction: Vector2) -> int:
 			actual_projectile_count,
 			shot_sequence
 		)
+		_spawn_item_triggered_projectiles(
+			world,
+			muzzle_position,
+			normalized_direction,
+			shot_sequence
+		)
 	return actual_projectile_count
+
+
+func _spawn_item_triggered_projectiles(
+	world: CombatWorld,
+	muzzle_position: Vector2i,
+	direction: Vector2,
+	current_shot_sequence: int
+) -> void:
+	if world == null or stats == null or stats.definition_id.is_empty():
+		return
+	for event: Dictionary in world.note_ranged_attack(stats.definition_id):
+		var impact_kind := StringName(event.get("impact_kind", &""))
+		var source_item_id := StringName(event.get("source_item_id", &""))
+		var damage_scale := float(event.get("damage_scale", 0.0))
+		if impact_kind != &"explosion" or source_item_id.is_empty() or damage_scale <= 0.0:
+			continue
+		var projectile := GogoProjectile.new()
+		projectile.direction = direction
+		projectile.speed = maxf(stats.projectile_speed * TRIGGERED_PROJECTILE_SPEED_SCALE, 1.0)
+		projectile.damage = stats.damage * damage_scale
+		projectile.knockback = stats.knockback
+		projectile_sequence += 1
+		projectile.activate(
+			world,
+			world.allocate_runtime_instance_id(&"projectile"),
+			runtime_instance_id,
+			current_shot_sequence,
+			projectile_sequence,
+			stats.feedback_profile_id,
+			stats.damage_kind,
+			impact_kind,
+			source_item_id
+		)
+		world.bind_projectile_feedback(projectile)
+		world.projectile_layer.add_child(projectile)
+		projectile.global_position = Vector2(muzzle_position)
 
 
 func integer_muzzle_global_position() -> Vector2:

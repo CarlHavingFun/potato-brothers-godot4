@@ -5,11 +5,13 @@ const BASE_DAMAGE := 10.0
 
 var _impact_kinds: Array[StringName] = []
 var _contact_target_ids: Array[int] = []
+var _published_impacts: Array[Dictionary] = []
 
 
 func before_test() -> void:
 	_impact_kinds.clear()
 	_contact_target_ids.clear()
+	_published_impacts.clear()
 
 
 func test_critical_weapon_contact_deals_double_damage() -> void:
@@ -66,6 +68,82 @@ func test_explosive_weapon_contact_damages_nearby_enemies_only() -> void:
 	assert_bool(projectile.active).is_false()
 
 
+func test_owned_skyline_grenade_naturally_adds_a_slow_explosive_seventh_projectile() -> void:
+	var setup := _weapon_setup(&"normal")
+	var world := setup.world as CombatWorld
+	var weapon := setup.weapon as GogoWeaponInstance
+	world.session.static_asset_snapshot = _skyline_grenade_snapshot()
+	var player := world.session.run_state.player()
+	player.item_ids.append(&"gogobro.preview:item/skyline_grenade")
+	for _index in 7:
+		assert_int(weapon._fire_projectiles(Vector2.RIGHT)).is_equal(1)
+
+	assert_int(world.projectile_layer.get_child_count()).is_equal(8)
+	var grenade: GogoProjectile
+	for child in world.projectile_layer.get_children():
+		var projectile := child as GogoProjectile
+		if projectile != null and projectile.impact_kind == &"explosion":
+			grenade = projectile
+			break
+	assert_object(grenade).is_not_null()
+	if grenade == null:
+		return
+	assert_str(String(grenade.get("source_item_id"))).is_equal(
+		"gogobro.preview:item/skyline_grenade"
+	)
+	assert_float(grenade.damage).is_equal_approx(BASE_DAMAGE, 0.0001)
+	assert_float(grenade.speed).is_equal_approx(500.0, 0.0001)
+	assert_vector(grenade.global_position).is_equal(weapon.integer_muzzle_global_position())
+	var grenade_sprite := grenade.get_node_or_null("TriggeredItemProjectileSprite") as Sprite2D
+	assert_object(grenade_sprite).is_not_null()
+	if grenade_sprite != null:
+		assert_vector(grenade_sprite.scale).is_equal(Vector2(0.5, 0.5))
+		assert_vector(grenade_sprite.position).is_equal(Vector2(-16.0, -16.0))
+	assert_bool(world.has_signal(&"projectile_contact_published")).is_true()
+	if not world.has_signal(&"projectile_contact_published"):
+		return
+	world.connect(&"projectile_contact_published", _on_projectile_contact_published)
+	var enemy := _enemy(world, 70.0)
+	grenade._physics_process(0.2)
+
+	assert_float(enemy.current_health).is_equal(90.0)
+	assert_int(_published_impacts.size()).is_equal(1)
+	assert_str(String(_published_impacts[0].impact_kind)).is_equal("explosion")
+	assert_str(String(_published_impacts[0].source_item_id)).is_equal(
+		"gogobro.preview:item/skyline_grenade"
+	)
+
+
+func test_without_skyline_grenade_seven_normal_attacks_never_add_an_explosion() -> void:
+	var setup := _weapon_setup(&"normal")
+	var world := setup.world as CombatWorld
+	var weapon := setup.weapon as GogoWeaponInstance
+	for _index in 7:
+		assert_int(weapon._fire_projectiles(Vector2.RIGHT)).is_equal(1)
+	assert_int(world.projectile_layer.get_child_count()).is_equal(7)
+	for child in world.projectile_layer.get_children():
+		assert_str(String((child as GogoProjectile).impact_kind)).is_equal("normal")
+
+
+func test_clearing_combat_resets_the_per_weapon_skyline_counter() -> void:
+	var setup := _weapon_setup(&"normal")
+	var world := setup.world as CombatWorld
+	var weapon := setup.weapon as GogoWeaponInstance
+	world.session.run_state.player().item_ids.append(
+		&"gogobro.preview:item/skyline_grenade"
+	)
+	for _index in 6:
+		assert_int(weapon._fire_projectiles(Vector2.RIGHT)).is_equal(1)
+	world.call("_clear_active_combat_actors")
+	await get_tree().process_frame
+	assert_int(world.projectile_layer.get_child_count()).is_equal(0)
+	assert_int(weapon._fire_projectiles(Vector2.RIGHT)).is_equal(1)
+	assert_int(world.projectile_layer.get_child_count()).is_equal(1)
+	assert_str(String((world.projectile_layer.get_child(0) as GogoProjectile).impact_kind)).is_equal(
+		"normal"
+	)
+
+
 func _weapon_setup(impact_kind: StringName) -> Dictionary:
 	var session := GameSession.new()
 	var run_state := GogoRunState.new()
@@ -82,6 +160,7 @@ func _weapon_setup(impact_kind: StringName) -> Dictionary:
 	var weapon := GogoWeaponInstance.new()
 	world.add_child(weapon)
 	var stats := GogoWeaponRuntimeStats.new()
+	stats.definition_id = &"gogobro.preview:weapon/test_rifle"
 	stats.mode = GogoWeaponDefinition.Mode.RANGED
 	stats.attack_range = 520.0
 	stats.cooldown_seconds = 0.42
@@ -135,3 +214,37 @@ func _on_projectile_contact(
 ) -> void:
 	_impact_kinds.append(impact_kind)
 	_contact_target_ids.append(target_instance_id)
+
+
+func _on_projectile_contact_published(event: Dictionary) -> void:
+	_published_impacts.append(event.duplicate(true))
+
+
+func _skyline_grenade_snapshot() -> GogoStaticAssetSnapshot:
+	var image := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	image.fill(Color8(100, 115, 91, 255))
+	var handle := GogoStaticAssetHandle.new()
+	handle._configure({
+		"binding_key": &"skyline_grenade|icon|",
+		"asset_id": &"skyline_grenade",
+		"role": &"icon",
+		"selector": &"",
+		"display_size_px": Vector2i(64, 64),
+		"display_scale": Vector2.ONE,
+		"pivot_px": Vector2i(32, 32),
+		"anchors_px": {},
+		"atlas_rect_px": Rect2i(0, 0, 64, 64),
+	}, ImageTexture.create_from_image(image))
+	var snapshot := GogoStaticAssetSnapshot.new()
+	snapshot._configure(
+		1,
+		"skyline-fixture",
+		1,
+		{&"skyline_grenade": &"ready"},
+		{"skyline_grenade|icon|": handle},
+		{},
+		{},
+		{},
+		[]
+	)
+	return snapshot

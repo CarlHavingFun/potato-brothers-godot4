@@ -6,6 +6,7 @@ const IMPACT_CAPTURE_URI := OUTPUT_DIR_URI + "/impact-1280x720.png"
 const REPORT_URI := OUTPUT_DIR_URI + "/report.json"
 const CAPTURE_SIZE := Vector2i(1280, 720)
 const TARGET_ENEMY_ID: StringName = &"gogobro.core:enemy/drifter"
+const RANGED_ASSET_ID: StringName = &"service_pistol"
 
 var _shot_count := 0
 var _impact_count := 0
@@ -63,16 +64,16 @@ func _initialize() -> void:
 	var weapon := weapon_orbit.get_child(0) as GogoWeaponInstance
 	if not _require(weapon != null and weapon.weapon_visual_handle != null, "runtime weapon visual"):
 		return
-	var ak_handle := static_snapshot.resolve_asset(&"wood_stock_assault_rifle", &"world_sprite")
-	if not _require(ak_handle != null, "AK candidate handle"):
+	var glock_handle := static_snapshot.resolve_asset(RANGED_ASSET_ID, &"world_sprite")
+	if not _require(glock_handle != null, "Glock-18 candidate handle"):
 		return
 	var orbit_offsets: Array[Vector2] = []
 	for index in 6:
 		var orbit_weapon := weapon_orbit.get_child(index) as GogoWeaponInstance
 		if not _require(
 			orbit_weapon != null and orbit_weapon.weapon_visual_handle != null
-			and orbit_weapon.weapon_visual_handle.texture == ak_handle.texture,
-			"AK candidate mapped to orbit weapon %d" % index
+			and orbit_weapon.weapon_visual_handle.texture == glock_handle.texture,
+			"Glock-18 candidate mapped to orbit weapon %d" % index
 		):
 			return
 		var expected_offset := world.player_actor.weapon_orbit_offset(index, 6)
@@ -97,7 +98,7 @@ func _initialize() -> void:
 		)
 		enemy.set_physics_process(false)
 
-	_add_runtime_caption(root_window, "NIKO · AK AUTO FIRE · BROTATO ORBIT PREVIEW")
+	_add_runtime_caption(root_window, "NIKO · GLOCK-18 AUTO FIRE · BROTATO ORBIT PREVIEW")
 	if not await _wait_for_counter(&"shot", 6, 120):
 		_fail("weapon did not auto-fire")
 		return
@@ -119,14 +120,14 @@ func _initialize() -> void:
 		"character_count": kernel.content_snapshot.all(&"character").size(),
 		"character_id": String(ValidationContentFactory.CHARACTER_ID),
 		"weapon_content_id": String(ValidationContentFactory.RANGED_ID),
-		"weapon_asset_id": "wood_stock_assault_rifle",
+		"weapon_asset_id": String(RANGED_ASSET_ID),
 		"weapon_count": weapon_orbit.get_child_count(),
 		"weapon_orbit_offsets": orbit_offsets.map(func(offset: Vector2) -> Array: return [offset.x, offset.y]),
-		"weapon_texture_size": [ak_handle.texture.get_width(), ak_handle.texture.get_height()],
-		"weapon_pivot": [ak_handle.pivot_px.x, ak_handle.pivot_px.y],
+		"weapon_texture_size": [glock_handle.texture.get_width(), glock_handle.texture.get_height()],
+		"weapon_pivot": [glock_handle.pivot_px.x, glock_handle.pivot_px.y],
 		"weapon_muzzle_anchor": [
-			(ak_handle.anchors_px.get("muzzle") as Vector2i).x,
-			(ak_handle.anchors_px.get("muzzle") as Vector2i).y,
+			(glock_handle.anchors_px.get("muzzle") as Vector2i).x,
+			(glock_handle.anchors_px.get("muzzle") as Vector2i).y,
 		],
 		"shots_observed": _shot_count,
 		"impacts_observed": _impact_count,

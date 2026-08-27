@@ -28,7 +28,9 @@ func test_candidate_definitions_use_stable_ids_and_explicit_static_asset_icons()
 	if weapon == null:
 		return
 	assert_str(String(weapon.icon_asset_id)).is_equal("community_tapper")
-	assert_str(weapon.display_name).is_equal("社区连点器")
+	assert_str(weapon.display_name).is_equal("爪子刀")
+	assert_int(weapon.mode).is_equal(GogoWeaponDefinition.Mode.MELEE)
+	assert_str(String(weapon.damage_kind)).is_equal("melee")
 	assert_float(weapon.damage).is_equal_approx(3.0, 0.0001)
 	assert_float(weapon.cooldown_seconds).is_equal_approx(0.18, 0.0001)
 

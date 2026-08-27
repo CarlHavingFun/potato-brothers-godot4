@@ -37,6 +37,10 @@ const EFFECT_MAP := {
 	"range": [&"attack_range_bonus", 1.0],
 	"attack_speed_pct": [&"attack_speed_multiplier", 0.01],
 }
+const WEAPON_MODES := {
+	"melee": GogoWeaponDefinition.Mode.MELEE,
+	"ranged": GogoWeaponDefinition.Mode.RANGED,
+}
 
 
 static func create_pack() -> GogoContentPackDefinition:
@@ -49,7 +53,9 @@ static func create_pack() -> GogoContentPackDefinition:
 		return pack
 	for raw_weapon: Variant in content.get("weapons", []):
 		if raw_weapon is Dictionary:
-			pack.definitions.append(_weapon_definition(raw_weapon as Dictionary))
+			var weapon := _weapon_definition(raw_weapon as Dictionary)
+			if weapon != null:
+				pack.definitions.append(weapon)
 	for raw_unit: Variant in registry.get("units", []):
 		if not raw_unit is Dictionary:
 			continue
@@ -65,11 +71,14 @@ static func create_pack() -> GogoContentPackDefinition:
 
 static func _weapon_definition(raw: Dictionary) -> GogoWeaponDefinition:
 	var asset_id := String(raw.get("asset_id", ""))
+	var mode_name := String(raw.get("mode", ""))
+	if asset_id.is_empty() or not WEAPON_MODES.has(mode_name):
+		return null
 	var definition := GogoWeaponDefinition.new()
 	definition.content_id = StringName("gogobro.preview:weapon/%s" % asset_id)
 	definition.display_name = String(raw.get("name", asset_id))
 	definition.icon_asset_id = StringName(asset_id)
-	definition.mode = GogoWeaponDefinition.Mode.RANGED
+	definition.mode = int(WEAPON_MODES[mode_name]) as GogoWeaponDefinition.Mode
 	definition.damage = float(raw.get("damage", 1.0))
 	definition.cooldown_seconds = float(raw.get("cooldown", 1.0))
 	definition.attack_range = float(raw.get("range", 120.0))
@@ -77,9 +86,12 @@ static func _weapon_definition(raw: Dictionary) -> GogoWeaponDefinition:
 	definition.knockback = float(raw.get("knockback", 0.0))
 	definition.price = int(raw.get("price", 12))
 	definition.feedback_profile_id = StringName(String(raw.get("profile", "rifle")))
-	definition.damage_kind = &"ballistic"
-	definition.impact_kind = &"normal"
-	definition.tags = [&"ranged", &"candidate_preview"]
+	definition.damage_kind = &"melee" if definition.mode == GogoWeaponDefinition.Mode.MELEE else &"ballistic"
+	definition.impact_kind = StringName(String(raw.get("impact_kind", "normal")))
+	definition.tags = [
+		&"melee" if definition.mode == GogoWeaponDefinition.Mode.MELEE else &"ranged",
+		&"candidate_preview",
+	]
 	return definition
 
 
