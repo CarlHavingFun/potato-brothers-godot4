@@ -56,12 +56,7 @@ Task 3: honest visible UI consumers and compact menu actions implemented in `8be
 - Real Diagnostic, Difficulty, and Combat HUD nodes now own `nine_slice_panel`, `zone_thumbnail`, and `combat_hud_shell` observations; the final route evidence is 70/70 and every required record has `visible_texture: true`.
 - Main Menu actions are centered at 320×104 with two 320×48 buttons and an 8px gap; the repaired HUD underlay remains two restrained top accents, not a viewport frame.
 - Initial review found one Important false-positive: a caller could self-report any broadly allowed scene/node provenance. The fix now derives provenance from the exact rendered CanvasItem ancestry and rejects wrong-but-allowed scene or node claims without recording them.
-- Fresh re-review of commits `8be3501` + `830357b` is **APPROVED** with no remaining Critical or Important findings. Independent focused and windowed route reruns passed; full regression remains 343/343.
-
-Task 3: visible UI consumers and compact main-menu actions implemented from reviewed Task 2 HEAD and recorded in `.superpowers/sdd/2026-08-28-final-asset-visual-remediation/task-3-report.md`.
-
-- Real Diagnostic, Difficulty, and Combat HUD routes provide the three required visible-texture observations; ordinary and synthetic records cannot cover them. Final real report remains 70/70.
-- Main-menu actions are two centered 320x48 authored buttons; one Diagnostic principal panel, one unframed 256x144 zone thumbnail, and the preview-only low-border HUD underlay pass actual-size review.
+- Fresh re-review of commits `8be3501` + `830357b` is **APPROVED** with no remaining Critical or Important findings. Independent focused and windowed route reruns passed; the regression count at that review point was 343/343.
 
 ## Task 3 whole-branch review closure
 
@@ -69,5 +64,11 @@ Task 3: visible UI consumers and compact main-menu actions implemented from revi
 - Visible TextureRect observations now validate claimed integer display scale against the actual stretch-mode render size. The real zone route records 256x144 at 1x; the HUD records 320x180 at 4x; nine-patch 1x semantics remain explicit.
 - Diagnostic details now scroll inside the existing single 736x352 principal panel while its Return button remains pinned and reachable. A 28-detail isolated 1280x720 capture confirms containment and visible scrolling.
 - Final focused tests pass 7/7 scale/provenance, 10/10 menu/Diagnostic, 9/9 candidate manifest, 3/3 HUD, and 9/9 preview runtime. Fresh windowed routes pass menu 1/1 and combat 2/2; coverage is 70/70. Full regression passes 346/346 across 35 suites.
-- Initial scoped review found one Important provenance false-positive. A strict RED/GREEN fix now binds the claimed scene to an actual ancestor script resource path and the claimed node to the real named ancestor suffix ending at the CanvasItem; wrong allowed-scene and wrong allowed-node claims both fail without creating records.
-- Post-fix focused suites and windowed real-route integration pass; final full Godot regression is 343/343 across 35 suites with zero errors, failures, flaky cases, skips, or orphans.
+
+## Final Task 4 closure
+
+- Capture-only enemies use deterministic asymmetric safe positions rather than an equal-angle ring; the independent visual re-review approved the result.
+- Arena boundary decoration uses 13 sparse landmarks instead of 44 near-continuous instances. Native tests read the actual `MultiMesh` transforms and lock all four edge coordinates, spans, monotonic ordering, and non-overlap gaps; a zero-step mutation produces 24 failures.
+- Final production/test HEAD `4c3c8caa815aa2be144a0a0da21b926c8ae9e3d9` passes 347/347 tests across 35/35 suites with zero errors, failures, flaky cases, skips, or orphans. Native 1280x720 routes pass 3/3 and coverage is 70/70 with zero rejected or unresolved observations. A later documentation-only commit records this closure.
+- Independent whole-branch review and final visual audit are **APPROVED** with no Critical or Important findings. Product-level Brotato/GOGOBRO visual and structural comparison is **ACCEPT**.
+- The Brotato Steam bootstrap bypassed the attempted isolated user-data environment and wrote real Brotato settings/save/run files. The game was closed and no automatic restore was attempted because no backup can be proven to be the exact immediate pre-playtest state; see `final-two-game-playtest.md`.
