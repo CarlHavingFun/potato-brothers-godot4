@@ -5,10 +5,10 @@ const MANIFEST_PATH := "res://game/content/assets/gogobro_static_candidate_previ
 const ASSET_ROOT := "res://game/assets/gogobro_static_preview/"
 const SCHEMA_VERSION := "gogobro-static-candidate-preview-v1"
 const MANIFEST_KIND := "development_candidate_preview_only"
-const EXPECTED_UNIT_COUNT := 63
+const EXPECTED_UNIT_COUNT := 65
 const EXPECTED_CATEGORY_COUNTS := {
 	"weapon": 12,
-	"item": 28,
+	"item": 30,
 	"upgrade": 5,
 	"world": 11,
 	"ui_brand": 7,
@@ -68,7 +68,7 @@ func build_overlay(
 		return null
 	var units := units_variant as Array
 	if units.size() != EXPECTED_UNIT_COUNT:
-		_issue(&"candidate_preview_count_mismatch", "Candidate preview must contain exactly 63 units.")
+		_issue(&"candidate_preview_count_mismatch", "Candidate preview must contain exactly 65 units.")
 
 	var states: Dictionary = {}
 	var handles: Dictionary = {}

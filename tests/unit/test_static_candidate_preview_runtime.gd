@@ -64,6 +64,52 @@ func test_development_overlay_adds_independent_butterfly_glock_and_ak_candidates
 	assert_object(preview.resolve_asset(&"service_carbine", &"world_sprite")).is_null()
 
 
+func test_development_overlay_replaces_liner_and_helmet_inventory_icons_only() -> void:
+	var service_script := load(PREVIEW_SERVICE_PATH) as Script
+	assert_object(service_script).is_not_null()
+	if service_script == null:
+		return
+	var shipping := GogoStaticAssetRuntimeService.new()
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	assert_int(shipping.stage(content)).is_equal(OK)
+	assert_int(shipping.activate_staged(&"", null)).is_equal(OK)
+	var shipping_snapshot := shipping.active_snapshot()
+	var shipping_liner := shipping_snapshot.resolve_asset(&"ballistic_liner", &"icon")
+	var shipping_helmet := shipping_snapshot.resolve_asset(&"smoke_shell_helmet", &"icon")
+	assert_object(shipping_liner).is_not_null()
+	assert_object(shipping_helmet).is_not_null()
+
+	var preview := service_script.new().call(
+		"build_overlay", shipping_snapshot, content
+	) as GogoStaticAssetSnapshot
+	assert_object(preview).is_not_null()
+	if preview == null or shipping_liner == null or shipping_helmet == null:
+		return
+	var preview_liner := preview.resolve_asset(&"ballistic_liner", &"icon")
+	var preview_helmet := preview.resolve_asset(&"smoke_shell_helmet", &"icon")
+	assert_object(preview_liner).is_not_null()
+	assert_object(preview_helmet).is_not_null()
+	if preview_liner == null or preview_helmet == null:
+		return
+	assert_object(preview_liner.texture).is_not_same(shipping_liner.texture)
+	assert_object(preview_helmet.texture).is_not_same(shipping_helmet.texture)
+	assert_str(
+		FileAccess.get_sha256(
+			"res://game/assets/gogobro_static/items/ballistic_liner.png"
+		).to_upper()
+	).is_equal("1F673E6190EB9627B58EAA287FD22DB0F113AE80A6C7529C63EC4FBCDF89BC9F")
+	assert_str(
+		FileAccess.get_sha256(
+			"res://game/assets/gogobro_static/items/smoke_shell_helmet.png"
+		).to_upper()
+	).is_equal("9D5D9A14D005BE3B08C5CC90F2E11C74EF214BAC8C921452F34DC1DAEF509BEC")
+	assert_str(
+		FileAccess.get_sha256(
+			"res://game/assets/gogobro_static/items/smoke_shell_helmet_appearance.png"
+		).to_upper()
+	).is_equal("B3932E02DAF39074CE048E45B6FAE7F221019D87AD7B3A4327FA40714F25874A")
+
+
 func test_development_overlay_resolves_complete_ui_and_decor_variant_sets() -> void:
 	var preview := _development_preview()
 	assert_object(preview).is_not_null()

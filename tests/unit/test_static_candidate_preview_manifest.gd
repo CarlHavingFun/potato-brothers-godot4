@@ -5,7 +5,7 @@ const MANIFEST_PATH := "res://game/content/assets/gogobro_static_candidate_previ
 const REDRAW_CONTRACT_PATH := "res://tools/assets/gogobro_static_redraw_contract_v1.json"
 const EXPECTED_COUNTS := {
 	"weapon": 12,
-	"item": 28,
+	"item": 30,
 	"upgrade": 5,
 	"world": 11,
 	"ui_brand": 7,
@@ -50,13 +50,13 @@ func test_candidate_preview_covers_all_planned_noncharacter_units_without_shippi
 	assert_bool(bool(manifest.get("enabled_in_shipping", true))).is_false()
 	assert_bool(bool(manifest.get("human_approval_implied", true))).is_false()
 	assert_bool(bool(manifest.get("character_assets_included", true))).is_false()
-	assert_int(int(manifest.get("expected_unit_count", -1))).is_equal(63)
+	assert_int(int(manifest.get("expected_unit_count", -1))).is_equal(65)
 	var category_counts := manifest.get("category_counts", {}) as Dictionary
 	for category: String in EXPECTED_COUNTS:
 		assert_int(int(category_counts.get(category, -1))).is_equal(int(EXPECTED_COUNTS[category]))
 
 	var units := manifest.get("units", []) as Array
-	assert_int(units.size()).is_equal(63)
+	assert_int(units.size()).is_equal(65)
 	var ids: Dictionary = {}
 	for unit_variant: Variant in units:
 		assert_bool(unit_variant is Dictionary).is_true()

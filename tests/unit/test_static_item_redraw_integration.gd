@@ -13,6 +13,10 @@ const SHIPPING_MANIFEST_WITHOUT_REGISTRY_HASH_SHA256 := (
 )
 
 const REDRAW_BINDINGS := {
+	"ballistic_liner": {
+		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/ballistic_liner/candidate-002/curated/ballistic_liner-icon-64x64.png",
+		"sha256": "CB30303A895ED72F7344C848918DF1384B519D8EA289710D068FE36D478E2FB9",
+	},
 	"one_missed_shot": {
 		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/one_missed_shot/candidate-002/curated/one_missed_shot-icon-64x64.png",
 		"sha256": "2DDC9347849ED2DDC2B68551EC4CFEA199ECC4D2F5ED60A31CF736197A3CE2C6",
@@ -62,8 +66,8 @@ const REDRAW_BINDINGS := {
 		"sha256": "E133B0F308274F32B9B39A2F5A820B1172CD0F9B6CCD67465ACCE9460F7A062F",
 	},
 	"trade_guard": {
-		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/trade_guard/candidate-002/curated/trade-guard-forearm-bracer-64x64.png",
-		"sha256": "1C74781A0E9A599A3B140150D590B147A7A11CFE18D8C0B8949B68EE3654164D",
+		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/trade_guard/candidate-003/curated/trade-guard-open-bracer-64x64.png",
+		"sha256": "E598C863FBFCA693F2DAFD87CAB6D606F039328B83341FBD3DDB9D407D4B43AF",
 	},
 	"post_match_mic": {
 		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/post_match_mic/candidate-002/curated/post-match-mic-broadcast-64x64.png",
@@ -73,60 +77,64 @@ const REDRAW_BINDINGS := {
 		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/mouse_lift_pad/candidate-002/curated/mouse-lift-pad-raised-64x64.png",
 		"sha256": "D85DAC7C2CD6B199C8C98493E93AF33EEB5B2EBC6843698C5427B64EF6098AEC",
 	},
+	"tactical_med_patch": {
+		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/tactical_med_patch/candidate-003/curated/tactical_med_patch-icon-64x64.png",
+		"sha256": "B4B156E01D7BBC962E850556D3DE6243ABA0DD2A5610E4B80515D321337F90AA",
+	},
+	"smoke_shell_helmet": {
+		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-004/curated/smoke_shell_helmet-icon-64x64.png",
+		"sha256": "B277DBA77D0C92A81938911FCF5415FDB3D8A0DC1F0256E24995ADAA38DD3006",
+	},
+	"force_buy_runners": {
+		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/force_buy_runners/candidate-002/curated/force_buy_runners-icon-64x64.png",
+		"sha256": "F59A6E6B6AD452078B0679AB24FD0EAC0D18D25B5038226A2751421D275FE403",
+	},
+	"eco_round_coin_pouch": {
+		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/eco_round_coin_pouch/candidate-002/curated/eco_round_coin_pouch-icon-64x64.png",
+		"sha256": "1D8B20433D661999EF707CEDE2C11A6C3BC2633C7A94A17FB2D4C0E57280B65E",
+	},
+	"entry_fragger_dumbbell": {
+		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/entry_fragger_dumbbell/candidate-002/curated/entry_fragger_dumbbell-icon-64x64.png",
+		"sha256": "25A4A184CF8E87FB3729E25A4E62D5B29C7C74E7A03648F68161294DE3156769",
+	},
+	"save_time_watch": {
+		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/save_time_watch/candidate-002/curated/save_time_watch-icon-64x64.png",
+		"sha256": "9182EAF1DE72DA9330D3CCA2DCCC89A77E92FF31B7E5F87F3B3E48D1FDEB3B5D",
+	},
+	"hand_cannon_ace_coin": {
+		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/hand_cannon_ace_coin/candidate-002/curated/hand-cannon-ace-coin-64x64.png",
+		"sha256": "08B4BDAC9087D7BA147BCCCB41AF14B501A10937ADFE30560819E6B442868040",
+	},
+	"arena_chant_cassette": {
+		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/arena_chant_cassette/candidate-002/curated/arena-chant-cassette-64x64.png",
+		"sha256": "0F17BC99B79D927EC10BA4117EB2ABF2C8009C72797089C0A8665AD9434E9B78",
+	},
+	"site_hold_bandana": {
+		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/site_hold_bandana/candidate-002/curated/site-hold-bandana-64x64.png",
+		"sha256": "F3FE51E77A32A8CA931F3C5F714359B776905E8031F536E0605BD96B4FE75368",
+	},
+	"clutch_stopwatch": {
+		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/clutch_stopwatch/candidate-002/curated/clutch-stopwatch-64x64.png",
+		"sha256": "6249013AE28FF6C19E8A618E026DA05BA85F93FE194444CE8284AF3E6105445D",
+	},
+	"three_beat_magazine": {
+		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/three_beat_magazine/candidate-002/curated/three-beat-magazine-64x64.png",
+		"sha256": "FAD6426E87A9BF3D8C03B6F1274794403E20861ED25BD025150C06E084009527",
+	},
 }
 
 const PRESERVED_PREVIEW_BINDINGS := {
-	"tactical_med_patch": {
-		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/tactical_med_patch/candidate-001/curated/tactical_med_patch-icon-64x64.png",
-		"sha256": "5BAC617E57E91C1AEB6877C573642B78651074890DDC00302C290C3A850B735C",
-	},
-	"force_buy_runners": {
-		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/force_buy_runners/candidate-001/curated/force_buy_runners-icon-64x64.png",
-		"sha256": "B72526173C9BE2557EC271680A098C3A59A9FE1C31D591D3B397B277E274C345",
-	},
-	"eco_round_coin_pouch": {
-		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/eco_round_coin_pouch/candidate-001/curated/eco_round_coin_pouch-icon-64x64.png",
-		"sha256": "FEB04CB0BD91708DFBA36BE26298CDC316ED6AFC47575CD5E37E4E5E60F7E37E",
-	},
 	"rebound_fire_bottle": {
 		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/rebound_fire_bottle/candidate-001/curated/rebound-fire-bottle-icon-64.png",
 		"sha256": "27882A8B4B921D5B5E946704059E97974A7700F3B586C8695D0F8526C0ABD75D",
-	},
-	"entry_fragger_dumbbell": {
-		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/entry_fragger_dumbbell/candidate-001/curated/entry_fragger_dumbbell-icon-64x64.png",
-		"sha256": "A3441C6508A998F66CA6C7288E033FC4CA946396B75109E88B75C62C8EE52CCA",
 	},
 	"scorched_defuse_pliers": {
 		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/scorched_defuse_pliers/candidate-001/curated/scorched_defuse_pliers-icon-64x64.png",
 		"sha256": "8AC0697B27311729E280121B63A7EDC828C56CDBEB85223946A5254ABEE8E023",
 	},
-	"save_time_watch": {
-		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/save_time_watch/candidate-001/curated/save_time_watch-icon-64x64.png",
-		"sha256": "87C80D919F26B6047BCB4C642E821A78E918FF50FB6203020EF52F21B96D7823",
-	},
 	"boost_step_stool": {
 		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/boost_step_stool/candidate-001/curated/boost_step_stool-icon-64x64.png",
 		"sha256": "97DCA7B6837F0C6D6E92D25CD87F0ED07075BDB46F1E46CB995360A17858C909",
-	},
-	"hand_cannon_ace_coin": {
-		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/hand_cannon_ace_coin/candidate-001/curated/hand_cannon_ace_coin-icon-64x64.png",
-		"sha256": "8EF413EE25F9BE80B42A1D355388732B807EC23301832EE36451A80002C7E2A5",
-	},
-	"arena_chant_cassette": {
-		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/arena_chant_cassette/candidate-001/curated/arena_chant_cassette-icon-64x64.png",
-		"sha256": "B49C26B644B151A8004EC9D7B8DF035FDB76F64F23A0527718D935783606D376",
-	},
-	"site_hold_bandana": {
-		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/site_hold_bandana/candidate-001/curated/site_hold_bandana-icon-64x64.png",
-		"sha256": "38A54944CD6FAF5C0C60C8FD0B91FC248EF207B0C15FB2756839B01A0C8C6DAD",
-	},
-	"clutch_stopwatch": {
-		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/clutch_stopwatch/candidate-001/curated/clutch_stopwatch-icon-64x64.png",
-		"sha256": "8BBCA91C6291611FF832720EA53BA6D18E90BCF5059AD384B12473646E96D58B",
-	},
-	"three_beat_magazine": {
-		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/three_beat_magazine/candidate-001/curated/three_beat_magazine-icon-64x64.png",
-		"sha256": "31A8E87DCB16F900BDFAA1DF89A7C720EB3FFF34A3020A6101ED51C0432F9D1B",
 	},
 }
 
@@ -145,8 +153,8 @@ const SHIPPING_BINDINGS := {
 func test_item_manifest_installs_exact_redraws_and_preserves_all_accepted_bytes() -> void:
 	var manifest := _read_json(CANDIDATE_MANIFEST_PATH)
 	var units := manifest.get("units", []) as Array
-	assert_int(int(manifest.get("expected_unit_count", -1))).is_equal(63)
-	assert_int(units.size()).is_equal(63)
+	assert_int(int(manifest.get("expected_unit_count", -1))).is_equal(65)
+	assert_int(units.size()).is_equal(65)
 	var weapon_count := 0
 	var item_units: Dictionary = {}
 	for unit_value: Variant in units:
@@ -157,7 +165,7 @@ func test_item_manifest_installs_exact_redraws_and_preserves_all_accepted_bytes(
 			"item":
 				item_units[String(unit.get("asset_id", ""))] = unit
 	assert_int(weapon_count).is_equal(12)
-	assert_int(item_units.size()).is_equal(28)
+	assert_int(item_units.size()).is_equal(30)
 
 	for asset_id: String in REDRAW_BINDINGS:
 		_assert_preview_binding(item_units, asset_id, REDRAW_BINDINGS[asset_id] as Dictionary)
@@ -166,7 +174,7 @@ func test_item_manifest_installs_exact_redraws_and_preserves_all_accepted_bytes(
 			item_units, asset_id, PRESERVED_PREVIEW_BINDINGS[asset_id] as Dictionary
 		)
 	for asset_id: String in SHIPPING_BINDINGS:
-		assert_bool(item_units.has(asset_id)).is_false()
+		assert_bool(item_units.has(asset_id)).is_true()
 		var binding := SHIPPING_BINDINGS[asset_id] as Dictionary
 		assert_str(FileAccess.get_sha256(String(binding.path)).to_upper()).is_equal(
 			String(binding.sha256)
