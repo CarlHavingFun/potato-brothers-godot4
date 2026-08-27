@@ -89,6 +89,8 @@ func _sync_visual() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if combat_world != null and combat_world.is_combat_simulation_frozen():
+		return
 	if defeated_once or target == null or not is_instance_valid(target) or definition == null:
 		return
 	touch_cooldown = maxf(touch_cooldown - delta, 0.0)

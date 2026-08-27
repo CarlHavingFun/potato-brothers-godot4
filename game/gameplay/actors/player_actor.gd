@@ -14,6 +14,13 @@ const MAX_WEAPON_SLOTS := 6
 
 signal died
 signal health_changed(current: float, maximum: float)
+signal damage_taken(
+	integer_global_position: Vector2i,
+	final_damage: float,
+	remaining_health: float,
+	lethal: bool,
+	sequence: int
+)
 
 var player_state: SessionPlayerState
 var session: GameSession
@@ -25,6 +32,7 @@ var character_visual: AnimatedSprite2D
 var damage_cooldown := 0.0
 var hit_flash_remaining := 0.0
 var _weapon_orbit_extent := NIKO_VISUAL_RADIUS
+var _damage_taken_sequence := 0
 
 
 func configure(next_session: GameSession, world: CombatWorld) -> void:
@@ -53,6 +61,8 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if combat_world != null and combat_world.is_combat_simulation_frozen():
+		return
 	damage_cooldown = maxf(damage_cooldown - delta, 0.0)
 	if hit_flash_remaining > 0.0:
 		hit_flash_remaining = maxf(hit_flash_remaining - delta, 0.0)
@@ -81,6 +91,7 @@ func take_damage(amount: float) -> void:
 	var armor := float(player_state.final_stats.get(&"armor", 0.0))
 	var reduction := armor / (armor + 15.0) if armor >= 0.0 else armor / (15.0 - armor)
 	var final_damage := maxf(amount * (1.0 - reduction), 1.0)
+	var health_before := player_state.current_health
 	player_state.current_health = maxf(player_state.current_health - final_damage, 0.0)
 	damage_cooldown = 0.35
 	var lethal := player_state.current_health <= 0.0
@@ -93,6 +104,15 @@ func take_damage(amount: float) -> void:
 		if visual_rig != null:
 			visual_rig.set_hit_flash(true)
 	health_changed.emit(player_state.current_health, player_state.max_health)
+	if player_state.current_health < health_before:
+		_damage_taken_sequence += 1
+		damage_taken.emit(
+			Vector2i(global_position.round()),
+			final_damage,
+			player_state.current_health,
+			lethal,
+			_damage_taken_sequence
+		)
 	queue_redraw()
 	if lethal:
 		died.emit()

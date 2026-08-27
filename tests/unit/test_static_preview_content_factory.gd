@@ -33,6 +33,12 @@ func test_candidate_definitions_use_stable_ids_and_explicit_static_asset_icons()
 	assert_str(String(weapon.damage_kind)).is_equal("melee")
 	assert_float(weapon.damage).is_equal_approx(3.0, 0.0001)
 	assert_float(weapon.cooldown_seconds).is_equal_approx(0.18, 0.0001)
+	assert_float(weapon.attack_range).is_equal_approx(88.0, 0.0001)
+	assert_float(weapon.projectile_speed).is_equal_approx(650.0, 0.0001)
+	assert_float(weapon.knockback).is_equal_approx(10.0, 0.0001)
+	assert_int(weapon.price).is_equal(12)
+	assert_str(String(weapon.feedback_profile_id)).is_equal("rapid")
+	assert_str(String(weapon.impact_kind)).is_equal("normal")
 
 
 func test_literal_registry_percent_effect_is_translated_once_into_runtime_modifier() -> void:

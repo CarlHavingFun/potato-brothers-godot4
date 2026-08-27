@@ -70,6 +70,7 @@ func test_runtime_ids_are_session_monotonic_across_world_replacement() -> void:
 
 
 func test_canonical_signal_signatures_are_exact_v2() -> void:
+	var player := auto_free(GogoPlayerActor.new()) as GogoPlayerActor
 	var weapon := auto_free(GogoWeaponInstance.new()) as GogoWeaponInstance
 	var projectile := auto_free(GogoProjectile.new()) as GogoProjectile
 	var enemy := auto_free(GogoEnemyActor.new()) as GogoEnemyActor
@@ -82,6 +83,12 @@ func test_canonical_signal_signatures_are_exact_v2() -> void:
 	])
 	assert_array(_signal_argument_types(world, &"hud_changed")).is_equal([
 		TYPE_FLOAT, TYPE_FLOAT, TYPE_FLOAT, TYPE_INT,
+	])
+	assert_array(_signal_argument_names(player, &"damage_taken")).is_equal([
+		"integer_global_position", "final_damage", "remaining_health", "lethal", "sequence",
+	])
+	assert_array(_signal_argument_types(player, &"damage_taken")).is_equal([
+		TYPE_VECTOR2I, TYPE_FLOAT, TYPE_FLOAT, TYPE_BOOL, TYPE_INT,
 	])
 
 	assert_array(_signal_argument_names(weapon, &"weapon_fired")).is_equal([
@@ -121,6 +128,70 @@ func test_canonical_signal_signatures_are_exact_v2() -> void:
 		assert_str(String(projectile.impact_kind)).is_equal(String(kind))
 	projectile.activate(null, 0, 0, 0, 0, &"rifle", &"ballistic", &"conflicting_flags")
 	assert_str(String(projectile.impact_kind)).is_equal("normal")
+
+
+func test_player_damage_taken_is_real_monotonic_and_preserves_lethal_ordering() -> void:
+	var session := _session_with_player()
+	var state := session.run_state.player()
+	state.current_health = 10.0
+	state.max_health = 10.0
+	state.final_stats[&"armor"] = 0.0
+	state.final_stats[&"dodge"] = 0.0
+	var player := auto_free(GogoPlayerActor.new()) as GogoPlayerActor
+	player.configure(session, null)
+	add_child(player)
+	player.global_position = Vector2(10.4, 20.6)
+	assert_bool(player.has_signal(&"damage_taken")).is_true()
+	if not player.has_signal(&"damage_taken"):
+		return
+	var trace: Array[String] = []
+	var payloads: Array[Dictionary] = []
+	player.health_changed.connect(func(_current: float, _maximum: float) -> void:
+		trace.append("health_changed")
+	)
+	player.connect(&"damage_taken", func(
+		integer_global_position: Vector2i,
+		final_damage: float,
+		remaining_health: float,
+		lethal: bool,
+		sequence: int
+	) -> void:
+		trace.append("damage_taken")
+		payloads.append({
+			&"position": integer_global_position,
+			&"damage": final_damage,
+			&"remaining": remaining_health,
+			&"lethal": lethal,
+			&"sequence": sequence,
+		})
+	)
+	player.died.connect(func() -> void:
+		trace.append("died")
+	)
+
+	player.take_damage(3.0)
+	assert_array(trace).is_equal(["health_changed", "damage_taken"])
+	assert_int(payloads.size()).is_equal(1)
+	assert_bool(payloads[0].position == Vector2i(10, 21)).is_true()
+	assert_float(float(payloads[0].damage)).is_equal_approx(3.0, 0.0001)
+	assert_float(float(payloads[0].remaining)).is_equal_approx(7.0, 0.0001)
+	assert_bool(bool(payloads[0].lethal)).is_false()
+	assert_int(int(payloads[0].sequence)).is_equal(1)
+
+	player.take_damage(3.0)
+	assert_int(payloads.size()).is_equal(1)
+	assert_array(trace).is_equal(["health_changed", "damage_taken"])
+
+	player.damage_cooldown = 0.0
+	player.take_damage(100.0)
+	assert_array(trace).is_equal([
+		"health_changed", "damage_taken", "health_changed", "damage_taken", "died",
+	])
+	assert_int(payloads.size()).is_equal(2)
+	assert_float(float(payloads[1].damage)).is_equal_approx(100.0, 0.0001)
+	assert_float(float(payloads[1].remaining)).is_equal(0.0)
+	assert_bool(bool(payloads[1].lethal)).is_true()
+	assert_int(int(payloads[1].sequence)).is_equal(2)
 
 
 func test_world_publishes_typed_and_legacy_hud_values_from_one_immutable_snapshot() -> void:

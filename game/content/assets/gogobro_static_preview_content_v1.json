@@ -1,7 +1,7 @@
 {
   "schema_version": "gogobro-static-preview-content-v1",
   "weapons": [
-    {"asset_id":"community_tapper","name":"爪子刀","mode":"melee","damage":3.0,"cooldown":0.18,"range":420.0,"projectile_speed":650.0,"knockback":10.0,"price":12,"profile":"rapid"},
+    {"asset_id":"community_tapper","name":"爪子刀","mode":"melee","damage":3.0,"cooldown":0.18,"range":88.0,"projectile_speed":650.0,"knockback":10.0,"price":12,"profile":"rapid"},
     {"asset_id":"wood_stock_assault_rifle","name":"AK-47","mode":"ranged","damage":8.0,"cooldown":0.34,"range":560.0,"projectile_speed":760.0,"knockback":24.0,"price":22,"profile":"rifle","impact_kind":"pierce_exit"},
     {"asset_id":"heavy_bolt_sniper","name":"AWP","mode":"ranged","damage":30.0,"cooldown":1.45,"range":820.0,"projectile_speed":980.0,"knockback":70.0,"price":34,"profile":"heavy","impact_kind":"critical"},
     {"asset_id":"suppressed_carbine","name":"M4A1-S","mode":"ranged","damage":7.0,"cooldown":0.38,"range":540.0,"projectile_speed":740.0,"knockback":18.0,"price":23,"profile":"suppressed"},

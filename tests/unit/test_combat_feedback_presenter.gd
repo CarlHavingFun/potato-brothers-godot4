@@ -163,6 +163,40 @@ func test_camera_impulse_uses_integer_offset_without_moving_follow_anchor() -> v
 	assert_vector(camera.global_position).is_equal(base_position)
 
 
+func test_player_hit_uses_one_bounded_red_white_slot_and_camera_impulse() -> void:
+	var target := auto_free(Node2D.new()) as Node2D
+	var camera := auto_free(GogoCombatCamera.new()) as GogoCombatCamera
+	var presenter := auto_free(GogoCombatFeedbackPresenter.new()) as GogoCombatFeedbackPresenter
+	add_child(target)
+	add_child(camera)
+	target.global_position = Vector2(5000.0, 5000.0)
+	camera.configure(target, Rect2(Vector2.ZERO, Vector2(10000.0, 10000.0)))
+	presenter.configure(camera)
+	assert_bool(presenter.has_method(&"present_player_damage_taken")).is_true()
+	if not presenter.has_method(&"present_player_damage_taken"):
+		return
+
+	assert_bool(bool(presenter.call(
+		&"present_player_damage_taken", Vector2i(5000, 5000), 3.0, 17.0, false, 1
+	))).is_true()
+	assert_bool(bool(presenter.call(
+		&"present_player_damage_taken", Vector2i(5000, 5000), 3.0, 17.0, false, 1
+	))).is_false()
+	assert_int(presenter.allocated_slot_count()).is_equal(GogoCombatFeedbackPresenter.MAX_ACTIVE_EFFECTS)
+	assert_int(presenter.active_effect_count()).is_equal(1)
+	assert_int(presenter.active_effect_count(&"player_hit")).is_equal(1)
+	var effect := presenter.debug_effects()[0]
+	assert_str(String(effect.event_key)).is_equal("player_hit/1")
+	assert_float(float(effect.duration)).is_equal_approx(0.10, 0.0001)
+	assert_int(int(effect.size_px)).is_equal(36)
+	var colors: Array[Color] = []
+	for primitive: Dictionary in presenter.debug_block_primitives():
+		colors.append(primitive.color as Color)
+	assert_bool(colors.has(Color("fff4f2"))).is_true()
+	assert_bool(colors.has(Color("ef3340"))).is_true()
+	assert_float(camera.visual_impulse_magnitude()).is_greater(0.0)
+
+
 func test_world_bindings_present_lethal_trace_once_without_changing_gameplay() -> void:
 	var session := _session_with_player()
 	var world := auto_free(CombatWorld.new()) as CombatWorld
@@ -242,6 +276,7 @@ func test_nonlethal_melee_contact_is_presented_before_damage_without_fake_muzzle
 	assert_int(session.committed_reward_count()).is_equal(0)
 	assert_int(world.feedback_presenter.active_effect_count(&"muzzle")).is_equal(0)
 	assert_int(world.feedback_presenter.active_effect_count(&"contact")).is_equal(1)
+	assert_float(world.debug_local_hitstop_remaining()).is_equal_approx(0.035, 0.0001)
 	var effect := world.feedback_presenter.debug_effects()[0]
 	assert_str(String(effect.event_key)).is_equal("melee/1/2/1")
 	assert_bool(effect.position == Vector2i(46, 0)).is_true()

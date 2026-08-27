@@ -96,6 +96,7 @@ func _initialize() -> void:
 	for sprite in rig.appearance_sprites():
 		if not _require(sprite.material == flash_material, "effective damage flashes every appearance"):
 			return
+	world._physics_process(CombatWorld.PLAYER_DAMAGE_HITSTOP_SECONDS)
 	actor._physics_process(GogoPlayerActor.HIT_FLASH_DURATION)
 	if not _require(
 		not rig.is_hit_flash_active() and rig.base_sprite.material == null,

@@ -63,6 +63,12 @@ func configure(next_stats: GogoWeaponRuntimeStats, next_owner: GogoPlayerActor) 
 
 
 func _physics_process(delta: float) -> void:
+	if (
+		owner_actor != null
+		and owner_actor.combat_world != null
+		and owner_actor.combat_world.is_combat_simulation_frozen()
+	):
+		return
 	if stats == null or owner_actor == null:
 		return
 	cooldown_remaining -= delta

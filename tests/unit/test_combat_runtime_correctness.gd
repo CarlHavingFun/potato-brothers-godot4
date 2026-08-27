@@ -270,6 +270,190 @@ func test_combat_hud_snapshot_reports_only_materials_gained_in_the_current_wave(
 	assert_int(player.materials).is_equal(88)
 
 
+func test_local_hitstop_clamps_coalesces_and_preserves_global_time_state() -> void:
+	var world := auto_free(CombatWorld.new()) as CombatWorld
+	add_child(world)
+	assert_bool(world.has_method(&"request_local_hitstop")).is_true()
+	assert_bool(world.has_method(&"is_combat_simulation_frozen")).is_true()
+	assert_bool(world.has_method(&"debug_local_hitstop_remaining")).is_true()
+	if (
+		not world.has_method(&"request_local_hitstop")
+		or not world.has_method(&"is_combat_simulation_frozen")
+		or not world.has_method(&"debug_local_hitstop_remaining")
+	):
+		return
+	var original_time_scale := Engine.time_scale
+	var original_paused := get_tree().paused
+
+	world.call(&"request_local_hitstop", 0.001)
+	assert_float(float(world.call(&"debug_local_hitstop_remaining"))).is_equal_approx(0.025, 0.0001)
+	world.call(&"request_local_hitstop", 0.040)
+	world.call(&"request_local_hitstop", 0.030)
+	assert_float(float(world.call(&"debug_local_hitstop_remaining"))).is_equal_approx(0.040, 0.0001)
+	world.call(&"request_local_hitstop", 10.0)
+	assert_float(float(world.call(&"debug_local_hitstop_remaining"))).is_equal_approx(0.060, 0.0001)
+	assert_bool(bool(world.call(&"is_combat_simulation_frozen"))).is_true()
+	world._physics_process(0.010)
+	assert_float(float(world.call(&"debug_local_hitstop_remaining"))).is_equal_approx(0.050, 0.0001)
+	assert_float(Engine.time_scale).is_equal(original_time_scale)
+	assert_bool(get_tree().paused).is_equal(original_paused)
+
+
+func test_local_hitstop_freezes_four_actor_types_while_wave_hud_and_feedback_advance() -> void:
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	var session := _combat_session(content)
+	var wave := content.definition(&"gogobro.core:wave/training_1", &"wave") as GogoWaveDefinition
+	var world := auto_free(CombatWorld.new()) as CombatWorld
+	add_child(world)
+	assert_int(world.start_wave(session, wave)).is_equal(OK)
+	assert_bool(world.has_method(&"request_local_hitstop")).is_true()
+	assert_bool(world.has_method(&"is_combat_simulation_frozen")).is_true()
+	if not world.has_method(&"request_local_hitstop") or not world.has_method(&"is_combat_simulation_frozen"):
+		return
+	var hud_snapshots: Array[GogoCombatHudSnapshot] = []
+	world.hud_snapshot_changed.connect(func(snapshot: GogoCombatHudSnapshot) -> void:
+		hud_snapshots.append(snapshot)
+	)
+
+	var player := world.player_actor
+	player.damage_cooldown = 0.30
+	player.hit_flash_remaining = 0.08
+	player.velocity = Vector2(9.0, 4.0)
+	var player_position := player.global_position
+	var player_velocity := player.velocity
+
+	var enemy_definition := GogoEnemyDefinition.new()
+	enemy_definition.role = GogoEnemyDefinition.Role.CHASER
+	enemy_definition.max_health = 10.0
+	enemy_definition.movement_speed = 80.0
+	var enemy := GogoEnemyActor.new()
+	enemy.configure(enemy_definition, player, GogoDifficultyDefinition.new(), world, 901)
+	world.enemy_layer.add_child(enemy)
+	enemy.global_position = player.global_position + Vector2(120.0, 0.0)
+	enemy.touch_cooldown = 0.50
+	enemy.role_timer = 0.70
+	enemy.knockback_velocity = Vector2(20.0, 0.0)
+	enemy.velocity = Vector2(3.0, 2.0)
+	var enemy_position := enemy.global_position
+
+	var weapon := player.weapon_orbit.get_child(0) as GogoWeaponInstance
+	weapon.cooldown_remaining = 0.40
+	weapon.attack_flash = 0.80
+	weapon.rotation = 0.25
+	var weapon_rotation := weapon.rotation
+
+	var projectile := GogoProjectile.new()
+	projectile.combat_world = world
+	projectile.direction = Vector2.RIGHT
+	projectile.speed = 100.0
+	projectile.lifetime = 1.0
+	world.projectile_layer.add_child(projectile)
+	projectile.global_position = Vector2(40.0, 40.0)
+	var projectile_position := projectile.global_position
+
+	world.call(&"request_local_hitstop", 0.040)
+	var wave_elapsed_before := world.wave_runtime.elapsed
+	var run_elapsed_before := session.run_state.elapsed_seconds
+	world._physics_process(0.010)
+	assert_float(world.wave_runtime.elapsed).is_equal_approx(wave_elapsed_before + 0.010, 0.0001)
+	assert_float(session.run_state.elapsed_seconds).is_equal_approx(run_elapsed_before + 0.010, 0.0001)
+	assert_int(hud_snapshots.size()).is_equal(1)
+	assert_bool(bool(world.call(&"is_combat_simulation_frozen"))).is_true()
+
+	player._physics_process(0.010)
+	enemy._physics_process(0.010)
+	weapon._physics_process(0.010)
+	projectile._physics_process(0.010)
+	assert_vector(player.global_position).is_equal(player_position)
+	assert_vector(player.velocity).is_equal(player_velocity)
+	assert_float(player.damage_cooldown).is_equal_approx(0.30, 0.0001)
+	assert_float(player.hit_flash_remaining).is_equal_approx(0.08, 0.0001)
+	assert_vector(enemy.global_position).is_equal(enemy_position)
+	assert_float(enemy.touch_cooldown).is_equal_approx(0.50, 0.0001)
+	assert_float(enemy.role_timer).is_equal_approx(0.70, 0.0001)
+	assert_vector(enemy.knockback_velocity).is_equal(Vector2(20.0, 0.0))
+	assert_float(weapon.cooldown_remaining).is_equal_approx(0.40, 0.0001)
+	assert_float(weapon.attack_flash).is_equal_approx(0.80, 0.0001)
+	assert_float(weapon.rotation).is_equal_approx(weapon_rotation, 0.0001)
+	assert_vector(projectile.global_position).is_equal(projectile_position)
+	assert_float(projectile.lifetime).is_equal_approx(1.0, 0.0001)
+
+	assert_bool(world.feedback_presenter.present_weapon_fired(
+		701, &"heavy", Vector2i(40, 40), Vector2.RIGHT, 1, 1
+	)).is_true()
+	world.feedback_presenter._physics_process(0.010)
+	assert_float(float(world.feedback_presenter.debug_effects()[0].age)).is_equal_approx(0.010, 0.0001)
+
+
+func test_contact_events_request_the_exact_hitstop_duration_matrix() -> void:
+	var cases := [
+		{&"profile": &"rapid", &"impact": &"normal", &"expected": 0.025},
+		{&"profile": &"suppressed", &"impact": &"normal", &"expected": 0.025},
+		{&"profile": &"rifle", &"impact": &"normal", &"expected": 0.035},
+		{&"profile": &"heavy", &"impact": &"pierce_exit", &"expected": 0.035},
+		{&"profile": &"rapid", &"impact": &"critical", &"expected": 0.045},
+		{&"profile": &"rifle", &"impact": &"explosion", &"expected": 0.060},
+	]
+	for index in cases.size():
+		var world := auto_free(CombatWorld.new()) as CombatWorld
+		assert_bool(world.has_method(&"debug_local_hitstop_remaining")).is_true()
+		if not world.has_method(&"debug_local_hitstop_remaining"):
+			return
+		var current := cases[index] as Dictionary
+		world.call(
+			&"_on_projectile_contact",
+			index + 1,
+			index + 101,
+			current.profile,
+			Vector2i(10, 20),
+			Vector2.LEFT,
+			&"ballistic",
+			current.impact,
+			1
+		)
+		assert_float(float(world.call(&"debug_local_hitstop_remaining"))).override_failure_message(
+			"Unexpected hitstop for %s/%s" % [String(current.profile), String(current.impact)]
+		).is_equal_approx(float(current.expected), 0.0001)
+
+
+func test_player_dodge_and_invulnerability_do_not_present_but_real_damage_does() -> void:
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	var session := _combat_session(content)
+	var wave := content.definition(&"gogobro.core:wave/training_1", &"wave") as GogoWaveDefinition
+	var world := auto_free(CombatWorld.new()) as CombatWorld
+	add_child(world)
+	assert_int(world.start_wave(session, wave)).is_equal(OK)
+	var player := world.player_actor
+	assert_bool(player.has_signal(&"damage_taken")).is_true()
+	assert_bool(world.has_method(&"debug_local_hitstop_remaining")).is_true()
+	if not player.has_signal(&"damage_taken") or not world.has_method(&"debug_local_hitstop_remaining"):
+		return
+	var state := session.run_state.player()
+	state.current_health = 20.0
+	state.max_health = 20.0
+	state.final_stats[&"armor"] = 0.0
+
+	player.damage_cooldown = 0.50
+	player.take_damage(3.0)
+	assert_int(world.feedback_presenter.active_effect_count(&"player_hit")).is_zero()
+	assert_float(float(world.call(&"debug_local_hitstop_remaining"))).is_equal(0.0)
+
+	state.final_stats[&"dodge"] = 0.6
+	session.rng.seed = _seed_that_dodges(0.6)
+	player.damage_cooldown = 0.0
+	player.take_damage(3.0)
+	assert_float(state.current_health).is_equal(20.0)
+	assert_int(world.feedback_presenter.active_effect_count(&"player_hit")).is_zero()
+	assert_float(float(world.call(&"debug_local_hitstop_remaining"))).is_equal(0.0)
+
+	state.final_stats[&"dodge"] = 0.0
+	player.damage_cooldown = 0.0
+	player.take_damage(3.0)
+	assert_float(state.current_health).is_equal(17.0)
+	assert_int(world.feedback_presenter.active_effect_count(&"player_hit")).is_equal(1)
+	assert_float(float(world.call(&"debug_local_hitstop_remaining"))).is_equal_approx(0.040, 0.0001)
+
+
 func test_enemy_stays_inactive_until_spawn_marker_completes_and_cannot_arrive_after_clear() -> void:
 	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
 	var session := _combat_session(content)
@@ -677,6 +861,15 @@ func _rgba8_sha256(source: Image) -> String:
 func _canonical_variant_sha256(value: Variant) -> String:
 	var normalized: Variant = JSON.parse_string(JSON.stringify(value))
 	return JSON.stringify(normalized, "", true).sha256_text()
+
+
+func _seed_that_dodges(chance: float) -> int:
+	for candidate_seed in 1024:
+		var probe := RandomNumberGenerator.new()
+		probe.seed = candidate_seed
+		if probe.randf() < chance:
+			return candidate_seed
+	return -1
 
 
 func _remove_static_runtime_fixture_tree(path: String) -> void:

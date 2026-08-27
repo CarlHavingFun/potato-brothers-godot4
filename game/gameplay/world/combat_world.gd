@@ -3,6 +3,9 @@ extends Node2D
 
 const STATIC_WORLD_PRESENTER := preload("res://game/gameplay/world/static_world_presenter.gd")
 const STATIC_SPAWN_MARKER := preload("res://game/gameplay/world/static_spawn_marker.gd")
+const LOCAL_HITSTOP_MIN_SECONDS := 0.025
+const LOCAL_HITSTOP_MAX_SECONDS := 0.060
+const PLAYER_DAMAGE_HITSTOP_SECONDS := 0.040
 
 signal wave_completed
 signal run_failed
@@ -64,6 +67,7 @@ var _pending_spawn_enemies: Dictionary = {}
 var _projectile_source_item_ids: Dictionary = {}
 var _wave_transition_committed := false
 var _wave_start_materials := 0
+var _local_hitstop_remaining := 0.0
 
 
 func _ready() -> void:
@@ -135,6 +139,8 @@ func start_wave(next_session: GameSession, wave_definition: GogoWaveDefinition) 
 		player_actor.configure(session, self)
 		player_actor.position = arena_rect.get_center()
 		player_actor.rebuild_weapons()
+	if not player_actor.damage_taken.is_connected(_on_player_damage_taken):
+		player_actor.damage_taken.connect(_on_player_damage_taken)
 	if player_camera == null:
 		player_camera = GogoCombatCamera.new()
 		player_camera.name = "PlayerCamera"
@@ -185,6 +191,7 @@ func bind_enemy_feedback(enemy: GogoEnemyActor) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_local_hitstop_remaining = maxf(_local_hitstop_remaining - maxf(delta, 0.0), 0.0)
 	if not running or session == null:
 		return
 	session.run_state.elapsed_seconds += delta
@@ -194,6 +201,23 @@ func _physics_process(delta: float) -> void:
 	_emit_hud_snapshot(remaining)
 	if wave_runtime.is_finished():
 		_finish_wave()
+
+
+func request_local_hitstop(seconds: float) -> void:
+	if not is_finite(seconds) or seconds <= 0.0:
+		return
+	_local_hitstop_remaining = maxf(
+		_local_hitstop_remaining,
+		clampf(seconds, LOCAL_HITSTOP_MIN_SECONDS, LOCAL_HITSTOP_MAX_SECONDS)
+	)
+
+
+func is_combat_simulation_frozen() -> bool:
+	return _local_hitstop_remaining > 0.0
+
+
+func debug_local_hitstop_remaining() -> float:
+	return _local_hitstop_remaining
 
 
 func clamp_to_arena(value: Vector2, margin: float) -> Vector2:
@@ -393,6 +417,24 @@ func _on_player_health_changed(_current: float, _maximum: float) -> void:
 	_emit_hud_snapshot(remaining)
 
 
+func _on_player_damage_taken(
+	integer_global_position: Vector2i,
+	final_damage: float,
+	remaining_health: float,
+	lethal: bool,
+	sequence: int
+) -> void:
+	request_local_hitstop(PLAYER_DAMAGE_HITSTOP_SECONDS)
+	if feedback_presenter != null:
+		feedback_presenter.present_player_damage_taken(
+			integer_global_position,
+			final_damage,
+			remaining_health,
+			lethal,
+			sequence
+		)
+
+
 func _emit_hud_snapshot(remaining: float) -> void:
 	if session == null or session.run_state == null:
 		return
@@ -457,6 +499,7 @@ func _on_projectile_contact(
 	impact_kind: StringName,
 	contact_sequence: int
 ) -> void:
+	request_local_hitstop(_contact_hitstop_duration(feedback_profile_id, impact_kind))
 	if feedback_presenter != null:
 		feedback_presenter.present_projectile_contact(
 			projectile_instance_id,
@@ -501,6 +544,7 @@ func _on_melee_contact(
 	impact_kind: StringName,
 	melee_sequence: int
 ) -> void:
+	request_local_hitstop(_contact_hitstop_duration(feedback_profile_id, impact_kind))
 	if feedback_presenter != null:
 		feedback_presenter.present_melee_contact(
 			weapon_instance_id,
@@ -522,6 +566,19 @@ func _on_melee_contact(
 		impact_kind,
 		melee_sequence
 	)
+
+
+static func _contact_hitstop_duration(
+	feedback_profile_id: StringName,
+	impact_kind: StringName
+) -> float:
+	if impact_kind == &"explosion":
+		return 0.060
+	if impact_kind == &"critical":
+		return 0.045
+	if feedback_profile_id == &"rifle" or feedback_profile_id == &"heavy":
+		return 0.035
+	return 0.025
 
 
 func _on_enemy_defeated(
@@ -553,6 +610,7 @@ func _finish_wave() -> void:
 
 
 func _clear_active_combat_actors() -> void:
+	_local_hitstop_remaining = 0.0
 	weapon_trigger_runtime.reset()
 	_projectile_source_item_ids.clear()
 	_active_enemies.clear()

@@ -23,7 +23,7 @@ const EXPECTED_ARCHETYPES := {
 		"mode": GogoWeaponDefinition.Mode.MELEE,
 		"damage": 3.0,
 		"cooldown": 0.18,
-		"range": 420.0,
+		"range": 88.0,
 		"projectile_speed": 650.0,
 		"knockback": 10.0,
 		"price": 12,

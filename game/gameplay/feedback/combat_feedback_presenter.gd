@@ -86,6 +86,7 @@ var _melee_highest_sequence: Dictionary = {}
 var _contact_highest_sequence: Dictionary = {}
 var _contact_target_by_sequence: Dictionary = {}
 var _death_highest_sequence: Dictionary = {}
+var _player_hit_highest_sequence := 0
 
 
 func _init() -> void:
@@ -112,6 +113,7 @@ func clear_feedback() -> void:
 	_contact_highest_sequence.clear()
 	_contact_target_by_sequence.clear()
 	_death_highest_sequence.clear()
+	_player_hit_highest_sequence = 0
 	if combat_camera != null:
 		combat_camera.clear_visual_impulses()
 	queue_redraw()
@@ -280,6 +282,42 @@ func present_enemy_defeated(
 	return true
 
 
+func present_player_damage_taken(
+	integer_global_position: Vector2i,
+	final_damage: float,
+	remaining_health: float,
+	lethal: bool,
+	sequence: int
+) -> bool:
+	if (
+		sequence <= _player_hit_highest_sequence
+		or not is_finite(final_damage)
+		or final_damage <= 0.0
+		or not is_finite(remaining_health)
+		or remaining_health < 0.0
+	):
+		return false
+	_player_hit_highest_sequence = sequence
+	var event_key := StringName("player_hit/%d" % sequence)
+	var direction := DIRECTIONS_8[posmod(sequence * 3, DIRECTIONS_8.size())]
+	_activate_slot(
+		event_key,
+		&"player_hit",
+		&"",
+		&"",
+		&"player",
+		integer_global_position,
+		direction,
+		0.10,
+		36,
+		Color("ef3340")
+	)
+	if combat_camera != null:
+		combat_camera.add_visual_impulse(Vector2(direction), 3.5 if lethal else 2.75)
+	feedback_spawned.emit(&"player_hit", integer_global_position, event_key)
+	return true
+
+
 func active_effect_count(kind: StringName = &"") -> int:
 	if kind.is_empty():
 		return _active_count
@@ -382,6 +420,7 @@ func _refresh_slot_primitives(slot: FeedbackSlot) -> void:
 		&"muzzle": _append_muzzle_primitives(slot)
 		&"contact": _append_contact_primitives(slot)
 		&"death": _append_death_primitives(slot)
+		&"player_hit": _append_player_hit_primitives(slot)
 
 
 func _append_muzzle_primitives(slot: FeedbackSlot) -> void:
@@ -426,6 +465,21 @@ func _append_death_primitives(slot: FeedbackSlot) -> void:
 		_append_block(slot, center + direction * distance, block_size, color)
 	if phase == 0:
 		_append_block(slot, center, _even_px(float(slot.size_px) * 0.65), Color("fff7c2"))
+
+
+func _append_player_hit_primitives(slot: FeedbackSlot) -> void:
+	var phase := _phase(slot)
+	var center := Vector2i(to_local(Vector2(slot.position)).round())
+	var core_size := maxi(slot.size_px - phase * 8, 12)
+	var arm_distance := maxi(slot.size_px / 2 + phase * 4, 12)
+	_append_block(slot, center, _even_px(float(core_size) * 0.55), Color("fff4f2"))
+	for direction in [Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT, Vector2i.UP]:
+		_append_block(
+			slot,
+			center + direction * arm_distance,
+			_even_px(float(core_size) * 0.34),
+			Color("ef3340")
+		)
 
 
 func _activate_slot(

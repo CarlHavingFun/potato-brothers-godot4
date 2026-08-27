@@ -137,6 +137,8 @@ static func selector_for_feedback_profile(profile_id: StringName) -> StringName:
 
 
 func _physics_process(delta: float) -> void:
+	if combat_world != null and combat_world.is_combat_simulation_frozen():
+		return
 	if not active or contact_committed:
 		return
 	if lifetime <= 0.0:
