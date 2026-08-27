@@ -516,11 +516,15 @@ func test_lethal_player_hit_preserves_feedback_until_local_freeze_finishes_befor
 	projectile.combat_world = world
 	world.projectile_layer.add_child(projectile)
 	var route_snapshots: Array[Dictionary] = []
+	var session_failures: Array[bool] = []
 	world.run_failed.connect(func() -> void:
 		route_snapshots.append({
 			&"player_hit_count": world.feedback_presenter.active_effect_count(&"player_hit"),
 			&"camera_impulse": world.player_camera.visual_impulse_magnitude(),
 		})
+	)
+	session.run_ended.connect(func(won: bool) -> void:
+		session_failures.append(won)
 	)
 
 	var player_state := session.run_state.player()
@@ -534,7 +538,16 @@ func test_lethal_player_hit_preserves_feedback_until_local_freeze_finishes_befor
 	assert_bool(projectile.active).is_false()
 	assert_int(world.active_enemy_count()).is_zero()
 	assert_int(route_snapshots.size()).is_zero()
-	assert_bool(session.run_state.ended).is_false()
+	assert_array(session_failures).contains_exactly([false])
+	assert_bool(session.run_state.ended).is_true()
+	assert_float(world.debug_local_hitstop_remaining()).is_equal_approx(0.040, 0.0001)
+	assert_int(world.feedback_presenter.active_effect_count(&"player_hit")).is_equal(1)
+	assert_float(world.player_camera.visual_impulse_magnitude()).is_greater(0.0)
+
+	assert_int(world.start_wave(session, wave)).is_equal(ERR_INVALID_PARAMETER)
+	world.call(&"_on_player_died")
+	assert_array(session_failures).contains_exactly([false])
+	assert_int(route_snapshots.size()).is_zero()
 	assert_float(world.debug_local_hitstop_remaining()).is_equal_approx(0.040, 0.0001)
 	assert_int(world.feedback_presenter.active_effect_count(&"player_hit")).is_equal(1)
 	assert_float(world.player_camera.visual_impulse_magnitude()).is_greater(0.0)
@@ -546,20 +559,63 @@ func test_lethal_player_hit_preserves_feedback_until_local_freeze_finishes_befor
 	assert_float(world.debug_local_hitstop_remaining()).is_equal(0.0)
 	assert_bool(world.is_combat_simulation_frozen()).is_true()
 	assert_int(route_snapshots.size()).is_zero()
-	assert_bool(session.run_state.ended).is_false()
+	assert_array(session_failures).contains_exactly([false])
+	assert_bool(session.run_state.ended).is_true()
 	assert_int(world.feedback_presenter.active_effect_count(&"player_hit")).is_equal(1)
 	assert_float(world.player_camera.visual_impulse_magnitude()).is_greater(0.0)
 
 	world._physics_process(0.001)
 	assert_int(route_snapshots.size()).is_equal(1)
+	assert_array(session_failures).contains_exactly([false])
 	assert_bool(session.run_state.ended).is_true()
 	if route_snapshots.size() == 1:
 		assert_int(int(route_snapshots[0].player_hit_count)).is_equal(1)
 		assert_float(float(route_snapshots[0].camera_impulse)).is_greater(0.0)
+	world._physics_process(0.001)
+	world.call(&"_on_player_died")
+	assert_int(route_snapshots.size()).is_equal(1)
+	assert_array(session_failures).contains_exactly([false])
 
 	world.call(&"_clear_active_combat_actors")
 	assert_int(world.feedback_presenter.active_effect_count(&"player_hit")).is_zero()
 	assert_float(world.player_camera.visual_impulse_magnitude()).is_equal(0.0)
+
+
+func test_lethal_run_state_cannot_revive_when_world_exits_before_delayed_route() -> void:
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	var session := _combat_session(content)
+	var wave := content.definition(&"gogobro.core:wave/training_1", &"wave") as GogoWaveDefinition
+	var world := CombatWorld.new()
+	add_child(world)
+	assert_int(world.start_wave(session, wave)).is_equal(OK)
+	var route_count := [0]
+	var session_failure_count := [0]
+	world.run_failed.connect(func() -> void:
+		route_count[0] += 1
+	)
+	session.run_ended.connect(func(won: bool) -> void:
+		if not won:
+			session_failure_count[0] += 1
+	)
+	var player_state := session.run_state.player()
+	player_state.current_health = 1.0
+	player_state.final_stats[&"armor"] = 0.0
+	player_state.final_stats[&"dodge"] = 0.0
+	world.player_actor.damage_cooldown = 0.0
+	world.player_actor.take_damage(10.0)
+
+	assert_bool(session.run_state.ended).is_true()
+	assert_int(session_failure_count[0]).is_equal(1)
+	assert_int(route_count[0]).is_zero()
+	world.free()
+	assert_bool(session.run_state.ended).is_true()
+	assert_int(session_failure_count[0]).is_equal(1)
+	assert_int(route_count[0]).is_zero()
+
+	var replacement_world := auto_free(CombatWorld.new()) as CombatWorld
+	add_child(replacement_world)
+	assert_int(replacement_world.start_wave(session, wave)).is_equal(ERR_INVALID_PARAMETER)
+	assert_bool(session.run_state.ended).is_true()
 
 
 func test_enemy_stays_inactive_until_spawn_marker_completes_and_cannot_arrive_after_clear() -> void:

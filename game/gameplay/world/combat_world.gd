@@ -465,14 +465,14 @@ func _on_player_died() -> void:
 	running = false
 	_run_failure_pending = true
 	_clear_active_combat_actors(true)
+	if session != null:
+		session.fail_run()
 
 
 func _commit_pending_run_failure() -> void:
 	if not _run_failure_pending:
 		return
 	_run_failure_pending = false
-	if session != null:
-		session.fail_run()
 	run_failed.emit()
 
 
