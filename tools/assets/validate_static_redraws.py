@@ -332,6 +332,16 @@ def _validate_png(
                 pixels,
                 width,
             )
+            if largest_component:
+                component_xs = [point[0] for point in largest_component]
+                component_ys = [point[1] for point in largest_component]
+                largest_component_width = max(component_xs) - min(component_xs) + 1
+                largest_component_height = max(component_ys) - min(component_ys) + 1
+            else:
+                largest_component_width = 0
+                largest_component_height = 0
+            metrics["largest_component_width"] = largest_component_width
+            metrics["largest_component_height"] = largest_component_height
             component_ratio = (
                 len(largest_component) / opaque_count if opaque_count else 0.0
             )
@@ -351,20 +361,22 @@ def _validate_png(
             mode = record.get("mode")
             if category == "weapons" and mode == "ranged":
                 checks["silhouette_extent"] = (
-                    occupied_width >= MINIMUM_FIREARM_WIDTH_PX
+                    largest_component_width >= MINIMUM_FIREARM_WIDTH_PX
                 )
                 if not checks["silhouette_extent"]:
                     errors.append(
-                        "firearm occupied width must be at least "
+                        "firearm largest connected component width must be at least "
                         f"{MINIMUM_FIREARM_WIDTH_PX}px"
                     )
             elif category == "weapons" and mode == "melee":
                 checks["silhouette_extent"] = (
-                    max(occupied_width, occupied_height) >= MINIMUM_KNIFE_EXTENT_PX
+                    max(largest_component_width, largest_component_height)
+                    >= MINIMUM_KNIFE_EXTENT_PX
                 )
                 if not checks["silhouette_extent"]:
                     errors.append(
-                        "knife occupied width or height must be at least "
+                        "knife largest connected component width or height "
+                        "must be at least "
                         f"{MINIMUM_KNIFE_EXTENT_PX}px"
                     )
             else:

@@ -406,6 +406,55 @@ func test_validator_rejects_a_firearm_too_short_for_actual_size_readability() ->
 	assert_bool(bool(checks.get("silhouette_extent", true))).is_false()
 
 
+func test_validator_rejects_firearm_satellites_that_only_inflate_the_total_bbox() -> void:
+	var fixture := _create_fixture(
+		"satellite_inflated_firearm",
+		"weapons",
+		96,
+		64,
+		"ranged",
+		[36, 40],
+		"muzzle",
+		[88, 28]
+	)
+	var image := _blank_image(96, 64)
+	_fill_rect(image, Rect2i(20, 20, 69, 26), Color8(70, 74, 80, 255))
+	_fill_rect(image, Rect2i(2, 20, 2, 2), Color8(220, 120, 40, 255))
+	assert_int(image.save_png(fixture.png_path)).is_equal(OK)
+	var result := _run_validator(fixture)
+	assert_int(int(result.exit_code)).is_not_equal(0)
+	var row := _only_result_row(result)
+	var checks := row.get("checks", {}) as Dictionary
+	var metrics := row.get("metrics", {}) as Dictionary
+	assert_bool(bool(checks.get("connected_component", false))).is_true()
+	assert_bool(bool(checks.get("anchor_contract", false))).is_true()
+	assert_bool(bool(checks.get("silhouette_extent", true))).is_false()
+	assert_int(int(metrics.get("occupied_width", -1))).is_equal(87)
+	assert_int(int(metrics.get("largest_component_width", -1))).is_equal(69)
+
+
+func test_validator_accepts_a_firearm_at_the_largest_component_width_boundary() -> void:
+	var fixture := _create_fixture(
+		"valid_firearm",
+		"weapons",
+		96,
+		64,
+		"ranged",
+		[36, 40],
+		"muzzle",
+		[89, 28]
+	)
+	_write_rectangle_png(fixture.png_path, Rect2i(20, 20, 70, 26), 8)
+	var result := _run_validator(fixture)
+	assert_int(int(result.exit_code)).is_equal(0)
+	var row := _only_result_row(result)
+	var checks := row.get("checks", {}) as Dictionary
+	var metrics := row.get("metrics", {}) as Dictionary
+	assert_bool(bool(row.get("mechanical_pass", false))).is_true()
+	assert_bool(bool(checks.get("silhouette_extent", false))).is_true()
+	assert_int(int(metrics.get("largest_component_width", -1))).is_equal(70)
+
+
 func test_validator_rejects_a_knife_too_small_for_actual_size_readability() -> void:
 	var fixture := _create_fixture(
 		"small_knife",
@@ -422,6 +471,29 @@ func test_validator_rejects_a_knife_too_small_for_actual_size_readability() -> v
 	assert_int(int(result.exit_code)).is_not_equal(0)
 	var checks := (_only_result_row(result).get("checks", {}) as Dictionary)
 	assert_bool(bool(checks.get("silhouette_extent", true))).is_false()
+
+
+func test_validator_accepts_a_knife_at_the_largest_component_extent_boundary() -> void:
+	var fixture := _create_fixture(
+		"valid_knife",
+		"weapons",
+		64,
+		64,
+		"melee",
+		[20, 35],
+		"contact",
+		[52, 30]
+	)
+	_write_rectangle_png(fixture.png_path, Rect2i(11, 12, 42, 41), 8)
+	var result := _run_validator(fixture)
+	assert_int(int(result.exit_code)).is_equal(0)
+	var row := _only_result_row(result)
+	var checks := row.get("checks", {}) as Dictionary
+	var metrics := row.get("metrics", {}) as Dictionary
+	assert_bool(bool(row.get("mechanical_pass", false))).is_true()
+	assert_bool(bool(checks.get("silhouette_extent", false))).is_true()
+	assert_int(int(metrics.get("largest_component_width", -1))).is_equal(42)
+	assert_int(int(metrics.get("largest_component_height", -1))).is_equal(41)
 
 
 func test_validator_rejects_a_weapon_anchor_detached_from_the_subject() -> void:
