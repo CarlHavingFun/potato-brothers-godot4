@@ -27,7 +27,7 @@ Ruling: the currently integrated 128×128 helmet receives a strict v2 `walk_down
 
 Ruling: Tasks 1–3 execute sequentially because they share manifests and real-route capture tests; every task gets a fresh implementer, scoped reviewer, and fix/re-review loop.
 
-## Completed implementation, pending blind review
+## Completed and independently reviewed
 
 Task 1: candidate raster identity and preview helmet parity implemented from base `1fa622d`.
 
@@ -38,3 +38,5 @@ Task 1: candidate raster identity and preview helmet parity implemented from bas
 - Focused Godot gates pass, preview builder passes with 65 units and zero copies, harmony/install Python gates pass 142/142, and the final full Godot suite passes 331/331.
 - Release appearance coverage remains 0/60 in this task; no matrix or release-readiness claim was added.
 - Complete evidence: `.superpowers/sdd/2026-08-28-final-asset-visual-remediation/task-1-report.md`.
+- Commit `af9e310` received a fresh read-only actual-size review: **APPROVED**, with no Critical or Important findings. The only Minor note is that one preview test name still says “approved” even though its assertion correctly targets candidate-preview art.
+- The reviewer independently confirmed that the legacy candidate-002 Python approval-binding failure predates Task 1 and that all implicated shipping/approval inputs are byte-for-byte unchanged from `1fa622d`.
