@@ -22,8 +22,9 @@ static func create_packs(include_development_preview: bool = true) -> Array[Gogo
 		_weapon_pack(RANGED_ID, false),
 		NIKO_CONTENT_FACTORY.create_pack(),
 	]
-	if include_development_preview:
-		packs.append(STATIC_PREVIEW_CONTENT_FACTORY.create_pack())
+	# Stable gogobro.preview:* IDs are now part of the release content surface.
+	# The flag controls only the debug candidate tag/overlay, never definition presence.
+	packs.append(STATIC_PREVIEW_CONTENT_FACTORY.create_pack(include_development_preview))
 	return packs
 
 

@@ -54,16 +54,22 @@ func test_literal_registry_percent_effect_is_translated_once_into_runtime_modifi
 	assert_float(float(item.stat_modifiers.get(&"armor", 0.0))).is_equal_approx(-1.0, 0.0001)
 
 
-func test_release_catalog_excludes_candidate_only_definitions() -> void:
+func test_release_catalog_keeps_all_static_definitions_without_candidate_preview_tags() -> void:
 	var content := GogoContentRegistry.new().build_snapshot(
 		ValidationContentFactory.create_packs(false)
 	)
 	assert_object(content).is_not_null()
 	if content == null:
 		return
-	assert_int(content.all(&"weapon").size()).is_equal(2)
-	assert_int(content.all(&"item").size()).is_equal(6)
+	assert_int(content.all(&"weapon").size()).is_equal(12)
+	assert_int(content.all(&"item").size()).is_equal(30)
 	assert_int(content.all(&"upgrade").size()).is_equal(6)
 	assert_bool(
 		content.has_definition(&"gogobro.preview:weapon/community_tapper", &"weapon")
-	).is_false()
+	).is_true()
+	assert_bool(
+		content.has_definition(&"gogobro.preview:item/force_buy_runners", &"item")
+	).is_true()
+	for kind in [&"weapon", &"item", &"upgrade"]:
+		for definition: GogoContentDefinition in content.all(kind):
+			assert_bool(definition.tags.has(&"candidate_preview")).is_false()

@@ -40,7 +40,8 @@ func configure(flow: SceneFlow, audio: GogoAudioService) -> void:
 
 
 func boot() -> BootResult:
-	var packs := ValidationContentFactory.create_packs(OS.is_debug_build())
+	var development_preview := OS.is_debug_build()
+	var packs := ValidationContentFactory.create_packs(development_preview)
 	for pack in packs:
 		var install_error := content_catalog.install(pack)
 		if install_error != OK:
@@ -60,7 +61,7 @@ func boot() -> BootResult:
 	settings_service.apply_display_settings()
 	static_asset_service.stage(content_snapshot)
 	static_asset_service.activate_staged(&"", null)
-	if OS.is_debug_build():
+	if development_preview:
 		var preview_snapshot := static_candidate_preview_service.call(
 			"build_overlay",
 			static_asset_service.active_snapshot(),

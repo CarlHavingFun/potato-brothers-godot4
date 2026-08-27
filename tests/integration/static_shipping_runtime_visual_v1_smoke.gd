@@ -6,7 +6,7 @@ const BACKGROUND := Color("111722")
 
 
 func _initialize() -> void:
-	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs(false))
 	if content == null:
 		_fail("validation content snapshot could not be built")
 		return
@@ -15,8 +15,14 @@ func _initialize() -> void:
 		_fail("canonical static shipping snapshot could not be activated")
 		return
 	var snapshot := service.active_snapshot()
-	if snapshot == null or snapshot.ready_count() != 9 or snapshot.expected_count() != 70:
+	if snapshot == null or snapshot.ready_count() != 70 or snapshot.expected_count() != 70:
 		_fail("canonical static shipping readiness mismatch")
+		return
+	if snapshot.fallback_count() != 0 or not snapshot.release_readiness().get("release_ready", false):
+		_fail("canonical static shipping release readiness mismatch")
+		return
+	if snapshot.is_development_preview():
+		_fail("shipping proof unexpectedly activated candidate-preview overlay")
 		return
 	if not snapshot.issues().is_empty():
 		_fail("canonical static shipping snapshot contains issues")
@@ -33,7 +39,7 @@ func _initialize() -> void:
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	canvas.add_child(background)
 	_add_label(canvas, "GOGOBRO · CANONICAL STATIC SHIPPING · RUNTIME PROOF", Vector2(520, 18), 26, Color("f2e8c9"))
-	_add_label(canvas, "9 READY / 61 FALLBACK · SCOPE 70 · NIKO-ONLY CHARACTER", Vector2(522, 54), 15, Color("8fe0b0"))
+	_add_label(canvas, "70 READY / 0 FALLBACK · RELEASE NATIVE · NIKO-ONLY CHARACTER", Vector2(522, 54), 15, Color("8fe0b0"))
 
 	var hud_player := SessionPlayerState.new()
 	hud_player.current_health = 20.0
@@ -50,8 +56,8 @@ func _initialize() -> void:
 
 	_add_panel(canvas, Rect2(28, 190, 580, 500), "CONTENT + PROJECTILES · EXACT CANONICAL HANDLES")
 	var content_entries := [
-		[&"service_pistol", &"icon", &"", "PISTOL ICON"],
-		[&"warmup_shiv", &"icon", &"", "SHIV ICON"],
+		[&"service_pistol", &"world_sprite", &"", "GLOCK-18 WORLD"],
+		[&"warmup_shiv", &"world_sprite", &"", "BUTTERFLY WORLD"],
 		[&"ballistic_liner", &"icon", &"", "SHOP · 防弹内衬"],
 		[&"one_more_round", &"icon", &"", "UPGRADE · 多活一回合"],
 	]

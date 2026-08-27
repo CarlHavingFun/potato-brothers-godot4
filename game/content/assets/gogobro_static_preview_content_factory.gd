@@ -43,7 +43,7 @@ const WEAPON_MODES := {
 }
 
 
-static func create_pack() -> GogoContentPackDefinition:
+static func create_pack(mark_candidate_preview: bool = true) -> GogoContentPackDefinition:
 	var pack := GogoContentPackDefinition.new()
 	pack.pack_id = PACK_ID
 	pack.pack_kind = &"weapon"
@@ -53,7 +53,7 @@ static func create_pack() -> GogoContentPackDefinition:
 		return pack
 	for raw_weapon: Variant in content.get("weapons", []):
 		if raw_weapon is Dictionary:
-			var weapon := _weapon_definition(raw_weapon as Dictionary)
+			var weapon := _weapon_definition(raw_weapon as Dictionary, mark_candidate_preview)
 			if weapon != null:
 				pack.definitions.append(weapon)
 	for raw_unit: Variant in registry.get("units", []):
@@ -65,11 +65,11 @@ static func create_pack() -> GogoContentPackDefinition:
 		var asset_id := String(unit.get("asset_id", ""))
 		if EXISTING_ITEM_ASSET_IDS.has(asset_id):
 			continue
-		pack.definitions.append(_item_definition(unit))
+		pack.definitions.append(_item_definition(unit, mark_candidate_preview))
 	return pack
 
 
-static func _weapon_definition(raw: Dictionary) -> GogoWeaponDefinition:
+static func _weapon_definition(raw: Dictionary, mark_candidate_preview: bool) -> GogoWeaponDefinition:
 	var asset_id := String(raw.get("asset_id", ""))
 	var mode_name := String(raw.get("mode", ""))
 	if asset_id.is_empty() or not WEAPON_MODES.has(mode_name):
@@ -88,14 +88,13 @@ static func _weapon_definition(raw: Dictionary) -> GogoWeaponDefinition:
 	definition.feedback_profile_id = StringName(String(raw.get("profile", "rifle")))
 	definition.damage_kind = &"melee" if definition.mode == GogoWeaponDefinition.Mode.MELEE else &"ballistic"
 	definition.impact_kind = StringName(String(raw.get("impact_kind", "normal")))
-	definition.tags = [
-		&"melee" if definition.mode == GogoWeaponDefinition.Mode.MELEE else &"ranged",
-		&"candidate_preview",
-	]
+	definition.tags = [&"melee" if definition.mode == GogoWeaponDefinition.Mode.MELEE else &"ranged"]
+	if mark_candidate_preview:
+		definition.tags.append(&"candidate_preview")
 	return definition
 
 
-static func _item_definition(unit: Dictionary) -> GogoItemDefinition:
+static func _item_definition(unit: Dictionary, mark_candidate_preview: bool) -> GogoItemDefinition:
 	var asset_id := String(unit.get("asset_id", ""))
 	var localization := unit.get("localization", {}) as Dictionary
 	var chinese := localization.get("zh_CN", {}) as Dictionary
@@ -109,7 +108,8 @@ static func _item_definition(unit: Dictionary) -> GogoItemDefinition:
 	if max_count_variant is int or max_count_variant is float:
 		definition.max_count = maxi(int(max_count_variant), 1)
 	definition.stat_modifiers = _literal_stat_modifiers(unit.get("effects", []))
-	definition.tags = [&"candidate_preview"]
+	if mark_candidate_preview:
+		definition.tags = [&"candidate_preview"]
 	if asset_id == "smoke_shell_helmet":
 		SMOKE_SHELL_HELMET_FACTORY.configure_item(definition)
 	return definition

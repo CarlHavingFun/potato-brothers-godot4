@@ -64,7 +64,7 @@ func test_development_overlay_adds_independent_butterfly_glock_and_ak_candidates
 	assert_object(preview.resolve_asset(&"service_carbine", &"world_sprite")).is_null()
 
 
-func test_development_overlay_replaces_liner_and_helmet_inventory_icons_without_shipping_mutation() -> void:
+func test_promoted_liner_and_helmet_keep_distinct_preview_overlay_handles() -> void:
 	var service_script := load(PREVIEW_SERVICE_PATH) as Script
 	assert_object(service_script).is_not_null()
 	if service_script == null:
@@ -97,12 +97,12 @@ func test_development_overlay_replaces_liner_and_helmet_inventory_icons_without_
 		FileAccess.get_sha256(
 			"res://game/assets/gogobro_static/items/ballistic_liner.png"
 		).to_upper()
-	).is_equal("1F673E6190EB9627B58EAA287FD22DB0F113AE80A6C7529C63EC4FBCDF89BC9F")
+	).is_equal("CB30303A895ED72F7344C848918DF1384B519D8EA289710D068FE36D478E2FB9")
 	assert_str(
 		FileAccess.get_sha256(
 			"res://game/assets/gogobro_static/items/smoke_shell_helmet.png"
 		).to_upper()
-	).is_equal("9D5D9A14D005BE3B08C5CC90F2E11C74EF214BAC8C921452F34DC1DAEF509BEC")
+	).is_equal("AC3ACB1118DEFA21907EE7323BC4D07B8DEE53FCCCABDD94CD26DA73686680DE")
 	assert_str(
 		FileAccess.get_sha256(
 			"res://game/assets/gogobro_static/items/smoke_shell_helmet_appearance.png"

@@ -43,33 +43,24 @@ func test_valid_inactive_manifest_projects_exactly_seventy_noncharacter_units() 
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(manifest_path))
 
 
-func test_canonical_shipping_manifest_activates_only_the_nine_approved_static_units() -> void:
+func test_canonical_shipping_manifest_activates_all_seventy_approved_static_units() -> void:
 	var service := GogoStaticAssetRuntimeService.new()
 	assert_int(service.stage(_validation_snapshot())).is_equal(OK)
 	assert_int(service.activate_staged(&"", null)).is_equal(OK)
 	var snapshot := service.active_snapshot()
 
-	assert_int(snapshot.ready_count()).is_equal(9)
-	assert_int(snapshot.fallback_count()).is_equal(61)
+	assert_int(snapshot.ready_count()).is_equal(70)
+	assert_int(snapshot.fallback_count()).is_zero()
 	assert_int(snapshot.issues().size()).is_zero()
-	for asset_id in [
-		&"warmup_shiv",
-		&"service_pistol",
-		&"projectile_hit_kit",
-		&"ballistic_liner",
-		&"smoke_shell_helmet",
-		&"one_more_round",
-		&"hud_icon_kit",
-		&"control_icon_kit",
-		&"difficulty_badge_kit",
-	]:
-		assert_str(String(snapshot.state_for_asset(asset_id))).is_equal("ready")
-	for excluded_asset_id in [
-		&"community_tapper",
-		&"supply_crate",
-		&"four_state_button",
-	]:
-		assert_str(String(snapshot.state_for_asset(excluded_asset_id))).is_equal("inactive")
+	assert_bool(snapshot.release_readiness().get("release_ready", false)).is_true()
+	assert_bool(snapshot.is_development_preview()).is_false()
+	var manifest := JSON.parse_string(FileAccess.get_file_as_string(
+		GogoStaticAssetRuntimeService.MANIFEST_PATH
+	)) as Dictionary
+	for unit_variant: Variant in manifest.get("units", []) as Array:
+		var unit := unit_variant as Dictionary
+		assert_str(String(unit.get("declared_runtime_state", ""))).is_equal("requested_active")
+		assert_str(String(snapshot.state_for_asset(StringName(unit.get("asset_id", ""))))).is_equal("ready")
 
 	assert_object(snapshot.resolve_content(
 		&"weapon",
@@ -81,12 +72,15 @@ func test_canonical_shipping_manifest_activates_only_the_nine_approved_static_un
 		&"weapon.training_blade:weapon/training_blade",
 		&"icon"
 	)).is_not_null()
-	assert_object(snapshot.resolve_asset(&"service_pistol", &"world_sprite")).is_null()
-	assert_object(snapshot.resolve_asset(&"warmup_shiv", &"world_sprite")).is_null()
+	assert_object(snapshot.resolve_asset(&"service_pistol", &"world_sprite")).is_not_null()
+	assert_object(snapshot.resolve_asset(&"warmup_shiv", &"world_sprite")).is_not_null()
 	assert_object(snapshot.resolve_asset(&"ballistic_liner", &"icon")).is_not_null()
 	assert_object(snapshot.resolve_asset(&"ballistic_liner", &"appearance")).is_null()
 	assert_object(snapshot.resolve_asset(&"smoke_shell_helmet", &"icon")).is_not_null()
 	assert_object(snapshot.resolve_asset(&"smoke_shell_helmet", &"appearance")).is_null()
+	assert_object(snapshot.resolve_asset(&"community_tapper", &"world_sprite")).is_not_null()
+	assert_object(snapshot.resolve_asset(&"supply_crate", &"world_sprite")).is_not_null()
+	assert_object(snapshot.resolve_global(&"four_state_button", &"disabled")).is_not_null()
 	assert_object(snapshot.resolve_global(&"hud_icon_kit", &"health")).is_not_null()
 	assert_object(snapshot.resolve_global(&"control_icon_kit", &"move_keyboard_wasd")).is_not_null()
 	assert_object(snapshot.resolve_global(&"difficulty_badge_kit", &"standard")).is_not_null()

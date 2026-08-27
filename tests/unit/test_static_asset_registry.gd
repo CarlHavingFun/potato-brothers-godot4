@@ -44,23 +44,19 @@ func test_canonical_registry_keeps_only_noncharacter_scope_and_excludes_generic_
 	var registry := result.get("registry", {}) as Dictionary
 	assert_array(errors).is_empty()
 	assert_int((registry.get("units", []) as Array).size()).is_equal(70)
-	assert_int(_approval_status_count(registry, "planned")).is_equal(61)
+	assert_int(_approval_status_count(registry, "planned")).is_equal(0)
 	assert_int(_approval_status_count(registry, "review")).is_equal(0)
-	assert_int(_approval_status_count(registry, "approved")).is_equal(9)
-	for approved_asset_id in [
-		"warmup_shiv",
-		"service_pistol",
-		"projectile_hit_kit",
-		"ballistic_liner",
-		"one_more_round",
-		"hud_icon_kit",
-		"control_icon_kit",
-		"difficulty_badge_kit",
-		"smoke_shell_helmet",
-	]:
-		assert_str(str(_unit_by_asset_id(registry, approved_asset_id).get("approval_status", ""))).is_equal("approved")
-	for excluded_asset_id in ["community_tapper", "supply_crate", "four_state_button"]:
-		assert_str(str(_unit_by_asset_id(registry, excluded_asset_id).get("approval_status", ""))).is_equal("planned")
+	assert_int(_approval_status_count(registry, "approved")).is_equal(70)
+	for unit_variant: Variant in registry.get("units", []) as Array:
+		var unit := unit_variant as Dictionary
+		assert_str(str(unit.get("approval_status", ""))).is_equal("approved")
+		var evidence := unit.get("shipping_approval_evidence", {}) as Dictionary
+		assert_str(str(evidence.get("approval_record_sha256", ""))).is_not_equal(
+			"55650881C916C9D886ED4B47CDEAA187487E4B4F3BE84A3D90B09105BE461786"
+		)
+		assert_str(str(evidence.get("review_board_sha256", ""))).is_not_equal(
+			"4E6770DF75EFB3A31126E62368C4F0E0B3A045F4647385580612B437B1AC82C9"
+		)
 	for removed_asset_id in [
 		"service_carbine",
 		"master_ni",
@@ -161,6 +157,8 @@ func test_loader_accepts_only_the_canonical_approval_states() -> void:
 		var accepted := _canonical_registry()
 		var accepted_unit := _smoke_shell_helmet(accepted) if approval_status == "review" else _unit_by_asset_id(accepted, "community_tapper")
 		accepted_unit["approval_status"] = approval_status
+		if approval_status != "approved":
+			accepted_unit.erase("shipping_approval_evidence")
 		if approval_status == "review":
 			accepted_unit.erase("approval_history")
 		_assert_fixture_has_no_errors(accepted)
