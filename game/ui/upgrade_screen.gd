@@ -20,7 +20,12 @@ func _show_offers() -> void:
 	for index in indices.slice(0, mini(3, indices.size())):
 		var definition := pool[index] as GogoUpgradeDefinition
 		_offers.append(definition)
-		add_action(definition.display_name + "  " + _modifier_text(definition.stat_modifiers), func() -> void: _choose(definition))
+		add_action(
+			definition.display_name + "  " + _modifier_text(definition.stat_modifiers),
+			func() -> void: _choose(definition),
+			false,
+			resolve_content_icon(definition)
+		)
 
 
 func _choose(definition: GogoUpgradeDefinition) -> void:

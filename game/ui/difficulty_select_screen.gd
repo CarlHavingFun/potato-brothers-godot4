@@ -6,7 +6,18 @@ func _ready() -> void:
 	var app := AppContext.kernel(self)
 	for raw in app.content_snapshot.all(&"difficulty"):
 		var definition := raw as GogoDifficultyDefinition
-		add_action(definition.display_name, func() -> void: _select_and_start(definition.content_id))
+		var icon := resolve_content_icon(definition)
+		if icon == null:
+			icon = resolve_global_icon(
+				&"difficulty_badge_kit",
+				selector_from_content_id(definition.content_id)
+			)
+		add_action(
+			definition.display_name,
+			func() -> void: _select_and_start(definition.content_id),
+			false,
+			icon
+		)
 	add_action("返回", func() -> void: app.route(FlowRoute.WEAPON_SELECT))
 
 

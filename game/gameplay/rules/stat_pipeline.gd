@@ -9,6 +9,7 @@ func rebuild(base_stats: Dictionary, modifiers_by_stage: Dictionary) -> Dictiona
 	for stage in ORDER:
 		for modifiers: Dictionary in modifiers_by_stage.get(stage, []):
 			_apply_modifiers(result, modifiers)
+	_apply_percent_multipliers(result)
 	_clamp_final(result)
 	return result
 
@@ -16,6 +17,15 @@ func rebuild(base_stats: Dictionary, modifiers_by_stage: Dictionary) -> Dictiona
 func _apply_modifiers(stats: Dictionary, modifiers: Dictionary) -> void:
 	for key: StringName in modifiers:
 		stats[key] = float(stats.get(key, 0.0)) + float(modifiers[key])
+
+
+func _apply_percent_multipliers(stats: Dictionary) -> void:
+	stats[&"movement_speed"] = float(stats.get(&"movement_speed", 1.0)) * (
+		1.0 + float(stats.get(&"movement_speed_multiplier", 0.0))
+	)
+	stats[&"attack_speed"] = float(stats.get(&"attack_speed", 1.0)) * (
+		1.0 + float(stats.get(&"attack_speed_multiplier", 0.0))
+	)
 
 
 func _clamp_final(stats: Dictionary) -> void:

@@ -4,6 +4,41 @@ extends Node2D
 signal wave_completed
 signal run_failed
 signal hud_changed(health: float, max_health: float, time_left: float, wave: int)
+signal weapon_fired(
+	weapon_instance_id: int,
+	feedback_profile_id: StringName,
+	integer_muzzle_global_position: Vector2i,
+	shot_direction: Vector2,
+	projectile_count: int,
+	shot_sequence: int
+)
+signal melee_contact(
+	weapon_instance_id: int,
+	target_instance_id: int,
+	feedback_profile_id: StringName,
+	integer_contact_global_position: Vector2i,
+	contact_normal: Vector2,
+	damage_kind: StringName,
+	impact_kind: StringName,
+	melee_sequence: int
+)
+signal projectile_contact(
+	projectile_instance_id: int,
+	target_instance_id: int,
+	feedback_profile_id: StringName,
+	integer_contact_global_position: Vector2i,
+	contact_normal: Vector2,
+	damage_kind: StringName,
+	impact_kind: StringName,
+	contact_sequence: int
+)
+signal enemy_defeated(
+	enemy_instance_id: int,
+	integer_death_global_position: Vector2i,
+	xp: int,
+	materials: int,
+	death_sequence: int
+)
 
 var session: GameSession
 var wave_runtime := WaveRuntime.new()
@@ -13,8 +48,12 @@ var enemy_layer: Node2D
 var projectile_layer: Node2D
 var effect_layer: Node2D
 var player_camera: GogoCombatCamera
+var feedback_presenter: GogoCombatFeedbackPresenter
 var arena_rect := Rect2(Vector2.ZERO, Vector2(2048.0, 1536.0))
 var running := false
+var _active_enemies: Array[GogoEnemyActor] = []
+var _active_enemies_by_runtime_id: Dictionary = {}
+var _wave_transition_committed := false
 
 
 func _ready() -> void:
@@ -26,18 +65,38 @@ func _ready() -> void:
 	add_child(projectile_layer)
 	effect_layer = Node2D.new()
 	effect_layer.name = "Effects"
+	effect_layer.z_index = 40
 	add_child(effect_layer)
+	feedback_presenter = GogoCombatFeedbackPresenter.new()
+	feedback_presenter.name = "CombatFeedbackPresenter"
+	effect_layer.add_child(feedback_presenter)
 	queue_redraw()
 
 
 func start_wave(next_session: GameSession, wave_definition: GogoWaveDefinition) -> Error:
-	if next_session == null or wave_definition == null:
+	if running:
+		return ERR_ALREADY_IN_USE
+	if (
+		next_session == null
+		or wave_definition == null
+		or next_session.run_state == null
+		or next_session.content_snapshot == null
+		or next_session.run_state.ended
+		or next_session.run_state.phase != &"combat"
+		or next_session.run_state.player() == null
+	):
 		return ERR_INVALID_PARAMETER
-	session = next_session
-	var zone := session.content_snapshot.definition(session.run_state.zone_id, &"zone") as GogoZoneDefinition
-	var difficulty := session.content_snapshot.definition(session.run_state.difficulty_id, &"difficulty") as GogoDifficultyDefinition
-	if zone_runtime.configure(zone) != OK or difficulty == null:
+	var zone := next_session.content_snapshot.definition(next_session.run_state.zone_id, &"zone") as GogoZoneDefinition
+	var difficulty := next_session.content_snapshot.definition(next_session.run_state.difficulty_id, &"difficulty") as GogoDifficultyDefinition
+	if zone == null or difficulty == null:
 		return ERR_INVALID_DATA
+	var next_zone_runtime := ZoneRuntime.new()
+	if next_zone_runtime.configure(zone) != OK:
+		return ERR_INVALID_DATA
+	_clear_active_combat_actors()
+	session = next_session
+	zone_runtime = next_zone_runtime
+	_wave_transition_committed = false
 	arena_rect = Rect2(Vector2.ZERO, zone.arena_size)
 	wave_runtime.begin(wave_definition, difficulty.spawn_multiplier)
 	if player_actor == null:
@@ -47,13 +106,38 @@ func start_wave(next_session: GameSession, wave_definition: GogoWaveDefinition) 
 		add_child(player_actor)
 		player_actor.died.connect(_on_player_died)
 		player_actor.health_changed.connect(_on_player_health_changed)
+	else:
+		player_actor.configure(session, self)
+		player_actor.position = arena_rect.get_center()
+		player_actor.rebuild_weapons()
 	if player_camera == null:
 		player_camera = GogoCombatCamera.new()
 		player_camera.name = "PlayerCamera"
 		add_child(player_camera)
 	player_camera.configure(player_actor, arena_rect)
+	feedback_presenter.configure(player_camera, session.static_asset_snapshot)
+	feedback_presenter.clear_feedback()
 	running = true
 	return OK
+
+
+func bind_weapon_feedback(weapon: GogoWeaponInstance) -> void:
+	if weapon == null:
+		return
+	if not weapon.weapon_fired.is_connected(_on_weapon_fired):
+		weapon.weapon_fired.connect(_on_weapon_fired)
+	if not weapon.melee_contact.is_connected(_on_melee_contact):
+		weapon.melee_contact.connect(_on_melee_contact)
+
+
+func bind_projectile_feedback(projectile: GogoProjectile) -> void:
+	if projectile != null and not projectile.projectile_contact.is_connected(_on_projectile_contact):
+		projectile.projectile_contact.connect(_on_projectile_contact)
+
+
+func bind_enemy_feedback(enemy: GogoEnemyActor) -> void:
+	if enemy != null and not enemy.enemy_defeated.is_connected(_on_enemy_defeated):
+		enemy.enemy_defeated.connect(_on_enemy_defeated)
 
 
 func _physics_process(delta: float) -> void:
@@ -76,16 +160,155 @@ func clamp_to_arena(value: Vector2, margin: float) -> Vector2:
 	)
 
 
+func allocate_runtime_instance_id(kind: StringName) -> int:
+	if session == null:
+		return 0
+	return session.allocate_runtime_instance_id(kind)
+
+
+func register_active_enemy(enemy: GogoEnemyActor) -> bool:
+	if enemy == null or enemy.runtime_instance_id <= 0 or enemy.defeated_once:
+		return false
+	var runtime_id := enemy.runtime_instance_id
+	if _active_enemies_by_runtime_id.has(runtime_id):
+		return _active_enemies_by_runtime_id[runtime_id] == enemy
+	_active_enemies_by_runtime_id[runtime_id] = enemy
+	var insert_at := 0
+	while insert_at < _active_enemies.size() and _active_enemies[insert_at].runtime_instance_id < runtime_id:
+		insert_at += 1
+	_active_enemies.insert(insert_at, enemy)
+	return true
+
+
+func unregister_active_enemy(runtime_instance_id: int, expected_enemy: GogoEnemyActor = null) -> void:
+	if runtime_instance_id <= 0 or not _active_enemies_by_runtime_id.has(runtime_instance_id):
+		return
+	var registered := _active_enemies_by_runtime_id[runtime_instance_id] as GogoEnemyActor
+	if expected_enemy != null and registered != expected_enemy:
+		return
+	_active_enemies_by_runtime_id.erase(runtime_instance_id)
+	_active_enemies.erase(registered)
+
+
+func active_enemy_count() -> int:
+	return _active_enemies.size()
+
+
+func active_enemy_at(index: int) -> GogoEnemyActor:
+	if index < 0 or index >= _active_enemies.size():
+		return null
+	return _active_enemies[index]
+
+
+func is_active_enemy(enemy: GogoEnemyActor) -> bool:
+	return (
+		enemy != null
+		and enemy.runtime_instance_id > 0
+		and _active_enemies_by_runtime_id.get(enemy.runtime_instance_id) == enemy
+		and enemy.can_receive_projectile_contact()
+	)
+
+
+func nearest_active_enemy(origin: Vector2, maximum_distance: float) -> GogoEnemyActor:
+	var nearest: GogoEnemyActor
+	var best_distance := maximum_distance * maximum_distance
+	for enemy in _active_enemies:
+		if not is_active_enemy(enemy):
+			continue
+		var distance := origin.distance_squared_to(enemy.global_position)
+		if distance < best_distance or (nearest == null and distance <= best_distance):
+			best_distance = distance
+			nearest = enemy
+	return nearest
+
+
+func commit_enemy_reward_snapshot(
+	enemy_instance_id: int,
+	death_sequence: int,
+	xp: int,
+	materials: int,
+	player_index: int = 0
+) -> Dictionary:
+	var reservations := _reserve_enemy_reward_snapshot(
+		enemy_instance_id,
+		death_sequence,
+		xp,
+		materials,
+		player_index
+	)
+	return _apply_reserved_enemy_rewards(reservations)
+
+
+func _reserve_enemy_reward_snapshot(
+	enemy_instance_id: int,
+	death_sequence: int,
+	xp: int,
+	materials: int,
+	player_index: int = 0
+) -> Dictionary:
+	var reservations: Dictionary = {}
+	if session == null or enemy_instance_id <= 0 or death_sequence <= 0 or xp < 0 or materials < 0:
+		reservations[&"status"] = GameSession.REWARD_INVALID
+		return reservations
+	if xp > 0:
+		var experience_token := enemy_reward_token(enemy_instance_id, death_sequence, GameSession.REWARD_EXPERIENCE)
+		reservations[GameSession.REWARD_EXPERIENCE] = session.reserve_reward_once(
+			experience_token,
+			GameSession.REWARD_EXPERIENCE,
+			xp,
+			player_index
+		)
+	if materials > 0:
+		var supply_token := enemy_reward_token(enemy_instance_id, death_sequence, GameSession.REWARD_SUPPLY)
+		reservations[GameSession.REWARD_SUPPLY] = session.reserve_reward_once(
+			supply_token,
+			GameSession.REWARD_SUPPLY,
+			materials,
+			player_index
+		)
+	return reservations
+
+
+func _apply_reserved_enemy_rewards(reservations: Dictionary) -> Dictionary:
+	var results: Dictionary = {}
+	if reservations.has(&"status"):
+		results[&"status"] = reservations[&"status"]
+		return results
+	for kind in [GameSession.REWARD_EXPERIENCE, GameSession.REWARD_SUPPLY]:
+		if not reservations.has(kind):
+			continue
+		var reservation: Dictionary = reservations[kind]
+		var status := StringName(reservation.get("status", GameSession.REWARD_INVALID))
+		if status == GameSession.REWARD_RESERVED:
+			results[kind] = session.apply_reserved_reward(
+				StringName(reservation.get("token", &"")),
+				int(reservation.get("reservation_id", 0))
+			)
+		else:
+			results[kind] = status
+	return results
+
+
+static func enemy_reward_token(enemy_instance_id: int, death_sequence: int, kind: StringName) -> StringName:
+	if enemy_instance_id <= 0 or death_sequence <= 0 or not [GameSession.REWARD_EXPERIENCE, GameSession.REWARD_SUPPLY].has(kind):
+		return &""
+	return StringName("enemy/%d/death/%d/%s" % [enemy_instance_id, death_sequence, String(kind)])
+
+
 func _spawn_enemy(enemy_id: StringName) -> void:
 	var definition := session.content_snapshot.definition(enemy_id, &"enemy") as GogoEnemyDefinition
 	var difficulty := session.content_snapshot.definition(session.run_state.difficulty_id, &"difficulty") as GogoDifficultyDefinition
 	if definition == null or difficulty == null:
 		return
+	var runtime_instance_id := allocate_runtime_instance_id(&"enemy")
+	if runtime_instance_id <= 0:
+		return
 	var enemy := GogoEnemyActor.new()
-	enemy.configure(definition, player_actor, difficulty)
+	enemy.configure(definition, player_actor, difficulty, self, runtime_instance_id)
 	enemy.position = _random_edge_position()
 	enemy_layer.add_child(enemy)
-	enemy.defeated.connect(_on_enemy_defeated)
+	if not register_active_enemy(enemy):
+		enemy.queue_free()
 
 
 func _random_edge_position() -> Vector2:
@@ -97,29 +320,159 @@ func _random_edge_position() -> Vector2:
 		_: return Vector2(20.0, session.rng.randf_range(20.0, arena_rect.size.y - 20.0))
 
 
-func _on_enemy_defeated(_enemy: GogoEnemyActor, xp: int, materials: int) -> void:
-	var player := session.run_state.player()
-	player.add_xp(xp)
-	player.add_materials(materials)
-
-
 func _on_player_health_changed(current: float, maximum: float) -> void:
 	var remaining := maxf(wave_runtime.wave.duration_seconds - wave_runtime.elapsed, 0.0)
 	hud_changed.emit(current, maximum, remaining, session.run_state.current_wave)
 
 
 func _on_player_died() -> void:
+	if _wave_transition_committed:
+		return
+	_wave_transition_committed = true
 	running = false
+	_clear_active_combat_actors()
 	session.fail_run()
 	run_failed.emit()
 
 
+func _on_weapon_fired(
+	weapon_instance_id: int,
+	feedback_profile_id: StringName,
+	integer_muzzle_global_position: Vector2i,
+	shot_direction: Vector2,
+	projectile_count: int,
+	shot_sequence: int
+) -> void:
+	if feedback_presenter != null:
+		feedback_presenter.present_weapon_fired(
+			weapon_instance_id,
+			feedback_profile_id,
+			integer_muzzle_global_position,
+			shot_direction,
+			projectile_count,
+			shot_sequence
+		)
+	weapon_fired.emit(
+		weapon_instance_id,
+		feedback_profile_id,
+		integer_muzzle_global_position,
+		shot_direction,
+		projectile_count,
+		shot_sequence
+	)
+
+
+func _on_projectile_contact(
+	projectile_instance_id: int,
+	target_instance_id: int,
+	feedback_profile_id: StringName,
+	integer_contact_global_position: Vector2i,
+	contact_normal: Vector2,
+	damage_kind: StringName,
+	impact_kind: StringName,
+	contact_sequence: int
+) -> void:
+	if feedback_presenter != null:
+		feedback_presenter.present_projectile_contact(
+			projectile_instance_id,
+			target_instance_id,
+			feedback_profile_id,
+			integer_contact_global_position,
+			contact_normal,
+			damage_kind,
+			impact_kind,
+			contact_sequence
+		)
+	projectile_contact.emit(
+		projectile_instance_id,
+		target_instance_id,
+		feedback_profile_id,
+		integer_contact_global_position,
+		contact_normal,
+		damage_kind,
+		impact_kind,
+		contact_sequence
+	)
+
+
+func _on_melee_contact(
+	weapon_instance_id: int,
+	target_instance_id: int,
+	feedback_profile_id: StringName,
+	integer_contact_global_position: Vector2i,
+	contact_normal: Vector2,
+	damage_kind: StringName,
+	impact_kind: StringName,
+	melee_sequence: int
+) -> void:
+	if feedback_presenter != null:
+		feedback_presenter.present_melee_contact(
+			weapon_instance_id,
+			target_instance_id,
+			feedback_profile_id,
+			integer_contact_global_position,
+			contact_normal,
+			damage_kind,
+			impact_kind,
+			melee_sequence
+		)
+	melee_contact.emit(
+		weapon_instance_id,
+		target_instance_id,
+		feedback_profile_id,
+		integer_contact_global_position,
+		contact_normal,
+		damage_kind,
+		impact_kind,
+		melee_sequence
+	)
+
+
+func _on_enemy_defeated(
+	enemy_instance_id: int,
+	integer_death_global_position: Vector2i,
+	xp: int,
+	materials: int,
+	death_sequence: int
+) -> void:
+	if feedback_presenter != null:
+		feedback_presenter.present_enemy_defeated(
+			enemy_instance_id,
+			integer_death_global_position,
+			xp,
+			materials,
+			death_sequence
+		)
+	enemy_defeated.emit(enemy_instance_id, integer_death_global_position, xp, materials, death_sequence)
+
+
 func _finish_wave() -> void:
+	if _wave_transition_committed:
+		return
+	_wave_transition_committed = true
 	running = false
-	for enemy in enemy_layer.get_children(): enemy.queue_free()
-	for projectile in projectile_layer.get_children(): projectile.queue_free()
+	_clear_active_combat_actors()
 	session.finish_wave()
 	wave_completed.emit()
+
+
+func _clear_active_combat_actors() -> void:
+	_active_enemies.clear()
+	_active_enemies_by_runtime_id.clear()
+	if enemy_layer != null:
+		for enemy in enemy_layer.get_children():
+			if enemy is GogoEnemyActor:
+				(enemy as GogoEnemyActor).retire_without_reward()
+			else:
+				enemy.queue_free()
+	if projectile_layer != null:
+		for projectile in projectile_layer.get_children():
+			if projectile is GogoProjectile:
+				(projectile as GogoProjectile).retire()
+			else:
+				projectile.queue_free()
+	if feedback_presenter != null:
+		feedback_presenter.clear_feedback()
 
 
 func _draw() -> void:

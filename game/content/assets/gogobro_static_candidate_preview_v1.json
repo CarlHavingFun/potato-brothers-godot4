@@ -1,0 +1,1595 @@
+{
+  "schema_version": "gogobro-static-candidate-preview-v1",
+  "kind": "development_candidate_preview_only",
+  "enabled_in_shipping": false,
+  "human_approval_implied": false,
+  "character_assets_included": false,
+  "expected_unit_count": 61,
+  "category_counts": {
+    "weapon": 10,
+    "item": 28,
+    "upgrade": 5,
+    "world": 11,
+    "ui_brand": 7
+  },
+  "coverage_report_sha256": "0A5DCAC2C4C66F012C0381502564B32F1073E4D644F3602FB0E467942652766F",
+  "units": [
+    {
+      "asset_id": "community_tapper",
+      "category": "weapon",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/weapons/community_tapper.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/community_tapper/candidate-001/curated/community_tapper-world-96x64.png",
+      "sha256": "C0586A9DF25A80132B4F9C322DD4C79D66049763CAE3345084CC0BC7DF588132",
+      "pixel_size": [
+        96,
+        64
+      ],
+      "display_size_px": [
+        96,
+        64
+      ],
+      "pivot_px": [
+        42,
+        34
+      ],
+      "anchors_px": {
+        "muzzle": [
+          69,
+          32
+        ]
+      },
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "wood_stock_assault_rifle",
+      "category": "weapon",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/weapons/wood_stock_assault_rifle.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/wood_stock_assault_rifle/candidate-004/curated/wood-stock-assault-rifle-ak-world-96x64.png",
+      "sha256": "9F6F0E29D2DFC929527566DD6F9B3754B133746C920A77B70C325EEA78122566",
+      "pixel_size": [
+        96,
+        64
+      ],
+      "display_size_px": [
+        96,
+        64
+      ],
+      "pivot_px": [
+        33,
+        34
+      ],
+      "anchors_px": {
+        "muzzle": [
+          91,
+          22
+        ]
+      },
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": [
+        "service_pistol"
+      ]
+    },
+    {
+      "asset_id": "heavy_bolt_sniper",
+      "category": "weapon",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/weapons/heavy_bolt_sniper.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/heavy_bolt_sniper/candidate-001/curated/heavy-bolt-sniper-64.png",
+      "sha256": "23F37B96B8781C4BBCC0CBC980431CB8CD8AA94D54E962ADDDA3F2CC405B9B52",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        22,
+        34
+      ],
+      "anchors_px": {
+        "muzzle": [
+          59,
+          34
+        ]
+      },
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "suppressed_carbine",
+      "category": "weapon",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/weapons/suppressed_carbine.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/suppressed_carbine/candidate-001/curated/suppressed-carbine-64.png",
+      "sha256": "F5A02473AD0361133A81C17A3F768DA6E49D3C1FF5C247B6516C0BB841CCCFBB",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        22,
+        33
+      ],
+      "anchors_px": {
+        "muzzle": [
+          59,
+          29
+        ]
+      },
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "suppressed_tactical_pistol",
+      "category": "weapon",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/weapons/suppressed_tactical_pistol.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/suppressed_tactical_pistol/candidate-001/curated/suppressed_tactical_pistol-world-96x64.png",
+      "sha256": "17F69610C10F97189ED14B0BBEA8C0932588A1A2127B55BF86C9D388F866166B",
+      "pixel_size": [
+        96,
+        64
+      ],
+      "display_size_px": [
+        96,
+        64
+      ],
+      "pivot_px": [
+        26,
+        35
+      ],
+      "anchors_px": {
+        "muzzle": [
+          71,
+          44
+        ]
+      },
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "heavy_hand_cannon",
+      "category": "weapon",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/weapons/heavy_hand_cannon.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/heavy_hand_cannon/candidate-002/curated/heavy-hand-cannon-v2-64.png",
+      "sha256": "3304225A2556234A7FB95BBCC61A1597F29C37209E1009D319EE02A6A52208E9",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        23,
+        35
+      ],
+      "anchors_px": {
+        "muzzle": [
+          57,
+          23
+        ]
+      },
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "box_submachine_gun",
+      "category": "weapon",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/weapons/box_submachine_gun.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/box_submachine_gun/candidate-001/curated/box_submachine_gun-world-96x64.png",
+      "sha256": "CDFD08F663242533EBD01FC90AADACEBE1ED97E27C422AD92D8A1140C84B10D7",
+      "pixel_size": [
+        96,
+        64
+      ],
+      "display_size_px": [
+        96,
+        64
+      ],
+      "pivot_px": [
+        38,
+        35
+      ],
+      "anchors_px": {
+        "muzzle": [
+          71,
+          31
+        ]
+      },
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "compact_submachine_gun",
+      "category": "weapon",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/weapons/compact_submachine_gun.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/compact_submachine_gun/candidate-001/curated/frame-0.png",
+      "sha256": "70066356DCFC1276C4539EF9604FDE6CB86C127C377E5D696D6AE5787380FAA2",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        22,
+        36
+      ],
+      "anchors_px": {
+        "muzzle": [
+          59,
+          18
+        ]
+      },
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "bullpup_pdw",
+      "category": "weapon",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/weapons/bullpup_pdw.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/bullpup_pdw/candidate-001/curated/frame-0.png",
+      "sha256": "DAFD3448BCE6F6B42A91FDE7B8FFED4FC7545B11B34FCE6C2C5C8F86C4A19B43",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        22,
+        35
+      ],
+      "anchors_px": {
+        "muzzle": [
+          59,
+          30
+        ]
+      },
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "folding_stock_submachine_gun",
+      "category": "weapon",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/weapons/folding_stock_submachine_gun.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/folding_stock_submachine_gun/candidate-001/curated/folding_stock_submachine_gun-world-96x64.png",
+      "sha256": "F86DBF7C7AEFFEAC8460F95A6623B92B824DB685E1B7493070BDF17B0B72C83B",
+      "pixel_size": [
+        96,
+        64
+      ],
+      "display_size_px": [
+        96,
+        64
+      ],
+      "pivot_px": [
+        40,
+        35
+      ],
+      "anchors_px": {
+        "muzzle": [
+          89,
+          27
+        ]
+      },
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "silent_step_insoles",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/silent_step_insoles.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/silent_step_insoles/candidate-001/curated/silent_step_insoles-icon-64x64.png",
+      "sha256": "8A3F4F15629866DD1C5B89DE04EBF318567D46F7F6D190A0C15C023E5D4EBFFB",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "crosshair_shim",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/crosshair_shim.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/crosshair_shim/candidate-001/curated/crosshair_shim-icon-64x64.png",
+      "sha256": "D7F2162F67542FB2A3C49AF6883D246E12728A9BCA1B8200426BB3E0599B43FE",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "supply_radar",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/supply_radar.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/supply_radar/candidate-001/curated/supply_radar-icon-64x64.png",
+      "sha256": "F376FB79C2A33B8A03D1FDCD4E2755D68D4265C59B56CCFC8F45EA10D2CA1EA2",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "trade_guard",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/trade_guard.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/trade_guard/candidate-001/curated/trade_guard-icon-64x64.png",
+      "sha256": "A76260DAA321E1CC1EBB9FEA0166729B478D73D2A9A65946304D1B1E5E0D5FEC",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "tactical_med_patch",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/tactical_med_patch.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/tactical_med_patch/candidate-001/curated/tactical_med_patch-icon-64x64.png",
+      "sha256": "5BAC617E57E91C1AEB6877C573642B78651074890DDC00302C290C3A850B735C",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "force_buy_runners",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/force_buy_runners.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/force_buy_runners/candidate-001/curated/force_buy_runners-icon-64x64.png",
+      "sha256": "B72526173C9BE2557EC271680A098C3A59A9FE1C31D591D3B397B277E274C345",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "eco_round_coin_pouch",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/eco_round_coin_pouch.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/eco_round_coin_pouch/candidate-001/curated/eco_round_coin_pouch-icon-64x64.png",
+      "sha256": "FEB04CB0BD91708DFBA36BE26298CDC316ED6AFC47575CD5E37E4E5E60F7E37E",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "rebound_fire_bottle",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/rebound_fire_bottle.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/rebound_fire_bottle/candidate-001/curated/rebound-fire-bottle-icon-64.png",
+      "sha256": "27882A8B4B921D5B5E946704059E97974A7700F3B586C8695D0F8526C0ABD75D",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "entry_fragger_dumbbell",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/entry_fragger_dumbbell.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/entry_fragger_dumbbell/candidate-001/curated/entry_fragger_dumbbell-icon-64x64.png",
+      "sha256": "A3441C6508A998F66CA6C7288E033FC4CA946396B75109E88B75C62C8EE52CCA",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "corner_lucky_claw",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/corner_lucky_claw.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/corner_lucky_claw/candidate-001/curated/corner_lucky_claw-icon-64x64.png",
+      "sha256": "C817AA760BCE4662EA536C2CDFE7F029AAD861D19048B7381F424ECD288476BC",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "scorched_defuse_pliers",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/scorched_defuse_pliers.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/scorched_defuse_pliers/candidate-001/curated/scorched_defuse_pliers-icon-64x64.png",
+      "sha256": "8AC0697B27311729E280121B63A7EDC828C56CDBEB85223946A5254ABEE8E023",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "save_time_watch",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/save_time_watch.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/save_time_watch/candidate-001/curated/save_time_watch-icon-64x64.png",
+      "sha256": "87C80D919F26B6047BCB4C642E821A78E918FF50FB6203020EF52F21B96D7823",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "skyline_grenade",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/skyline_grenade.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/skyline_grenade/candidate-001/curated/skyline_grenade-icon-64x64.png",
+      "sha256": "D27D282AC640EF7CCB080B7EBF1562DFFA995EF1336B1C4B88539D01BDB25050",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "post_match_analysis_desk",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/post_match_analysis_desk.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/post_match_analysis_desk/candidate-001/curated/post_match_analysis_desk-icon-64x64.png",
+      "sha256": "3A229EE4CF63664A5562E8FE47E07D1B259B09A8DF43482674EB6DD0E3630D0B",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "one_missed_shot",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/one_missed_shot.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/one_missed_shot/candidate-001/curated/one_missed_shot-icon-64x64.png",
+      "sha256": "5333DF8AE99B3BD7045AA45D805D792131F661F11ECEAB455022DA98476D3157",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "falling_sniper_charm",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/falling_sniper_charm.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/falling_sniper_charm/candidate-001/curated/falling_sniper_charm-icon-64x64.png",
+      "sha256": "DD46614036081EBE27889AF1ED8EF210F9CF5959B3E459D0078475B8D6EA484F",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "boost_step_stool",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/boost_step_stool.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/boost_step_stool/candidate-001/curated/boost_step_stool-icon-64x64.png",
+      "sha256": "97DCA7B6837F0C6D6E92D25CD87F0ED07075BDB46F1E46CB995360A17858C909",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "post_match_mic",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/post_match_mic.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/post_match_mic/candidate-001/curated/post_match_mic-icon-64x64.png",
+      "sha256": "E3C02CBE7FD91A8F627D2E9917FEE63571165A38C4D3A1E8839EF1F7EFA59227",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "halftime_tactics_board",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/halftime_tactics_board.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/halftime_tactics_board/candidate-001/curated/halftime_tactics_board-icon-64x64.png",
+      "sha256": "025E751B98605A14953218E6B6D88E7685D8B2B2ABE6E79252E48E9EF98C71CF",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "hand_cannon_ace_coin",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/hand_cannon_ace_coin.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/hand_cannon_ace_coin/candidate-001/curated/hand_cannon_ace_coin-icon-64x64.png",
+      "sha256": "8EF413EE25F9BE80B42A1D355388732B807EC23301832EE36451A80002C7E2A5",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "sneaky_site_mask",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/sneaky_site_mask.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/sneaky_site_mask/candidate-001/curated/sneaky_site_mask-icon-64x64.png",
+      "sha256": "185E05700401015AE7A99D6DFEA9736654BA98E4E36E2F84EAB72E24B84F5753",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "arena_chant_cassette",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/arena_chant_cassette.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/arena_chant_cassette/candidate-001/curated/arena_chant_cassette-icon-64x64.png",
+      "sha256": "B49C26B644B151A8004EC9D7B8DF035FDB76F64F23A0527718D935783606D376",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "mouse_lift_pad",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/mouse_lift_pad.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/mouse_lift_pad/candidate-001/curated/mouse_lift_pad-icon-64x64.png",
+      "sha256": "E905C92B30AFBF94BE84EB6A0ADE2287CE325DC01C9D2C78510D2AB7F5499B21",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "lineup_chalk",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/lineup_chalk.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/lineup_chalk/candidate-001/curated/lineup_chalk-icon-64x64.png",
+      "sha256": "17DDD44A3A25D51F56D04206E74E64C8EA3BBD2A17743068CAA2A151E313CEBD",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "site_hold_bandana",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/site_hold_bandana.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/site_hold_bandana/candidate-001/curated/site_hold_bandana-icon-64x64.png",
+      "sha256": "38A54944CD6FAF5C0C60C8FD0B91FC248EF207B0C15FB2756839B01A0C8C6DAD",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "airshot_wing_charm",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/airshot_wing_charm.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/airshot_wing_charm/candidate-001/curated/airshot_wing_charm-icon-64x64.png",
+      "sha256": "52BE16EC2F21AEF564F6B2CC0FBC827B4F24E078D5C7924CA4256BAC0ACB5F1E",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "clutch_stopwatch",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/clutch_stopwatch.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/clutch_stopwatch/candidate-001/curated/clutch_stopwatch-icon-64x64.png",
+      "sha256": "8BBCA91C6291611FF832720EA53BA6D18E90BCF5059AD384B12473646E96D58B",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "three_beat_magazine",
+      "category": "item",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/items/three_beat_magazine.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/three_beat_magazine/candidate-001/curated/three_beat_magazine-icon-64x64.png",
+      "sha256": "31A8E87DCB16F900BDFAA1DF89A7C720EB3FFF34A3020A6101ED51C0432F9D1B",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "trade_step_drills",
+      "category": "upgrade",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/upgrades/trade_step_drills.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/trade_step_drills/candidate-001/curated/trade_step_drills-icon-64x64.png",
+      "sha256": "BA931682CBF1C4A97DA8A6F0AB592FE0D4569A5AAD041B8DDD7B36DBF25A14B2",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "pre_aim_drills",
+      "category": "upgrade",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/upgrades/pre_aim_drills.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/pre_aim_drills/candidate-001/curated/pre_aim_drills-icon-64x64.png",
+      "sha256": "8895D3DC74F50F5BFDC25F509FE014A1F6F33CF1573B0926447DAE160AE091E7",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "economy_sense",
+      "category": "upgrade",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/upgrades/economy_sense.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/economy_sense/candidate-002/curated/economy-sense-coin-magazine-64.png",
+      "sha256": "4F34DB7959C0E5CEA3681CEFA15D439338833C652E777125F96246E100E8D7F5",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "kevlar_reinforcement",
+      "category": "upgrade",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/upgrades/kevlar_reinforcement.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/kevlar_reinforcement/candidate-001/curated/kevlar_reinforcement-icon-64x64.png",
+      "sha256": "D20F535530A49A76A9D9EDD32C5C5376A85625E18BCB1767E21B496E9871F3D2",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "medical_timeout",
+      "category": "upgrade",
+      "role": "icon",
+      "resource_path": "res://game/assets/gogobro_static_preview/upgrades/medical_timeout.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/medical_timeout/candidate-001/curated/medical_timeout-icon-64x64.png",
+      "sha256": "87C1EF837ACDDE0909A142FEE813BD8D2CA6BEF07FDDDCAAF29128DCC1BF1BFD",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "community_server_floor",
+      "category": "world",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/world/community_server_floor.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/community_server_floor/candidate-002/pipeline/final-verification/curated/1-community-server-floor-64.png",
+      "sha256": "7787391CB07C279426F1F5336DEE051D13DC9B8756F2DE713C7660AE50376AF4",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "arena_boundary_border",
+      "category": "world",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/world/arena_boundary_border.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/arena_boundary_border/candidate-001/curated/arena_boundary_border-world-96x64.png",
+      "sha256": "6C761F3A30929F78658EBA3FCA196EE46B5E3B4D6B31322D17C9D19A3C172D27",
+      "pixel_size": [
+        96,
+        64
+      ],
+      "display_size_px": [
+        96,
+        64
+      ],
+      "pivot_px": [
+        48,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "community_server_decor_pack",
+      "category": "world",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/world/community_server_decor_pack.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/community_server_decor_pack/candidate-002/curated/community-server-tick-barrel-64.png",
+      "sha256": "D32D21CDAA42B9341FD1E2571554C3EDE4F88F8612C584CBB1B859BE2742A652",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "spawn_marker",
+      "category": "world",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/world/spawn_marker.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/spawn_marker/candidate-001/curated/spawn_marker-world-96x64.png",
+      "sha256": "1F3695720139CDB910EBDC2E214F9BAAC9767BF561043B0E7FD72ADCE0885ED1",
+      "pixel_size": [
+        96,
+        64
+      ],
+      "display_size_px": [
+        96,
+        64
+      ],
+      "pivot_px": [
+        48,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "experience_pickup",
+      "category": "world",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/world/experience_pickup.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/experience_pickup/candidate-001/curated/experience_pickup-world-96x64.png",
+      "sha256": "2A71E7CE6E55F19EC0CBF7357CDA9D749572E9F7F2A0F80EEB4A49DF3443E3D2",
+      "pixel_size": [
+        96,
+        64
+      ],
+      "display_size_px": [
+        96,
+        64
+      ],
+      "pivot_px": [
+        48,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "supply_pickup",
+      "category": "world",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/world/supply_pickup.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/supply_pickup/candidate-001/curated/supply_pickup-world-96x64.png",
+      "sha256": "83476C32A3661D83A0D6502E994F2AC6C87DD7ED54E40F750A22B69EBDB2D7FF",
+      "pixel_size": [
+        96,
+        64
+      ],
+      "display_size_px": [
+        96,
+        64
+      ],
+      "pivot_px": [
+        48,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "medical_pickup",
+      "category": "world",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/world/medical_pickup.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/medical_pickup/candidate-002/pipeline/run/curated/frame-0.png",
+      "sha256": "F82B06691409A46EA73BCEEE0C339200440443916C463DF0FE1B74129568DC42",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "site_hold_turret",
+      "category": "world",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/world/site_hold_turret.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/site_hold_turret/candidate-001/curated/site_hold_turret-world-96x64.png",
+      "sha256": "3E53BE06B00B718FBAE7BBB072EBC56B05C58A980920904F4E2EA38A823F0E39",
+      "pixel_size": [
+        96,
+        64
+      ],
+      "display_size_px": [
+        96,
+        64
+      ],
+      "pivot_px": [
+        48,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "hazard_beacon",
+      "category": "world",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/world/hazard_beacon.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/hazard_beacon/candidate-002/pipeline/run/curated/frame-0.png",
+      "sha256": "05388C04DDE02EBB56C8E9313E79DA7FC6229BBAA153F889C915F553E7AF1990",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "supply_crate",
+      "category": "world",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/world/supply_crate.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/supply_crate/candidate-001/pipeline/run/curated/frame-0.png",
+      "sha256": "3031F80F9CFA1334FE2E5C491D59A2E938709DC00AF5EFC39038712E4BDAF406",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "weapon_rack",
+      "category": "world",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/world/weapon_rack.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/weapon_rack/candidate-001/curated/weapon_rack-world-96x64.png",
+      "sha256": "B04062032DC2754690F03057EAEF21AE998324FE94F6FB1294DDD598A741D8B5",
+      "pixel_size": [
+        96,
+        64
+      ],
+      "display_size_px": [
+        96,
+        64
+      ],
+      "pivot_px": [
+        48,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "gogobro_wordmark",
+      "category": "ui_brand",
+      "role": "ui_texture",
+      "resource_path": "res://game/assets/gogobro_static_preview/ui/gogobro_wordmark.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/gogobro_wordmark/candidate-001/pipeline/run/curated/frame-0.png",
+      "sha256": "B64BB5686C375E1817D2955525ABB1ED09AB9FC31FFF2115F72D68D372F4BB5B",
+      "pixel_size": [
+        1024,
+        256
+      ],
+      "display_size_px": [
+        1024,
+        256
+      ],
+      "pivot_px": [
+        512,
+        128
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "menu_background",
+      "category": "ui_brand",
+      "role": "ui_texture",
+      "resource_path": "res://game/assets/gogobro_static_preview/ui/menu_background.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/menu_background/candidate-002/curated/menu-background-runtime-1920x1080.png",
+      "sha256": "8A3A455139E5223EE2841AFA69DCBB5ECE8C8DFC24C895EBB49D7AD41E1FC7E0",
+      "pixel_size": [
+        1920,
+        1080
+      ],
+      "display_size_px": [
+        1920,
+        1080
+      ],
+      "pivot_px": [
+        960,
+        540
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "nine_slice_panel",
+      "category": "ui_brand",
+      "role": "ui_texture",
+      "resource_path": "res://game/assets/gogobro_static_preview/ui/nine_slice_panel.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/nine_slice_panel/candidate-001/curated/nine_slice_panel-logical-64.png",
+      "sha256": "36B9684F82A54FDA80AB5C003FCA7C58473D8368BF4599BAEB3ED4EA49A75854",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "card_and_rarity_frame_kit",
+      "category": "ui_brand",
+      "role": "ui_texture",
+      "resource_path": "res://game/assets/gogobro_static_preview/ui/card_and_rarity_frame_kit.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/card_and_rarity_frame_kit/candidate-001/curated/card_frame_uncommon-64.png",
+      "sha256": "6DF3B86027C4DBE34ED3F3A2CCD122E9254725375D128C28CFE0937943179799",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "four_state_button",
+      "category": "ui_brand",
+      "role": "ui_texture",
+      "resource_path": "res://game/assets/gogobro_static_preview/ui/four_state_button.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/four_state_button/candidate-002/pipeline/run/curated/frame-0.png",
+      "sha256": "2D46CBB216161345F1E10CCD20A6EA0B291119BA1C828F03B48CD15555EF934B",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32,
+        32
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "combat_hud_shell",
+      "category": "ui_brand",
+      "role": "ui_texture",
+      "resource_path": "res://game/assets/gogobro_static_preview/ui/combat_hud_shell.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/combat_hud_shell/candidate-001/curated/combat_hud_shell-logical-320x180.png",
+      "sha256": "60E72384C8924DA1F3AFC323385DE62A4ED5CD5176B271DE31D681B80B9AA8B0",
+      "pixel_size": [
+        320,
+        180
+      ],
+      "display_size_px": [
+        320,
+        180
+      ],
+      "pivot_px": [
+        160,
+        90
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "zone_thumbnail",
+      "category": "ui_brand",
+      "role": "ui_texture",
+      "resource_path": "res://game/assets/gogobro_static_preview/ui/zone_thumbnail.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/zone_thumbnail/candidate-001/curated/zone_thumbnail-512x288.png",
+      "sha256": "BBEB5E11F0AFFDA04DD525461E264A8FEF831A9126039A78512E79E45AC2A65F",
+      "pixel_size": [
+        512,
+        288
+      ],
+      "display_size_px": [
+        512,
+        288
+      ],
+      "pivot_px": [
+        256,
+        144
+      ],
+      "anchors_px": {},
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    }
+  ]
+}

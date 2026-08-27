@@ -7,7 +7,12 @@ func _ready() -> void:
 	for raw in app.content_snapshot.all(&"weapon"):
 		var definition := raw as GogoWeaponDefinition
 		var suffix := "近战" if definition.mode == GogoWeaponDefinition.Mode.MELEE else "远程"
-		add_action("%s · %s" % [definition.display_name, suffix], func() -> void: _select(definition.content_id))
+		add_action(
+			"%s · %s" % [definition.display_name, suffix],
+			func() -> void: _select(definition.content_id),
+			false,
+			resolve_content_icon(definition)
+		)
 	add_action("返回", func() -> void: app.route(FlowRoute.CHARACTER_SELECT))
 
 

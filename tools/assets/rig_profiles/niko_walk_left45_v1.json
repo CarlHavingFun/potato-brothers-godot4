@@ -1,0 +1,1442 @@
+{
+  "atlas_size": [
+    768,
+    96
+  ],
+  "character_atlas": "game/content/packs/characters/niko/animations/walk_left45/sprite-sheet-alpha.png",
+  "character_atlas_sha256": "33E794FCDEC898E876214B283D2AF9FDE109DC3CE07E62F36478A846782EF855",
+  "frame_size": [
+    96,
+    96
+  ],
+  "frames": [
+    {
+      "attachment_regions": {
+        "back": [
+          32,
+          65,
+          64,
+          81
+        ],
+        "clothes_body": [
+          36,
+          68,
+          60,
+          80
+        ],
+        "feet": [
+          30,
+          80,
+          66,
+          88
+        ],
+        "forearm_left": [
+          29,
+          71,
+          37,
+          79
+        ],
+        "forearm_right": [
+          58,
+          72,
+          66,
+          80
+        ],
+        "hand_left": [
+          31,
+          75,
+          37,
+          81
+        ],
+        "hand_right": [
+          55,
+          77,
+          61,
+          83
+        ],
+        "shoulder_left": [
+          30,
+          65,
+          40,
+          73
+        ],
+        "shoulder_right": [
+          54,
+          65,
+          64,
+          73
+        ],
+        "side_left": [
+          28,
+          66,
+          40,
+          80
+        ],
+        "side_right": [
+          56,
+          72,
+          68,
+          86
+        ],
+        "torso": [
+          32,
+          65,
+          64,
+          81
+        ],
+        "trinket_left": [
+          25,
+          74,
+          35,
+          88
+        ],
+        "trinket_right": [
+          62,
+          74,
+          72,
+          88
+        ],
+        "upper_arm_left": [
+          29,
+          68,
+          37,
+          76
+        ],
+        "upper_arm_right": [
+          58,
+          68,
+          66,
+          76
+        ],
+        "wrist_left": [
+          29,
+          72,
+          37,
+          80
+        ],
+        "wrist_right": [
+          58,
+          72,
+          66,
+          80
+        ]
+      },
+      "face_center": [
+        47,
+        52
+      ],
+      "face_roi": [
+        29,
+        32,
+        62,
+        62
+      ],
+      "frame_index": 0,
+      "head_center": [
+        48,
+        42
+      ],
+      "head_width": 44,
+      "protected_regions": {
+        "eyes": [
+          30,
+          44,
+          54,
+          55
+        ],
+        "face": [
+          29,
+          32,
+          62,
+          62
+        ]
+      }
+    },
+    {
+      "attachment_regions": {
+        "back": [
+          31,
+          65,
+          63,
+          81
+        ],
+        "clothes_body": [
+          35,
+          68,
+          59,
+          80
+        ],
+        "feet": [
+          30,
+          80,
+          66,
+          88
+        ],
+        "forearm_left": [
+          29,
+          71,
+          37,
+          79
+        ],
+        "forearm_right": [
+          58,
+          72,
+          66,
+          80
+        ],
+        "hand_left": [
+          31,
+          75,
+          37,
+          81
+        ],
+        "hand_right": [
+          54,
+          77,
+          60,
+          83
+        ],
+        "shoulder_left": [
+          30,
+          65,
+          40,
+          73
+        ],
+        "shoulder_right": [
+          54,
+          65,
+          64,
+          73
+        ],
+        "side_left": [
+          28,
+          66,
+          40,
+          80
+        ],
+        "side_right": [
+          56,
+          72,
+          68,
+          86
+        ],
+        "torso": [
+          31,
+          65,
+          63,
+          81
+        ],
+        "trinket_left": [
+          25,
+          74,
+          35,
+          88
+        ],
+        "trinket_right": [
+          62,
+          74,
+          72,
+          88
+        ],
+        "upper_arm_left": [
+          29,
+          68,
+          37,
+          76
+        ],
+        "upper_arm_right": [
+          58,
+          68,
+          66,
+          76
+        ],
+        "wrist_left": [
+          29,
+          72,
+          37,
+          80
+        ],
+        "wrist_right": [
+          58,
+          72,
+          66,
+          80
+        ]
+      },
+      "face_center": [
+        47,
+        52
+      ],
+      "face_roi": [
+        29,
+        32,
+        61,
+        62
+      ],
+      "frame_index": 1,
+      "head_center": [
+        47,
+        43
+      ],
+      "head_width": 43,
+      "protected_regions": {
+        "eyes": [
+          29,
+          44,
+          53,
+          55
+        ],
+        "face": [
+          29,
+          32,
+          61,
+          62
+        ]
+      }
+    },
+    {
+      "attachment_regions": {
+        "back": [
+          31,
+          65,
+          63,
+          81
+        ],
+        "clothes_body": [
+          35,
+          68,
+          59,
+          80
+        ],
+        "feet": [
+          30,
+          80,
+          66,
+          88
+        ],
+        "forearm_left": [
+          26,
+          69,
+          34,
+          77
+        ],
+        "forearm_right": [
+          60,
+          70,
+          68,
+          78
+        ],
+        "hand_left": [
+          29,
+          72,
+          35,
+          78
+        ],
+        "hand_right": [
+          59,
+          74,
+          65,
+          80
+        ],
+        "shoulder_left": [
+          30,
+          64,
+          40,
+          72
+        ],
+        "shoulder_right": [
+          54,
+          65,
+          64,
+          73
+        ],
+        "side_left": [
+          27,
+          66,
+          39,
+          80
+        ],
+        "side_right": [
+          58,
+          72,
+          70,
+          86
+        ],
+        "torso": [
+          31,
+          65,
+          63,
+          81
+        ],
+        "trinket_left": [
+          24,
+          74,
+          34,
+          88
+        ],
+        "trinket_right": [
+          62,
+          74,
+          72,
+          88
+        ],
+        "upper_arm_left": [
+          28,
+          67,
+          36,
+          75
+        ],
+        "upper_arm_right": [
+          57,
+          68,
+          65,
+          76
+        ],
+        "wrist_left": [
+          28,
+          68,
+          36,
+          76
+        ],
+        "wrist_right": [
+          60,
+          70,
+          68,
+          78
+        ]
+      },
+      "face_center": [
+        47,
+        52
+      ],
+      "face_roi": [
+        29,
+        32,
+        61,
+        62
+      ],
+      "frame_index": 2,
+      "head_center": [
+        47,
+        42
+      ],
+      "head_width": 43,
+      "protected_regions": {
+        "eyes": [
+          29,
+          44,
+          53,
+          55
+        ],
+        "face": [
+          29,
+          32,
+          61,
+          62
+        ]
+      }
+    },
+    {
+      "attachment_regions": {
+        "back": [
+          31,
+          65,
+          63,
+          81
+        ],
+        "clothes_body": [
+          35,
+          68,
+          59,
+          80
+        ],
+        "feet": [
+          30,
+          80,
+          66,
+          88
+        ],
+        "forearm_left": [
+          29,
+          71,
+          37,
+          79
+        ],
+        "forearm_right": [
+          58,
+          72,
+          66,
+          80
+        ],
+        "hand_left": [
+          31,
+          75,
+          37,
+          81
+        ],
+        "hand_right": [
+          54,
+          77,
+          60,
+          83
+        ],
+        "shoulder_left": [
+          30,
+          65,
+          40,
+          73
+        ],
+        "shoulder_right": [
+          54,
+          65,
+          64,
+          73
+        ],
+        "side_left": [
+          28,
+          66,
+          40,
+          80
+        ],
+        "side_right": [
+          56,
+          72,
+          68,
+          86
+        ],
+        "torso": [
+          31,
+          65,
+          63,
+          81
+        ],
+        "trinket_left": [
+          25,
+          74,
+          35,
+          88
+        ],
+        "trinket_right": [
+          62,
+          74,
+          72,
+          88
+        ],
+        "upper_arm_left": [
+          29,
+          68,
+          37,
+          76
+        ],
+        "upper_arm_right": [
+          58,
+          68,
+          66,
+          76
+        ],
+        "wrist_left": [
+          29,
+          72,
+          37,
+          80
+        ],
+        "wrist_right": [
+          58,
+          72,
+          66,
+          80
+        ]
+      },
+      "face_center": [
+        47,
+        52
+      ],
+      "face_roi": [
+        29,
+        32,
+        61,
+        62
+      ],
+      "frame_index": 3,
+      "head_center": [
+        47,
+        43
+      ],
+      "head_width": 43,
+      "protected_regions": {
+        "eyes": [
+          29,
+          44,
+          53,
+          55
+        ],
+        "face": [
+          29,
+          32,
+          61,
+          62
+        ]
+      }
+    },
+    {
+      "attachment_regions": {
+        "back": [
+          32,
+          65,
+          64,
+          81
+        ],
+        "clothes_body": [
+          36,
+          68,
+          60,
+          80
+        ],
+        "feet": [
+          30,
+          80,
+          66,
+          88
+        ],
+        "forearm_left": [
+          30,
+          71,
+          38,
+          79
+        ],
+        "forearm_right": [
+          58,
+          72,
+          66,
+          80
+        ],
+        "hand_left": [
+          32,
+          75,
+          38,
+          81
+        ],
+        "hand_right": [
+          56,
+          76,
+          62,
+          82
+        ],
+        "shoulder_left": [
+          30,
+          65,
+          40,
+          73
+        ],
+        "shoulder_right": [
+          54,
+          65,
+          64,
+          73
+        ],
+        "side_left": [
+          28,
+          66,
+          40,
+          80
+        ],
+        "side_right": [
+          56,
+          72,
+          68,
+          86
+        ],
+        "torso": [
+          32,
+          65,
+          64,
+          81
+        ],
+        "trinket_left": [
+          25,
+          74,
+          35,
+          88
+        ],
+        "trinket_right": [
+          62,
+          74,
+          72,
+          88
+        ],
+        "upper_arm_left": [
+          29,
+          68,
+          37,
+          76
+        ],
+        "upper_arm_right": [
+          58,
+          68,
+          66,
+          76
+        ],
+        "wrist_left": [
+          30,
+          72,
+          38,
+          80
+        ],
+        "wrist_right": [
+          58,
+          72,
+          66,
+          80
+        ]
+      },
+      "face_center": [
+        48,
+        52
+      ],
+      "face_roi": [
+        30,
+        32,
+        62,
+        62
+      ],
+      "frame_index": 4,
+      "head_center": [
+        48,
+        43
+      ],
+      "head_width": 42,
+      "protected_regions": {
+        "eyes": [
+          30,
+          44,
+          54,
+          55
+        ],
+        "face": [
+          30,
+          32,
+          62,
+          62
+        ]
+      }
+    },
+    {
+      "attachment_regions": {
+        "back": [
+          32,
+          65,
+          64,
+          81
+        ],
+        "clothes_body": [
+          36,
+          68,
+          60,
+          80
+        ],
+        "feet": [
+          30,
+          80,
+          66,
+          88
+        ],
+        "forearm_left": [
+          27,
+          69,
+          35,
+          77
+        ],
+        "forearm_right": [
+          60,
+          70,
+          68,
+          78
+        ],
+        "hand_left": [
+          29,
+          72,
+          35,
+          78
+        ],
+        "hand_right": [
+          59,
+          74,
+          65,
+          80
+        ],
+        "shoulder_left": [
+          30,
+          64,
+          40,
+          72
+        ],
+        "shoulder_right": [
+          54,
+          65,
+          64,
+          73
+        ],
+        "side_left": [
+          27,
+          66,
+          39,
+          80
+        ],
+        "side_right": [
+          58,
+          72,
+          70,
+          86
+        ],
+        "torso": [
+          32,
+          65,
+          64,
+          81
+        ],
+        "trinket_left": [
+          24,
+          74,
+          34,
+          88
+        ],
+        "trinket_right": [
+          62,
+          74,
+          72,
+          88
+        ],
+        "upper_arm_left": [
+          28,
+          67,
+          36,
+          75
+        ],
+        "upper_arm_right": [
+          57,
+          68,
+          65,
+          76
+        ],
+        "wrist_left": [
+          28,
+          68,
+          36,
+          76
+        ],
+        "wrist_right": [
+          60,
+          70,
+          68,
+          78
+        ]
+      },
+      "face_center": [
+        48,
+        52
+      ],
+      "face_roi": [
+        30,
+        32,
+        62,
+        62
+      ],
+      "frame_index": 5,
+      "head_center": [
+        48,
+        43
+      ],
+      "head_width": 42,
+      "protected_regions": {
+        "eyes": [
+          30,
+          44,
+          54,
+          55
+        ],
+        "face": [
+          30,
+          32,
+          62,
+          62
+        ]
+      }
+    },
+    {
+      "attachment_regions": {
+        "back": [
+          31,
+          65,
+          63,
+          81
+        ],
+        "clothes_body": [
+          35,
+          68,
+          59,
+          80
+        ],
+        "feet": [
+          30,
+          80,
+          66,
+          88
+        ],
+        "forearm_left": [
+          29,
+          71,
+          37,
+          79
+        ],
+        "forearm_right": [
+          60,
+          70,
+          68,
+          78
+        ],
+        "hand_left": [
+          31,
+          75,
+          37,
+          81
+        ],
+        "hand_right": [
+          59,
+          75,
+          65,
+          81
+        ],
+        "shoulder_left": [
+          30,
+          65,
+          40,
+          73
+        ],
+        "shoulder_right": [
+          54,
+          65,
+          64,
+          73
+        ],
+        "side_left": [
+          28,
+          66,
+          40,
+          80
+        ],
+        "side_right": [
+          58,
+          72,
+          70,
+          86
+        ],
+        "torso": [
+          31,
+          65,
+          63,
+          81
+        ],
+        "trinket_left": [
+          25,
+          74,
+          35,
+          88
+        ],
+        "trinket_right": [
+          62,
+          74,
+          72,
+          88
+        ],
+        "upper_arm_left": [
+          29,
+          68,
+          37,
+          76
+        ],
+        "upper_arm_right": [
+          57,
+          68,
+          65,
+          76
+        ],
+        "wrist_left": [
+          29,
+          72,
+          37,
+          80
+        ],
+        "wrist_right": [
+          60,
+          70,
+          68,
+          78
+        ]
+      },
+      "face_center": [
+        47,
+        52
+      ],
+      "face_roi": [
+        29,
+        32,
+        61,
+        62
+      ],
+      "frame_index": 6,
+      "head_center": [
+        47,
+        43
+      ],
+      "head_width": 43,
+      "protected_regions": {
+        "eyes": [
+          29,
+          44,
+          53,
+          55
+        ],
+        "face": [
+          29,
+          32,
+          61,
+          62
+        ]
+      }
+    },
+    {
+      "attachment_regions": {
+        "back": [
+          32,
+          65,
+          64,
+          81
+        ],
+        "clothes_body": [
+          36,
+          68,
+          60,
+          80
+        ],
+        "feet": [
+          30,
+          80,
+          66,
+          88
+        ],
+        "forearm_left": [
+          30,
+          71,
+          38,
+          79
+        ],
+        "forearm_right": [
+          58,
+          72,
+          66,
+          80
+        ],
+        "hand_left": [
+          32,
+          75,
+          38,
+          81
+        ],
+        "hand_right": [
+          55,
+          77,
+          61,
+          83
+        ],
+        "shoulder_left": [
+          31,
+          65,
+          41,
+          73
+        ],
+        "shoulder_right": [
+          54,
+          65,
+          64,
+          73
+        ],
+        "side_left": [
+          29,
+          66,
+          41,
+          80
+        ],
+        "side_right": [
+          56,
+          72,
+          68,
+          86
+        ],
+        "torso": [
+          32,
+          65,
+          64,
+          81
+        ],
+        "trinket_left": [
+          25,
+          74,
+          35,
+          88
+        ],
+        "trinket_right": [
+          62,
+          74,
+          72,
+          88
+        ],
+        "upper_arm_left": [
+          30,
+          68,
+          38,
+          76
+        ],
+        "upper_arm_right": [
+          58,
+          68,
+          66,
+          76
+        ],
+        "wrist_left": [
+          30,
+          72,
+          38,
+          80
+        ],
+        "wrist_right": [
+          58,
+          72,
+          66,
+          80
+        ]
+      },
+      "face_center": [
+        48,
+        52
+      ],
+      "face_roi": [
+        30,
+        32,
+        62,
+        62
+      ],
+      "frame_index": 7,
+      "head_center": [
+        48,
+        43
+      ],
+      "head_width": 42,
+      "protected_regions": {
+        "eyes": [
+          30,
+          44,
+          54,
+          55
+        ],
+        "face": [
+          30,
+          32,
+          62,
+          62
+        ]
+      }
+    }
+  ],
+  "rig_id": "niko_walk_left45_v1",
+  "schema_version": "gogobro-rig-profile-v1",
+  "slot_profiles": {
+    "arm_left": {
+      "depth_band": [
+        40,
+        99
+      ],
+      "direct_icon_reuse": false,
+      "expected_depth": 50,
+      "feature_anchor": "attachment_regions.upper_arm_left",
+      "feature_center_max_px": 2,
+      "flip_behavior": "none",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.05,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "min_outline_boundary_coverage": 1.0,
+      "outer_width_ratio": [
+        0.25,
+        1.2
+      ],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1
+    },
+    "arm_right": {
+      "depth_band": [
+        40,
+        99
+      ],
+      "direct_icon_reuse": false,
+      "expected_depth": 50,
+      "feature_anchor": "attachment_regions.upper_arm_right",
+      "feature_center_max_px": 2,
+      "flip_behavior": "none",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.05,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "min_outline_boundary_coverage": 1.0,
+      "outer_width_ratio": [
+        0.25,
+        1.2
+      ],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1
+    },
+    "back": {
+      "depth_band": [
+        -99,
+        -1
+      ],
+      "direct_icon_reuse": false,
+      "expected_depth": -10,
+      "feature_anchor": "attachment_regions.back",
+      "feature_center_max_px": 2,
+      "flip_behavior": "none",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.25,
+      "max_palette_colors": 10,
+      "max_residual_jitter_px": 1,
+      "min_outline_boundary_coverage": 1.0,
+      "outer_width_ratio": [
+        0.6,
+        1.2
+      ],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1
+    },
+    "clothes": {
+      "depth_band": [
+        1,
+        39
+      ],
+      "direct_icon_reuse": false,
+      "expected_depth": 20,
+      "feature_anchor": "attachment_regions.clothes_body",
+      "feature_center_max_px": 2,
+      "flip_behavior": "none",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.05,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "min_outline_boundary_coverage": 1.0,
+      "outer_width_ratio": [
+        0.75,
+        1.1
+      ],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1
+    },
+    "face": {
+      "depth_band": [
+        1,
+        99
+      ],
+      "direct_icon_reuse": false,
+      "expected_depth": 40,
+      "feature_anchor": "face_roi",
+      "feature_center_max_px": 1,
+      "flip_behavior": "none",
+      "max_feature_center_error_px": 1,
+      "max_occlusion_ratio": 0.0,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "min_outline_boundary_coverage": 1.0,
+      "outer_width_ratio": [
+        0.55,
+        0.9
+      ],
+      "protected_region": "protected_regions.eyes",
+      "residual_jitter_max_px": 1
+    },
+    "feet": {
+      "depth_band": [
+        1,
+        99
+      ],
+      "direct_icon_reuse": false,
+      "expected_depth": 40,
+      "feature_anchor": "attachment_regions.feet",
+      "feature_center_max_px": 2,
+      "flip_behavior": "none",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.15,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "min_outline_boundary_coverage": 1.0,
+      "outer_width_ratio": [
+        0.55,
+        1.1
+      ],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1
+    },
+    "head": {
+      "depth_band": [
+        1,
+        99
+      ],
+      "direct_icon_reuse": true,
+      "expected_depth": 40,
+      "feature_anchor": "face_center",
+      "feature_center_max_px": 1,
+      "flip_behavior": "none",
+      "max_feature_center_error_px": 1,
+      "max_occlusion_ratio": 0.0,
+      "max_opaque_components": 1,
+      "max_palette_colors": 18,
+      "max_residual_jitter_px": 1,
+      "min_outline_boundary_coverage": 1.0,
+      "outer_width_ratio": [
+        1.05,
+        1.15
+      ],
+      "protected_region": "protected_regions.eyes",
+      "residual_jitter_max_px": 1
+    },
+    "side_left": {
+      "depth_band": [
+        1,
+        99
+      ],
+      "direct_icon_reuse": false,
+      "expected_depth": 40,
+      "feature_anchor": "attachment_regions.side_left",
+      "feature_center_max_px": 2,
+      "flip_behavior": "mirror_to_side_right",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.1,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "min_outline_boundary_coverage": 1.0,
+      "outer_width_ratio": [
+        0.4,
+        0.9
+      ],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1
+    },
+    "side_right": {
+      "depth_band": [
+        1,
+        99
+      ],
+      "direct_icon_reuse": false,
+      "expected_depth": 40,
+      "feature_anchor": "attachment_regions.side_right",
+      "feature_center_max_px": 2,
+      "flip_behavior": "mirror_from_side_left",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.1,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "min_outline_boundary_coverage": 1.0,
+      "outer_width_ratio": [
+        0.4,
+        0.9
+      ],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1
+    },
+    "torso": {
+      "depth_band": [
+        1,
+        99
+      ],
+      "direct_icon_reuse": false,
+      "expected_depth": 40,
+      "feature_anchor": "attachment_regions.torso",
+      "feature_center_max_px": 2,
+      "flip_behavior": "none",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.15,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "min_outline_boundary_coverage": 1.0,
+      "outer_width_ratio": [
+        0.55,
+        1.0
+      ],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1
+    },
+    "trinket_left": {
+      "depth_band": [
+        1,
+        99
+      ],
+      "direct_icon_reuse": false,
+      "expected_depth": 40,
+      "feature_anchor": "attachment_regions.trinket_left",
+      "feature_center_max_px": 2,
+      "flip_behavior": "mirror_to_trinket_right",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.05,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "min_outline_boundary_coverage": 1.0,
+      "outer_width_ratio": [
+        0.2,
+        0.55
+      ],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1
+    },
+    "trinket_right": {
+      "depth_band": [
+        1,
+        99
+      ],
+      "direct_icon_reuse": false,
+      "expected_depth": 40,
+      "feature_anchor": "attachment_regions.trinket_right",
+      "feature_center_max_px": 2,
+      "flip_behavior": "mirror_from_trinket_left",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.05,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "min_outline_boundary_coverage": 1.0,
+      "outer_width_ratio": [
+        0.2,
+        0.55
+      ],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1
+    },
+    "wrist": {
+      "depth_band": [
+        1,
+        99
+      ],
+      "direct_icon_reuse": false,
+      "expected_depth": 40,
+      "feature_anchor": "attachment_regions.wrist_right",
+      "feature_center_max_px": 2,
+      "flip_behavior": "mirror_between_wrists",
+      "max_feature_center_error_px": 2,
+      "max_occlusion_ratio": 0.1,
+      "max_palette_colors": 8,
+      "max_residual_jitter_px": 1,
+      "min_outline_boundary_coverage": 1.0,
+      "outer_width_ratio": [
+        0.25,
+        0.6
+      ],
+      "protected_region": "protected_regions.face",
+      "residual_jitter_max_px": 1,
+      "selected_side": "right"
+    }
+  }
+}

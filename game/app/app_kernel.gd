@@ -1,6 +1,10 @@
 class_name AppKernel
 extends Node
 
+const STATIC_CANDIDATE_PREVIEW_SERVICE := preload(
+	"res://game/content/assets/gogobro_static_candidate_preview_service.gd"
+)
+
 signal boot_completed(result: BootResult)
 signal session_created(session: GameSession)
 signal session_closed
@@ -9,6 +13,13 @@ var scene_flow: SceneFlow
 var content_registry := GogoContentRegistry.new()
 var content_catalog := ContentPackCatalog.new()
 var content_snapshot: ContentSnapshot
+var static_asset_service := GogoStaticAssetRuntimeService.new(
+	GogoStaticAssetRuntimeService.MANIFEST_PATH,
+	GogoStaticAssetRuntimeService.REGISTRY_PATH,
+	GogoStaticAssetRuntimeService.DEFAULT_ASSET_ROOT,
+	OS.is_debug_build()
+)
+var static_candidate_preview_service: RefCounted = STATIC_CANDIDATE_PREVIEW_SERVICE.new()
 var profile_service := ProfileService.new()
 var settings_service := GogoSettingsService.new()
 var unlock_service := UnlockService.new()
@@ -29,7 +40,7 @@ func configure(flow: SceneFlow, audio: GogoAudioService) -> void:
 
 
 func boot() -> BootResult:
-	var packs := ValidationContentFactory.create_packs()
+	var packs := ValidationContentFactory.create_packs(OS.is_debug_build())
 	for pack in packs:
 		var install_error := content_catalog.install(pack)
 		if install_error != OK:
@@ -47,6 +58,16 @@ func boot() -> BootResult:
 		boot_completed.emit(boot_result)
 		return boot_result
 	settings_service.apply_display_settings()
+	static_asset_service.stage(content_snapshot)
+	static_asset_service.activate_staged(&"", null)
+	if OS.is_debug_build():
+		var preview_snapshot := static_candidate_preview_service.call(
+			"build_overlay",
+			static_asset_service.active_snapshot(),
+			content_snapshot
+		) as GogoStaticAssetSnapshot
+		if preview_snapshot != null:
+			static_asset_service.activate_development_preview(preview_snapshot, &"", null)
 	var profile_error := profile_service.load_profile()
 	if profile_error != OK:
 		boot_result = BootResult.failure(BootResult.Status.SAVE_ERROR, "存档加载失败", [profile_service.last_error])
@@ -79,6 +100,7 @@ func create_session_from_draft() -> Error:
 	config.difficulty_id = selection_draft.get("difficulty_id", &"")
 	config.zone_id = selection_draft.get("zone_id", &"")
 	var candidate := GameSession.new()
+	candidate.static_asset_snapshot = static_asset_service.active_snapshot()
 	var error := candidate.start(config, content_snapshot)
 	if error != OK:
 		return error
@@ -113,5 +135,12 @@ func apply_pending_content_packs() -> Error:
 	var next_snapshot := content_catalog.apply_at_main_menu(content_registry, scene_flow.current_route())
 	if next_snapshot == null:
 		return ERR_INVALID_DATA
+	var stage_error := static_asset_service.stage(next_snapshot)
+	if stage_error != OK:
+		return stage_error
+	var activate_error := static_asset_service.activate_staged(scene_flow.current_route(), current_session)
+	if activate_error != OK:
+		static_asset_service.discard_staged()
+		return activate_error
 	content_snapshot = next_snapshot
 	return OK

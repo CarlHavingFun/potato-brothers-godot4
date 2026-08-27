@@ -2,21 +2,26 @@ class_name ValidationContentFactory
 extends RefCounted
 
 const NIKO_CONTENT_FACTORY := preload("res://game/content/packs/characters/niko/niko_content_factory.gd")
-const CHARACTER_ID: StringName = &"character.placeholder:character/runner"
+const STATIC_PREVIEW_CONTENT_FACTORY := preload(
+	"res://game/content/assets/gogobro_static_preview_content_factory.gd"
+)
+const CHARACTER_ID: StringName = &"character.niko:character/niko"
 const MELEE_ID: StringName = &"weapon.training_blade:weapon/training_blade"
 const RANGED_ID: StringName = &"weapon.training_blaster:weapon/training_blaster"
 const DIFFICULTY_ID: StringName = &"gogobro.core:difficulty/standard"
 const ZONE_ID: StringName = &"gogobro.core:zone/training_ground"
 
 
-static func create_packs() -> Array[GogoContentPackDefinition]:
-	return [
+static func create_packs(include_development_preview: bool = true) -> Array[GogoContentPackDefinition]:
+	var packs: Array[GogoContentPackDefinition] = [
 		_core_pack(),
-		_character_pack(),
 		_weapon_pack(MELEE_ID, true),
 		_weapon_pack(RANGED_ID, false),
 		NIKO_CONTENT_FACTORY.create_pack(),
 	]
+	if include_development_preview:
+		packs.append(STATIC_PREVIEW_CONTENT_FACTORY.create_pack())
+	return packs
 
 
 static func _core_pack() -> GogoContentPackDefinition:
@@ -40,17 +45,35 @@ static func _core_pack() -> GogoContentPackDefinition:
 		enemy.max_health = spec[3]
 		enemy.movement_speed = spec[4]
 		pack.definitions.append(enemy)
+	var item_asset_ids := [
+		&"ballistic_liner",
+		&"silent_step_insoles",
+		&"crosshair_shim",
+		&"supply_radar",
+		&"trade_guard",
+		&"tactical_med_patch",
+	]
+	var upgrade_asset_ids := [
+		&"one_more_round",
+		&"trade_step_drills",
+		&"pre_aim_drills",
+		&"economy_sense",
+		&"kevlar_reinforcement",
+		&"medical_timeout",
+	]
 	for index in 6:
 		var item := GogoItemDefinition.new()
 		item.content_id = StringName("gogobro.core:item/training_%d" % (index + 1))
-		item.display_name = ["坚果壳", "轻鞋", "磨刀石", "采集袋", "护腕", "急救贴"][index]
+		item.display_name = ["防弹内衬", "轻鞋", "磨刀石", "采集袋", "护腕", "急救贴"][index]
+		item.icon_asset_id = item_asset_ids[index]
 		item.price = 10 + index * 2
 		var item_stats := [&"max_health", &"movement_speed", &"damage_multiplier", &"pickup_range", &"armor", &"health_regen"]
 		item.stat_modifiers[item_stats[index]] = [2.0, 18.0, 0.08, 24.0, 1.0, 0.6][index]
 		pack.definitions.append(item)
 		var upgrade := GogoUpgradeDefinition.new()
 		upgrade.content_id = StringName("gogobro.core:upgrade/training_%d" % (index + 1))
-		upgrade.display_name = ["体魄", "步伐", "力量", "磁力", "护甲", "恢复"][index]
+		upgrade.display_name = ["多活一回合", "步伐", "力量", "磁力", "护甲", "恢复"][index]
+		upgrade.icon_asset_id = upgrade_asset_ids[index]
 		upgrade.stat_modifiers = item.stat_modifiers.duplicate(true)
 		pack.definitions.append(upgrade)
 	var zone := GogoZoneDefinition.new()
@@ -78,27 +101,6 @@ static func _core_pack() -> GogoContentPackDefinition:
 	return pack
 
 
-static func _character_pack() -> GogoContentPackDefinition:
-	var pack := GogoContentPackDefinition.new()
-	pack.pack_id = &"character.placeholder"
-	pack.pack_kind = &"character"
-	var character := CharacterDefinition.new()
-	character.content_id = CHARACTER_ID
-	character.display_name = "占位跑者"
-	character.base_stats = {
-		&"max_health": 20.0,
-		&"movement_speed": 235.0,
-		&"damage_multiplier": 1.0,
-		&"attack_speed": 1.0,
-		&"armor": 0.0,
-		&"dodge": 0.0,
-		&"pickup_range": 115.0,
-		&"health_regen": 0.0,
-	}
-	pack.definitions.append(character)
-	return pack
-
-
 static func _weapon_pack(id: StringName, melee: bool) -> GogoContentPackDefinition:
 	var pack := GogoContentPackDefinition.new()
 	pack.pack_id = &"weapon.training_blade" if melee else &"weapon.training_blaster"
@@ -106,12 +108,16 @@ static func _weapon_pack(id: StringName, melee: bool) -> GogoContentPackDefiniti
 	var weapon := GogoWeaponDefinition.new()
 	weapon.content_id = id
 	weapon.display_name = "训练短刃" if melee else "训练发射器"
+	weapon.icon_asset_id = &"warmup_shiv" if melee else &"service_pistol"
 	weapon.mode = GogoWeaponDefinition.Mode.MELEE if melee else GogoWeaponDefinition.Mode.RANGED
 	weapon.damage = 7.0 if melee else 4.0
 	weapon.cooldown_seconds = 0.55 if melee else 0.42
 	weapon.attack_range = 92.0 if melee else 520.0
 	weapon.projectile_speed = 620.0
 	weapon.knockback = 46.0 if melee else 22.0
+	weapon.feedback_profile_id = &"heavy" if melee else &"rifle"
+	weapon.damage_kind = &"melee" if melee else &"ballistic"
+	weapon.impact_kind = &"normal"
 	weapon.tags.append(&"melee" if melee else &"ranged")
 	pack.definitions.append(weapon)
 	return pack

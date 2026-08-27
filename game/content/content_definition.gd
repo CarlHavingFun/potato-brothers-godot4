@@ -5,6 +5,7 @@ extends Resource
 @export var display_name: String = ""
 @export var kind: StringName = &""
 @export var tags: Array[StringName] = []
+@export var icon_asset_id: StringName = &""
 
 
 func is_valid() -> bool:

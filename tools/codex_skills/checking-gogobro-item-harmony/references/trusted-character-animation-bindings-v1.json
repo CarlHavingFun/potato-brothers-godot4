@@ -30,6 +30,27 @@
           },
           "frame_count": 8,
           "fps": 8
+        },
+        "walk_left45": {
+          "rig_id": "niko_walk_left45_attachment_v2",
+          "rig_sha256": "610162feacbcd79d5dd174d4f5e188961b3a7778b6f8526a7f74abfa853879ef",
+          "source_profile": {
+            "relative_path": "tools/assets/rig_profiles/niko_walk_left45_v1.json",
+            "schema_version": "gogobro-rig-profile-v1",
+            "sha256": "316ae38707516aca7275a37eeee6ef58d1f984278bd596cc8e37c83ffaf0ed0b"
+          },
+          "atlas": {
+            "sha256": "33e794fcdec898e876214b283d2af9fde109dc3ce07e62f36478a846782ef855",
+            "frame_size": [96, 96],
+            "atlas_size": [768, 96],
+            "grid": {
+              "columns": 8,
+              "rows": 1,
+              "row": 0
+            }
+          },
+          "frame_count": 8,
+          "fps": 8
         }
       }
     }

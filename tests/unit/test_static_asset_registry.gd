@@ -38,18 +38,41 @@ const EXPECTED_ITEM_APPEARANCES := {
 }
 
 
-func test_canonical_registry_loads_seventy_five_planned_and_one_human_approved_unit() -> void:
+func test_canonical_registry_keeps_only_noncharacter_scope_and_excludes_generic_carbine() -> void:
 	var result := Registry.load_registry(CANONICAL_PATH)
 	var errors := result.get("errors", PackedStringArray()) as PackedStringArray
 	var registry := result.get("registry", {}) as Dictionary
 	assert_array(errors).is_empty()
-	assert_int((registry.get("units", []) as Array).size()).is_equal(76)
-	assert_int(_approval_status_count(registry, "planned")).is_equal(75)
+	assert_int((registry.get("units", []) as Array).size()).is_equal(70)
+	assert_int(_approval_status_count(registry, "planned")).is_equal(61)
 	assert_int(_approval_status_count(registry, "review")).is_equal(0)
-	assert_int(_approval_status_count(registry, "approved")).is_equal(1)
+	assert_int(_approval_status_count(registry, "approved")).is_equal(9)
+	for approved_asset_id in [
+		"warmup_shiv",
+		"service_pistol",
+		"projectile_hit_kit",
+		"ballistic_liner",
+		"one_more_round",
+		"hud_icon_kit",
+		"control_icon_kit",
+		"difficulty_badge_kit",
+		"smoke_shell_helmet",
+	]:
+		assert_str(str(_unit_by_asset_id(registry, approved_asset_id).get("approval_status", ""))).is_equal("approved")
+	for excluded_asset_id in ["community_tapper", "supply_crate", "four_state_button"]:
+		assert_str(str(_unit_by_asset_id(registry, excluded_asset_id).get("approval_status", ""))).is_equal("planned")
+	for removed_asset_id in [
+		"service_carbine",
+		"master_ni",
+		"lost_rotator",
+		"long_angle_sentry",
+		"force_buy_rusher",
+		"site_scout_chicken",
+	]:
+		assert_dict(_unit_by_asset_id(registry, removed_asset_id)).is_empty()
 	var category_counts := registry.get("category_counts", {}) as Dictionary
-	assert_int(int(category_counts.get("character_creature", 0))).is_equal(5)
-	assert_int(int(category_counts.get("weapon", 0))).is_equal(13)
+	assert_bool(category_counts.has("character_creature")).is_false()
+	assert_int(int(category_counts.get("weapon", 0))).is_equal(12)
 	assert_int(int(category_counts.get("projectile_hit_kit", 0))).is_equal(1)
 	assert_int(int(category_counts.get("item", 0))).is_equal(30)
 	assert_int(int(category_counts.get("upgrade", 0))).is_equal(6)
@@ -78,7 +101,7 @@ func test_all_thirty_items_keep_the_fixed_slot_socket_mode_and_depth_mapping() -
 func test_loader_rejects_each_required_malformed_temporary_fixture() -> void:
 	var missing_unit := _canonical_registry()
 	(missing_unit["units"] as Array).pop_back()
-	_assert_fixture_error(missing_unit, "expected 76 units")
+	_assert_fixture_error(missing_unit, "expected 70 units")
 
 	var duplicate_asset_id := _canonical_registry()
 	var duplicate_units := duplicate_asset_id["units"] as Array
@@ -136,14 +159,14 @@ func test_loader_rejects_each_required_malformed_temporary_fixture() -> void:
 func test_loader_accepts_only_the_canonical_approval_states() -> void:
 	for approval_status in ["planned", "generated", "review", "approved", "integrated", "qa_passed"]:
 		var accepted := _canonical_registry()
-		var accepted_unit := _smoke_shell_helmet(accepted) if approval_status == "review" else (accepted["units"] as Array)[0] as Dictionary
+		var accepted_unit := _smoke_shell_helmet(accepted) if approval_status == "review" else _unit_by_asset_id(accepted, "community_tapper")
 		accepted_unit["approval_status"] = approval_status
 		if approval_status == "review":
 			accepted_unit.erase("approval_history")
 		_assert_fixture_has_no_errors(accepted)
 	for approval_status in ["draft", "rejected"]:
 		var rejected := _canonical_registry()
-		((rejected["units"] as Array)[0] as Dictionary)["approval_status"] = approval_status
+		_unit_by_asset_id(rejected, "community_tapper")["approval_status"] = approval_status
 		_assert_fixture_error(rejected, "unknown approval_status")
 
 
@@ -159,8 +182,8 @@ func test_loader_requires_bilingual_descriptions_and_category_flavor_without_num
 	_assert_fixture_error(missing_weapon_flavor, "missing Chinese flavor")
 
 	var numeric_flavor := _canonical_registry()
-	var character_copy := ((_first_unit_in_category(numeric_flavor, "character_creature") as Dictionary)["localization"] as Dictionary)["en"] as Dictionary
-	character_copy["flavor"] = "Wins with 3 precise moves."
+	var item_copy := ((_first_unit_in_category(numeric_flavor, "item") as Dictionary)["localization"] as Dictionary)["en"] as Dictionary
+	item_copy["flavor"] = "Wins with 3 precise moves."
 	_assert_fixture_error(numeric_flavor, "handwritten numeric effect text")
 
 
@@ -253,8 +276,16 @@ func test_smoke_shell_helmet_approval_preserves_candidate_provenance_and_human_e
 	var report_verdicts := active_candidate.get("report_verdicts", {}) as Dictionary
 	assert_bool(bool(report_verdicts.get("pixel_qa_passed", false))).is_true()
 	assert_str(str(report_verdicts.get("harmony", ""))).is_equal("harmony_pass")
-	assert_dict(active_candidate.get("source_sha256", {}) as Dictionary).is_equal(metadata.get("source_sha256", {}) as Dictionary)
-	assert_int(((active_candidate.get("source_sha256", {}) as Dictionary).get("candidate_001_tree", {}) as Dictionary).size()).is_equal(52)
+	var approved_review_sources := (active_candidate.get("source_sha256", {}) as Dictionary).duplicate(true)
+	var reusable_metadata_sources := (metadata.get("source_sha256", {}) as Dictionary).duplicate(true)
+	assert_str(str(approved_review_sources.get("registry", ""))).is_equal("12554079eb14503f92f618c1d5957d05834a2b00226f7a6d0de1a396f095eb62")
+	# Candidate provenance binds the registry snapshot used during that review;
+	# later approved shipping additions must not rewrite historical evidence.
+	assert_str(str(reusable_metadata_sources.get("registry", ""))).is_equal("37a7fc8512a1c0488cd4e67cb542d6e9cfeb4f7f49a94efbc07d2874c1b7b908")
+	approved_review_sources.erase("registry")
+	reusable_metadata_sources.erase("registry")
+	assert_dict(approved_review_sources).is_equal(reusable_metadata_sources)
+	assert_int((approved_review_sources.get("candidate_001_tree", {}) as Dictionary).size()).is_equal(52)
 
 
 func test_loader_rejects_missing_duplicate_or_unresolved_active_candidate_history() -> void:

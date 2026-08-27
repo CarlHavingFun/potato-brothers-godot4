@@ -224,20 +224,6 @@ func test_install_character_library_prefers_optional_take_resource_path_and_keep
 	assert_array(requested_paths).contains("res://tools/sprites/niko_video_library/walk_power/source_all_frames.tres")
 
 
-func test_all_walk_facings_resolve_to_the_single_front_walk_animation() -> void:
-	var visual := DirectionalSpriteVisual.new()
-	var frames := SpriteFrames.new()
-	frames.remove_animation(&"default")
-	frames.add_animation(&"idle_down")
-	frames.add_frame(&"idle_down", _texture(50))
-	frames.add_animation(&"walk_down")
-	frames.add_frame(&"walk_down", _texture(51))
-	visual.sprite_frames = frames
-	for direction: StringName in DirectionalSpriteVisual.DIRECTIONS:
-		assert_str(visual.animation_name_for(&"walk", direction)).is_equal("walk_down")
-	visual.free()
-
-
 func test_publish_runtime_excludes_sources_repacks_pages_and_preserves_timing() -> void:
 	var importer = Importer.new()
 	if not importer.has_method("publish_character_runtime"):

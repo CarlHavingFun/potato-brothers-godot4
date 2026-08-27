@@ -2,6 +2,7 @@ class_name GogoPlayerActor
 extends CharacterBody2D
 
 const HIT_FLASH_DURATION := 0.12
+const WEAPON_ORBIT_RADIUS := 72.0
 
 signal died
 signal health_changed(current: float, maximum: float)
@@ -18,6 +19,8 @@ var hit_flash_remaining := 0.0
 
 
 func configure(next_session: GameSession, world: CombatWorld) -> void:
+	if session != null and session != next_session and session.state_changed.is_connected(_on_session_state_changed):
+		session.state_changed.disconnect(_on_session_state_changed)
 	session = next_session
 	combat_world = world
 	player_state = session.run_state.player()
@@ -111,10 +114,16 @@ func _build_weapons() -> void:
 		var definition := session.content_snapshot.definition(player_state.weapon_ids[index], &"weapon") as GogoWeaponDefinition
 		var runtime_stats := weapon_runtime.build_instance(definition, player_state)
 		var instance := GogoWeaponInstance.new()
-		var angle := TAU * float(index) / float(maxi(count, 1))
-		instance.position = Vector2.RIGHT.rotated(angle) * 36.0
+		instance.position = weapon_orbit_offset(index, count)
 		weapon_orbit.add_child(instance)
 		instance.configure(runtime_stats, self)
+
+
+func weapon_orbit_offset(index: int, count: int) -> Vector2:
+	if count <= 0 or index < 0 or index >= count:
+		return Vector2.ZERO
+	var angle := TAU * float(index) / float(count)
+	return Vector2.RIGHT.rotated(angle) * WEAPON_ORBIT_RADIUS
 
 
 func _draw() -> void:

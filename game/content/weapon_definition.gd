@@ -13,6 +13,9 @@ enum Mode { MELEE, RANGED }
 @export var spread_degrees: float = 0.0
 @export var knockback: float = 30.0
 @export var price: int = 15
+@export var feedback_profile_id: StringName = &"rifle"
+@export var damage_kind: StringName = &"ballistic"
+@export var impact_kind: StringName = &"normal"
 
 
 func _init() -> void:

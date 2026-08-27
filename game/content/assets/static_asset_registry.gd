@@ -4,8 +4,7 @@ extends RefCounted
 
 const REGISTRY_PATH := "res://game/content/assets/gogobro_static_assets_v1.json"
 const EXPECTED_CATEGORY_COUNTS := {
-	"character_creature": 5,
-	"weapon": 13,
+	"weapon": 12,
 	"projectile_hit_kit": 1,
 	"item": 30,
 	"upgrade": 6,
@@ -102,6 +101,20 @@ const OBSOLETE_SINGLE_CANDIDATE_FIELDS := ["candidate_id", "candidate_provenance
 const REQUIRED_CANDIDATE_HISTORY_ASSET_IDS := ["smoke_shell_helmet"]
 const APPROVAL_EVENT_FIELDS := ["candidate_id", "decision", "authority", "approved_at_utc"]
 const EXPLICIT_USER_APPROVAL_AUTHORITY := "explicit_user_approval_in_current_task"
+const SHIPPING_APPROVAL_EVIDENCE_SCHEMA := "gogobro-static-shipping-approval-v1"
+const SHIPPING_APPROVAL_EVIDENCE_FIELDS := [
+	"schema_version",
+	"decision",
+	"authority",
+	"approved_at_utc",
+	"approval_record_sha256",
+	"source_contract_sha256",
+	"review_board_sha256",
+	"scope",
+	"shipping_texture",
+	"runtime_bindings_sha256",
+]
+const SHIPPING_APPROVAL_SCOPE_KINDS := ["whole_texture", "inventory_icon_only", "selector_set"]
 const CANDIDATE_ARTIFACT_OUTPUT_SPEC_VARIANTS := {
 	"icon": [{"format": "PNG", "width": 256, "height": 256, "alpha": true}],
 	"appearance": [
@@ -249,8 +262,8 @@ static func validate_registry(registry: Dictionary) -> PackedStringArray:
 		errors.append("registry units must be an array")
 		return errors
 	var units := units_variant as Array
-	if units.size() != 76:
-		errors.append("expected 76 units, found %d" % units.size())
+	if units.size() != 70:
+		errors.append("expected 70 units, found %d" % units.size())
 	var declared_counts: Variant = registry.get("category_counts")
 	if not declared_counts is Dictionary or not _counts_match(declared_counts as Dictionary):
 		errors.append("category_counts must match the canonical category counts")
@@ -301,10 +314,12 @@ static func validate_registry(registry: Dictionary) -> PackedStringArray:
 			or unit.has("approval_history")
 		):
 			_validate_candidate_history(unit, label, category, errors)
+		if unit.has("shipping_approval_evidence"):
+			_validate_shipping_approval_evidence(unit, label, errors)
 		_validate_localization(
 			unit.get("localization"),
 			label,
-			category in ["character_creature", "weapon", "item", "upgrade"],
+			category in ["weapon", "item", "upgrade"],
 			errors
 		)
 		if category == "item":
@@ -489,6 +504,201 @@ static func _validate_approval_history(
 		errors.append("approval decision must cite explicit user authority")
 	if not _is_rfc3339_utc(str(event.get("approved_at_utc", ""))):
 		errors.append("approval decision approved_at_utc must be RFC 3339 UTC")
+
+
+static func has_explicit_shipping_approval_evidence(
+	unit: Dictionary,
+	shipping_sha256: String,
+	rgba8_sha256: String,
+	pixel_size: Vector2i,
+	runtime_bindings: Array
+) -> bool:
+	return _shipping_approval_evidence_errors(
+		unit,
+		shipping_sha256,
+		rgba8_sha256,
+		pixel_size,
+		runtime_bindings
+	).is_empty()
+
+
+static func _validate_shipping_approval_evidence(
+	unit: Dictionary,
+	label: String,
+	errors: PackedStringArray
+) -> void:
+	var hashes_variant: Variant = unit.get("hashes")
+	var output_spec_variant: Variant = unit.get("output_spec")
+	var bindings_variant: Variant = unit.get("runtime_bindings")
+	if not hashes_variant is Dictionary:
+		errors.append("%s shipping approval requires registry hashes" % label)
+		return
+	if not output_spec_variant is Dictionary:
+		errors.append("%s shipping approval requires an output specification" % label)
+		return
+	if not bindings_variant is Array:
+		errors.append("%s shipping approval requires runtime_bindings" % label)
+		return
+	var hashes := hashes_variant as Dictionary
+	var output_spec := output_spec_variant as Dictionary
+	var pixel_size := Vector2i(
+		_json_integral(output_spec.get("width", -1)),
+		_json_integral(output_spec.get("height", -1))
+	)
+	var evidence_errors := _shipping_approval_evidence_errors(
+		unit,
+		str(hashes.get("sha256", "")),
+		str(hashes.get("rgba8_sha256", "")),
+		pixel_size,
+		bindings_variant as Array
+	)
+	for evidence_error: String in evidence_errors:
+		errors.append("%s %s" % [label, evidence_error])
+
+
+static func _shipping_approval_evidence_errors(
+	unit: Dictionary,
+	shipping_sha256: String,
+	rgba8_sha256: String,
+	pixel_size: Vector2i,
+	runtime_bindings: Array
+) -> PackedStringArray:
+	var errors := PackedStringArray()
+	var evidence_variant: Variant = unit.get("shipping_approval_evidence")
+	if not evidence_variant is Dictionary:
+		errors.append("shipping_approval_evidence must be an object")
+		return errors
+	var evidence := evidence_variant as Dictionary
+	if not _dictionary_has_exact_fields(evidence, SHIPPING_APPROVAL_EVIDENCE_FIELDS):
+		errors.append("shipping_approval_evidence fields must match exact schema")
+	if str(unit.get("approval_status", "")) != "approved":
+		errors.append("shipping approval requires approval_status approved")
+	if str(unit.get("category", "")) == "character_creature":
+		errors.append("shipping approval evidence cannot activate character assets")
+	if str(evidence.get("schema_version", "")) != SHIPPING_APPROVAL_EVIDENCE_SCHEMA:
+		errors.append("shipping approval evidence schema is invalid")
+	if str(evidence.get("decision", "")) != "approved":
+		errors.append("shipping approval evidence decision must be approved")
+	if str(evidence.get("authority", "")) != EXPLICIT_USER_APPROVAL_AUTHORITY:
+		errors.append("shipping approval evidence authority is invalid")
+	if not _is_rfc3339_utc(str(evidence.get("approved_at_utc", ""))):
+		errors.append("shipping approval evidence approved_at_utc must be RFC 3339 UTC")
+	for evidence_hash_field: String in ["approval_record_sha256", "source_contract_sha256", "review_board_sha256"]:
+		if not _is_valid_sha256(str(evidence.get(evidence_hash_field, ""))):
+			errors.append("shipping approval evidence %s is invalid" % evidence_hash_field)
+	if not _is_valid_sha256(shipping_sha256) or not _is_valid_sha256(rgba8_sha256):
+		errors.append("shipping approval evidence requires exact registry byte and RGBA8 hashes")
+	if pixel_size.x <= 0 or pixel_size.y <= 0:
+		errors.append("shipping approval evidence requires a positive pixel size")
+	if runtime_bindings.is_empty():
+		errors.append("shipping approval evidence requires non-empty runtime_bindings")
+	var declared_bindings_sha256 := str(evidence.get("runtime_bindings_sha256", "")).to_upper()
+	var actual_bindings_sha256 := JSON.stringify(runtime_bindings, "", true).sha256_text().to_upper()
+	if not _is_valid_sha256(declared_bindings_sha256) or declared_bindings_sha256 != actual_bindings_sha256:
+		errors.append("shipping approval evidence runtime_bindings_sha256 mismatch")
+
+	var texture_variant: Variant = evidence.get("shipping_texture")
+	if not texture_variant is Dictionary:
+		errors.append("shipping approval evidence shipping_texture must be an object")
+	else:
+		var texture := texture_variant as Dictionary
+		if not _dictionary_has_exact_fields(texture, ["sha256", "rgba8_sha256", "pixel_size", "output_spec"]):
+			errors.append("shipping approval evidence shipping_texture fields must match exact schema")
+		if str(texture.get("sha256", "")).to_upper() != shipping_sha256.to_upper():
+			errors.append("shipping approval evidence byte hash mismatch")
+		if str(texture.get("rgba8_sha256", "")).to_upper() != rgba8_sha256.to_upper():
+			errors.append("shipping approval evidence RGBA8 hash mismatch")
+		if _vector2i_from_json(texture.get("pixel_size")) != pixel_size:
+			errors.append("shipping approval evidence pixel size mismatch")
+		var texture_output_variant: Variant = texture.get("output_spec")
+		if not texture_output_variant is Dictionary:
+			errors.append("shipping approval evidence texture output_spec must be an object")
+		else:
+			var texture_output := texture_output_variant as Dictionary
+			var unit_output := unit.get("output_spec", {}) as Dictionary
+			var expected_output := {
+				"format": "PNG",
+				"width": pixel_size.x,
+				"height": pixel_size.y,
+				"alpha": bool(unit_output.get("alpha", false)),
+			}
+			if not _output_spec_matches(texture_output, expected_output):
+				errors.append("shipping approval evidence texture output_spec mismatch")
+
+	var scope_variant: Variant = evidence.get("scope")
+	if not scope_variant is Dictionary:
+		errors.append("shipping approval evidence scope must be an object")
+	else:
+		var scope := scope_variant as Dictionary
+		if not _dictionary_has_exact_fields(scope, ["kind", "selectors"]):
+			errors.append("shipping approval evidence scope fields must match exact schema")
+		var scope_kind := str(scope.get("kind", ""))
+		if not SHIPPING_APPROVAL_SCOPE_KINDS.has(scope_kind):
+			errors.append("shipping approval evidence scope kind is invalid")
+		var selectors_variant: Variant = scope.get("selectors")
+		if not selectors_variant is Array:
+			errors.append("shipping approval evidence scope selectors must be an array")
+		else:
+			var declared_selectors: Array[String] = []
+			var selectors_valid := true
+			for selector_variant: Variant in selectors_variant as Array:
+				if not selector_variant is String or str(selector_variant).is_empty() or declared_selectors.has(str(selector_variant)):
+					selectors_valid = false
+					continue
+				declared_selectors.append(str(selector_variant))
+			if not selectors_valid:
+				errors.append("shipping approval evidence scope selectors must be unique non-empty strings")
+			declared_selectors.sort()
+			var binding_selectors: Array[String] = []
+			var icon_only_bindings := true
+			for binding_variant: Variant in runtime_bindings:
+				if not binding_variant is Dictionary:
+					icon_only_bindings = false
+					continue
+				var binding := binding_variant as Dictionary
+				var selector := str(binding.get("selector", ""))
+				if not selector.is_empty() and not binding_selectors.has(selector):
+					binding_selectors.append(selector)
+				if str(binding.get("role", "")) != "icon" or not selector.is_empty():
+					icon_only_bindings = false
+			binding_selectors.sort()
+			match scope_kind:
+				"whole_texture":
+					if not declared_selectors.is_empty():
+						errors.append("whole_texture shipping scope must not declare selectors")
+					if str(unit.get("category", "")) == "item" and icon_only_bindings:
+						errors.append("item icon shipping must use inventory_icon_only scope")
+				"inventory_icon_only":
+					if str(unit.get("category", "")) != "item" or not icon_only_bindings or not declared_selectors.is_empty():
+						errors.append("inventory_icon_only scope requires item icon bindings and no selectors")
+				"selector_set":
+					if declared_selectors != binding_selectors or binding_selectors.is_empty():
+						errors.append("selector_set scope must exactly match runtime binding selectors")
+	return errors
+
+
+static func _dictionary_has_exact_fields(value: Dictionary, fields: Array) -> bool:
+	if value.size() != fields.size():
+		return false
+	for field: Variant in fields:
+		if not value.has(field):
+			return false
+	return true
+
+
+static func _json_integral(value: Variant) -> int:
+	if value is int:
+		return int(value)
+	if value is float and is_finite(float(value)) and float(value) == roundf(float(value)):
+		return int(value)
+	return -1
+
+
+static func _vector2i_from_json(value: Variant) -> Vector2i:
+	if not value is Array or (value as Array).size() != 2:
+		return Vector2i(-1, -1)
+	var values := value as Array
+	return Vector2i(_json_integral(values[0]), _json_integral(values[1]))
 
 
 static func _is_rfc3339_utc(value: String) -> bool:

@@ -23,9 +23,14 @@ func _rebuild() -> void:
 		var row := HBoxContainer.new()
 		body.add_child(row)
 		var buy := Button.new()
-		buy.text = "%s · %d 材料" % [definition.display_name, price]
+		configure_action_button(
+			buy,
+			"%s · %d 材料" % [definition.display_name, price],
+			func() -> void: _buy(index),
+			false,
+			resolve_content_icon(definition)
+		)
 		buy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		buy.pressed.connect(func() -> void: _buy(index))
 		row.add_child(buy)
 		var lock := Button.new()
 		lock.text = "解锁" if locked else "锁定"

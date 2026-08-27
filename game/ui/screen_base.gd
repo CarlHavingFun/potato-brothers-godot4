@@ -36,14 +36,64 @@ func build_screen(title: String, subtitle: String = "") -> VBoxContainer:
 	return body
 
 
-func add_action(text: String, callback: Callable, disabled: bool = false) -> Button:
+func add_action(text: String, callback: Callable, disabled: bool = false, icon: Texture2D = null) -> Button:
 	var button := Button.new()
+	configure_action_button(button, text, callback, disabled, icon)
+	body.add_child(button)
+	return button
+
+
+func configure_action_button(
+	button: Button,
+	text: String,
+	callback: Callable = Callable(),
+	disabled: bool = false,
+	icon: Texture2D = null
+) -> Button:
 	button.text = text
 	button.custom_minimum_size.y = 48.0
 	button.disabled = disabled
-	button.pressed.connect(callback)
-	body.add_child(button)
+	button.icon = icon
+	button.expand_icon = icon != null
+	button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	button.add_theme_constant_override(&"icon_max_width", 64)
+	if callback.is_valid() and not button.pressed.is_connected(callback):
+		button.pressed.connect(callback)
 	return button
+
+
+func resolve_content_icon(definition: GogoContentDefinition) -> Texture2D:
+	if definition == null or definition.icon_asset_id.is_empty():
+		return null
+	var app := AppContext.kernel(self)
+	if app == null or app.static_asset_service == null:
+		return null
+	var snapshot := app.static_asset_service.active_snapshot()
+	if snapshot == null:
+		return null
+	var handle := snapshot.resolve_asset(definition.icon_asset_id, &"icon")
+	return handle.texture if handle != null else null
+
+
+func resolve_global_icon(asset_id: StringName, selector: StringName = &"") -> Texture2D:
+	if asset_id.is_empty():
+		return null
+	var app := AppContext.kernel(self)
+	if app == null or app.static_asset_service == null:
+		return null
+	var snapshot := app.static_asset_service.active_snapshot()
+	if snapshot == null:
+		return null
+	var handle := snapshot.resolve_global(asset_id, selector)
+	return handle.texture if handle != null else null
+
+
+static func selector_from_content_id(content_id: StringName) -> StringName:
+	var value := String(content_id)
+	var separator := value.rfind("/")
+	if separator < 0 or separator == value.length() - 1:
+		return &""
+	return StringName(value.substr(separator + 1))
 
 
 func add_info(text: String) -> Label:

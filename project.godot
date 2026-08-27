@@ -23,13 +23,12 @@ file_logging/max_log_files=1
 
 [display]
 
-window/size/mode=0
-window/size/viewport_width=1920
-window/size/viewport_height=1080
+window/size/viewport_width=1280
+window/size/viewport_height=720
 window/size/window_width_override=1280
 window/size/window_height_override=720
-window/size/initial_position_type=1
 window/stretch/mode="canvas_items"
+window/stretch/scale_mode="integer"
 
 [editor_plugins]
 
