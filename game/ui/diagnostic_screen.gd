@@ -8,6 +8,7 @@ func receive_route_payload(payload: Dictionary) -> void:
 
 
 func _ready() -> void:
+	name = "Diagnostic"
 	build_screen_chrome("启动诊断", String(_payload.get("message", "未知错误")))
 	var surface := add_principal_surface(
 		Rect2(272, 184, 736, 352),

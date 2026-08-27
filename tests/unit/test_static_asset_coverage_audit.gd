@@ -124,10 +124,21 @@ func test_visible_texture_observer_requires_exact_live_texture_and_provenance() 
 	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
 	var snapshot := _debug_snapshot(content)
 	var handle := snapshot.resolve_global(&"zone_thumbnail")
-	var thumbnail := auto_free(TextureRect.new()) as TextureRect
-	thumbnail.texture = handle.texture
+	var app := auto_free(AppKernel.new()) as AppKernel
+	app.add_to_group(&"gogobro_app")
+	app.content_snapshot = content
+	add_child(app)
+	app.begin_selection()
+	var screen := auto_free(load(
+		"res://game/ui/difficulty_select_screen.gd"
+	).new()) as GogoScreenBase
+	screen.static_asset_snapshot_override = snapshot
+	add_child(screen)
+	var thumbnail := screen.get_node(
+		"SelectedDifficultyDetail/ZoneThumbnail"
+	) as TextureRect
+	GogoStaticConsumerRegistry.reset_current()
 	thumbnail.visible = false
-	add_child(thumbnail)
 	assert_bool(registry_script.call(
 		"observe_visible_texture", handle, thumbnail,
 		"res://game/ui/difficulty_select_screen.gd",
@@ -146,6 +157,17 @@ func test_visible_texture_observer_requires_exact_live_texture_and_provenance() 
 		"res://tools/gallery.gd",
 		"SelectedDifficultyDetail/ZoneThumbnail"
 	)).is_false()
+	assert_bool(registry_script.call(
+		"observe_visible_texture", handle, thumbnail,
+		"res://game/ui/diagnostic_screen.gd",
+		"SelectedDifficultyDetail/ZoneThumbnail"
+	)).is_false()
+	assert_bool(registry_script.call(
+		"observe_visible_texture", handle, thumbnail,
+		"res://game/ui/difficulty_select_screen.gd",
+		"SelectedDifficultyDetail/FakeThumbnail"
+	)).is_false()
+	assert_array(GogoStaticConsumerRegistry.current().records()).is_empty()
 	assert_bool(registry_script.call(
 		"observe_visible_texture", handle, thumbnail,
 		"res://game/ui/difficulty_select_screen.gd",

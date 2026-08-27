@@ -50,3 +50,10 @@ Task 2: pivot-aware combat composition implemented from reviewed Task 1 HEAD and
 - Mutation control with the old fixed `24px` margin failed all six parameter cases with 56 footprint violations; restoring the pivot-aware margin passed 25/25 focused cases. The temporary mutation is absent from the final diff.
 - The post-review final full Godot regression passes 339/339 across 35 suites with zero errors, failures, flaky cases, skips, or orphans.
 - Fresh re-review of commits `586df4b` + `18c46ff` is **APPROVED** with no remaining Critical or Important findings. The reviewer independently confirmed the real physics/clamp path, counts 1–6, all four edges, negative-control failures, and that the review fix changed no production file.
+
+Task 3: visible UI consumers and compact main-menu actions implemented from reviewed Task 2 HEAD and recorded in `.superpowers/sdd/2026-08-28-final-asset-visual-remediation/task-3-report.md`.
+
+- Real Diagnostic, Difficulty, and Combat HUD routes provide the three required visible-texture observations; ordinary and synthetic records cannot cover them. Final real report remains 70/70.
+- Main-menu actions are two centered 320x48 authored buttons; one Diagnostic principal panel, one unframed 256x144 zone thumbnail, and the preview-only low-border HUD underlay pass actual-size review.
+- Initial scoped review found one Important provenance false-positive. A strict RED/GREEN fix now binds the claimed scene to an actual ancestor script resource path and the claimed node to the real named ancestor suffix ending at the CanvasItem; wrong allowed-scene and wrong allowed-node claims both fail without creating records.
+- Post-fix focused suites and windowed real-route integration pass; final full Godot regression is 343/343 across 35 suites with zero errors, failures, flaky cases, skips, or orphans.

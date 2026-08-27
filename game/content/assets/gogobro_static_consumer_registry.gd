@@ -52,6 +52,7 @@ static func observe_visible_texture(
 		or not _is_allowed_scene(scene_path)
 		or node_path.strip_edges().is_empty()
 		or _canvas_texture(canvas_item) != handle.texture
+		or not _has_verified_provenance(canvas_item, scene_path, node_path)
 	):
 		return false
 	return current().observe(
@@ -144,3 +145,45 @@ static func _canvas_texture(canvas_item: CanvasItem) -> Texture2D:
 		if String(property.get("name", "")) == "texture":
 			return canvas_item.get("texture") as Texture2D
 	return null
+
+
+static func _has_verified_provenance(
+	canvas_item: CanvasItem,
+	scene_path: String,
+	node_path: String
+) -> bool:
+	var claimed_segments := node_path.replace("\\", "/").trim_prefix("/").split("/", false)
+	if claimed_segments.is_empty():
+		return false
+	for segment: String in claimed_segments:
+		if segment.strip_edges().is_empty() or segment in [".", ".."]:
+			return false
+	var expected_scene := scene_path.replace("\\", "/").to_lower()
+	var scripted_ancestor: Node
+	var cursor: Node = canvas_item
+	while cursor != null:
+		var node_script := cursor.get_script() as Script
+		if (
+			node_script != null
+			and String(node_script.resource_path).replace("\\", "/").to_lower()
+				== expected_scene
+		):
+			scripted_ancestor = cursor
+			break
+		cursor = cursor.get_parent()
+	if scripted_ancestor == null:
+		return false
+	var actual_segments: Array[String] = []
+	cursor = canvas_item
+	while cursor != null:
+		actual_segments.push_front(String(cursor.name))
+		if cursor == scripted_ancestor:
+			break
+		cursor = cursor.get_parent()
+	if claimed_segments.size() > actual_segments.size():
+		return false
+	var offset := actual_segments.size() - claimed_segments.size()
+	for index in claimed_segments.size():
+		if claimed_segments[index] != actual_segments[offset + index]:
+			return false
+	return true
