@@ -40,3 +40,12 @@ Task 1: candidate raster identity and preview helmet parity implemented from bas
 - Complete evidence: `.superpowers/sdd/2026-08-28-final-asset-visual-remediation/task-1-report.md`.
 - Commit `af9e310` received a fresh read-only actual-size review: **APPROVED**, with no Critical or Important findings. The only Minor note is that one preview test name still says “approved” even though its assertion correctly targets candidate-preview art.
 - The reviewer independently confirmed that the legacy candidate-002 Python approval-binding failure predates Task 1 and that all implicated shipping/approval inputs are byte-for-byte unchanged from `1fa622d`.
+
+Task 2: pivot-aware combat composition implemented from reviewed Task 1 HEAD and recorded in `.superpowers/sdd/2026-08-28-final-asset-visual-remediation/task-2-report.md`.
+
+- Six-slot orbit geometry uses real display bounds and pivots, maintains Niko/neighbor gaps, and caches full orbit extent for live arena clamping.
+- Seeded asymmetric props, rust/olive/amber procedural enemy colors, and capture-only 1280×720 evidence are integrated without gameplay/content/UI-consumer changes.
+- Initial focused, integration, real-window, actual-size capture, and 334/334 full-suite gates passed; production commit `586df4b` contains the implementation.
+- Scoped review found one Important test-only gap: the edge test bypassed the live physics-to-world clamp connection. It was replaced by six parameterized runtime cases (counts 1–6), each covering all four arena edges and every rotated pivot-aware weapon footprint.
+- Mutation control with the old fixed `24px` margin failed all six parameter cases with 56 footprint violations; restoring the pivot-aware margin passed 25/25 focused cases. The temporary mutation is absent from the final diff.
+- The post-review final full Godot regression passes 339/339 across 35 suites with zero errors, failures, flaky cases, skips, or orphans.

@@ -364,23 +364,67 @@ func test_six_pivoted_weapon_footprints_clear_niko_and_each_other() -> void:
 			)
 
 
-func test_weapon_orbit_extent_is_cached_for_edge_safe_arena_clamping() -> void:
-	var player := auto_free(GogoPlayerActor.new()) as GogoPlayerActor
-	assert_bool(player.has_method("weapon_arena_clamp_margin")).is_true()
-	if not player.has_method("weapon_arena_clamp_margin"):
+func test_real_physics_clamp_keeps_rotated_weapon_footprints_inside_arena(
+	weapon_count: int,
+	test_parameters := [[1], [2], [3], [4], [5], [6]]
+) -> void:
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	var session := _combat_session(content)
+	session.static_asset_snapshot = _orbit_weapon_visual_snapshot()
+	var player_state := session.run_state.player()
+	player_state.weapon_ids.clear()
+	for _index in weapon_count:
+		player_state.weapon_ids.append(ValidationContentFactory.RANGED_ID)
+	var wave := content.definition(&"gogobro.core:wave/training_1", &"wave") as GogoWaveDefinition
+	var world := auto_free(CombatWorld.new()) as CombatWorld
+	add_child(world)
+	assert_int(world.start_wave(session, wave)).is_equal(OK)
+	var player := world.player_actor
+	var weapons := player.weapon_orbit.get_children()
+	assert_int(weapons.size()).is_equal(weapon_count)
+	if weapons.size() != weapon_count:
 		return
-	var bounds: Array[Vector2i] = []
-	var pivots: Array[Vector2i] = []
-	for _index in 6:
-		bounds.append(Vector2i(96, 64))
-		pivots.append(Vector2i(38, 40))
-	var radius := float(player.call("weapon_orbit_radius", 6, bounds, pivots))
-	var footprint := float(player.call("weapon_visual_footprint_radius", bounds[0], pivots[0]))
-	player.call("cache_weapon_orbit_extent", radius, bounds, pivots)
-	assert_float(float(player.call("weapon_arena_clamp_margin"))).is_equal_approx(
-		radius + footprint,
-		0.001
-	)
+
+	for index in weapons.size():
+		(weapons[index] as GogoWeaponInstance).rotation = deg_to_rad(17.0 + 31.0 * float(index))
+	var center := world.arena_rect.get_center()
+	var outside_positions := [
+		Vector2(world.arena_rect.position.x - 500.0, center.y),
+		Vector2(world.arena_rect.end.x + 500.0, center.y),
+		Vector2(center.x, world.arena_rect.position.y - 500.0),
+		Vector2(center.x, world.arena_rect.end.y + 500.0),
+	]
+	var edge_names := ["left", "right", "top", "bottom"]
+	for edge_index in outside_positions.size():
+		player.global_position = outside_positions[edge_index]
+		player._physics_process(0.0)
+		for weapon_index in weapons.size():
+			var weapon := weapons[weapon_index] as GogoWeaponInstance
+			var handle := weapon.weapon_visual_handle
+			assert_object(handle).is_not_null()
+			if handle == null:
+				continue
+			var footprint := player.weapon_visual_footprint_radius(
+				handle.display_size_px,
+				handle.pivot_px
+			)
+			var context := "count=%d edge=%s weapon=%d" % [
+				weapon_count,
+				edge_names[edge_index],
+				weapon_index,
+			]
+			assert_float(weapon.global_position.x - footprint).override_failure_message(
+				"Weapon footprint crossed arena left: %s" % context
+			).is_greater_equal(world.arena_rect.position.x - 0.001)
+			assert_float(weapon.global_position.x + footprint).override_failure_message(
+				"Weapon footprint crossed arena right: %s" % context
+			).is_less_equal(world.arena_rect.end.x + 0.001)
+			assert_float(weapon.global_position.y - footprint).override_failure_message(
+				"Weapon footprint crossed arena top: %s" % context
+			).is_greater_equal(world.arena_rect.position.y - 0.001)
+			assert_float(weapon.global_position.y + footprint).override_failure_message(
+				"Weapon footprint crossed arena bottom: %s" % context
+			).is_less_equal(world.arena_rect.end.y + 0.001)
 
 
 func test_enemy_role_palette_uses_rust_olive_and_amber_body_colors() -> void:
@@ -462,6 +506,36 @@ func _weapon_visual_snapshot() -> GogoStaticAssetSnapshot:
 	snapshot._configure(
 		1,
 		"fixture",
+		70,
+		{&"service_pistol": &"ready"},
+		{"service_pistol|world_sprite|": handle},
+		{},
+		{},
+		{},
+		[]
+	)
+	return snapshot
+
+
+func _orbit_weapon_visual_snapshot() -> GogoStaticAssetSnapshot:
+	var image := Image.create(96, 64, false, Image.FORMAT_RGBA8)
+	image.fill(Color8(58, 66, 74, 255))
+	var handle := GogoStaticAssetHandle.new()
+	handle._configure({
+		"binding_key": &"service_pistol|world_sprite|",
+		"asset_id": &"service_pistol",
+		"role": &"world_sprite",
+		"selector": &"",
+		"display_size_px": Vector2i(96, 64),
+		"display_scale": Vector2.ONE,
+		"pivot_px": Vector2i(38, 40),
+		"anchors_px": {"muzzle": Vector2i(86, 28)},
+		"atlas_rect_px": Rect2i(0, 0, 96, 64),
+	}, ImageTexture.create_from_image(image))
+	var snapshot := GogoStaticAssetSnapshot.new()
+	snapshot._configure(
+		1,
+		"orbit_fixture",
 		70,
 		{&"service_pistol": &"ready"},
 		{"service_pistol|world_sprite|": handle},

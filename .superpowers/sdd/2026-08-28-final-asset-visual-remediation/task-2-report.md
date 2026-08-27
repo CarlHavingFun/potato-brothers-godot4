@@ -35,6 +35,21 @@ Focused GREEN:
 
 The first whole-suite run exposed a capture-only race: continued hit impulses could shift the camera by an integer pixel after safe world rectangles were selected. The fixture now freezes camera physics only after real fire/contact evidence has been collected and impulses have been cleared. The next full run passed 334/334; production camera behavior is unchanged.
 
+### Scoped-review regression closure
+
+The first scoped review found that the edge-clamp unit test called `cache_weapon_orbit_extent()` directly, so it did not prove the live `_physics_process()` to `CombatWorld.clamp_to_arena()` connection. That direct-cache test was replaced with a GdUnit4 parameterized runtime regression for weapon counts 1 through 6. Every case starts a real `CombatWorld` wave, lets `GogoPlayerActor._ready()` build pivot-aware weapon instances from a static handle, rotates the weapons, places the player beyond each of the four arena edges, calls the actual `_physics_process(0.0)` entry, and verifies every weapon's pivot-to-corner enclosing footprint remains inside the arena.
+
+Mutation RED and restored GREEN:
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| current implementation baseline | 25/25 pass, including 6 parameterized edge cases | `reports/combat-edge-runtime-baseline-green/report_1/results.xml` |
+| old fixed `24px` margin negative control | expected RED: all 6 parameterized cases fail, 56 explicit left/right/top/bottom footprint failures | `reports/combat-edge-runtime-final-old-margin-red/report_1/results.xml` |
+| restored pivot-aware runtime margin | 25/25 pass, 0 errors/failures/flaky/skipped/orphans | `reports/combat-edge-runtime-final-restored-green/report_1/results.xml` |
+| final full Godot regression | 339/339 pass across 35 suites, 0 errors/failures/flaky/skipped/orphans | `reports/combat-remediation-full-review-fix/report_1/results.xml` |
+
+The fixed-24px change was temporary and is absent from the final diff. No production behavior changed during this scoped-review closure.
+
 ## Real windowed combat evidence
 
 Windowed OpenGL real-route capture passed:
