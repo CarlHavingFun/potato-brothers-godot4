@@ -30,7 +30,37 @@ static func observe_handle(
 		scene_path,
 		node_path,
 		integer_display_scale,
-		source_kind
+		source_kind,
+		false
+	)
+
+
+static func observe_visible_texture(
+	handle: GogoStaticAssetHandle,
+	canvas_item: CanvasItem,
+	scene_path: String,
+	node_path: String,
+	integer_display_scale := Vector2i.ONE,
+	source_kind: StringName = &""
+) -> bool:
+	if (
+		handle == null
+		or handle.texture == null
+		or canvas_item == null
+		or not canvas_item.is_inside_tree()
+		or not canvas_item.is_visible_in_tree()
+		or not _is_allowed_scene(scene_path)
+		or node_path.strip_edges().is_empty()
+		or _canvas_texture(canvas_item) != handle.texture
+	):
+		return false
+	return current().observe(
+		handle,
+		scene_path,
+		node_path,
+		integer_display_scale,
+		source_kind,
+		true
 	)
 
 
@@ -39,7 +69,8 @@ func observe(
 	scene_path: String,
 	node_path: String,
 	integer_display_scale := Vector2i.ONE,
-	source_kind: StringName = &""
+	source_kind: StringName = &"",
+	visible_texture: bool = false
 ) -> bool:
 	if (
 		handle == null
@@ -53,13 +84,14 @@ func observe(
 	var resolved_source := source_kind if not source_kind.is_empty() else handle.source_kind
 	if resolved_source.is_empty():
 		resolved_source = &"approved_shipping"
-	var key := "%s|%s|%s|%s|%s|%s" % [
+	var key := "%s|%s|%s|%s|%s|%s|%s" % [
 		handle.asset_id,
 		handle.role,
 		handle.selector,
 		scene_path,
 		node_path,
 		resolved_source,
+		visible_texture,
 	]
 	if _keys.has(key):
 		return true
@@ -73,6 +105,7 @@ func observe(
 		"texture_size": Vector2i(handle.texture.get_width(), handle.texture.get_height()),
 		"integer_display_scale": integer_display_scale,
 		"source_kind": resolved_source,
+		"visible_texture": visible_texture,
 	})
 	return true
 
@@ -104,3 +137,10 @@ static func _is_allowed_scene(scene_path: String) -> bool:
 		and not normalized.contains("gallery")
 		and not normalized.contains("preview_sheet")
 	)
+
+
+static func _canvas_texture(canvas_item: CanvasItem) -> Texture2D:
+	for property: Dictionary in canvas_item.get_property_list():
+		if String(property.get("name", "")) == "texture":
+			return canvas_item.get("texture") as Texture2D
+	return null

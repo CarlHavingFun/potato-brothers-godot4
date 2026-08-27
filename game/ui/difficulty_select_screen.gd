@@ -100,11 +100,29 @@ func _build_difficulty_detail() -> void:
 	detail.size = Vector2(404, 404)
 	add_child(detail)
 	_add_backing(detail)
+	var thumbnail_handle := resolve_global_handle(&"zone_thumbnail")
+	var thumbnail := TextureRect.new()
+	thumbnail.name = "ZoneThumbnail"
+	thumbnail.position = Vector2(74, 16)
+	thumbnail.size = Vector2(256, 144)
+	thumbnail.texture = thumbnail_handle.texture if thumbnail_handle != null else null
+	thumbnail.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	thumbnail.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	thumbnail.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	thumbnail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	detail.add_child(thumbnail)
+	if thumbnail.texture != null:
+		GogoStaticConsumerRegistry.observe_visible_texture(
+			thumbnail_handle,
+			thumbnail,
+			"res://game/ui/difficulty_select_screen.gd",
+			"SelectedDifficultyDetail/ZoneThumbnail"
+		)
 
 	var icon := TextureRect.new()
 	icon.name = "Icon"
-	icon.position = Vector2(126, 30)
-	icon.size = Vector2(152, 152)
+	icon.position = Vector2(162, 126)
+	icon.size = Vector2(80, 80)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -112,14 +130,14 @@ func _build_difficulty_detail() -> void:
 	detail.add_child(icon)
 	_add_icon_fallback(detail, "IconFallback", icon.position, icon.size, "标准")
 
-	var name_label := _label(detail, "Name", Vector2(28, 198), Vector2(348, 46), 30)
+	var name_label := _label(detail, "Name", Vector2(28, 220), Vector2(348, 40), 30)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.add_theme_color_override(&"font_color", Color("fff0bf"))
-	var kind := _label(detail, "Kind", Vector2(28, 244), Vector2(348, 28), 17)
+	var kind := _label(detail, "Kind", Vector2(28, 266), Vector2(348, 24), 17)
 	kind.text = "难度"
 	kind.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	kind.add_theme_color_override(&"font_color", Color("f2a14a"))
-	var multipliers := _label(detail, "Multipliers", Vector2(54, 286), Vector2(296, 92), 18)
+	var multipliers := _label(detail, "Multipliers", Vector2(54, 296), Vector2(296, 82), 18)
 	multipliers.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	multipliers.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 

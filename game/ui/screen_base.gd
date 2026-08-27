@@ -71,10 +71,15 @@ func build_screen_chrome(title: String, subtitle: String = "") -> Control:
 	return content_root
 
 
-func add_principal_surface(rect: Rect2) -> Control:
+func add_principal_surface(
+	rect: Rect2,
+	consumer_scene_path := "res://game/ui/screen_base.gd",
+	consumer_node_path := "PrincipalSurface"
+) -> Control:
 	if content_root == null:
 		build_screen_chrome("", "")
-	var panel_texture := _global_texture(&"nine_slice_panel")
+	var panel_handle := resolve_global_handle(&"nine_slice_panel")
+	var panel_texture := panel_handle.texture if panel_handle != null else null
 	var surface: Control
 	if panel_texture != null:
 		var nine_patch := NinePatchRect.new()
@@ -97,6 +102,13 @@ func add_principal_surface(rect: Rect2) -> Control:
 	surface.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(surface)
 	move_child(surface, content_root.get_index())
+	if panel_texture != null:
+		GogoStaticConsumerRegistry.observe_visible_texture(
+			panel_handle,
+			surface,
+			consumer_scene_path,
+			consumer_node_path
+		)
 	return surface
 
 
@@ -216,22 +228,29 @@ func resolve_content_icon(definition: GogoContentDefinition) -> Texture2D:
 
 
 func resolve_global_icon(asset_id: StringName, selector: StringName = &"") -> Texture2D:
+	return _global_texture(asset_id, selector)
+
+
+func resolve_global_handle(
+	asset_id: StringName,
+	selector: StringName = &""
+) -> GogoStaticAssetHandle:
 	if asset_id.is_empty():
 		return null
 	var snapshot := _static_asset_snapshot()
 	if snapshot == null:
 		return null
-	var handle := snapshot.resolve_global(asset_id, selector)
+	return snapshot.resolve_global(asset_id, selector)
+
+
+func _global_texture(asset_id: StringName, selector: StringName = &"") -> Texture2D:
+	var handle := resolve_global_handle(asset_id, selector)
 	GogoStaticConsumerRegistry.observe_handle(
 		handle,
 		"res://game/ui/screen_base.gd",
 		"Global/%s/%s" % [asset_id, selector]
 	)
 	return handle.texture if handle != null else null
-
-
-func _global_texture(asset_id: StringName, selector: StringName = &"") -> Texture2D:
-	return resolve_global_icon(asset_id, selector)
 
 
 func _static_asset_snapshot() -> GogoStaticAssetSnapshot:

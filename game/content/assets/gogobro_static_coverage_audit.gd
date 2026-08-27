@@ -6,6 +6,11 @@ const REQUIRED_VISUAL_ASSET_IDS: Array[StringName] = [
 	&"community_server_floor",
 	&"combat_hud_shell",
 ]
+const REQUIRED_VISIBLE_TEXTURE_ASSET_IDS: Array[StringName] = [
+	&"nine_slice_panel",
+	&"combat_hud_shell",
+	&"zone_thumbnail",
+]
 const VALID_SOURCE_KINDS: Array[StringName] = [
 	&"approved_shipping",
 	&"development_preview",
@@ -121,6 +126,11 @@ static func _validate_observation(
 	var integer_scale := _vector2i(observation.get("integer_display_scale"))
 	if not expected_ids.has(asset_id):
 		return {"valid": false, "reason": &"unknown_asset"}
+	if (
+		REQUIRED_VISIBLE_TEXTURE_ASSET_IDS.has(asset_id)
+		and not bool(observation.get("visible_texture", false))
+	):
+		return {"valid": false, "reason": &"texture_not_visibly_displayed"}
 	if role.is_empty() or node.strip_edges().is_empty():
 		return {"valid": false, "reason": &"missing_consumer_identity"}
 	if not is_allowed_consumer_scene(scene):
@@ -151,6 +161,7 @@ static func _validate_observation(
 			"texture_size": [texture_size.x, texture_size.y],
 			"integer_display_scale": [integer_scale.x, integer_scale.y],
 			"source_kind": source_kind,
+			"visible_texture": bool(observation.get("visible_texture", false)),
 		},
 	}
 

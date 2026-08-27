@@ -71,13 +71,21 @@ func test_hud_uses_native_1280_layout_without_full_screen_or_inventory_frames() 
 	if _has_property(snapshot, &"wave_materials"):
 		snapshot.set(&"wave_materials", 19)
 	var hud := auto_free(hud_script.new()) as Control
-	hud.call("configure", snapshot, _content_fixture(), _static_ui_snapshot())
+	var static_snapshot := _static_ui_snapshot()
+	hud.call("configure", snapshot, _content_fixture(), static_snapshot)
 	add_child(hud)
 	assert_vector(hud.custom_minimum_size).is_equal(Vector2(1280, 720))
 	assert_vector(hud.size).is_equal(Vector2(1280, 720))
 	assert_vector(hud.scale).is_equal(Vector2.ONE)
 	assert_bool(hud.has_node("Backdrop")).is_false()
-	assert_bool(hud.has_node("Shell")).is_false()
+	assert_bool(hud.has_node("Shell")).is_true()
+	var shell := hud.get_node("Shell") as TextureRect
+	assert_object(shell.texture).is_same(static_snapshot.resolve_global(
+		&"combat_hud_shell"
+	).texture)
+	assert_bool(shell.visible).is_true()
+	assert_vector(shell.size).is_equal(Vector2(1280, 720))
+	assert_int(shell.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
 	assert_bool(hud.has_node("FullScreenOrnamentalFrame")).is_false()
 	assert_bool(hud.has_node("TopCenter/Timer")).is_true()
 	assert_bool(hud.has_node("TopLeft/Health/HealthBar")).is_true()
@@ -94,7 +102,7 @@ func test_hud_uses_native_1280_layout_without_full_screen_or_inventory_frames() 
 	assert_bool(hud.has_node("TopLeft/ShellAccent")).is_false()
 	var metric_style := (hud.get_node("TopLeft/Health") as Panel).get_theme_stylebox("panel") as StyleBoxFlat
 	assert_bool(metric_style.bg_color.is_equal_approx(
-		Color(18.0 / 255.0, 23.0 / 255.0, 25.0 / 255.0, 0.86)
+		Color(0.055, 0.063, 0.067, 0.86)
 	)).is_true()
 
 

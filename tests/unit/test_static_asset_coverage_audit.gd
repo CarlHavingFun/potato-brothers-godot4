@@ -29,6 +29,23 @@ func test_actual_consumers_cover_every_canonical_unit() -> void:
 	assert_bool(report.complete).is_true()
 	assert_int(report.source_unit_counts.approved_shipping).is_equal(5)
 	assert_int(report.source_unit_counts.development_preview).is_equal(65)
+	var expected_routes := {
+		&"nine_slice_panel": ["res://game/ui/diagnostic_screen.gd", "Diagnostic/PrincipalSurface"],
+		&"combat_hud_shell": ["res://game/ui/brotato_combat_hud.gd", "BrotatoHUD/Shell"],
+		&"zone_thumbnail": [
+			"res://game/ui/difficulty_select_screen.gd",
+			"SelectedDifficultyDetail/ZoneThumbnail",
+		],
+	}
+	for asset_id: StringName in expected_routes:
+		var accepted := (report.accepted_observations as Array).filter(
+			func(record: Dictionary) -> bool:
+				return record.asset_id == asset_id and bool(record.visible_texture)
+		)
+		assert_int(accepted.size()).is_equal(1)
+		if accepted.size() == 1:
+			assert_str(String(accepted[0].scene)).is_equal(expected_routes[asset_id][0])
+			assert_str(String(accepted[0].node)).is_equal(expected_routes[asset_id][1])
 
 
 func test_gallery_observation_cannot_satisfy_or_break_real_coverage() -> void:
@@ -55,6 +72,87 @@ func test_gallery_observation_cannot_satisfy_or_break_real_coverage() -> void:
 		"res://tools/gallery.gd"
 	)).is_false()
 	assert_int(report.rejected_observations.size()).is_equal(1)
+
+
+func test_required_ui_textures_reject_non_visible_observations() -> void:
+	GogoStaticConsumerRegistry.reset_current()
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	var snapshot := _debug_snapshot(content)
+	_exercise_real_consumers(content, snapshot)
+	var route_nodes := {
+		&"nine_slice_panel": "Diagnostic/PrincipalSurface",
+		&"combat_hud_shell": "BrotatoHUD/Shell",
+		&"zone_thumbnail": "SelectedDifficultyDetail/ZoneThumbnail",
+	}
+	for asset_id: StringName in route_nodes:
+		var records: Array[Dictionary] = []
+		for record: Dictionary in GogoStaticConsumerRegistry.current().records():
+			if record.asset_id != asset_id:
+				records.append(record)
+		var handle := snapshot.resolve_global(asset_id)
+		records.append({
+			"asset_id": handle.asset_id,
+			"role": handle.role,
+			"selector": handle.selector,
+			"scene": "res://game/ui/diagnostic_screen.gd",
+			"node": route_nodes[asset_id],
+			"texture_size": Vector2i(handle.texture.get_width(), handle.texture.get_height()),
+			"integer_display_scale": Vector2i.ONE,
+			"source_kind": handle.source_kind,
+			"visible_texture": false,
+		})
+		var report := GogoStaticCoverageAudit.build(REGISTRY_PATH, snapshot, records)
+		assert_array(report.unresolved_asset_ids).contains([asset_id])
+		assert_bool(report.rejected_observations.any(func(rejection: Dictionary) -> bool:
+			return (
+				rejection.get("asset_id", &"") == asset_id
+				and rejection.get("reason", &"") == &"texture_not_visibly_displayed"
+			)
+		)).is_true()
+
+
+func test_visible_texture_observer_requires_exact_live_texture_and_provenance() -> void:
+	var registry_script := load(CONSUMER_REGISTRY_PATH) as GDScript
+	var method_exists := registry_script.get_script_method_list().any(
+		func(method: Dictionary) -> bool:
+			return method.get("name", "") == "observe_visible_texture"
+	)
+	assert_bool(method_exists).is_true()
+	if not method_exists:
+		return
+	GogoStaticConsumerRegistry.reset_current()
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	var snapshot := _debug_snapshot(content)
+	var handle := snapshot.resolve_global(&"zone_thumbnail")
+	var thumbnail := auto_free(TextureRect.new()) as TextureRect
+	thumbnail.texture = handle.texture
+	thumbnail.visible = false
+	add_child(thumbnail)
+	assert_bool(registry_script.call(
+		"observe_visible_texture", handle, thumbnail,
+		"res://game/ui/difficulty_select_screen.gd",
+		"SelectedDifficultyDetail/ZoneThumbnail"
+	)).is_false()
+	thumbnail.visible = true
+	thumbnail.texture = _texture(Vector2i(512, 288))
+	assert_bool(registry_script.call(
+		"observe_visible_texture", handle, thumbnail,
+		"res://game/ui/difficulty_select_screen.gd",
+		"SelectedDifficultyDetail/ZoneThumbnail"
+	)).is_false()
+	thumbnail.texture = handle.texture
+	assert_bool(registry_script.call(
+		"observe_visible_texture", handle, thumbnail,
+		"res://tools/gallery.gd",
+		"SelectedDifficultyDetail/ZoneThumbnail"
+	)).is_false()
+	assert_bool(registry_script.call(
+		"observe_visible_texture", handle, thumbnail,
+		"res://game/ui/difficulty_select_screen.gd",
+		"SelectedDifficultyDetail/ZoneThumbnail"
+	)).is_true()
+	var record := GogoStaticConsumerRegistry.current().records()[0]
+	assert_bool(record.get("visible_texture", false)).is_true()
 
 
 func test_missing_required_floor_is_a_hard_failure_even_with_other_sixty_nine_units() -> void:
@@ -122,16 +220,26 @@ func _exercise_real_consumers(
 	add_child(marker)
 	marker.configure_visual(snapshot.resolve_asset(&"spawn_marker", &"world_sprite"))
 
-	var screen := auto_free(GogoScreenBase.new()) as GogoScreenBase
-	screen.static_asset_snapshot_override = snapshot
-	screen.build_screen("审计")
-	screen.add_principal_surface(Rect2(192, 144, 640, 360))
-	screen.add_static_texture(&"gogobro_wordmark", "Wordmark", Vector2(460, 115))
-	screen.add_static_texture(&"zone_thumbnail", "ZoneThumbnail", Vector2(320, 180))
-	screen.resolve_global_icon(&"difficulty_badge_kit", &"standard")
-	screen.add_action("审计按钮", func() -> void: pass)
+	var app := auto_free(AppKernel.new()) as AppKernel
+	app.add_to_group(&"gogobro_app")
+	app.content_snapshot = content
+	add_child(app)
+	app.begin_selection()
+	var main_menu := auto_free(load("res://game/ui/main_menu_screen.gd").new()) as GogoScreenBase
+	main_menu.static_asset_snapshot_override = snapshot
+	add_child(main_menu)
+	var difficulty := auto_free(load(
+		"res://game/ui/difficulty_select_screen.gd"
+	).new()) as GogoScreenBase
+	difficulty.static_asset_snapshot_override = snapshot
+	add_child(difficulty)
+	var diagnostic := auto_free(load("res://game/ui/diagnostic_screen.gd").new()) as GogoScreenBase
+	diagnostic.static_asset_snapshot_override = snapshot
+	diagnostic.call("receive_route_payload", {"message": "审计", "details": ["真实诊断路由"]})
+	add_child(diagnostic)
 
 	var hud := auto_free(GogoBrotatoCombatHud.new()) as GogoBrotatoCombatHud
+	add_child(hud)
 	hud.configure(null, content, snapshot)
 	var projectile := auto_free(GogoProjectile.new()) as GogoProjectile
 	projectile.static_asset_snapshot_override = snapshot
@@ -146,6 +254,12 @@ func _debug_snapshot(content: ContentSnapshot) -> GogoStaticAssetSnapshot:
 		shipping.active_snapshot(),
 		content
 	)
+
+
+func _texture(size: Vector2i) -> ImageTexture:
+	var image := Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
+	image.fill(Color.WHITE)
+	return ImageTexture.create_from_image(image)
 
 
 func _contrast_ratio(first: Color, second: Color) -> float:

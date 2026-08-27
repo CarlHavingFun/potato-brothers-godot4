@@ -6,6 +6,7 @@ const MAIN_MENU_OUTPUT_URI := OUTPUT_DIR_URI + "/menu-1280x720.png"
 const CHARACTER_OUTPUT_URI := OUTPUT_DIR_URI + "/character-select-1280x720.png"
 const WEAPON_OUTPUT_URI := OUTPUT_DIR_URI + "/weapon-select-1280x720.png"
 const DIFFICULTY_OUTPUT_URI := OUTPUT_DIR_URI + "/difficulty-select-1280x720.png"
+const DIAGNOSTIC_OUTPUT_URI := OUTPUT_DIR_URI + "/diagnostic-1280x720.png"
 const SHOP_OUTPUT_URI := OUTPUT_DIR_URI + "/shop-1280x720.png"
 const UPGRADE_OUTPUT_URI := OUTPUT_DIR_URI + "/upgrade-1280x720.png"
 const MANIFEST_URI := OUTPUT_DIR_URI + "/route-captures-v1.json"
@@ -47,12 +48,26 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 		return
 	if not _require(main_menu.get_node_or_null("StaticNineSlicePanel") == null, "low-border menu shell"):
 		return
+	var menu_actions := main_menu.get_node_or_null(
+		"ContentRoot/Body/MenuActions"
+	) as VBoxContainer
 	var start_button := main_menu.get_node_or_null(
-		"ContentRoot/Body/StartButton"
+		"ContentRoot/Body/MenuActions/StartButton"
+	) as Button
+	var exit_button := main_menu.get_node_or_null(
+		"ContentRoot/Body/MenuActions/ExitButton"
 	) as Button
 	if not _require(
-		start_button != null and _button_uses_texture_states(start_button),
-		"rendered four-state button consumer"
+		menu_actions != null
+		and menu_actions.size.x <= 320.0
+		and start_button != null
+		and exit_button != null
+		and start_button.size.is_equal_approx(Vector2(320, 48))
+		and exit_button.size.is_equal_approx(Vector2(320, 48))
+		and _control_fits_capture(menu_actions)
+		and _button_uses_texture_states(start_button)
+		and _button_uses_texture_states(exit_button),
+		"compact rendered four-state button consumers"
 	):
 		return
 	var captures: Array[Dictionary] = []
@@ -66,6 +81,39 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 	if capture.is_empty():
 		return
 	captures.append(capture)
+	if not _require(app.route(FlowRoute.DIAGNOSTIC, {
+		"message": "静态素材诊断",
+		"details": ["真实路由可见性检查"],
+	}) == OK, "diagnostic route"):
+		return
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var diagnostic_screen := _current_screen(host)
+	var principal_surface := diagnostic_screen.get_node_or_null("PrincipalSurface") as NinePatchRect
+	if not _require(
+		_is_actual_route(diagnostic_screen, "res://game/ui/diagnostic_screen.gd")
+		and principal_surface != null
+		and principal_surface.texture != null
+		and principal_surface.is_visible_in_tree()
+		and principal_surface.position == Vector2(272, 184)
+		and principal_surface.size == Vector2(736, 352)
+		and principal_surface.has_node("DiagnosticContent"),
+		"actual diagnostic principal texture"
+	):
+		return
+	capture = await _capture_route(
+		root_window,
+		diagnostic_screen,
+		&"diagnostic",
+		DIAGNOSTIC_OUTPUT_URI,
+		"res://game/ui/diagnostic_screen.gd"
+	)
+	if capture.is_empty():
+		return
+	captures.append(capture)
+	if not _require(app.route(FlowRoute.MAIN_MENU) == OK, "return to main menu after diagnostic"):
+		return
+	await get_tree().process_frame
 
 	app.begin_selection()
 	if not _require(app.route(FlowRoute.CHARACTER_SELECT) == OK, "character selection route"):
@@ -201,8 +249,19 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 	var difficulty_button := difficulty_screen.get_node_or_null(
 		"DifficultyStrip/DifficultyOption0"
 	) as Button
+	var zone_thumbnail := difficulty_screen.get_node_or_null(
+		"SelectedDifficultyDetail/ZoneThumbnail"
+	) as TextureRect
 	if not _require(
 		difficulty_button != null
+		and zone_thumbnail != null
+		and zone_thumbnail.texture != null
+		and zone_thumbnail.is_visible_in_tree()
+		and zone_thumbnail.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST
+		and zone_thumbnail.size == Vector2(256, 144)
+		and Rect2(Vector2.ZERO, (zone_thumbnail.get_parent() as Control).size).encloses(
+			Rect2(zone_thumbnail.position, zone_thumbnail.size)
+		)
 		and _texture_visible(difficulty_button, "Icon")
 		and (difficulty_button.get_node("Icon") as TextureRect).texture_filter
 			== CanvasItem.TEXTURE_FILTER_NEAREST
@@ -213,7 +272,7 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 		and _control_fits_capture(difficulty_screen.get_node("WeaponSummary") as Control)
 		and _control_fits_capture(difficulty_screen.get_node("SelectedDifficultyDetail") as Control)
 		and _control_fits_capture(difficulty_screen.get_node("DifficultyStrip") as Control),
-		"difficulty badge, selected state, and complete capture fit"
+		"difficulty thumbnail, badge, selected state, and complete capture fit"
 	):
 		return
 	capture = await _capture_route(

@@ -84,6 +84,39 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		return
 	if not _require(content.all(&"character").size() == 1, "Niko-only character scope"):
 		return
+	app.begin_selection()
+	app.selection_draft["character_id"] = ValidationContentFactory.CHARACTER_ID
+	app.selection_draft["weapon_id"] = ValidationContentFactory.RANGED_ID
+	if not _require(app.route(FlowRoute.DIFFICULTY_SELECT) == OK, "actual difficulty coverage route"):
+		return
+	await get_tree().process_frame
+	var coverage_host := app.get_node("SceneHost") as Node
+	var difficulty_route := coverage_host.get_child(0) as Control
+	if not _require(
+		difficulty_route.get_script() != null
+		and (difficulty_route.get_script() as Script).resource_path
+			== "res://game/ui/difficulty_select_screen.gd"
+		and difficulty_route.get_node_or_null("SelectedDifficultyDetail/ZoneThumbnail") is TextureRect
+		and (difficulty_route.get_node("SelectedDifficultyDetail/ZoneThumbnail") as TextureRect).is_visible_in_tree(),
+		"real visible zone-thumbnail coverage"
+	):
+		return
+	if not _require(app.route(FlowRoute.DIAGNOSTIC, {
+		"message": "覆盖诊断",
+		"details": ["真实战斗审计路由"],
+	}) == OK, "actual diagnostic coverage route"):
+		return
+	await get_tree().process_frame
+	var diagnostic_route := coverage_host.get_child(0) as Control
+	if not _require(
+		diagnostic_route.get_script() != null
+		and (diagnostic_route.get_script() as Script).resource_path
+			== "res://game/ui/diagnostic_screen.gd"
+		and diagnostic_route.get_node_or_null("PrincipalSurface") is NinePatchRect
+		and (diagnostic_route.get_node("PrincipalSurface") as NinePatchRect).is_visible_in_tree(),
+		"real visible diagnostic-panel coverage"
+	):
+		return
 
 	var ranged := _capture_weapons(content)
 	if not _require(ranged.size() == CAPTURE_WEAPON_IDS.size(), "six stable capture weapons"):
@@ -116,6 +149,17 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	var world := combat_screen.get("world") as CombatWorld
 	var hud := combat_screen.get("hud") as GogoBrotatoCombatHud
 	if not _require(world != null and hud != null, "actual combat world and fixed HUD"):
+		return
+	var hud_shell := hud.get_node_or_null("Shell") as TextureRect
+	if not _require(
+		hud_shell != null
+		and hud_shell.texture != null
+		and hud_shell.visible
+		and hud_shell.is_visible_in_tree()
+		and hud_shell.size == Vector2(CAPTURE_SIZE)
+		and hud_shell.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST,
+		"visible 1280x720 low-border HUD shell"
+	):
 		return
 	hud.call("_dismiss_control_hint")
 	if not _require(not hud.control_hint.visible, "control hint dismissed before evidence capture"):
@@ -648,15 +692,6 @@ func _exercise_remaining_real_consumers(
 			null
 		)
 		weapon.free()
-	var screen := GogoScreenBase.new()
-	screen.static_asset_snapshot_override = snapshot
-	screen.build_screen("覆盖审计")
-	screen.add_principal_surface(Rect2(192, 144, 640, 360))
-	screen.add_static_texture(&"gogobro_wordmark", "Wordmark", Vector2(460, 115))
-	screen.add_static_texture(&"zone_thumbnail", "ZoneThumbnail", Vector2(320, 180))
-	screen.resolve_global_icon(&"difficulty_badge_kit", &"standard")
-	screen.add_action("审计按钮", func() -> void: pass)
-	screen.free()
 	var marker := GogoStaticSpawnMarker.new()
 	marker.configure_visual(snapshot.resolve_asset(&"spawn_marker", &"world_sprite"))
 	marker.free()

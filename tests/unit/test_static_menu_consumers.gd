@@ -3,6 +3,7 @@ extends GdUnitTestSuite
 
 const CARD_PRESENTER_PATH := "res://game/ui/static_card_presenter.gd"
 const MAIN_MENU := preload("res://game/ui/main_menu_screen.gd")
+const DIAGNOSTIC_SCREEN := preload("res://game/ui/diagnostic_screen.gd")
 const CHARACTER_SELECT := preload("res://game/ui/character_select_screen.gd")
 const WEAPON_SELECT := preload("res://game/ui/weapon_select_screen.gd")
 const DIFFICULTY_SELECT := preload("res://game/ui/difficulty_select_screen.gd")
@@ -22,11 +23,20 @@ func test_main_menu_consumes_background_wordmark_and_button_without_a_viewport_f
 	var background := screen.get_node("StaticMenuBackground") as TextureRect
 	var content_root := screen.get_node("ContentRoot") as Control
 	var wordmark := screen.get_node("ContentRoot/Body/Wordmark") as TextureRect
-	var start_button := screen.get_node("ContentRoot/Body/StartButton") as Button
+	var actions := screen.get_node_or_null("ContentRoot/Body/MenuActions") as VBoxContainer
+	assert_object(actions).is_not_null()
+	if actions == null:
+		return
+	var start_button := actions.get_node("StartButton") as Button
+	var exit_button := actions.get_node("ExitButton") as Button
 	assert_object(background.texture).is_not_null()
 	assert_object(content_root).is_not_null()
 	assert_int(screen.find_children("StaticNineSlicePanel", "*", true, false).size()).is_equal(0)
 	assert_object(wordmark.texture).is_not_null()
+	assert_vector(actions.custom_minimum_size).is_equal(Vector2(320, 104))
+	assert_int(actions.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_CENTER)
+	assert_vector(start_button.custom_minimum_size).is_equal(Vector2(320, 48))
+	assert_vector(exit_button.custom_minimum_size).is_equal(Vector2(320, 48))
 	var all_states_use_textures := true
 	for state: StringName in [&"normal", &"hover", &"pressed", &"disabled"]:
 		all_states_use_textures = (
@@ -42,6 +52,58 @@ func test_main_menu_consumes_background_wordmark_and_button_without_a_viewport_f
 			)
 	assert_object(screen.theme).is_not_null()
 	assert_bool(start_button.disabled).is_false()
+
+
+func test_difficulty_route_displays_unframed_zone_thumbnail_inside_detail() -> void:
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	var app := auto_free(AppKernel.new()) as AppKernel
+	app.add_to_group(&"gogobro_app")
+	app.content_snapshot = content
+	add_child(app)
+	app.begin_selection()
+	var screen := auto_free(DIFFICULTY_SELECT.new()) as GogoScreenBase
+	screen.static_asset_snapshot_override = _static_ui_snapshot()
+	add_child(screen)
+	var detail := screen.get_node("SelectedDifficultyDetail") as Control
+	var thumbnail := detail.get_node_or_null("ZoneThumbnail") as TextureRect
+	assert_object(thumbnail).is_not_null()
+	if thumbnail == null:
+		return
+	assert_object(thumbnail.texture).is_not_null()
+	assert_bool(thumbnail.is_visible_in_tree()).is_true()
+	assert_int(thumbnail.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
+	assert_vector(thumbnail.size).is_equal(Vector2(256, 144))
+	assert_bool(detail.get_node_or_null("ZoneThumbnailFrame") == null).is_true()
+	for node_name in ["Icon", "Name", "Kind", "Multipliers"]:
+		var control := detail.get_node(node_name) as Control
+		assert_bool(Rect2(Vector2.ZERO, detail.size).encloses(Rect2(control.position, control.size))).is_true()
+
+
+func test_diagnostic_route_uses_one_centered_principal_surface() -> void:
+	var snapshot := _static_ui_snapshot()
+	var screen := auto_free(DIAGNOSTIC_SCREEN.new()) as GogoScreenBase
+	screen.static_asset_snapshot_override = snapshot
+	screen.receive_route_payload({"message": "测试错误", "details": ["细节一"]})
+	add_child(screen)
+	var direct_surface := screen.get_node_or_null("PrincipalSurface")
+	assert_object(direct_surface).is_not_null()
+	var surface_count := 0
+	for child: Node in screen.get_children():
+		if child.name == &"PrincipalSurface":
+			surface_count += 1
+	assert_int(surface_count).is_equal(1)
+	if direct_surface == null:
+		return
+	var surface := direct_surface as NinePatchRect
+	assert_object(surface).is_not_null()
+	if surface == null:
+		return
+	assert_vector(surface.position).is_equal(Vector2(272, 184))
+	assert_vector(surface.size).is_equal(Vector2(736, 352))
+	assert_object(surface.texture).is_same(
+		snapshot.resolve_global(&"nine_slice_panel").texture
+	)
+	assert_bool(surface.has_node("DiagnosticContent")).is_true()
 
 
 func test_action_button_uses_empty_selector_texture_for_all_states_when_atlas_has_no_selectors() -> void:

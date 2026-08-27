@@ -13,7 +13,10 @@ func test_combat_hud_keeps_native_flat_fallbacks_when_static_textures_are_unavai
 	assert_vector(hud.custom_minimum_size).is_equal(Vector2(1280, 720))
 	assert_vector(hud.scale).is_equal(Vector2.ONE)
 	assert_bool(hud.has_node("Backdrop")).is_false()
-	assert_bool(hud.has_node("Shell")).is_false()
+	assert_bool(hud.has_node("Shell")).is_true()
+	if not hud.has_node("Shell"):
+		return
+	assert_bool((hud.get_node("Shell") as TextureRect).visible).is_false()
 	assert_bool(hud.has_node("TopCenter/Timer")).is_true()
 	assert_bool(hud.has_node("TopLeft/Health/HealthBar")).is_true()
 	assert_bool(hud.has_node("WeaponStrip")).is_false()
@@ -23,8 +26,9 @@ func test_combat_hud_keeps_native_flat_fallbacks_when_static_textures_are_unavai
 
 func test_combat_hud_resolves_accent_hud_and_control_texture_consumers_at_nearest_filtering() -> void:
 	GogoStaticConsumerRegistry.reset_current()
+	var snapshot := _static_ui_snapshot()
 	var combat := auto_free(COMBAT_SCREEN.new()) as Node2D
-	combat.set("static_asset_snapshot_override", _static_ui_snapshot())
+	combat.set("static_asset_snapshot_override", snapshot)
 	add_child(combat)
 	combat.call("_build_hud")
 
@@ -52,17 +56,31 @@ func test_combat_hud_resolves_accent_hud_and_control_texture_consumers_at_neares
 			int(source_size.y) / displayed_size.y
 		)
 	var hud := combat.get_node("HUDCanvas/BrotatoHUD") as GogoBrotatoCombatHud
+	var shell := hud.get_node_or_null("Shell") as TextureRect
+	assert_object(shell).is_not_null()
+	if shell == null:
+		return
+	assert_object(shell.texture).is_same(
+		snapshot.resolve_global(&"combat_hud_shell").texture
+	)
+	assert_bool(shell.visible).is_true()
+	assert_bool(shell.is_visible_in_tree()).is_true()
+	assert_int(shell.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
+	assert_vector(shell.size).is_equal(Vector2(1280, 720))
 	var metric_style := (hud.get_node("TopLeft/Health") as Panel).get_theme_stylebox("panel") as StyleBoxFlat
-	assert_bool(metric_style.bg_color.is_equal_approx(
-		Color(235.0 / 255.0, 151.0 / 255.0, 40.0 / 255.0, 0.86)
-	)).is_true()
+	assert_bool(metric_style.bg_color.is_equal_approx(GogoBrotatoCombatHud.METRIC_BACKING_COLOR)).is_true()
 	var shell_records := GogoStaticConsumerRegistry.current().records().filter(
 		func(record: Dictionary) -> bool:
 			return record.get("asset_id", &"") == &"combat_hud_shell"
 	)
 	assert_int(shell_records.size()).is_equal(1)
 	if shell_records.size() == 1:
-		assert_str(String(shell_records[0].node)).is_equal("BrotatoHUD/MetricPalette")
+		assert_str(String(shell_records[0].node)).is_equal("BrotatoHUD/Shell")
+		assert_bool(shell_records[0].get("visible_texture", false)).is_true()
+		assert_vector(shell_records[0].integer_display_scale).is_equal(Vector2i(4, 4))
+	assert_bool(GogoStaticConsumerRegistry.current().records().any(func(record: Dictionary) -> bool:
+		return record.get("node", "") == "BrotatoHUD/MetricPalette"
+	)).is_false()
 
 
 func test_combat_screen_mounts_hidden_pause_overlay_above_the_hud() -> void:

@@ -22,6 +22,7 @@ var level_label: Label
 var materials_label: Label
 var wave_materials_label: Label
 var control_hint: PanelContainer
+var shell: TextureRect
 var metric_panels: Array[Panel] = []
 var global_icons: Dictionary = {}
 
@@ -32,6 +33,10 @@ func _init() -> void:
 	size = VIEWPORT_SIZE
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build_hierarchy()
+
+
+func _ready() -> void:
+	_observe_shell_visible()
 
 
 func configure(
@@ -82,6 +87,17 @@ func _dismiss_control_hint() -> void:
 
 
 func _build_hierarchy() -> void:
+	shell = TextureRect.new()
+	shell.name = "Shell"
+	shell.size = VIEWPORT_SIZE
+	shell.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	shell.stretch_mode = TextureRect.STRETCH_SCALE
+	shell.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	shell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shell.modulate.a = 0.62
+	shell.visible = false
+	add_child(shell)
+
 	var top_left := Control.new()
 	top_left.name = "TopLeft"
 	top_left.position = Vector2(24, 20)
@@ -212,17 +228,14 @@ func _apply_static_textures() -> void:
 	var shell_handle: GogoStaticAssetHandle
 	if static_asset_snapshot != null:
 		shell_handle = static_asset_snapshot.resolve_global(&"combat_hud_shell")
-	var backing_color := _authored_shell_backing(shell_handle)
+	shell.texture = shell_handle.texture if shell_handle != null else null
+	shell.visible = shell.texture != null
 	for panel: Panel in metric_panels:
 		panel.add_theme_stylebox_override(
 			"panel",
-			_flat_style(backing_color, Color.TRANSPARENT, 0)
+			_flat_style(METRIC_BACKING_COLOR, Color.TRANSPARENT, 0)
 		)
-	GogoStaticConsumerRegistry.observe_handle(
-		shell_handle,
-		"res://game/ui/brotato_combat_hud.gd",
-		"BrotatoHUD/MetricPalette"
-	)
+	_observe_shell_visible()
 	for key: String in global_icons:
 		var parts := key.split("|", false)
 		var icon_handle: GogoStaticAssetHandle
@@ -240,19 +253,17 @@ func _apply_static_textures() -> void:
 			"BrotatoHUD/GlobalIcon/%s" % key
 		)
 
-
-func _authored_shell_backing(handle: GogoStaticAssetHandle) -> Color:
-	if handle == null or handle.texture == null:
-		return METRIC_BACKING_COLOR
-	var image := handle.texture.get_image()
-	if image == null or image.is_empty():
-		return METRIC_BACKING_COLOR
-	var sample_x := mini(10, image.get_width() - 1)
-	var sample_y := mini(8, image.get_height() - 1)
-	var sampled := image.get_pixel(sample_x, sample_y)
-	if sampled.a < 0.5:
-		return METRIC_BACKING_COLOR
-	return Color(sampled.r, sampled.g, sampled.b, METRIC_BACKING_COLOR.a)
+func _observe_shell_visible() -> void:
+	if static_asset_snapshot == null or shell == null:
+		return
+	var shell_handle := static_asset_snapshot.resolve_global(&"combat_hud_shell")
+	GogoStaticConsumerRegistry.observe_visible_texture(
+		shell_handle,
+		shell,
+		"res://game/ui/brotato_combat_hud.gd",
+		"BrotatoHUD/Shell",
+		Vector2i(4, 4)
+	)
 
 
 func _texture_rect(node_name: String, at: Vector2, rect_size: Vector2) -> TextureRect:
