@@ -1,11 +1,22 @@
 extends GdUnitTestSuite
 
 
+const STATIC_REGISTRY_PATH := "res://game/content/assets/gogobro_static_assets_v1.json"
+const STATIC_RUNTIME_FIXTURE_ROOT := "user://combat-runtime-static-service-tests"
+
 var _defeat_signal_count := 0
+var _static_runtime_fixture_roots := PackedStringArray()
+var _static_runtime_fixture_serial := 0
 
 
 func before_test() -> void:
 	_defeat_signal_count = 0
+
+
+func after_test() -> void:
+	for fixture_root: String in _static_runtime_fixture_roots:
+		_remove_static_runtime_fixture_tree(fixture_root)
+	_static_runtime_fixture_roots.clear()
 
 
 func test_ranged_weapon_does_not_target_beyond_attack_range() -> void:
@@ -95,13 +106,21 @@ func test_weapon_world_sprite_uses_approved_pivot_muzzle_and_left_facing_flip() 
 	assert_vector(weapon.integer_muzzle_global_position()).is_equal(Vector2(176.0, 84.0))
 
 
-func test_weapon_world_sprite_applies_handle_display_scale_without_scaling_runtime_anchors() -> void:
+func test_weapon_world_sprite_uses_service_resized_texture_without_double_scaling() -> void:
 	var world := auto_free(CombatWorld.new()) as CombatWorld
 	add_child(world)
 	var owner := auto_free(GogoPlayerActor.new()) as GogoPlayerActor
 	owner.combat_world = world
 	var weapon := GogoWeaponInstance.new()
-	weapon.static_asset_snapshot_override = _scaled_weapon_visual_snapshot()
+	var runtime_snapshot := _runtime_scaled_weapon_visual_snapshot()
+	var handle := runtime_snapshot.resolve_asset(&"service_pistol", &"world_sprite")
+	assert_object(handle).is_not_null()
+	if handle == null:
+		return
+	assert_int(handle.texture.get_width()).is_equal(64)
+	assert_int(handle.texture.get_height()).is_equal(64)
+	assert_vector(handle.display_scale).is_equal(Vector2(2.0, 2.0))
+	weapon.static_asset_snapshot_override = runtime_snapshot
 	world.add_child(weapon)
 	var stats := GogoWeaponRuntimeStats.new()
 	stats.mode = GogoWeaponDefinition.Mode.RANGED
@@ -111,7 +130,7 @@ func test_weapon_world_sprite_applies_handle_display_scale_without_scaling_runti
 	weapon.global_position = Vector2(100.0, 100.0)
 
 	var sprite := weapon.get_node("WeaponVisualRoot/WeaponSprite") as Sprite2D
-	assert_vector(sprite.scale).is_equal(Vector2(0.5, 0.5))
+	assert_vector(sprite.scale).is_equal(Vector2.ONE)
 	assert_vector(sprite.position).is_equal(Vector2(-16.0, -32.0))
 	assert_vector(weapon.integer_muzzle_global_position()).is_equal(Vector2(140.0, 92.0))
 
@@ -369,34 +388,163 @@ func _weapon_visual_snapshot() -> GogoStaticAssetSnapshot:
 	return snapshot
 
 
-func _scaled_weapon_visual_snapshot() -> GogoStaticAssetSnapshot:
-	var image := Image.create(128, 128, false, Image.FORMAT_RGBA8)
-	image.fill(Color8(58, 66, 74, 255))
-	var handle := GogoStaticAssetHandle.new()
-	handle._configure({
-		"binding_key": &"service_pistol|world_sprite|",
-		"asset_id": &"service_pistol",
-		"role": &"world_sprite",
-		"selector": &"",
-		"display_size_px": Vector2i(64, 64),
-		"display_scale": Vector2(0.5, 0.5),
-		"pivot_px": Vector2i(16, 32),
-		"anchors_px": {"muzzle": Vector2i(56, 24)},
-		"atlas_rect_px": Rect2i(0, 0, 128, 128),
-	}, ImageTexture.create_from_image(image))
-	var snapshot := GogoStaticAssetSnapshot.new()
-	snapshot._configure(
-		1,
-		"fixture",
-		70,
-		{&"service_pistol": &"ready"},
-		{"service_pistol|world_sprite|": handle},
-		{},
-		{},
-		{},
-		[]
+func _runtime_scaled_weapon_visual_snapshot() -> GogoStaticAssetSnapshot:
+	var fixture := _write_scaled_world_sprite_fixture()
+	var service := GogoStaticAssetRuntimeService.new(
+		String(fixture.manifest_path),
+		String(fixture.registry_path),
+		String(fixture.allowed_asset_root)
 	)
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	assert_int(service.stage(content)).is_equal(OK)
+	assert_int(service.activate_staged(&"", null)).is_equal(OK)
+	var snapshot := service.active_snapshot()
+	assert_int(snapshot.ready_count()).is_equal(1)
+	assert_int(snapshot.issues().size()).is_zero()
 	return snapshot
+
+
+func _write_scaled_world_sprite_fixture() -> Dictionary:
+	_static_runtime_fixture_serial += 1
+	var fixture_root := "%s/fixture-%s-%s" % [
+		STATIC_RUNTIME_FIXTURE_ROOT,
+		Time.get_ticks_usec(),
+		_static_runtime_fixture_serial,
+	]
+	var allowed_asset_root := fixture_root.path_join("allowed-assets")
+	var resource_path := allowed_asset_root.path_join("service_pistol.png")
+	_static_runtime_fixture_roots.append(fixture_root)
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(allowed_asset_root))
+
+	var image := Image.create(32, 32, false, Image.FORMAT_RGBA8)
+	image.fill(Color8(234, 151, 39, 255))
+	image.fill_rect(Rect2i(2, 14, 28, 4), Color8(44, 51, 57, 255))
+	assert_int(image.save_png(ProjectSettings.globalize_path(resource_path))).is_equal(OK)
+	var byte_sha256 := FileAccess.get_sha256(resource_path).to_lower()
+	var rgba8_sha256 := _rgba8_sha256(image)
+	var bindings: Array = [{
+		"binding_key": "service_pistol|world_sprite|",
+		"role": "world_sprite",
+		"selector": "",
+		"display_size_px": [64, 64],
+		"display_scale": [2, 2],
+		"pivot_px": [16, 32],
+		"atlas_rect_px": [0, 0, 32, 32],
+		"anchors_px": {"muzzle": [56, 24]},
+		"consumers": [],
+	}]
+
+	var registry := JSON.parse_string(FileAccess.get_file_as_string(STATIC_REGISTRY_PATH)) as Dictionary
+	for unit_variant: Variant in registry.get("units", []) as Array:
+		var unit := unit_variant as Dictionary
+		if String(unit.get("asset_id", "")) != "service_pistol":
+			continue
+		unit["approval_status"] = "approved"
+		unit["hashes"] = {"sha256": byte_sha256, "rgba8_sha256": rgba8_sha256}
+		unit["intended_file_paths"] = [resource_path]
+		unit["output_spec"] = {"type": "png", "width": 32, "height": 32, "alpha": true}
+		unit["runtime_bindings"] = bindings.duplicate(true)
+		var evidence := (unit.get("shipping_approval_evidence", {}) as Dictionary).duplicate(true)
+		evidence["runtime_bindings_sha256"] = _canonical_variant_sha256(bindings)
+		evidence["scope"] = {"kind": "whole_texture", "selectors": []}
+		evidence["shipping_texture"] = {
+			"sha256": byte_sha256,
+			"rgba8_sha256": rgba8_sha256,
+			"pixel_size": [32, 32],
+			"output_spec": {"format": "PNG", "width": 32, "height": 32, "alpha": true},
+		}
+		unit["shipping_approval_evidence"] = evidence
+
+	var registry_path := fixture_root.path_join("registry.json")
+	_write_json(registry_path, registry)
+	var manifest_units: Array = []
+	for unit_variant: Variant in registry.get("units", []) as Array:
+		var unit := unit_variant as Dictionary
+		if String(unit.get("category", "")) == "character_creature":
+			continue
+		var asset_id := String(unit.get("asset_id", ""))
+		var manifest_unit := {
+			"asset_id": asset_id,
+			"static_content_id": unit.get("content_id", ""),
+			"category": unit.get("category", ""),
+			"declared_runtime_state": "requested_active" if asset_id == "service_pistol" else "inactive",
+			"approval_status": "approved" if asset_id == "service_pistol" else unit.get("approval_status", "planned"),
+		}
+		if asset_id == "service_pistol":
+			manifest_unit["shipping"] = {
+				"resource_path": resource_path,
+				"sha256": byte_sha256,
+				"rgba8_sha256": rgba8_sha256,
+				"pixel_size": [32, 32],
+				"texture_filter": "nearest",
+				"mipmaps": false,
+			}
+			manifest_unit["bindings"] = bindings
+		manifest_units.append(manifest_unit)
+	var manifest := {
+		"schema_version": GogoStaticAssetRuntimeService.SCHEMA_VERSION,
+		"kind": GogoStaticAssetRuntimeService.MANIFEST_KIND,
+		"canonical_registry_sha256": FileAccess.get_sha256(registry_path).to_lower(),
+		"expected_noncharacter_units": 70,
+		"units": manifest_units,
+	}
+	var manifest_path := fixture_root.path_join("manifest.json")
+	_write_json(manifest_path, manifest)
+	return {
+		"manifest_path": manifest_path,
+		"registry_path": registry_path,
+		"allowed_asset_root": allowed_asset_root,
+	}
+
+
+func _write_json(path: String, payload: Dictionary) -> void:
+	var absolute_path := ProjectSettings.globalize_path(path)
+	DirAccess.make_dir_recursive_absolute(absolute_path.get_base_dir())
+	var file := FileAccess.open(absolute_path, FileAccess.WRITE)
+	assert_object(file).is_not_null()
+	file.store_string(JSON.stringify(payload))
+	file.close()
+
+
+func _rgba8_sha256(source: Image) -> String:
+	var rgba8 := source.duplicate()
+	rgba8.convert(Image.FORMAT_RGBA8)
+	var hashing := HashingContext.new()
+	assert_int(hashing.start(HashingContext.HASH_SHA256)).is_equal(OK)
+	assert_int(hashing.update(rgba8.get_data())).is_equal(OK)
+	return hashing.finish().hex_encode()
+
+
+func _canonical_variant_sha256(value: Variant) -> String:
+	var normalized: Variant = JSON.parse_string(JSON.stringify(value))
+	return JSON.stringify(normalized, "", true).sha256_text()
+
+
+func _remove_static_runtime_fixture_tree(path: String) -> void:
+	var absolute_path := ProjectSettings.globalize_path(path)
+	if not absolute_path.contains("combat-runtime-static-service-tests"):
+		fail("Refusing unsafe combat runtime fixture cleanup: %s" % absolute_path)
+		return
+	_remove_absolute_fixture_tree(absolute_path)
+
+
+func _remove_absolute_fixture_tree(path: String) -> void:
+	var directory := DirAccess.open(path)
+	if directory == null:
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(path)
+		return
+	directory.list_dir_begin()
+	var entry := directory.get_next()
+	while not entry.is_empty():
+		var child := path.path_join(entry)
+		if directory.current_is_dir():
+			_remove_absolute_fixture_tree(child)
+		else:
+			DirAccess.remove_absolute(child)
+		entry = directory.get_next()
+	directory.list_dir_end()
+	DirAccess.remove_absolute(path)
 
 
 func _projectile_visual_snapshot() -> GogoStaticAssetSnapshot:

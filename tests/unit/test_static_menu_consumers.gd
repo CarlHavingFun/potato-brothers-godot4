@@ -97,7 +97,7 @@ func test_missing_icon_keeps_shared_text_card_selectable_and_complete() -> void:
 	).is_true()
 
 
-func test_shared_card_draws_the_selector_matching_definition_rarity() -> void:
+func test_shared_card_draws_exact_rarity_variant_without_recoloring_it() -> void:
 	if not FileAccess.file_exists(CARD_PRESENTER_PATH):
 		return
 	var presenter := load(CARD_PRESENTER_PATH) as GDScript
@@ -111,6 +111,32 @@ func test_shared_card_draws_the_selector_matching_definition_rarity() -> void:
 	assert_object(frame.texture).is_same(
 		snapshot.resolve_global(&"card_and_rarity_frame_kit", &"rare").texture
 	)
+	assert_bool(frame.modulate.is_equal_approx(Color.WHITE)).is_true()
+
+
+func test_shared_card_tints_base_frame_with_fallback_rarity_palette() -> void:
+	if not FileAccess.file_exists(CARD_PRESENTER_PATH):
+		return
+	var presenter := load(CARD_PRESENTER_PATH) as GDScript
+	var snapshot := _static_ui_snapshot(false)
+	var base_frame := snapshot.resolve_global(&"card_and_rarity_frame_kit")
+	var expected_by_tier := {
+		2: Color("4c88df"),
+		3: Color("c65ce2"),
+		4: Color("f1ca52"),
+	}
+	for tier_variant: Variant in expected_by_tier:
+		var tier := int(tier_variant)
+		var definition := GogoItemDefinition.new()
+		definition.content_id = StringName("fixture:item/tier_%d" % tier)
+		definition.display_name = "回退稀有度 %d" % tier
+		definition.tier = tier
+		var card := auto_free(presenter.build_card(definition, "已装备", snapshot)) as Control
+		var frame := card.get_node("Frame") as TextureRect
+		assert_object(frame.texture).is_same(base_frame.texture)
+		assert_bool(
+			frame.modulate.is_equal_approx(expected_by_tier[tier] as Color)
+		).is_true()
 
 
 func test_real_selection_shop_and_upgrade_routes_use_zone_badge_and_shared_cards() -> void:
@@ -227,7 +253,7 @@ func _add_global_handle(
 		"pivot_px": Vector2i(display_size / 2),
 		"anchors_px": {},
 		"atlas_rect_px": Rect2i(Vector2i.ZERO, display_size),
-	}, _texture(display_size))
+	}, _texture(display_size, selector))
 	handles[asset_key] = handle
 	global_bindings["global||%s|%s" % [asset_id, selector]] = asset_key
 
@@ -250,7 +276,13 @@ func _empty_snapshot() -> GogoStaticAssetSnapshot:
 	return snapshot
 
 
-func _texture(size: Vector2i) -> ImageTexture:
+func _texture(size: Vector2i, selector: StringName = &"") -> ImageTexture:
 	var image := Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
-	image.fill(Color8(51, 59, 62, 255))
+	var selector_colors := {
+		&"common": Color("8d9487"),
+		&"uncommon": Color("4c88df"),
+		&"rare": Color("c65ce2"),
+		&"legendary": Color("f1ca52"),
+	}
+	image.fill(selector_colors.get(selector, Color8(51, 59, 62, 255)) as Color)
 	return ImageTexture.create_from_image(image)

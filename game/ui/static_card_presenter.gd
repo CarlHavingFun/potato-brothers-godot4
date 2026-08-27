@@ -35,12 +35,13 @@ static func build_card(
 	)
 
 	var tier := _tier(definition)
+	var tier_selector := TIER_FRAME_SELECTORS[clampi(tier, 1, 4)]
 	var frame := _texture_rect("Frame", Vector2(2, 2), Vector2(72, 72))
 	var frame_handle: GogoStaticAssetHandle
 	if snapshot != null:
 		frame_handle = snapshot.resolve_global(
 			&"card_and_rarity_frame_kit",
-			TIER_FRAME_SELECTORS[clampi(tier, 1, 4)]
+			tier_selector
 		)
 		if frame_handle == null:
 			frame_handle = snapshot.resolve_global(&"card_and_rarity_frame_kit")
@@ -48,9 +49,13 @@ static func build_card(
 	GogoStaticConsumerRegistry.observe_handle(
 		frame_handle,
 		"res://game/ui/static_card_presenter.gd",
-		"StaticCard/Frame/%s" % TIER_FRAME_SELECTORS[clampi(tier, 1, 4)]
+		"StaticCard/Frame/%s" % tier_selector
 	)
-	frame.modulate = _tier_color(tier)
+	frame.modulate = (
+		Color.WHITE
+		if frame_handle != null and frame_handle.selector == tier_selector
+		else _tier_color(tier)
+	)
 	card.add_child(frame)
 
 	var icon := _texture_rect("Icon", Vector2(6, 6), Vector2(64, 64))
@@ -176,9 +181,9 @@ static func _tier_color(tier: int) -> Color:
 	return [
 		Color("8d9487"),
 		Color("8d9487"),
-		Color("55b86b"),
 		Color("4c88df"),
 		Color("c65ce2"),
+		Color("f1ca52"),
 	][clampi(tier, 1, 4)]
 
 
