@@ -65,8 +65,8 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 		and start_button.size.is_equal_approx(Vector2(320, 48))
 		and exit_button.size.is_equal_approx(Vector2(320, 48))
 		and _control_fits_capture(menu_actions)
-		and _button_uses_texture_states(start_button)
-		and _button_uses_texture_states(exit_button),
+		and _button_uses_texture_states(start_button, snapshot)
+		and _button_uses_texture_states(exit_button, snapshot),
 		"compact rendered four-state button consumers"
 	):
 		return
@@ -346,6 +346,31 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 		"structured shop hierarchy"
 	):
 		return
+	var shop_command_states_valid := _button_uses_texture_states(
+		shop_screen.get_node("TopBand/Reroll") as Button,
+		snapshot
+	) and _button_uses_texture_states(
+		shop_screen.get_node("ContinueButton") as Button,
+		snapshot
+	)
+	var shop_rarity_cards_preserved := true
+	for slot in offer_row.get_children():
+		var card := (slot as Node).get_node_or_null("Card") as Button
+		var lock := (slot as Node).get_node_or_null("Lock") as Button
+		shop_command_states_valid = (
+			shop_command_states_valid
+			and _button_uses_texture_states(lock, snapshot)
+		)
+		shop_rarity_cards_preserved = (
+			shop_rarity_cards_preserved
+			and card != null
+			and card.get_theme_stylebox(&"normal") is StyleBoxFlat
+		)
+	if not _require(
+		shop_command_states_valid and shop_rarity_cards_preserved,
+		"shop commands use four distinct static states while rarity cards stay flat"
+	):
+		return
 	if not _require(
 		_control_fits_capture(offer_row)
 		and _control_fits_capture(shop_screen.get_node("StatsColumn") as Control)
@@ -409,6 +434,21 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 		and upgrade_screen.get_node_or_null("StatsColumn") != null
 		and upgrade_screen.get_node_or_null("RerollButton") is Button,
 		"four-choice upgrade hierarchy with captured battlefield"
+	):
+		return
+	var upgrade_rarity_cards_preserved := true
+	for choice in choices.get_children():
+		upgrade_rarity_cards_preserved = (
+			upgrade_rarity_cards_preserved
+			and (choice as Button).get_theme_stylebox(&"normal") is StyleBoxFlat
+		)
+	if not _require(
+		_button_uses_texture_states(
+			upgrade_screen.get_node("RerollButton") as Button,
+			snapshot
+		)
+		and upgrade_rarity_cards_preserved,
+		"upgrade reroll uses four distinct static states while rarity cards stay flat"
 	):
 		return
 	var dim_veil := upgrade_screen.get_node("DimVeil") as ColorRect
@@ -502,13 +542,24 @@ func _is_actual_route(screen: Control, expected_script_path: String) -> bool:
 	return (screen.get_script() as Script).resource_path == expected_script_path
 
 
-func _button_uses_texture_states(button: Button) -> bool:
-	if button == null:
+func _button_uses_texture_states(
+	button: Button,
+	snapshot: GogoStaticAssetSnapshot
+) -> bool:
+	if button == null or snapshot == null:
 		return false
+	var state_textures: Array[Texture2D] = []
 	for state: StringName in [&"normal", &"hover", &"pressed", &"disabled"]:
 		var style := button.get_theme_stylebox(state)
-		if not style is StyleBoxTexture or (style as StyleBoxTexture).texture == null:
+		var expected := snapshot.resolve_global(&"four_state_button", state)
+		if (
+			not style is StyleBoxTexture
+			or expected == null
+			or (style as StyleBoxTexture).texture != expected.texture
+			or state_textures.has((style as StyleBoxTexture).texture)
+		):
 			return false
+		state_textures.append((style as StyleBoxTexture).texture)
 	return true
 
 

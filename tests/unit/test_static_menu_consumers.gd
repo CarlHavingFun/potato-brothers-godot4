@@ -298,7 +298,22 @@ func test_real_selection_shop_and_upgrade_routes_use_structured_setup_consumers(
 	var offer_row := shop_screen.get_node("OfferRow") as HBoxContainer
 	assert_int(offer_row.get_child_count()).is_equal(4)
 	for slot in offer_row.get_children():
-		assert_object((slot as Node).get_node_or_null("Card") as Button).is_not_null()
+		var card := (slot as Node).get_node_or_null("Card") as Button
+		var lock := (slot as Node).get_node_or_null("Lock") as Button
+		assert_object(card).is_not_null()
+		assert_object(lock).is_not_null()
+		if card != null:
+			assert_bool(card.get_theme_stylebox(&"normal") is StyleBoxFlat).is_true()
+		if lock != null:
+			_assert_button_uses_expected_static_states(lock, static_snapshot)
+	_assert_button_uses_expected_static_states(
+		shop_screen.get_node("TopBand/Reroll") as Button,
+		static_snapshot
+	)
+	_assert_button_uses_expected_static_states(
+		shop_screen.get_node("ContinueButton") as Button,
+		static_snapshot
+	)
 
 	var upgrade_session := _session(content)
 	upgrade_session.run_state.pending_upgrade_count = 1
@@ -307,7 +322,14 @@ func test_real_selection_shop_and_upgrade_routes_use_structured_setup_consumers(
 	var upgrade_screen := auto_free(UPGRADE_SCREEN.new()) as GogoScreenBase
 	upgrade_screen.static_asset_snapshot_override = static_snapshot
 	add_child(upgrade_screen)
-	assert_int(upgrade_screen.get_node("UpgradeChoiceRow").get_child_count()).is_equal(4)
+	var upgrade_choices := upgrade_screen.get_node("UpgradeChoiceRow") as HBoxContainer
+	assert_int(upgrade_choices.get_child_count()).is_equal(4)
+	for choice in upgrade_choices.get_children():
+		assert_bool((choice as Button).get_theme_stylebox(&"normal") is StyleBoxFlat).is_true()
+	_assert_button_uses_expected_static_states(
+		upgrade_screen.get_node("RerollButton") as Button,
+		static_snapshot
+	)
 
 
 func _static_ui_snapshot(include_selectors: bool = true) -> GogoStaticAssetSnapshot:
@@ -374,6 +396,26 @@ func _assert_flat_setup_back_button(button: Button) -> void:
 	assert_int(flat.border_width_left).is_equal(1)
 	assert_int(flat.border_width_top).is_equal(1)
 	assert_bool(flat.anti_aliasing).is_false()
+
+
+func _assert_button_uses_expected_static_states(
+	button: Button,
+	snapshot: GogoStaticAssetSnapshot
+) -> void:
+	var state_textures: Array[Texture2D] = []
+	for state: StringName in [&"normal", &"hover", &"pressed", &"disabled"]:
+		var style := button.get_theme_stylebox(state)
+		assert_bool(style is StyleBoxTexture).is_true()
+		if not style is StyleBoxTexture:
+			continue
+		var expected := snapshot.resolve_global(&"four_state_button", state)
+		assert_object(expected).is_not_null()
+		if expected == null:
+			continue
+		var texture := (style as StyleBoxTexture).texture
+		assert_object(texture).is_same(expected.texture)
+		assert_bool(not state_textures.has(texture)).is_true()
+		state_textures.append(texture)
 
 
 func _add_global_handle(

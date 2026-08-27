@@ -226,14 +226,11 @@ func _shop_button(
 ) -> Button:
 	var button := Button.new()
 	button.name = node_name
-	button.text = button_text
+	configure_action_button(button, button_text, callback)
 	button.custom_minimum_size = minimum_size
 	button.size = minimum_size
 	button.focus_mode = Control.FOCUS_ALL
-	button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	button.add_theme_font_size_override(&"font_size", 20)
-	if callback.is_valid():
-		button.pressed.connect(callback)
 	return button
 
 

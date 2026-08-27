@@ -173,13 +173,16 @@ func _build_stats_column(player: SessionPlayerState) -> void:
 func _build_reroll_button() -> void:
 	var reroll := Button.new()
 	reroll.name = "RerollButton"
+	configure_action_button(
+		reroll,
+		"刷新 %d" % _build_service.upgrade_reroll_price(_app.current_session),
+		_reroll
+	)
 	reroll.position = Vector2(CHOICE_ROW_RECT.position.x, CHOICE_ROW_RECT.end.y + 16.0)
 	reroll.size = Vector2(240, 48)
 	reroll.custom_minimum_size = reroll.size
-	reroll.text = "刷新 %d" % _build_service.upgrade_reroll_price(_app.current_session)
 	reroll.add_theme_font_size_override(&"font_size", 20)
 	reroll.set_meta(&"focus_role", &"upgrade_reroll")
-	reroll.pressed.connect(_reroll)
 	add_child(reroll)
 
 
