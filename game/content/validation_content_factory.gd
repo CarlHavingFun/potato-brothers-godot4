@@ -5,6 +5,9 @@ const NIKO_CONTENT_FACTORY := preload("res://game/content/packs/characters/niko/
 const STATIC_PREVIEW_CONTENT_FACTORY := preload(
 	"res://game/content/assets/gogobro_static_preview_content_factory.gd"
 )
+const DRIFTER_TEXTURE := preload("res://game/assets/enemies/drifter.png")
+const SPARK_TEXTURE := preload("res://game/assets/enemies/spark.png")
+const RAMMER_TEXTURE := preload("res://game/assets/enemies/rammer.png")
 const CHARACTER_ID: StringName = &"character.niko:character/niko"
 const MELEE_ID: StringName = &"weapon.training_blade:weapon/training_blade"
 const RANGED_ID: StringName = &"weapon.training_blaster:weapon/training_blaster"
@@ -33,9 +36,9 @@ static func _core_pack() -> GogoContentPackDefinition:
 	difficulty.display_name = "标准"
 	pack.definitions.append(difficulty)
 	var enemy_specs := [
-		[&"gogobro.core:enemy/drifter", "游荡体", GogoEnemyDefinition.Role.CHASER, 7.0, 82.0],
-		[&"gogobro.core:enemy/spark", "火花体", GogoEnemyDefinition.Role.SHOOTER, 10.0, 65.0],
-		[&"gogobro.core:enemy/rammer", "冲撞体", GogoEnemyDefinition.Role.CHARGER, 16.0, 110.0],
+		[&"gogobro.core:enemy/drifter", "游荡体", GogoEnemyDefinition.Role.CHASER, 7.0, 82.0, DRIFTER_TEXTURE],
+		[&"gogobro.core:enemy/spark", "火花体", GogoEnemyDefinition.Role.SHOOTER, 10.0, 65.0, SPARK_TEXTURE],
+		[&"gogobro.core:enemy/rammer", "冲撞体", GogoEnemyDefinition.Role.CHARGER, 16.0, 110.0, RAMMER_TEXTURE],
 	]
 	for spec in enemy_specs:
 		var enemy := GogoEnemyDefinition.new()
@@ -44,6 +47,7 @@ static func _core_pack() -> GogoContentPackDefinition:
 		enemy.role = spec[2]
 		enemy.max_health = spec[3]
 		enemy.movement_speed = spec[4]
+		enemy.visual_texture = spec[5]
 		pack.definitions.append(enemy)
 	var item_asset_ids := [
 		&"ballistic_liner",

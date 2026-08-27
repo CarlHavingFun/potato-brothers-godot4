@@ -1,0 +1,10 @@
+Use case: stylized-concept
+Asset type: original static 2D enemy sprite for the GOGOBRO top-down survival game
+Input images: Images 1-3 are project-native style and material references only; Image 4 is the actual 1280x720 runtime contrast and scale reference. Do not copy any existing object or character.
+Primary request: create one original rust-red compact drifter/chaser scavenger bot-creature, role-readable at 1:1 game scale.
+Scene/backdrop: 100% solid perfectly flat #FF00FF magenta across the entire background, with no gradient, texture, floor, or shadow.
+Subject: one centered full-body compact scavenger enemy, rounded armored torso but clearly not a circle; low forward-facing prow/face with two small dark sensor eyes; two distinct short feet or drive pods; a slightly ragged rear shell and asymmetrical antenna nub that make its chasing direction obvious. Silhouette must read in greyscale as compact, forward-leaning, and mobile.
+Style/medium: project-native clean modern pixel-inspired 2D game sprite, crisp dark graphite outline, restrained CS-like metal materials, controlled highlights, fine detail only where readable; clarity over chunky pixel blocks; original design.
+Composition/framing: isolated single asset, centered 3/4 top-down view from slightly above, facing down-right, full silhouette contained, generous magenta margin on all four sides, subject occupies roughly 65-72% of the square height and width.
+Color palette: rust red and muted terracotta armor, charcoal joints and outline, tiny warm amber wear accents; silhouette and value contrast must distinguish it without hue.
+Constraints: exactly one subject; no text, letters, numbers, labels, logo, watermark, border, frame, separator, UI, health bar, shadow plate, cast shadow, ground ellipse, detached particles, glow cloud, or extra props; no body part touches the image edge; all non-subject pixels must be exact #FF00FF.

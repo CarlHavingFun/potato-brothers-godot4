@@ -14,6 +14,11 @@ const CAPTURE_ENEMY_MINIMUM_SEPARATION := 66.0
 const CAPTURE_ENEMY_WEAPON_GAP := 28.0
 const APP_SCENE := preload("res://game/app/app_root.tscn")
 const TARGET_ENEMY_ID: StringName = &"gogobro.core:enemy/drifter"
+const CAPTURE_ENEMY_IDS: Array[StringName] = [
+	&"gogobro.core:enemy/drifter",
+	&"gogobro.core:enemy/spark",
+	&"gogobro.core:enemy/rammer",
+]
 const SKYLINE_GRENADE_ID: StringName = &"gogobro.preview:item/skyline_grenade"
 const CAPTURE_WEAPON_IDS: Array[StringName] = [
 	&"gogobro.preview:weapon/wood_stock_assault_rifle",
@@ -283,8 +288,11 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		"capture enemies avoid arena edges, HUD, Niko/weapons, props, and each other"
 	):
 		return
+	var authored_enemy_roles: Dictionary = {}
+	var authored_enemy_ids: Dictionary = {}
 	for index in enemy_evidence_positions.size():
-		world.call("_spawn_enemy", TARGET_ENEMY_ID)
+		var capture_enemy_id := CAPTURE_ENEMY_IDS[index % CAPTURE_ENEMY_IDS.size()]
+		world.call("_spawn_enemy", capture_enemy_id)
 		var markers := world.effect_layer.find_children("SpawnMarker_*", "GogoStaticSpawnMarker", false, false)
 		if not markers.is_empty():
 			(markers.back() as GogoStaticSpawnMarker).complete_now()
@@ -292,8 +300,27 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		var enemy := world.active_enemy_at(index)
 		if enemy == null:
 			continue
+		var visual_sprite := enemy.get_node_or_null("VisualSprite") as Sprite2D
+		if not _require(
+			enemy.definition.content_id == capture_enemy_id
+			and enemy.definition.visual_texture != null
+			and visual_sprite != null
+			and visual_sprite.texture == enemy.definition.visual_texture
+			and visual_sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST
+			and not enemy.fallback_visual_active,
+			"authored nearest-filtered enemy sprite without fallback for %s" % capture_enemy_id
+		):
+			return
+		authored_enemy_roles[enemy.definition.role] = true
+		authored_enemy_ids[capture_enemy_id] = true
 		enemy.global_position = enemy_evidence_positions[index]
 		enemy.set_physics_process(false)
+	if not _require(
+		authored_enemy_roles.size() == CAPTURE_ENEMY_IDS.size()
+		and authored_enemy_ids.size() == CAPTURE_ENEMY_IDS.size(),
+		"one authored non-fallback sprite for every enemy role"
+	):
+		return
 	var asymmetric_radii := _enemy_positions_have_asymmetric_radii(
 		enemy_evidence_positions,
 		world.player_actor.global_position
@@ -465,6 +492,11 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		"enemy_layout": {
 			"run_seed": session.run_state.run_seed,
 			"count": enemy_evidence_positions.size(),
+			"authored_enemy_ids": authored_enemy_ids.keys().map(
+				func(id: Variant) -> String: return String(id)
+			),
+			"authored_role_count": authored_enemy_roles.size(),
+			"fallback_circle_count": 0,
 			"positions": enemy_evidence_positions.map(
 				func(position: Vector2) -> Array: return _vector_array(position)
 			),

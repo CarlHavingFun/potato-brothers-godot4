@@ -1,0 +1,10 @@
+Use case: stylized-concept
+Asset type: original static 2D enemy sprite for the GOGOBRO top-down survival game
+Input images: Images 1-3 are project-native style and material references only; Image 4 is the actual 1280x720 runtime contrast and scale reference. Do not copy any existing object or character.
+Primary request: create one original olive-lime flash-core spark/shooter drone-creature, instantly readable as the ranged enemy at 1:1 game scale.
+Scene/backdrop: 100% solid perfectly flat #FF00FF magenta across the entire background, with no gradient, texture, floor, or shadow.
+Subject: one centered full-body ranged drone enemy with a narrow diamond/triangular body, a bright compact lime flash-core in the center, and one unmistakable forward emitter barrel or pronged muzzle; two small lateral stabilizer fins make a wider horizontal silhouette, but no legs. Silhouette must read in greyscale as light, angular, hovering, and ranged, distinctly unlike a round chaser or broad wedge charger.
+Style/medium: project-native clean modern pixel-inspired 2D game sprite, crisp dark graphite outline, restrained CS-like metal materials, controlled highlights, fine detail only where readable; clarity over chunky pixel blocks; original design.
+Composition/framing: isolated single asset, centered 3/4 top-down view from slightly above, facing down-right, full silhouette contained, generous magenta margin on all four sides, subject occupies roughly 60-68% of the square height and width.
+Color palette: olive drab shell, charcoal outline and joints, high-value lime-yellow flash-core and emitter tip; silhouette and value contrast must distinguish it without hue.
+Constraints: exactly one subject; no text, letters, numbers, labels, logo, watermark, border, frame, separator, UI, health bar, shadow plate, cast shadow, ground ellipse, detached projectile, detached sparks, glow cloud, or extra props; no body part touches the image edge; all non-subject pixels must be exact #FF00FF.

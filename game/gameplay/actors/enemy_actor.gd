@@ -24,6 +24,8 @@ var _next_damage_reservation_id := 1
 var _reserved_damage_id := 0
 var _reserved_damage_amount := 0.0
 var _reserved_damage_impulse := Vector2.ZERO
+var visual_sprite: Sprite2D
+var fallback_visual_active := true
 
 
 func configure(
@@ -46,15 +48,43 @@ func configure(
 	_reserved_damage_amount = 0.0
 	_reserved_damage_impulse = Vector2.ZERO
 	current_health = definition.max_health * difficulty.enemy_health_multiplier
+	if is_node_ready():
+		_sync_visual()
 
 
 func _ready() -> void:
 	add_to_group(&"gogo_enemy")
+	_sync_visual()
 	var shape := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
 	circle.radius = 14.0
 	shape.shape = circle
 	add_child(shape)
+	queue_redraw()
+
+
+func _sync_visual() -> void:
+	var texture: Texture2D
+	if definition != null:
+		texture = definition.visual_texture
+	fallback_visual_active = texture == null
+	if fallback_visual_active:
+		if visual_sprite != null:
+			remove_child(visual_sprite)
+			visual_sprite.queue_free()
+			visual_sprite = null
+		queue_redraw()
+		return
+	if visual_sprite == null:
+		visual_sprite = Sprite2D.new()
+		visual_sprite.name = "VisualSprite"
+		add_child(visual_sprite)
+	visual_sprite.texture = texture
+	visual_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	visual_sprite.centered = true
+	visual_sprite.position = Vector2.ZERO
+	visual_sprite.offset = Vector2.ZERO
+	visual_sprite.scale = Vector2.ONE
 	queue_redraw()
 
 
@@ -215,6 +245,8 @@ static func visual_color_for_role(role: GogoEnemyDefinition.Role) -> Color:
 
 
 func _draw() -> void:
+	if not fallback_visual_active:
+		return
 	var role := GogoEnemyDefinition.Role.CHASER
 	if definition != null:
 		role = definition.role
