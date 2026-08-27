@@ -11,6 +11,7 @@ var display_scale := Vector2.ONE
 var pivot_px := Vector2i.ZERO
 var anchors_px: Dictionary = {}
 var atlas_rect_px := Rect2i()
+var source_kind: StringName = &"approved_shipping"
 
 
 func _configure(payload: Dictionary, loaded_texture: Texture2D) -> void:
@@ -24,3 +25,4 @@ func _configure(payload: Dictionary, loaded_texture: Texture2D) -> void:
 	pivot_px = payload.get("pivot_px", Vector2i.ZERO)
 	anchors_px = (payload.get("anchors_px", {}) as Dictionary).duplicate(true)
 	atlas_rect_px = payload.get("atlas_rect_px", Rect2i())
+	source_kind = payload.get("source_kind", &"approved_shipping")

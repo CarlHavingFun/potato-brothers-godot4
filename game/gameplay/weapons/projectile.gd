@@ -101,6 +101,11 @@ func _build_static_visual() -> void:
 	projectile_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	projectile_sprite.position = -Vector2(projectile_visual_handle.pivot_px)
 	add_child(projectile_sprite)
+	GogoStaticConsumerRegistry.observe_handle(
+		projectile_visual_handle,
+		"res://game/gameplay/weapons/projectile.gd",
+		"ProjectileSprite/%s" % String(projectile_visual_handle.selector)
+	)
 	queue_redraw()
 
 

@@ -233,6 +233,11 @@ func _build_static_visual() -> void:
 	weapon_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	weapon_sprite.position = -Vector2(weapon_visual_handle.pivot_px)
 	weapon_visual_root.add_child(weapon_sprite)
+	GogoStaticConsumerRegistry.observe_handle(
+		weapon_visual_handle,
+		"res://game/gameplay/weapons/weapon_instance.gd",
+		"WeaponVisualRoot/WeaponSprite/%s" % String(stats.static_asset_id)
+	)
 
 
 func _update_visual_feedback() -> void:

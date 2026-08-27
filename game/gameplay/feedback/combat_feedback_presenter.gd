@@ -492,6 +492,11 @@ func _resolve_static_impact(slot: FeedbackSlot) -> void:
 	slot.texture = handle.texture
 	slot.texture_size = handle.display_size_px
 	slot.texture_pivot = handle.pivot_px
+	GogoStaticConsumerRegistry.observe_handle(
+		handle,
+		"res://game/gameplay/feedback/combat_feedback_presenter.gd",
+		"CombatFeedback/%s" % String(selector)
+	)
 
 
 func _accept_contact(projectile_instance_id: int, target_instance_id: int, sequence: int) -> bool:

@@ -26,6 +26,11 @@ static func build_card(
 	if snapshot != null:
 		frame_handle = snapshot.resolve_global(&"card_and_rarity_frame_kit")
 	frame.texture = frame_handle.texture if frame_handle != null else null
+	GogoStaticConsumerRegistry.observe_handle(
+		frame_handle,
+		"res://game/ui/static_card_presenter.gd",
+		"StaticCard/Frame"
+	)
 	frame.modulate = _tier_color(_tier(definition))
 	card.add_child(frame)
 
@@ -34,6 +39,11 @@ static func build_card(
 	if snapshot != null and definition != null and not definition.icon_asset_id.is_empty():
 		icon_handle = snapshot.resolve_asset(definition.icon_asset_id, &"icon")
 	icon.texture = icon_handle.texture if icon_handle != null else null
+	GogoStaticConsumerRegistry.observe_handle(
+		icon_handle,
+		"res://game/ui/static_card_presenter.gd",
+		"StaticCard/Icon/%s" % String(definition.content_id if definition != null else &"unknown")
+	)
 	card.add_child(icon)
 
 	var name_label := _label("Name", Vector2(77, 5), Vector2(137, 23), 16)

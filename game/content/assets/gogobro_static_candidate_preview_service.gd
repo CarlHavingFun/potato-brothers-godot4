@@ -182,6 +182,7 @@ func _handle(
 		"pivot_px": pivot,
 		"anchors_px": anchors,
 		"atlas_rect_px": Rect2i(Vector2i.ZERO, display_size),
+		"source_kind": &"development_preview",
 	}, texture)
 	return handle
 

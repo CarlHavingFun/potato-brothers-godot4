@@ -21,6 +21,11 @@ func configure_visual(handle: GogoStaticAssetHandle) -> bool:
 		add_child(_sprite)
 	_sprite.texture = handle.texture
 	_sprite.position = -Vector2(handle.pivot_px)
+	GogoStaticConsumerRegistry.observe_handle(
+		handle,
+		"res://game/gameplay/world/static_spawn_marker.gd",
+		"SpawnMarker/StaticVisual"
+	)
 	return true
 
 

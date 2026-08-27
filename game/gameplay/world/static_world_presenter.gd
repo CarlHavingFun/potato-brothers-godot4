@@ -256,6 +256,11 @@ func _handle(asset_id: StringName) -> GogoStaticAssetHandle:
 
 
 func _record(handle: GogoStaticAssetHandle, node: Node, at: Vector2i) -> void:
+	GogoStaticConsumerRegistry.observe_handle(
+		handle,
+		"res://game/gameplay/world/static_world_presenter.gd",
+		String(get_path_to(node))
+	)
 	_records.append({
 		"asset_id": handle.asset_id,
 		"node": String(get_path_to(node)),

@@ -274,6 +274,11 @@ func _resolve_content_texture(
 	var handle := static_asset_snapshot.resolve_content(kind, content_id, &"icon")
 	if handle == null and definition != null and not definition.icon_asset_id.is_empty():
 		handle = static_asset_snapshot.resolve_asset(definition.icon_asset_id, &"icon")
+	GogoStaticConsumerRegistry.observe_handle(
+		handle,
+		"res://game/ui/brotato_combat_hud.gd",
+		"BrotatoHUD/Equipment/%s" % String(content_id)
+	)
 	return handle.texture if handle != null else null
 
 
@@ -284,6 +289,11 @@ func _apply_static_textures() -> void:
 	if static_asset_snapshot != null:
 		handle = static_asset_snapshot.resolve_global(&"combat_hud_shell")
 	shell.texture = handle.texture if handle != null else null
+	GogoStaticConsumerRegistry.observe_handle(
+		handle,
+		"res://game/ui/brotato_combat_hud.gd",
+		"BrotatoHUD/StaticShell"
+	)
 	for key: String in global_icons:
 		var parts := key.split("|", false)
 		var icon_handle: GogoStaticAssetHandle
@@ -294,6 +304,11 @@ func _apply_static_textures() -> void:
 			)
 		(global_icons[key] as TextureRect).texture = (
 			icon_handle.texture if icon_handle != null else null
+		)
+		GogoStaticConsumerRegistry.observe_handle(
+			icon_handle,
+			"res://game/ui/brotato_combat_hud.gd",
+			"BrotatoHUD/GlobalIcon/%s" % key
 		)
 
 

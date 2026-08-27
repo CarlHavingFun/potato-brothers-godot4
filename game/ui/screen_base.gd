@@ -159,6 +159,11 @@ func resolve_content_icon(definition: GogoContentDefinition) -> Texture2D:
 	var handle := snapshot.resolve_content(definition.kind, definition.content_id, &"icon")
 	if handle == null:
 		handle = snapshot.resolve_asset(definition.icon_asset_id, &"icon")
+	GogoStaticConsumerRegistry.observe_handle(
+		handle,
+		"res://game/ui/screen_base.gd",
+		"ContentIcon/%s" % String(definition.content_id)
+	)
 	return handle.texture if handle != null else null
 
 
@@ -169,6 +174,11 @@ func resolve_global_icon(asset_id: StringName, selector: StringName = &"") -> Te
 	if snapshot == null:
 		return null
 	var handle := snapshot.resolve_global(asset_id, selector)
+	GogoStaticConsumerRegistry.observe_handle(
+		handle,
+		"res://game/ui/screen_base.gd",
+		"Global/%s/%s" % [asset_id, selector]
+	)
 	return handle.texture if handle != null else null
 
 
