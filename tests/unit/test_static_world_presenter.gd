@@ -1,0 +1,165 @@
+extends GdUnitTestSuite
+
+
+const PRESENTER_PATH := "res://game/gameplay/world/static_world_presenter.gd"
+const PICKUP_PATH := "res://game/gameplay/world/static_pickup_visual.gd"
+const MARKER_PATH := "res://game/gameplay/world/static_spawn_marker.gd"
+const WORLD_ASSET_IDS: Array[StringName] = [
+	&"community_server_floor",
+	&"arena_boundary_border",
+	&"community_server_decor_pack",
+	&"spawn_marker",
+	&"experience_pickup",
+	&"supply_pickup",
+	&"medical_pickup",
+	&"site_hold_turret",
+	&"hazard_beacon",
+	&"supply_crate",
+	&"weapon_rack",
+]
+
+
+func test_static_world_runtime_presenters_exist() -> void:
+	assert_bool(FileAccess.file_exists(PRESENTER_PATH)).is_true()
+	assert_bool(FileAccess.file_exists(PICKUP_PATH)).is_true()
+	assert_bool(FileAccess.file_exists(MARKER_PATH)).is_true()
+
+
+func test_world_consumes_persistent_assets_at_deterministic_collision_free_nodes() -> void:
+	if not FileAccess.file_exists(PRESENTER_PATH):
+		return
+	var first := _build_presenter(9137, true)
+	var second := _build_presenter(9137, true)
+	assert_array(first.call("consumer_records")).is_equal(second.call("consumer_records"))
+	assert_object(first.get_node("Floor/community_server_floor")).is_not_null()
+	assert_object(first.get_node("Boundary/arena_boundary_border_top")).is_not_null()
+	for asset_id in [
+		"community_server_decor_pack",
+		"experience_pickup",
+		"supply_pickup",
+		"medical_pickup",
+		"hazard_beacon",
+		"supply_crate",
+		"weapon_rack",
+		"site_hold_turret",
+	]:
+		assert_bool(first.has_node("Props/%s" % asset_id)).is_true()
+	assert_int(first.find_children("*", "CollisionShape2D", true, false).size()).is_equal(0)
+	for record: Dictionary in first.call("consumer_records"):
+		assert_bool((record.position as Vector2i).x % 64 == 0).is_true()
+		assert_bool((record.position as Vector2i).y % 64 == 0).is_true()
+
+
+func test_release_world_omits_neutral_preview_turret() -> void:
+	if not FileAccess.file_exists(PRESENTER_PATH):
+		return
+	var presenter := _build_presenter(9137, false)
+	assert_bool(presenter.has_node("Props/site_hold_turret")).is_false()
+	for record: Dictionary in presenter.call("consumer_records"):
+		assert_bool(record.asset_id != &"site_hold_turret").is_true()
+
+
+func test_missing_floor_is_reported_without_blocking_other_props() -> void:
+	if not FileAccess.file_exists(PRESENTER_PATH):
+		return
+	var presenter := _build_presenter(9137, true, [&"community_server_floor"])
+	assert_bool(presenter.has_node("Floor/community_server_floor")).is_false()
+	assert_bool(presenter.has_node("Props/supply_crate")).is_true()
+	var issues: Array = presenter.call("issues")
+	assert_int(issues.size()).is_equal(1)
+	assert_str(String((issues[0] as Dictionary).code)).is_equal("missing_world_asset")
+	assert_str(String((issues[0] as Dictionary).asset_id)).is_equal("community_server_floor")
+
+
+func test_spawn_marker_completes_once_before_enemy_activation_callback() -> void:
+	if not FileAccess.file_exists(MARKER_PATH):
+		return
+	var marker_script := load(MARKER_PATH) as GDScript
+	var marker := auto_free(marker_script.new()) as Node2D
+	add_child(marker)
+	marker.call("configure_visual", _handle(&"spawn_marker", Vector2i(96, 64)))
+	var state := {"activations": 0}
+	marker.call("play", Vector2(129.4, 64.4), func() -> void: state.activations += 1)
+	assert_int(state.activations).is_equal(0)
+	assert_vector(marker.position).is_equal(Vector2(129, 64))
+	marker.call("complete_now")
+	marker.call("complete_now")
+	assert_int(state.activations).is_equal(1)
+
+
+func test_spawn_marker_without_texture_activates_immediately() -> void:
+	if not FileAccess.file_exists(MARKER_PATH):
+		return
+	var marker_script := load(MARKER_PATH) as GDScript
+	var marker := auto_free(marker_script.new()) as Node2D
+	add_child(marker)
+	var state := {"activated": false}
+	marker.call("play", Vector2(64, 64), func() -> void: state.activated = true)
+	assert_bool(state.activated).is_true()
+
+
+func test_structure_actor_uses_static_texture_and_keeps_draw_fallback() -> void:
+	var structure := auto_free(GogoStructureActor.new()) as GogoStructureActor
+	structure.configure_visual(_handle(&"site_hold_turret", Vector2i(96, 64)))
+	var sprite := structure.get_node("StaticVisual") as Sprite2D
+	assert_object(sprite.texture).is_not_null()
+	assert_int(sprite.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
+
+
+func _build_presenter(
+	seed: int,
+	development_preview: bool,
+	missing: Array[StringName] = []
+) -> Node2D:
+	var presenter_script := load(PRESENTER_PATH) as GDScript
+	var presenter := auto_free(presenter_script.new()) as Node2D
+	add_child(presenter)
+	presenter.call(
+		"configure",
+		_snapshot(missing),
+		Rect2(Vector2.ZERO, Vector2(2048, 1536)),
+		seed,
+		development_preview
+	)
+	return presenter
+
+
+func _snapshot(missing: Array[StringName]) -> GogoStaticAssetSnapshot:
+	var handles: Dictionary = {}
+	for asset_id in WORLD_ASSET_IDS:
+		if missing.has(asset_id):
+			continue
+		var size := Vector2i(64, 64)
+		if asset_id in [
+			&"arena_boundary_border",
+			&"spawn_marker",
+			&"experience_pickup",
+			&"supply_pickup",
+			&"site_hold_turret",
+			&"weapon_rack",
+		]:
+			size = Vector2i(96, 64)
+		var handle := _handle(asset_id, size)
+		handles[String(handle.binding_key)] = handle
+	var snapshot := GogoStaticAssetSnapshot.new()
+	snapshot._configure(1, "fixture", 70, {}, handles, {}, {}, {}, [])
+	return snapshot
+
+
+func _handle(asset_id: StringName, size: Vector2i) -> GogoStaticAssetHandle:
+	var image := Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
+	image.fill(Color8(67, 82, 76, 255))
+	var handle := GogoStaticAssetHandle.new()
+	var key := "%s|world_sprite|" % asset_id
+	handle._configure({
+		"binding_key": StringName(key),
+		"asset_id": asset_id,
+		"role": &"world_sprite",
+		"selector": &"",
+		"display_size_px": size,
+		"display_scale": Vector2.ONE,
+		"pivot_px": Vector2i(size / 2),
+		"anchors_px": {},
+		"atlas_rect_px": Rect2i(Vector2i.ZERO, size),
+	}, ImageTexture.create_from_image(image))
+	return handle

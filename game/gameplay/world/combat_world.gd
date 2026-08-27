@@ -1,6 +1,9 @@
 class_name CombatWorld
 extends Node2D
 
+const STATIC_WORLD_PRESENTER := preload("res://game/gameplay/world/static_world_presenter.gd")
+const STATIC_SPAWN_MARKER := preload("res://game/gameplay/world/static_spawn_marker.gd")
+
 signal wave_completed
 signal run_failed
 signal hud_changed(health: float, max_health: float, time_left: float, wave: int)
@@ -50,14 +53,19 @@ var projectile_layer: Node2D
 var effect_layer: Node2D
 var player_camera: GogoCombatCamera
 var feedback_presenter: GogoCombatFeedbackPresenter
+var static_world_presenter: GogoStaticWorldPresenter
 var arena_rect := Rect2(Vector2.ZERO, Vector2(2048.0, 1536.0))
 var running := false
 var _active_enemies: Array[GogoEnemyActor] = []
 var _active_enemies_by_runtime_id: Dictionary = {}
+var _pending_spawn_enemies: Dictionary = {}
 var _wave_transition_committed := false
 
 
 func _ready() -> void:
+	static_world_presenter = STATIC_WORLD_PRESENTER.new() as GogoStaticWorldPresenter
+	static_world_presenter.name = "StaticWorldPresenter"
+	add_child(static_world_presenter)
 	enemy_layer = Node2D.new()
 	enemy_layer.name = "Enemies"
 	add_child(enemy_layer)
@@ -99,6 +107,12 @@ func start_wave(next_session: GameSession, wave_definition: GogoWaveDefinition) 
 	zone_runtime = next_zone_runtime
 	_wave_transition_committed = false
 	arena_rect = Rect2(Vector2.ZERO, zone.arena_size)
+	static_world_presenter.configure(
+		session.static_asset_snapshot,
+		arena_rect,
+		session.run_state.run_seed,
+		session.static_asset_snapshot != null and session.static_asset_snapshot.is_development_preview()
+	)
 	wave_runtime.begin(wave_definition, difficulty.spawn_multiplier)
 	if player_actor == null:
 		player_actor = GogoPlayerActor.new()
@@ -306,7 +320,30 @@ func _spawn_enemy(enemy_id: StringName) -> void:
 		return
 	var enemy := GogoEnemyActor.new()
 	enemy.configure(definition, player_actor, difficulty, self, runtime_instance_id)
-	enemy.position = _random_edge_position()
+	var spawn_position := _random_edge_position().round()
+	var marker := STATIC_SPAWN_MARKER.new() as GogoStaticSpawnMarker
+	marker.name = "SpawnMarker_%d" % runtime_instance_id
+	_pending_spawn_enemies[runtime_instance_id] = enemy
+	var marker_handle: GogoStaticAssetHandle
+	if session.static_asset_snapshot != null:
+		marker_handle = session.static_asset_snapshot.resolve_asset(&"spawn_marker", &"world_sprite")
+	marker.configure_visual(marker_handle)
+	effect_layer.add_child(marker)
+	marker.play(
+		spawn_position,
+		func() -> void: _activate_spawned_enemy(enemy, spawn_position)
+	)
+
+
+func _activate_spawned_enemy(enemy: GogoEnemyActor, spawn_position: Vector2) -> void:
+	if enemy == null or not is_instance_valid(enemy):
+		return
+	_pending_spawn_enemies.erase(enemy.runtime_instance_id)
+	if not running or enemy.is_inside_tree():
+		if not enemy.is_inside_tree():
+			enemy.free()
+		return
+	enemy.position = spawn_position
 	enemy_layer.add_child(enemy)
 	if not register_active_enemy(enemy):
 		enemy.queue_free()
@@ -492,6 +529,17 @@ func _clear_active_combat_actors() -> void:
 				projectile.queue_free()
 	if feedback_presenter != null:
 		feedback_presenter.clear_feedback()
+	if effect_layer != null:
+		for child in effect_layer.get_children():
+			if child is GogoStaticSpawnMarker:
+				(child as GogoStaticSpawnMarker).cancel()
+	for pending_enemy: GogoEnemyActor in _pending_spawn_enemies.values():
+		if pending_enemy != null and is_instance_valid(pending_enemy):
+			if pending_enemy.is_inside_tree():
+				pending_enemy.retire_without_reward()
+			else:
+				pending_enemy.free()
+	_pending_spawn_enemies.clear()
 
 
 func _draw() -> void:

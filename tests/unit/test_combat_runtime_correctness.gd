@@ -203,6 +203,33 @@ func test_enemy_xp_reward_preserves_pending_upgrade_count() -> void:
 	assert_int(player.materials).is_equal(38)
 
 
+func test_enemy_stays_inactive_until_spawn_marker_completes_and_cannot_arrive_after_clear() -> void:
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	var session := _combat_session(content)
+	session.static_asset_snapshot = _spawn_marker_snapshot()
+	var wave := content.definition(&"gogobro.core:wave/training_1", &"wave") as GogoWaveDefinition
+	var world := auto_free(CombatWorld.new()) as CombatWorld
+	add_child(world)
+	assert_int(world.start_wave(session, wave)).is_equal(OK)
+
+	world.call("_spawn_enemy", &"gogobro.core:enemy/drifter")
+	assert_int(world.active_enemy_count()).is_equal(0)
+	var first_marker := world.effect_layer.find_child("SpawnMarker_*", false, false) as GogoStaticSpawnMarker
+	assert_object(first_marker).is_not_null()
+	first_marker.complete_now()
+	assert_int(world.active_enemy_count()).is_equal(1)
+
+	world.call("_clear_active_combat_actors")
+	await get_tree().process_frame
+	world.call("_spawn_enemy", &"gogobro.core:enemy/drifter")
+	var marker_nodes := world.effect_layer.find_children("SpawnMarker_*", "GogoStaticSpawnMarker", false, false)
+	var cancelled_marker := marker_nodes.back() as GogoStaticSpawnMarker
+	assert_object(cancelled_marker).is_not_null()
+	world.call("_clear_active_combat_actors")
+	cancelled_marker.complete_now()
+	assert_int(world.active_enemy_count()).is_equal(0)
+
+
 func test_targeting_and_projectiles_ignore_defeat_committed_enemies() -> void:
 	var weapon := auto_free(GogoWeaponInstance.new()) as GogoWeaponInstance
 	var defeated_enemy := auto_free(GogoEnemyActor.new()) as GogoEnemyActor
@@ -329,6 +356,48 @@ func _projectile_visual_snapshot() -> GogoStaticAssetSnapshot:
 		[]
 	)
 	return snapshot
+
+
+func _spawn_marker_snapshot() -> GogoStaticAssetSnapshot:
+	var image := Image.create(96, 64, false, Image.FORMAT_RGBA8)
+	image.fill(Color8(245, 132, 59, 255))
+	var handle := GogoStaticAssetHandle.new()
+	handle._configure({
+		"binding_key": &"spawn_marker|world_sprite|",
+		"asset_id": &"spawn_marker",
+		"role": &"world_sprite",
+		"selector": &"",
+		"display_size_px": Vector2i(96, 64),
+		"display_scale": Vector2.ONE,
+		"pivot_px": Vector2i(48, 32),
+		"anchors_px": {},
+		"atlas_rect_px": Rect2i(0, 0, 96, 64),
+	}, ImageTexture.create_from_image(image))
+	var snapshot := GogoStaticAssetSnapshot.new()
+	snapshot._configure(
+		1,
+		"fixture",
+		70,
+		{&"spawn_marker": &"ready"},
+		{"spawn_marker|world_sprite|": handle},
+		{},
+		{},
+		{},
+		[]
+	)
+	return snapshot
+
+
+func _combat_session(content: ContentSnapshot) -> GameSession:
+	var config := SessionConfig.new()
+	config.seed = 9137
+	config.character_id = NikoContentFactory.CHARACTER_ID
+	config.starting_weapon_id = ValidationContentFactory.RANGED_ID
+	config.difficulty_id = ValidationContentFactory.DIFFICULTY_ID
+	config.zone_id = ValidationContentFactory.ZONE_ID
+	var session := GameSession.new()
+	assert_int(session.start(config, content)).is_equal(OK)
+	return session
 
 
 func _on_enemy_defeated(_enemy: GogoEnemyActor, _xp: int, _materials: int) -> void:

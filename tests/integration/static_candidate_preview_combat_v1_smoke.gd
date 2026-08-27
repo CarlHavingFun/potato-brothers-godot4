@@ -82,6 +82,11 @@ func _initialize() -> void:
 
 	for index in 6:
 		world.call("_spawn_enemy", TARGET_ENEMY_ID)
+		var markers := world.effect_layer.find_children(
+			"SpawnMarker_*", "GogoStaticSpawnMarker", false, false
+		)
+		if not markers.is_empty():
+			(markers.back() as GogoStaticSpawnMarker).complete_now()
 		await process_frame
 		var enemy := world.active_enemy_at(index)
 		if not _require(enemy != null, "controlled enemy %d spawned" % index):
