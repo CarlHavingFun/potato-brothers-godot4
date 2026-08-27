@@ -379,8 +379,8 @@
       "category": "item",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/items/silent_step_insoles.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/silent_step_insoles/candidate-001/curated/silent_step_insoles-icon-64x64.png",
-      "sha256": "8A3F4F15629866DD1C5B89DE04EBF318567D46F7F6D190A0C15C023E5D4EBFFB",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/silent_step_insoles/candidate-002/curated/silent_step_insoles-icon-64x64.png",
+      "sha256": "53BA7432ECE1CD9CA743E0C26369613C9E794CC4AA73E7D866BE32EF7422E44F",
       "pixel_size": [
         64,
         64
@@ -404,8 +404,8 @@
       "category": "item",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/items/crosshair_shim.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/crosshair_shim/candidate-001/curated/crosshair_shim-icon-64x64.png",
-      "sha256": "D7F2162F67542FB2A3C49AF6883D246E12728A9BCA1B8200426BB3E0599B43FE",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/crosshair_shim/candidate-002/curated/crosshair_shim-icon-64x64.png",
+      "sha256": "D10569BAD4A310E9508CEEE260635A28A84EFA71963E43867004C1138C838033",
       "pixel_size": [
         64,
         64
@@ -429,8 +429,8 @@
       "category": "item",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/items/supply_radar.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/supply_radar/candidate-001/curated/supply_radar-icon-64x64.png",
-      "sha256": "F376FB79C2A33B8A03D1FDCD4E2755D68D4265C59B56CCFC8F45EA10D2CA1EA2",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/supply_radar/candidate-002/curated/supply-radar-handheld-scanner-64x64.png",
+      "sha256": "E133B0F308274F32B9B39A2F5A820B1172CD0F9B6CCD67465ACCE9460F7A062F",
       "pixel_size": [
         64,
         64
@@ -454,8 +454,8 @@
       "category": "item",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/items/trade_guard.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/trade_guard/candidate-001/curated/trade_guard-icon-64x64.png",
-      "sha256": "A76260DAA321E1CC1EBB9FEA0166729B478D73D2A9A65946304D1B1E5E0D5FEC",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/trade_guard/candidate-002/curated/trade-guard-forearm-bracer-64x64.png",
+      "sha256": "1C74781A0E9A599A3B140150D590B147A7A11CFE18D8C0B8949B68EE3654164D",
       "pixel_size": [
         64,
         64
@@ -604,8 +604,8 @@
       "category": "item",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/items/corner_lucky_claw.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/corner_lucky_claw/candidate-001/curated/corner_lucky_claw-icon-64x64.png",
-      "sha256": "C817AA760BCE4662EA536C2CDFE7F029AAD861D19048B7381F424ECD288476BC",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/corner_lucky_claw/candidate-002/curated/corner_lucky_claw-icon-64x64.png",
+      "sha256": "6963913CC090C0559A73F432F4A4A4B640B4A17D72BA62BD8024B9F0A817A7FA",
       "pixel_size": [
         64,
         64
@@ -679,8 +679,8 @@
       "category": "item",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/items/skyline_grenade.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/skyline_grenade/candidate-001/curated/skyline_grenade-icon-64x64.png",
-      "sha256": "D27D282AC640EF7CCB080B7EBF1562DFFA995EF1336B1C4B88539D01BDB25050",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/skyline_grenade/candidate-002/curated/skyline_grenade-icon-64x64.png",
+      "sha256": "25B7B1DA885DC77EA9E7F011249C21103AAFFD03B4848D86B71C14FD5F5C6AE3",
       "pixel_size": [
         64,
         64
@@ -704,8 +704,8 @@
       "category": "item",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/items/post_match_analysis_desk.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/post_match_analysis_desk/candidate-001/curated/post_match_analysis_desk-icon-64x64.png",
-      "sha256": "3A229EE4CF63664A5562E8FE47E07D1B259B09A8DF43482674EB6DD0E3630D0B",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/post_match_analysis_desk/candidate-002/curated/post_match_analysis_desk-icon-64x64.png",
+      "sha256": "5F0224AB4FADE7D23596588ADA0562EFC31B3FAC2C547FDD4C3626D1413E5ED3",
       "pixel_size": [
         64,
         64
@@ -729,8 +729,8 @@
       "category": "item",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/items/one_missed_shot.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/one_missed_shot/candidate-001/curated/one_missed_shot-icon-64x64.png",
-      "sha256": "5333DF8AE99B3BD7045AA45D805D792131F661F11ECEAB455022DA98476D3157",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/one_missed_shot/candidate-002/curated/one_missed_shot-icon-64x64.png",
+      "sha256": "2DDC9347849ED2DDC2B68551EC4CFEA199ECC4D2F5ED60A31CF736197A3CE2C6",
       "pixel_size": [
         64,
         64
@@ -754,8 +754,8 @@
       "category": "item",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/items/falling_sniper_charm.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/falling_sniper_charm/candidate-001/curated/falling_sniper_charm-icon-64x64.png",
-      "sha256": "DD46614036081EBE27889AF1ED8EF210F9CF5959B3E459D0078475B8D6EA484F",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/falling_sniper_charm/candidate-002/curated/falling_sniper_charm-icon-64x64.png",
+      "sha256": "FCFBF8DE84DCDD1F0430D90F369C99DFCCF3FEFBE6835B0F9377B819F9328139",
       "pixel_size": [
         64,
         64
@@ -804,8 +804,8 @@
       "category": "item",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/items/post_match_mic.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/post_match_mic/candidate-001/curated/post_match_mic-icon-64x64.png",
-      "sha256": "E3C02CBE7FD91A8F627D2E9917FEE63571165A38C4D3A1E8839EF1F7EFA59227",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/post_match_mic/candidate-002/curated/post-match-mic-broadcast-64x64.png",
+      "sha256": "ADCB0FEA64DF15FB38820975BEBCCF968F626D6C406E893B2DCA8413D45A1FCA",
       "pixel_size": [
         64,
         64
@@ -829,8 +829,8 @@
       "category": "item",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/items/halftime_tactics_board.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/halftime_tactics_board/candidate-001/curated/halftime_tactics_board-icon-64x64.png",
-      "sha256": "025E751B98605A14953218E6B6D88E7685D8B2B2ABE6E79252E48E9EF98C71CF",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/halftime_tactics_board/candidate-002/curated/halftime_tactics_board-icon-64x64.png",
+      "sha256": "AD35681A4DA489B8FDAFD9B1C5881D2AC90A9EF58A3BB0E73459949A465A2D34",
       "pixel_size": [
         64,
         64
@@ -879,8 +879,8 @@
       "category": "item",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/items/sneaky_site_mask.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/sneaky_site_mask/candidate-001/curated/sneaky_site_mask-icon-64x64.png",
-      "sha256": "185E05700401015AE7A99D6DFEA9736654BA98E4E36E2F84EAB72E24B84F5753",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/sneaky_site_mask/candidate-002/curated/sneaky-site-mask-balaclava-64x64.png",
+      "sha256": "83E525BFFA0392C5A0D54D4B64C4C9CF256CE8F4E926D6E3DFEFABA00E348396",
       "pixel_size": [
         64,
         64
@@ -929,8 +929,8 @@
       "category": "item",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/items/mouse_lift_pad.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/mouse_lift_pad/candidate-001/curated/mouse_lift_pad-icon-64x64.png",
-      "sha256": "E905C92B30AFBF94BE84EB6A0ADE2287CE325DC01C9D2C78510D2AB7F5499B21",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/mouse_lift_pad/candidate-002/curated/mouse-lift-pad-raised-64x64.png",
+      "sha256": "D85DAC7C2CD6B199C8C98493E93AF33EEB5B2EBC6843698C5427B64EF6098AEC",
       "pixel_size": [
         64,
         64
@@ -954,8 +954,8 @@
       "category": "item",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/items/lineup_chalk.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/lineup_chalk/candidate-001/curated/lineup_chalk-icon-64x64.png",
-      "sha256": "17DDD44A3A25D51F56D04206E74E64C8EA3BBD2A17743068CAA2A151E313CEBD",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/lineup_chalk/candidate-002/curated/lineup_chalk-icon-64x64.png",
+      "sha256": "49F1ED348DB91CF8899EEEB7F879B6F8515B74149BB9E4C41D9B3B7FFB985CF3",
       "pixel_size": [
         64,
         64
@@ -1004,8 +1004,8 @@
       "category": "item",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/items/airshot_wing_charm.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/airshot_wing_charm/candidate-001/curated/airshot_wing_charm-icon-64x64.png",
-      "sha256": "52BE16EC2F21AEF564F6B2CC0FBC827B4F24E078D5C7924CA4256BAC0ACB5F1E",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/airshot_wing_charm/candidate-002/curated/airshot_wing_charm-icon-64x64.png",
+      "sha256": "1A4A3DF851D09A6917C30C9F962EE15D5B58DD1F797D6902ED28B88F1C2576F9",
       "pixel_size": [
         64,
         64

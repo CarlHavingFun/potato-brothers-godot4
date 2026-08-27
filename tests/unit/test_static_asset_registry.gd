@@ -200,10 +200,10 @@ func test_smoke_shell_helmet_approval_preserves_candidate_provenance_and_human_e
 		"authority": "explicit_user_approval_in_current_task",
 		"approved_at_utc": "2026-08-24T12:04:47Z",
 	}])
-	assert_str(str(((localization["zh_CN"] as Dictionary).get("description", "")))).is_equal("加固外壳提高防护，但沉重结构会拖慢转点。")
-	assert_str(str(((localization["en"] as Dictionary).get("description", "")))).is_equal("A reinforced shell improves protection, but its weight slows every rotate.")
-	assert_str(str(((localization["zh_CN"] as Dictionary).get("flavor", "")))).is_equal("烟封好了，脚步也顺便封住了。")
-	assert_str(str(((localization["en"] as Dictionary).get("flavor", "")))).is_equal("The smoke is sealed. So is your sprint.")
+	assert_str(str(((localization["zh_CN"] as Dictionary).get("description", "")))).is_equal("装有滤烟壳体的战术头盔。")
+	assert_str(str(((localization["en"] as Dictionary).get("description", "")))).is_equal("A tactical helmet fitted with a smoke-filter shell.")
+	assert_str(str(((localization["zh_CN"] as Dictionary).get("flavor", "")))).is_equal("烟里看不清人，但这顶橙壳很好认。")
+	assert_str(str(((localization["en"] as Dictionary).get("flavor", "")))).is_equal("Nobody sees through the smoke, but everyone spots the orange shell.")
 
 	var old_candidate := _candidate_history_entry(helmet, "candidate-001")
 	assert_str(str(old_candidate.get("decision", ""))).is_equal("revision_requested")
