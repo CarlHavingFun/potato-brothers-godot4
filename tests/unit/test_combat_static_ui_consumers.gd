@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 const COMBAT_SCREEN := preload("res://game/ui/combat_screen.gd")
 
 
-func test_combat_hud_keeps_large_block_fallbacks_when_static_textures_are_unavailable() -> void:
+func test_combat_hud_keeps_native_flat_fallbacks_when_static_textures_are_unavailable() -> void:
 	var combat := auto_free(COMBAT_SCREEN.new()) as Node2D
 	add_child(combat)
 	combat.call("_build_hud")
@@ -12,31 +12,29 @@ func test_combat_hud_keeps_large_block_fallbacks_when_static_textures_are_unavai
 	var hud := combat.get_node("HUDCanvas/BrotatoHUD") as GogoBrotatoCombatHud
 	assert_vector(hud.custom_minimum_size).is_equal(Vector2(1280, 720))
 	assert_vector(hud.scale).is_equal(Vector2.ONE)
-	assert_object((hud.get_node("Shell") as TextureRect).texture).is_null()
-	assert_vector((hud.get_node("Shell") as TextureRect).size).is_equal(Vector2(320, 180))
-	assert_vector((hud.get_node("Shell") as TextureRect).scale).is_equal(Vector2(4, 4))
+	assert_bool(hud.has_node("Backdrop")).is_false()
+	assert_bool(hud.has_node("Shell")).is_false()
 	assert_bool(hud.has_node("TopCenter/Timer")).is_true()
-	assert_bool(hud.has_node("BottomLeft/HealthBar")).is_true()
-	assert_int(hud.get_node("WeaponStrip").get_child_count()).is_equal(6)
-	assert_int(hud.get_node("ItemStrip").get_child_count()).is_equal(8)
+	assert_bool(hud.has_node("TopLeft/Health/HealthBar")).is_true()
+	assert_bool(hud.has_node("WeaponStrip")).is_false()
+	assert_bool(hud.has_node("ItemStrip")).is_false()
 	assert_bool((hud.get_node("ControlHint") as Control).visible).is_true()
 
 
-func test_combat_hud_resolves_shell_hud_and_control_texture_consumers_at_nearest_filtering() -> void:
+func test_combat_hud_resolves_accent_hud_and_control_texture_consumers_at_nearest_filtering() -> void:
+	GogoStaticConsumerRegistry.reset_current()
 	var combat := auto_free(COMBAT_SCREEN.new()) as Node2D
 	combat.set("static_asset_snapshot_override", _static_ui_snapshot())
 	add_child(combat)
 	combat.call("_build_hud")
 
 	var paths := [
-		"HUDCanvas/BrotatoHUD/Shell",
-		"HUDCanvas/BrotatoHUD/BottomLeft/HealthIcon",
+		"HUDCanvas/BrotatoHUD/TopLeft/Health/HealthIcon",
 		"HUDCanvas/BrotatoHUD/TopCenter/WaveIcon",
 		"HUDCanvas/BrotatoHUD/TopCenter/TimerIcon",
 		"HUDCanvas/BrotatoHUD/ControlHint/HintContent/MoveKeyboardIcon",
 		"HUDCanvas/BrotatoHUD/ControlHint/HintContent/MoveGamepadIcon",
 		"HUDCanvas/BrotatoHUD/ControlHint/HintContent/AutoAttackIcon",
-		"HUDCanvas/BrotatoHUD/WeaponStrip/WeaponCell00/TierFrame",
 	]
 	for path: String in paths:
 		var icon := combat.get_node_or_null(path) as TextureRect
@@ -45,6 +43,18 @@ func test_combat_hud_resolves_shell_hud_and_control_texture_consumers_at_nearest
 			continue
 		assert_object(icon.texture).is_not_null()
 		assert_int(icon.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
+	var hud := combat.get_node("HUDCanvas/BrotatoHUD") as GogoBrotatoCombatHud
+	var metric_style := (hud.get_node("TopLeft/Health") as Panel).get_theme_stylebox("panel") as StyleBoxFlat
+	assert_bool(metric_style.bg_color.is_equal_approx(
+		Color(235.0 / 255.0, 151.0 / 255.0, 40.0 / 255.0, 0.86)
+	)).is_true()
+	var shell_records := GogoStaticConsumerRegistry.current().records().filter(
+		func(record: Dictionary) -> bool:
+			return record.get("asset_id", &"") == &"combat_hud_shell"
+	)
+	assert_int(shell_records.size()).is_equal(1)
+	if shell_records.size() == 1:
+		assert_str(String(shell_records[0].node)).is_equal("BrotatoHUD/MetricPalette")
 
 
 func _static_ui_snapshot() -> GogoStaticAssetSnapshot:
@@ -55,7 +65,6 @@ func _static_ui_snapshot() -> GogoStaticAssetSnapshot:
 		_add_global_handle(handles, global_bindings, &"hud_icon_kit", selector, Vector2i(64, 64))
 	for selector in [&"move_keyboard_wasd", &"move_gamepad_left_stick", &"auto_attack"]:
 		_add_global_handle(handles, global_bindings, &"control_icon_kit", selector, Vector2i(64, 64))
-	_add_global_handle(handles, global_bindings, &"card_and_rarity_frame_kit", &"", Vector2i(64, 64))
 	var snapshot := GogoStaticAssetSnapshot.new()
 	snapshot._configure(1, "fixture", 70, {}, handles, {}, {}, global_bindings, [])
 	return snapshot

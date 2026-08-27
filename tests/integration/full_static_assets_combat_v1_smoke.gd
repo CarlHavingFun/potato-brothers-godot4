@@ -25,10 +25,8 @@ const CAPTURE_ITEM_IDS: Array[StringName] = [
 	&"gogobro.preview:item/sneaky_site_mask",
 ]
 const HUD_SCREEN_EXCLUSION_RECTS: Array[Rect2] = [
-	Rect2(448, 0, 384, 136),
-	Rect2(0, 576, 416, 144),
-	Rect2(368, 480, 560, 240),
-	Rect2(1072, 296, 208, 424),
+	Rect2(0, 0, 368, 244),
+	Rect2(448, 0, 384, 112),
 ]
 const EXPECTED_WORLD_EVIDENCE_COUNTS := {
 	"community_server_floor": 1,
@@ -268,7 +266,11 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		and report.unresolved_asset_ids.is_empty()
 		and report.required_visual_failures.is_empty()
 		and bool(report.complete),
-		"complete 70/70 real-consumer coverage"
+		"complete 70/70 real-consumer coverage (covered=%d unresolved=%s required=%s)" % [
+			int(report.covered_units),
+			str(report.unresolved_asset_ids),
+			str(report.required_visual_failures),
+		]
 	):
 		return
 	report["capture"] = capture_record
@@ -525,6 +527,7 @@ func _exercise_remaining_real_consumers(
 	var screen := GogoScreenBase.new()
 	screen.static_asset_snapshot_override = snapshot
 	screen.build_screen("覆盖审计")
+	screen.add_principal_surface(Rect2(192, 144, 640, 360))
 	screen.add_static_texture(&"gogobro_wordmark", "Wordmark", Vector2(460, 115))
 	screen.add_static_texture(&"zone_thumbnail", "ZoneThumbnail", Vector2(320, 180))
 	screen.resolve_global_icon(&"difficulty_badge_kit", &"standard")

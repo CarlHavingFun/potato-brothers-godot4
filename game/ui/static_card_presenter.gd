@@ -5,6 +5,13 @@ extends RefCounted
 const CARD_SIZE := Vector2(294, 76)
 const CARD_MINIMUM_SIZE := Vector2(216, 76)
 const TIER_NAMES := ["", "普通", "精良", "稀有", "传说"]
+const TIER_FRAME_SELECTORS: Array[StringName] = [
+	&"",
+	&"common",
+	&"uncommon",
+	&"rare",
+	&"legendary",
+]
 const BUTTON_STATES: Array[StringName] = [&"normal", &"hover", &"pressed", &"disabled"]
 const MODIFIER_ORDER: Array[StringName] = [
 	&"max_health",
@@ -76,7 +83,7 @@ static func build_card(
 	card.add_child(accent)
 	accent.anchor_bottom = 1.0
 	accent.offset_bottom = 0.0
-	accent.color = _tier_color(tier)
+	accent.color = _authored_tier_color(snapshot, tier, definition)
 	accent.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var icon_fallback := ColorRect.new()
@@ -310,6 +317,45 @@ static func _tier_color(tier: int) -> Color:
 		Color("c65ce2"),
 		Color("f1ca52"),
 	][clampi(tier, 1, 4)]
+
+
+static func _authored_tier_color(
+	snapshot: GogoStaticAssetSnapshot,
+	tier: int,
+	definition: GogoContentDefinition
+) -> Color:
+	var fallback := _tier_color(tier)
+	if snapshot == null:
+		return fallback
+	var selector := TIER_FRAME_SELECTORS[clampi(tier, 1, 4)]
+	var handle := snapshot.resolve_global(&"card_and_rarity_frame_kit", selector)
+	if handle == null:
+		handle = snapshot.resolve_global(&"card_and_rarity_frame_kit")
+	GogoStaticConsumerRegistry.observe_handle(
+		handle,
+		"res://game/ui/static_card_presenter.gd",
+		"StaticCard/RarityPalette/%s" % String(
+			definition.content_id if definition != null else &"unknown"
+		)
+	)
+	if handle == null or handle.texture == null:
+		return fallback
+	var image := handle.texture.get_image()
+	if image == null or image.is_empty():
+		return fallback
+	var best_color := fallback
+	var best_score := -1.0
+	var step_x := maxi(1, image.get_width() / 16)
+	var step_y := maxi(1, image.get_height() / 16)
+	for y in range(0, image.get_height(), step_y):
+		for x in range(0, image.get_width(), step_x):
+			var color := image.get_pixel(x, y)
+			var saturation := color.s
+			var score := color.a * saturation * color.v
+			if color.a >= 0.5 and score > best_score:
+				best_score = score
+				best_color = color
+	return best_color if best_score >= 0.08 else fallback
 
 
 static func _signed_modifier(key: StringName, amount: float) -> String:
