@@ -9,12 +9,12 @@ const PREVIEW_APPEARANCE_PATH := (
 const ANCHORS_PATH := (
 	"res://game/content/packs/items/smoke_shell_helmet/anchors_walk_down.json"
 )
-const EXPECTED_ICON_SHA256 := "9D5D9A14D005BE3B08C5CC90F2E11C74EF214BAC8C921452F34DC1DAEF509BEC"
+const EXPECTED_ICON_SHA256 := "AC3ACB1118DEFA21907EE7323BC4D07B8DEE53FCCCABDD94CD26DA73686680DE"
 const EXPECTED_APPEARANCE_SHA256 := "B3932E02DAF39074CE048E45B6FAE7F221019D87AD7B3A4327FA40714F25874A"
 const EXPECTED_ANCHORS_SHA256 := "7055D9A6A12B35C06BA3744A78F8CA7CC4B5C9E7E48CF0BA94BA383898C0978E"
 
 
-func test_installed_files_are_the_exact_user_approved_candidate_002_artifacts() -> void:
+func test_installed_files_match_the_approved_shipping_icon_and_appearance_artifacts() -> void:
 	assert_bool(FileAccess.file_exists(ICON_PATH)).is_true()
 	assert_bool(FileAccess.file_exists(APPEARANCE_PATH)).is_true()
 	assert_bool(FileAccess.file_exists(ANCHORS_PATH)).is_true()
@@ -29,7 +29,7 @@ func test_installed_files_are_the_exact_user_approved_candidate_002_artifacts() 
 		EXPECTED_APPEARANCE_SHA256
 	)
 	assert_str(FileAccess.get_sha256(ANCHORS_PATH).to_upper()).is_equal(EXPECTED_ANCHORS_SHA256)
-	assert_vector(Vector2(load(ICON_PATH).get_size())).is_equal(Vector2(256, 256))
+	assert_vector(Vector2(load(ICON_PATH).get_size())).is_equal(Vector2(64, 64))
 	assert_vector(Vector2(load(APPEARANCE_PATH).get_size())).is_equal(Vector2(128, 128))
 
 
