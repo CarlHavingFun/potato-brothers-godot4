@@ -3,6 +3,7 @@ extends GdUnitTestSuite
 
 const OUTPUT_DIR_URI := "user://full-static-assets-combat-v1"
 const CAPTURE_URI := OUTPUT_DIR_URI + "/combat-1280x720.png"
+const PAUSE_CAPTURE_URI := OUTPUT_DIR_URI + "/pause-1280x720.png"
 const COVERAGE_URI := OUTPUT_DIR_URI + "/gogobro-static-coverage-v1.json"
 const REGISTRY_PATH := "res://game/content/assets/gogobro_static_assets_v1.json"
 const CAPTURE_SIZE := Vector2i(1280, 720)
@@ -253,6 +254,52 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 			"render_backend": DisplayServer.get_name(),
 			"available": true,
 		}
+	var pause_state_before := _pause_state_signature(app.current_session)
+	combat_screen.call("_open_pause")
+	var pause_overlay := combat_screen.get("pause_overlay") as Control
+	var pause_opened := (
+		get_tree().paused
+		and pause_overlay != null
+		and pause_overlay.visible
+		and pause_overlay.has_node("PauseMenu/ContinueButton")
+		and pause_overlay.has_node("Loadout/Weapons")
+		and pause_overlay.has_node("StatsColumn/Rows")
+		and pause_overlay.has_node("ExitConfirmation/ConfirmButton")
+	)
+	var pause_state_unchanged := _pause_state_signature(app.current_session) == pause_state_before
+	await _wait_for_capture_frame()
+	var pause_capture_ok := true
+	var pause_capture_record := {
+		"path": "",
+		"size": [CAPTURE_SIZE.x, CAPTURE_SIZE.y],
+		"sha256": "",
+		"render_backend": DisplayServer.get_name(),
+		"available": false,
+	}
+	if DisplayServer.get_name() != "headless":
+		var pause_image := root_window.get_texture().get_image()
+		pause_capture_ok = pause_image != null and pause_image.get_size() == CAPTURE_SIZE
+		if pause_capture_ok:
+			var pause_capture_path := ProjectSettings.globalize_path(PAUSE_CAPTURE_URI)
+			pause_capture_ok = pause_image.save_png(pause_capture_path) == OK
+			if pause_capture_ok:
+				pause_capture_record = {
+					"path": pause_capture_path,
+					"size": [CAPTURE_SIZE.x, CAPTURE_SIZE.y],
+					"sha256": FileAccess.get_sha256(pause_capture_path),
+					"render_backend": DisplayServer.get_name(),
+					"available": true,
+				}
+	combat_screen.call("_resume_from_pause")
+	var pause_closed := not get_tree().paused and pause_overlay != null and not pause_overlay.visible
+	if not _require(pause_opened, "real combat pause overlay structure"):
+		return
+	if not _require(pause_state_unchanged, "opening pause does not mutate run state"):
+		return
+	if not _require(pause_capture_ok, "1280x720 pause capture"):
+		return
+	if not _require(pause_closed, "pause resume restores combat processing"):
+		return
 
 	_exercise_remaining_real_consumers(content, snapshot)
 	var report := GogoStaticCoverageAudit.build(
@@ -274,6 +321,7 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	):
 		return
 	report["capture"] = capture_record
+	report["pause_capture"] = pause_capture_record
 	report["live_combat"] = {
 		"character_count": content.all(&"character").size(),
 		"weapon_asset_ids": distinct_assets.keys().map(func(id: Variant) -> String: return String(id)),
@@ -505,6 +553,23 @@ func _wait_for_capture_frame() -> void:
 	# the SubViewport texture; headless runs validate gameplay and coverage only.
 	if DisplayServer.get_name() != "headless":
 		await RenderingServer.frame_post_draw
+
+
+func _pause_state_signature(session: GameSession) -> Dictionary:
+	if session == null or session.run_state == null:
+		return {}
+	var player := session.run_state.player()
+	if player == null:
+		return {}
+	return {
+		"phase": session.run_state.phase,
+		"wave": session.run_state.current_wave,
+		"ended": session.run_state.ended,
+		"health": player.current_health,
+		"materials": player.materials,
+		"weapons": player.weapon_ids.duplicate(),
+		"items": player.item_ids.duplicate(),
+	}
 
 
 func _exercise_remaining_real_consumers(

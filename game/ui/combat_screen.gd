@@ -1,7 +1,11 @@
 extends Node2D
 
+const PAUSE_OVERLAY := preload("res://game/ui/pause_overlay.gd")
+
 var world: CombatWorld
 var hud: GogoBrotatoCombatHud
+var pause_overlay: Control
+var latest_hud_snapshot: GogoCombatHudSnapshot
 var static_asset_snapshot_override: GogoStaticAssetSnapshot
 
 
@@ -12,6 +16,7 @@ func _ready() -> void:
 	world = CombatWorld.new()
 	add_child(world)
 	_build_hud()
+	_build_pause_overlay()
 	world.hud_snapshot_changed.connect(_on_hud_snapshot_changed)
 	world.wave_completed.connect(_on_wave_completed)
 	world.run_failed.connect(_on_run_failed)
@@ -38,10 +43,35 @@ func _build_hud() -> void:
 	layer.add_child(hud)
 
 
+func _build_pause_overlay() -> void:
+	var layer := CanvasLayer.new()
+	layer.name = "PauseCanvas"
+	layer.layer = 100
+	add_child(layer)
+	pause_overlay = PAUSE_OVERLAY.new() as Control
+	pause_overlay.name = "PauseOverlay"
+	pause_overlay.connect("continue_requested", _resume_from_pause)
+	pause_overlay.connect("restart_requested", _restart_wave)
+	pause_overlay.connect("end_run_requested", _end_run_from_pause)
+	pause_overlay.connect("return_to_menu_requested", _return_to_menu_from_pause)
+	layer.add_child(pause_overlay)
+
+
 func _process(_delta: float) -> void:
 	if hud == null:
 		return
 	hud.note_movement(Input.get_vector("move_left", "move_right", "move_up", "move_down"))
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("pause") and pause_overlay != null and not pause_overlay.visible:
+		get_viewport().set_input_as_handled()
+		_open_pause()
+
+
+func _exit_tree() -> void:
+	if get_tree() != null and get_tree().paused:
+		get_tree().paused = false
 
 
 func _static_asset_snapshot() -> GogoStaticAssetSnapshot:
@@ -54,8 +84,64 @@ func _static_asset_snapshot() -> GogoStaticAssetSnapshot:
 
 
 func _on_hud_snapshot_changed(snapshot: GogoCombatHudSnapshot) -> void:
+	latest_hud_snapshot = snapshot
 	if hud != null:
 		hud.apply_snapshot(snapshot)
+
+
+func _open_pause() -> void:
+	var app := AppContext.kernel(self)
+	if app == null or app.current_session == null or pause_overlay == null:
+		return
+	var session := app.current_session
+	var player := session.run_state.player()
+	var zone := session.content_snapshot.definition(session.run_state.zone_id, &"zone") as GogoZoneDefinition
+	var total_waves := zone.wave_ids.size() if zone != null else session.run_state.current_wave
+	var seconds_remaining := latest_hud_snapshot.seconds if latest_hud_snapshot != null else 0.0
+	pause_overlay.call(
+		"configure",
+		player,
+		session.content_snapshot,
+		_static_asset_snapshot(),
+		session.run_state.current_wave,
+		total_waves,
+		seconds_remaining
+	)
+	pause_overlay.call("open")
+	get_tree().paused = true
+
+
+func _resume_from_pause() -> void:
+	get_tree().paused = false
+	if pause_overlay != null:
+		pause_overlay.call("close")
+
+
+func _restart_wave() -> void:
+	_resume_from_pause()
+	var app := AppContext.kernel(self)
+	if app != null:
+		app.route(FlowRoute.COMBAT)
+
+
+func _end_run_from_pause() -> void:
+	_resume_from_pause()
+	var app := AppContext.kernel(self)
+	if app == null or app.current_session == null:
+		return
+	app.current_session.fail_run()
+	app.route(FlowRoute.SETTLEMENT)
+
+
+func _return_to_menu_from_pause() -> void:
+	_resume_from_pause()
+	var app := AppContext.kernel(self)
+	if app == null:
+		return
+	if app.current_session != null:
+		app.current_session.fail_run()
+		app.close_session(true)
+	app.route(FlowRoute.MAIN_MENU)
 
 
 func _on_wave_completed() -> void:

@@ -57,6 +57,20 @@ func test_combat_hud_resolves_accent_hud_and_control_texture_consumers_at_neares
 		assert_str(String(shell_records[0].node)).is_equal("BrotatoHUD/MetricPalette")
 
 
+func test_combat_screen_mounts_hidden_pause_overlay_above_the_hud() -> void:
+	var combat := auto_free(COMBAT_SCREEN.new()) as Node2D
+	add_child(combat)
+	combat.call("_build_hud")
+	combat.call("_build_pause_overlay")
+	var hud_canvas := combat.get_node("HUDCanvas") as CanvasLayer
+	var pause_canvas := combat.get_node("PauseCanvas") as CanvasLayer
+	var overlay := pause_canvas.get_node("PauseOverlay") as Control
+	assert_bool(pause_canvas.layer > hud_canvas.layer).is_true()
+	assert_bool(overlay.visible).is_false()
+	assert_bool(overlay.has_node("PauseMenu/ContinueButton")).is_true()
+	assert_bool(overlay.has_node("ExitConfirmation/ConfirmButton")).is_true()
+
+
 func _static_ui_snapshot() -> GogoStaticAssetSnapshot:
 	var handles: Dictionary = {}
 	var global_bindings: Dictionary = {}
