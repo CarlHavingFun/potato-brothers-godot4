@@ -193,9 +193,7 @@ func test_real_selection_shop_and_upgrade_routes_use_zone_badge_and_shared_cards
 	var upgrade_screen := auto_free(UPGRADE_SCREEN.new()) as GogoScreenBase
 	upgrade_screen.static_asset_snapshot_override = static_snapshot
 	add_child(upgrade_screen)
-	assert_int(upgrade_screen.get_node(
-		"ContentRoot/Body/UpgradeCardGrid"
-	).get_child_count()).is_equal(3)
+	assert_int(upgrade_screen.get_node("UpgradeChoiceRow").get_child_count()).is_equal(4)
 
 
 func _static_ui_snapshot(include_selectors: bool = true) -> GogoStaticAssetSnapshot:

@@ -7,6 +7,7 @@ const CHARACTER_OUTPUT_URI := OUTPUT_DIR_URI + "/character-select-1280x720.png"
 const WEAPON_OUTPUT_URI := OUTPUT_DIR_URI + "/weapon-select-1280x720.png"
 const DIFFICULTY_OUTPUT_URI := OUTPUT_DIR_URI + "/difficulty-select-1280x720.png"
 const SHOP_OUTPUT_URI := OUTPUT_DIR_URI + "/shop-1280x720.png"
+const UPGRADE_OUTPUT_URI := OUTPUT_DIR_URI + "/upgrade-1280x720.png"
 const MANIFEST_URI := OUTPUT_DIR_URI + "/route-captures-v1.json"
 const CAPTURE_SIZE := Vector2i(1280, 720)
 const APP_SCENE := preload("res://game/app/app_root.tscn")
@@ -219,6 +220,65 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 		&"shop",
 		SHOP_OUTPUT_URI,
 		"res://game/ui/shop_screen.gd"
+	)
+	if capture.is_empty():
+		return
+	captures.append(capture)
+
+	if not _require(app.current_session.continue_after_shop(), "advance from shop to combat"):
+		return
+	if not _require(app.route(FlowRoute.COMBAT) == OK, "combat route before upgrade"):
+		return
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var combat_screen := host.get_child(0) as Node2D
+	if not _require(
+		combat_screen != null
+		and combat_screen.get_script() != null
+		and (combat_screen.get_script() as Script).resource_path == "res://game/ui/combat_screen.gd",
+		"actual combat route before upgrade"
+	):
+		return
+	var combat_world := combat_screen.get("world") as CombatWorld
+	if not _require(combat_world != null, "actual combat world before upgrade"):
+		return
+	combat_world.call("_finish_wave")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var upgrade_screen := _current_screen(host)
+	if not _require(
+		_is_actual_route(upgrade_screen, "res://game/ui/upgrade_screen.gd"),
+		"actual upgrade route after combat"
+	):
+		return
+	var choices := upgrade_screen.get_node_or_null("UpgradeChoiceRow") as HBoxContainer
+	if not _require(
+		choices != null
+		and choices.get_child_count() == 4
+		and upgrade_screen.get_node_or_null("BattlefieldBackdrop") is TextureRect
+		and (
+			DisplayServer.get_name() == "headless"
+			or (upgrade_screen.get_node("BattlefieldBackdrop") as TextureRect).texture != null
+		)
+		and upgrade_screen.get_node_or_null("DimVeil") is ColorRect
+		and upgrade_screen.get_node_or_null("StatsColumn") != null
+		and upgrade_screen.get_node_or_null("RerollButton") is Button,
+		"four-choice upgrade hierarchy with captured battlefield"
+	):
+		return
+	if not _require(
+		_control_fits_capture(choices)
+		and _control_fits_capture(upgrade_screen.get_node("StatsColumn") as Control)
+		and _control_fits_capture(upgrade_screen.get_node("RerollButton") as Control),
+		"upgrade hierarchy fits 1280x720"
+	):
+		return
+	capture = await _capture_route(
+		root_window,
+		upgrade_screen,
+		&"upgrade",
+		UPGRADE_OUTPUT_URI,
+		"res://game/ui/upgrade_screen.gd"
 	)
 	if capture.is_empty():
 		return

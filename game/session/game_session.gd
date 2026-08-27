@@ -195,6 +195,8 @@ func transition(next_phase: StringName) -> Error:
 		return ERR_INVALID_DATA
 	var previous := run_state.phase
 	run_state.phase = next_phase
+	if next_phase == &"upgrade" and previous != &"upgrade":
+		run_state.upgrade_reroll_count = 0
 	phase_changed.emit(previous, next_phase)
 	state_changed.emit()
 	return OK

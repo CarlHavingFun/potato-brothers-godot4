@@ -146,12 +146,25 @@ func _return_to_menu_from_pause() -> void:
 
 func _on_wave_completed() -> void:
 	var app := AppContext.kernel(self)
+	var battlefield_backdrop := _capture_battlefield_backdrop()
 	var save_error := app.save_checkpoint()
 	if save_error != OK:
 		app.route(FlowRoute.DIAGNOSTIC, {"message": "波次存档失败", "details": [app.profile_service.last_error]})
 		return
 	var route_id := FlowRoute.UPGRADE if app.current_session.run_state.phase == &"upgrade" else FlowRoute.SHOP
-	app.route(route_id)
+	app.route(route_id, {"battlefield_backdrop": battlefield_backdrop} if route_id == FlowRoute.UPGRADE else {})
+
+
+func _capture_battlefield_backdrop() -> Texture2D:
+	if DisplayServer.get_name() == "headless":
+		return null
+	var viewport := get_viewport()
+	if viewport == null:
+		return null
+	var image := viewport.get_texture().get_image()
+	if image == null or image.is_empty():
+		return null
+	return ImageTexture.create_from_image(image)
 
 
 func _on_run_failed() -> void:

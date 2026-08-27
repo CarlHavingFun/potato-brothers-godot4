@@ -15,6 +15,7 @@ const SCHEMA_VERSION := 1
 @export var players: Array[SessionPlayerState] = []
 @export var locked_shop_offer_ids: Array[StringName] = []
 @export var reroll_count: int = 0
+@export var upgrade_reroll_count: int = 0
 @export var pending_upgrade_count: int = 0
 @export var elapsed_seconds: float = 0.0
 
@@ -70,6 +71,7 @@ func to_dictionary() -> Dictionary:
 		"players": serialized_players,
 		"locked_shop_offer_ids": locked_shop_offer_ids.map(func(id: StringName) -> String: return String(id)),
 		"reroll_count": reroll_count,
+		"upgrade_reroll_count": upgrade_reroll_count,
 		"pending_upgrade_count": pending_upgrade_count,
 		"elapsed_seconds": elapsed_seconds,
 	}
@@ -88,6 +90,7 @@ static func from_dictionary(data: Dictionary) -> GogoRunState:
 	state.won = bool(data.get("won", false))
 	state.ended = bool(data.get("ended", false))
 	state.reroll_count = int(data.get("reroll_count", 0))
+	state.upgrade_reroll_count = int(data.get("upgrade_reroll_count", 0))
 	state.pending_upgrade_count = int(data.get("pending_upgrade_count", 0))
 	state.elapsed_seconds = float(data.get("elapsed_seconds", 0.0))
 	for raw: Dictionary in data.get("players", []):

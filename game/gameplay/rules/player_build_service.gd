@@ -4,6 +4,43 @@ extends RefCounted
 var pipeline := GogoStatPipeline.new()
 
 
+func upgrade_reward_offers(session: GameSession, count: int = 4) -> Array[GogoUpgradeDefinition]:
+	if session == null or session.run_state == null or session.content_snapshot == null:
+		return []
+	var pool: Array[GogoUpgradeDefinition] = []
+	for definition in session.content_snapshot.all(&"upgrade"):
+		pool.append(definition as GogoUpgradeDefinition)
+	var rng := RandomNumberGenerator.new()
+	var state := session.run_state
+	rng.seed = (
+		state.run_seed
+		+ state.current_wave * 1000003
+		+ state.pending_upgrade_count * 9176
+		+ state.upgrade_reroll_count * 31337
+	)
+	var result: Array[GogoUpgradeDefinition] = []
+	while result.size() < count and not pool.is_empty():
+		result.append(pool.pop_at(rng.randi_range(0, pool.size() - 1)))
+	return result
+
+
+func upgrade_reroll_price(session: GameSession) -> int:
+	if session == null or session.run_state == null:
+		return 1
+	return maxi(1, 1 + int(floor(float(session.run_state.current_wave) * 0.5)) + session.run_state.upgrade_reroll_count)
+
+
+func reroll_upgrade_rewards(session: GameSession) -> Error:
+	if session == null or session.run_state == null:
+		return ERR_INVALID_PARAMETER
+	var player := session.run_state.player()
+	if player == null or not player.try_spend(upgrade_reroll_price(session)):
+		return ERR_UNAUTHORIZED
+	session.run_state.upgrade_reroll_count += 1
+	session.state_changed.emit()
+	return OK
+
+
 func rebuild(session: GameSession, player: SessionPlayerState) -> Error:
 	if session == null or player == null:
 		return ERR_INVALID_PARAMETER

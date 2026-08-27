@@ -5,6 +5,7 @@ const STAT_LIST_PATH := "res://game/ui/stat_list_presenter.gd"
 const LOADOUT_STRIP_PATH := "res://game/ui/loadout_strip_presenter.gd"
 const STAT_LIST_PRESENTER := preload("res://game/ui/stat_list_presenter.gd")
 const SHOP_SCREEN := preload("res://game/ui/shop_screen.gd")
+const UPGRADE_SCREEN := preload("res://game/ui/upgrade_screen.gd")
 const NATIVE_CAPTURE_RECT := Rect2(0, 0, 1280, 720)
 
 
@@ -649,6 +650,99 @@ func test_shop_rightmost_purchase_keeps_canonical_offers_and_nearest_focus() -> 
 		assert_int(int(focus_owner.get_meta(&"offer_index", -1))).is_equal(2)
 
 
+func test_upgrade_reward_has_exactly_four_real_choices() -> void:
+	var fixture := await _route_upgrade()
+	var screen := fixture.screen as GogoScreenBase
+	var choices := screen.get_node_or_null("UpgradeChoiceRow") as HBoxContainer
+	assert_object(choices).is_not_null()
+	if choices != null:
+		assert_int(choices.get_child_count()).is_equal(4)
+	assert_bool(screen.has_node("StatsColumn")).is_true()
+	assert_bool(screen.has_node("RerollButton")).is_true()
+
+
+func test_upgrade_reroll_charges_its_own_canonical_counter_without_duplicate_choices() -> void:
+	var fixture := await _route_upgrade()
+	var screen := fixture.screen as GogoScreenBase
+	var session := fixture.session as GameSession
+	var player := session.run_state.player()
+	var choices := screen.get_node("UpgradeChoiceRow") as HBoxContainer
+	var before_ids := _upgrade_choice_ids(choices)
+	assert_int(before_ids.size()).is_equal(4)
+	assert_int(_unique_count(before_ids)).is_equal(4)
+	assert_str((screen.get_node("RerollButton") as Button).text).contains("1")
+	var materials_before := player.materials
+	(screen.get_node("RerollButton") as Button).pressed.emit()
+	await _settle_ui()
+	screen = fixture.app.get_node("UpgradeRouteHost").get_child(0) as GogoScreenBase
+	assert_int(session.run_state.reroll_count).is_equal(0)
+	assert_int(session.run_state.upgrade_reroll_count).is_equal(1)
+	assert_int(player.materials).is_equal(materials_before - 1)
+	var after_ids := _upgrade_choice_ids(screen.get_node("UpgradeChoiceRow") as HBoxContainer)
+	assert_int(after_ids.size()).is_equal(4)
+	assert_int(_unique_count(after_ids)).is_equal(4)
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	assert_bool(focus_owner != null and focus_owner.get_meta(&"focus_role", &"") == &"upgrade_choice").is_true()
+
+
+func test_upgrade_reroll_with_insufficient_materials_keeps_offers_and_state_unchanged() -> void:
+	var fixture := await _route_upgrade()
+	var screen := fixture.screen as GogoScreenBase
+	var session := fixture.session as GameSession
+	var player := session.run_state.player()
+	player.materials = 0
+	var before_ids := _upgrade_choice_ids(screen.get_node("UpgradeChoiceRow") as HBoxContainer)
+	(screen.get_node("RerollButton") as Button).pressed.emit()
+	await _settle_ui()
+	screen = fixture.app.get_node("UpgradeRouteHost").get_child(0) as GogoScreenBase
+	assert_int(session.run_state.upgrade_reroll_count).is_equal(0)
+	assert_int(player.materials).is_equal(0)
+	assert_array(_upgrade_choice_ids(screen.get_node("UpgradeChoiceRow") as HBoxContainer)).is_equal(before_ids)
+	assert_str((screen.get_node("RewardStatus") as Label).text).is_equal("材料不足")
+
+
+func test_upgrade_choice_decrements_pending_rewards_then_routes_to_shop() -> void:
+	var fixture := await _route_upgrade(2)
+	var screen := fixture.screen as GogoScreenBase
+	var session := fixture.session as GameSession
+	var player := session.run_state.player()
+	var first_choice := screen.get_node("UpgradeChoiceRow/UpgradeChoice0") as Button
+	var chosen_id := first_choice.get_meta(&"content_id", &"") as StringName
+	first_choice.pressed.emit()
+	await _settle_ui()
+	screen = fixture.app.get_node("UpgradeRouteHost").get_child(0) as GogoScreenBase
+	assert_int(session.run_state.pending_upgrade_count).is_equal(1)
+	assert_array(player.upgrade_ids).contains([chosen_id])
+	assert_bool(screen.get_script().resource_path == "res://game/ui/upgrade_screen.gd").is_true()
+	assert_int((screen.get_node("UpgradeChoiceRow") as HBoxContainer).get_child_count()).is_equal(4)
+	(screen.get_node("UpgradeChoiceRow/UpgradeChoice0") as Button).pressed.emit()
+	await _settle_ui()
+	assert_int(session.run_state.pending_upgrade_count).is_equal(0)
+	assert_str(String(session.run_state.phase)).is_equal("shop")
+	assert_str((fixture.app as AppKernel).scene_flow.current_route()).is_equal("shop")
+
+
+func test_upgrade_reroll_counter_resets_on_entry_and_loads_legacy_saves_as_zero() -> void:
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	var config := SessionConfig.new()
+	config.seed = 9137
+	config.character_id = ValidationContentFactory.CHARACTER_ID
+	config.starting_weapon_id = ValidationContentFactory.RANGED_ID
+	config.difficulty_id = ValidationContentFactory.DIFFICULTY_ID
+	config.zone_id = ValidationContentFactory.ZONE_ID
+	var session := GameSession.new()
+	assert_int(session.start(config, content)).is_equal(OK)
+	session.run_state.reroll_count = 7
+	session.run_state.upgrade_reroll_count = 3
+	assert_int(session.transition(&"upgrade")).is_equal(OK)
+	assert_int(session.run_state.reroll_count).is_equal(7)
+	assert_int(session.run_state.upgrade_reroll_count).is_equal(0)
+	var serialized := session.run_state.to_dictionary()
+	serialized.erase("upgrade_reroll_count")
+	var restored := GogoRunState.from_dictionary(serialized)
+	assert_int(restored.upgrade_reroll_count).is_equal(0)
+
+
 func _loadout_content() -> ContentSnapshot:
 	var pack := GogoContentPackDefinition.new()
 	pack.pack_id = &"fixture.ui"
@@ -752,6 +846,40 @@ func _shop_fixture(include_all_stats: bool = false) -> Dictionary:
 	}
 
 
+func _route_upgrade(pending_choices: int = 1) -> Dictionary:
+	var content := GogoContentRegistry.new().build_snapshot(
+		ValidationContentFactory.create_packs()
+	)
+	var app := auto_free(AppKernel.new()) as AppKernel
+	app.add_to_group(&"gogobro_app")
+	app.content_snapshot = content
+	var host := Node.new()
+	host.name = "UpgradeRouteHost"
+	var flow := SceneFlow.new()
+	add_child(app)
+	app.add_child(host)
+	app.add_child(flow)
+	flow.configure(host, {
+		FlowRoute.UPGRADE: preload("res://game/ui/upgrade_screen.tscn"),
+		FlowRoute.SHOP: preload("res://game/ui/shop_screen.tscn"),
+	})
+	app.configure(flow, null)
+	var session := GameSession.new()
+	var config := SessionConfig.new()
+	config.seed = 9137
+	config.character_id = ValidationContentFactory.CHARACTER_ID
+	config.starting_weapon_id = ValidationContentFactory.RANGED_ID
+	config.difficulty_id = ValidationContentFactory.DIFFICULTY_ID
+	config.zone_id = ValidationContentFactory.ZONE_ID
+	assert_int(session.start(config, content)).is_equal(OK)
+	session.run_state.pending_upgrade_count = pending_choices
+	assert_int(session.transition(&"upgrade")).is_equal(OK)
+	app.current_session = session
+	assert_int(app.route(FlowRoute.UPGRADE)).is_equal(OK)
+	await _settle_ui()
+	return {"app": app, "session": session, "screen": host.get_child(0)}
+
+
 func _shop_session(content: ContentSnapshot) -> GameSession:
 	var config := SessionConfig.new()
 	config.seed = 9137
@@ -783,6 +911,20 @@ func _fits_native_capture(control: Control) -> bool:
 		return false
 	var rect := control.get_global_rect()
 	return NATIVE_CAPTURE_RECT.encloses(rect)
+
+
+func _upgrade_choice_ids(choices: HBoxContainer) -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for card in choices.get_children():
+		ids.append((card as Button).get_meta(&"content_id", &"") as StringName)
+	return ids
+
+
+func _unique_count(ids: Array[StringName]) -> int:
+	var unique := {}
+	for content_id in ids:
+		unique[content_id] = true
+	return unique.size()
 
 
 func _offer_row_contains(shop: Node, content_id: StringName) -> bool:
