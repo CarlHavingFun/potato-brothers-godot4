@@ -53,18 +53,20 @@ Require each hunk to belong to candidate variants, real UI/world consumers, nati
 
 Keep the three real projectile behavior tests. Remove the uncommitted test that requires `heavy_hand_cannon` to map to `explosion`; do not remove or weaken generic explosion mechanics.
 
-- [ ] **Step 3: Add a failing runtime-destruction test**
+- [ ] **Step 3: Add a failing runtime-destruction test without extending production API**
 
 ```gdscript
 func test_world_exit_frees_pending_enemy_spawn() -> void:
 	var world := _running_world_with_pending_marker()
-	assert_int(world.pending_spawn_enemy_count()).is_equal(1)
+	var pending: Dictionary = world.get("_pending_spawn_enemies")
+	assert_int(pending.size()).is_equal(1)
+	var pending_enemy_ref := weakref(pending.values()[0])
 	world.free()
 	await get_tree().process_frame
-	assert_int(Engine.get_process_frames()).is_greater(0)
+	assert_object(pending_enemy_ref.get_ref()).is_null()
 ```
 
-The break caught is a pending `GogoEnemyActor`/Body2D surviving after its owning world exits. Verify RED through GdUnit orphan/RID output, not only a source-text assertion.
+The break caught is a pending `GogoEnemyActor`/Body2D surviving after its owning world exits. Do not add a test-only accessor to `CombatWorld`; the test may inspect the existing internal dictionary and retain only a `WeakRef`. Verify RED through both the live weak-reference assertion and GdUnit orphan/RID output, not only a source-text assertion.
 
 - [ ] **Step 4: Implement lifecycle cleanup at the owner**
 
