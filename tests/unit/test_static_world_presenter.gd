@@ -103,6 +103,22 @@ func test_boundary_decoration_is_sparse_and_keeps_floor_and_corner_coverage() ->
 		/ (2.0 * (CAPTURE_VIEW_RECT.size.x + CAPTURE_VIEW_RECT.size.y))
 	)
 	assert_float(approximate_perimeter_coverage).is_between(0.24, 0.34)
+	# Godot's dummy headless renderer preserves instance counts but intentionally
+	# discards MultiMesh buffers. Native/OpenGL runs exercise the actual transform
+	# data; the always-on assertions above still protect floor and density in CI.
+	if top.multimesh.buffer.is_empty():
+		assert_str(DisplayServer.get_name()).is_equal("headless")
+		return
+	for boundary in [bottom, left, right]:
+		assert_bool(boundary.multimesh.buffer.is_empty()).is_false()
+	var top_centers := _boundary_centers(top)
+	var bottom_centers := _boundary_centers(bottom)
+	var left_centers := _boundary_centers(left)
+	var right_centers := _boundary_centers(right)
+	_assert_horizontal_boundary_centers(top_centers, 32.0)
+	_assert_horizontal_boundary_centers(bottom_centers, 688.0)
+	_assert_vertical_boundary_centers(left_centers, 32.0)
+	_assert_vertical_boundary_centers(right_centers, 1248.0)
 
 
 func test_release_world_omits_neutral_preview_turret() -> void:
@@ -301,3 +317,34 @@ func _handle(
 		"atlas_rect_px": Rect2i(Vector2i.ZERO, size),
 	}, ImageTexture.create_from_image(image))
 	return handle
+
+
+func _boundary_centers(instance: MultiMeshInstance2D) -> Array[Vector2]:
+	var centers: Array[Vector2] = []
+	for index in instance.multimesh.instance_count:
+		centers.append(instance.multimesh.get_instance_transform_2d(index).origin)
+	return centers
+
+
+func _assert_horizontal_boundary_centers(centers: Array[Vector2], fixed_y: float) -> void:
+	assert_vector(centers[0]).is_equal(Vector2(48.0, fixed_y))
+	assert_vector(centers[-1]).is_equal(Vector2(1232.0, fixed_y))
+	assert_float(centers[-1].x - centers[0].x).is_greater_equal(1184.0)
+	for index in centers.size():
+		assert_float(centers[index].y).is_equal(fixed_y)
+		if index > 0:
+			assert_float(centers[index].x).is_greater(centers[index - 1].x)
+			assert_float(centers[index].x - centers[index - 1].x).is_greater_equal(240.0)
+
+
+func _assert_vertical_boundary_centers(centers: Array[Vector2], fixed_x: float) -> void:
+	assert_float(centers[0].x).is_equal(fixed_x)
+	assert_float(centers[-1].x).is_equal(fixed_x)
+	assert_float(centers[0].y).is_greater_equal(96.0)
+	assert_float(centers[-1].y).is_less_equal(624.0)
+	assert_float(centers[-1].y - centers[0].y).is_greater_equal(240.0)
+	for index in centers.size():
+		assert_float(centers[index].x).is_equal(fixed_x)
+		if index > 0:
+			assert_float(centers[index].y).is_greater(centers[index - 1].y)
+			assert_float(centers[index].y - centers[index - 1].y).is_greater_equal(240.0)
