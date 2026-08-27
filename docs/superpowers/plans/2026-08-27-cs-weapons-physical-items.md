@@ -109,11 +109,11 @@ assert image.size == (record["width"], record["height"])
 assert alpha_values <= {0, 255}
 assert transparent_rgb_is_zero(image)
 assert nontransparent_bbox_has_margin(image, minimum=2)
-assert unique_opaque_colors(image) <= 24
+record_metric("unique_opaque_colors", unique_opaque_colors(image))
 assert largest_connected_component_ratio(image) >= 0.82
 ```
 
-For firearms it also requires an opaque run at least 70 pixels wide; for knives it requires at least 42 pixels of occupied width or height. Emit one JSON result row per asset so a reviewer can distinguish mechanical pass from visual approval.
+Color count is a diagnostic rather than a rejection gate because moderate crisp detail is allowed. For firearms the largest connected opaque component must span at least 70 pixels horizontally; for knives that component must span at least 42 pixels in width or height. Emit one JSON result row per asset so a reviewer can distinguish mechanical pass from visual approval.
 
 - [ ] **Step 6: Run the contract test GREEN and commit**
 
