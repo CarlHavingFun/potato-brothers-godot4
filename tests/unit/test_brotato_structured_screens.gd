@@ -4,6 +4,8 @@ extends GdUnitTestSuite
 const STAT_LIST_PATH := "res://game/ui/stat_list_presenter.gd"
 const LOADOUT_STRIP_PATH := "res://game/ui/loadout_strip_presenter.gd"
 const STAT_LIST_PRESENTER := preload("res://game/ui/stat_list_presenter.gd")
+const SHOP_SCREEN := preload("res://game/ui/shop_screen.gd")
+const NATIVE_CAPTURE_RECT := Rect2(0, 0, 1280, 720)
 
 
 func test_base_chrome_exposes_native_safe_content_without_a_viewport_frame() -> void:
@@ -386,6 +388,267 @@ func test_loadout_has_six_slots_nearest_icons_fallbacks_and_selected_actions() -
 	).is_true()
 
 
+func test_shop_has_four_low_border_offers_stats_loadout_and_native_safe_actions() -> void:
+	var fixture := await _shop_fixture()
+	var shop := fixture.screen as GogoScreenBase
+	var required_paths: Array[NodePath] = [
+		^"TopBand/Wave",
+		^"TopBand/Materials",
+		^"TopBand/Reroll",
+		^"OfferRow",
+		^"StatsColumn",
+		^"LoadoutBar",
+		^"ContinueButton",
+	]
+	var has_every_node := true
+	for path in required_paths:
+		has_every_node = has_every_node and shop.get_node_or_null(path) != null
+	assert_bool(has_every_node).is_true()
+	if not has_every_node:
+		return
+
+	var top_band := shop.get_node("TopBand") as Control
+	assert_bool(top_band.get_rect().is_equal_approx(Rect2(32, 20, 1216, 64))).is_true()
+	var offer_row := shop.get_node("OfferRow") as HBoxContainer
+	assert_int(offer_row.get_child_count()).is_equal(4)
+	assert_bool(offer_row.get_rect().is_equal_approx(Rect2(32, 100, 927, 372))).is_true()
+	for slot_index in 4:
+		var slot := offer_row.get_child(slot_index) as VBoxContainer
+		assert_bool(slot != null).is_true()
+		if slot == null or not slot.has_node("Card") or not slot.has_node("Lock"):
+			continue
+		var card := slot.get_node("Card") as Button
+		var lock := slot.get_node("Lock") as Button
+		assert_bool(card.size.x >= 216.0 and card.size.x <= 235.0).is_true()
+		assert_bool(is_equal_approx(card.size.y, 320.0)).is_true()
+		assert_bool(lock.position.y >= card.get_rect().end.y).is_true()
+		assert_bool((card.get_node("Icon") as TextureRect).size.is_equal_approx(Vector2(128, 128))).is_true()
+		assert_bool(is_equal_approx((card.get_node("Icon") as TextureRect).size.x / 64.0, 2.0)).is_true()
+		assert_int((card.get_node("Icon") as TextureRect).texture_filter).is_equal(
+			CanvasItem.TEXTURE_FILTER_NEAREST
+		)
+		assert_int(card.find_children("RarityAccent", "ColorRect", true, false).size()).is_equal(1)
+		assert_bool(card.find_children("*", "PanelContainer", true, false).is_empty()).is_true()
+		assert_bool(_fits_native_capture(card) and _fits_native_capture(lock)).is_true()
+
+	var stats := shop.get_node("StatsColumn") as Control
+	assert_bool(stats.get_rect().is_equal_approx(Rect2(983, 100, 265, 394))).is_true()
+	assert_bool(stats.has_node("StatList")).is_true()
+	var loadout := shop.get_node("LoadoutBar") as Control
+	assert_bool(loadout.get_rect().is_equal_approx(Rect2(32, 570, 1216, 118))).is_true()
+	assert_int((loadout.get_node("Weapons") as HBoxContainer).get_child_count()).is_equal(6)
+	assert_bool(
+		(loadout.get_node("Items") as HBoxContainer).size.x
+		> (loadout.get_node("Weapons") as HBoxContainer).size.x
+	).is_true()
+	assert_bool(_fits_native_capture(shop.get_node("ContinueButton") as Control)).is_true()
+	assert_int(shop.find_children("StaticNineSlicePanel", "*", true, false).size()).is_equal(0)
+
+
+func test_shop_buy_lock_and_reroll_mutate_canonical_state_and_restore_content_focus() -> void:
+	var fixture := await _shop_fixture()
+	var shop := fixture.screen as GogoScreenBase
+	var session := fixture.session as GameSession
+	var player := session.run_state.player()
+	var offer_row := shop.get_node_or_null("OfferRow") as HBoxContainer
+	assert_object(offer_row).is_not_null()
+	if offer_row == null:
+		return
+	var first_slot := offer_row.get_child(0) as VBoxContainer
+	var first_card := first_slot.get_node("Card") as Button
+	var first_lock := first_slot.get_node("Lock") as Button
+	var locked_id := first_card.get_meta(&"content_id", &"") as StringName
+	first_lock.grab_focus()
+	first_lock.pressed.emit()
+	await _settle_ui()
+	assert_array(session.run_state.locked_shop_offer_ids).contains([locked_id])
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	assert_bool(
+		focus_owner != null and focus_owner.get_meta(&"content_id", &"") == locked_id
+	).is_true()
+
+	var materials_before_reroll := player.materials
+	var reroll := shop.get_node("TopBand/Reroll") as Button
+	reroll.grab_focus()
+	reroll.pressed.emit()
+	await _settle_ui()
+	assert_int(session.run_state.reroll_count).is_equal(1)
+	assert_int(player.materials).is_equal(materials_before_reroll - 1)
+	assert_str((shop.get_node("TopBand/Reroll") as Button).text).contains("2")
+	assert_bool(_offer_row_contains(shop, locked_id)).is_true()
+
+	var buy_card := _first_offer_card(shop)
+	assert_object(buy_card).is_not_null()
+	if buy_card == null:
+		return
+	var buy_id := buy_card.get_meta(&"content_id", &"") as StringName
+	var definition := _content_definition(fixture.content as ContentSnapshot, buy_id)
+	var owned_before := (
+		player.item_ids.count(buy_id)
+		if definition is GogoItemDefinition
+		else player.weapon_ids.count(buy_id)
+	)
+	var materials_before_buy := player.materials
+	buy_card.pressed.emit()
+	await _settle_ui()
+	var owned_after := (
+		player.item_ids.count(buy_id)
+		if definition is GogoItemDefinition
+		else player.weapon_ids.count(buy_id)
+	)
+	assert_int(owned_after).is_equal(owned_before + 1)
+	assert_bool(player.materials < materials_before_buy).is_true()
+	assert_str((shop.get_node("Status") as Label).text).is_equal("购买成功")
+
+
+func test_shop_loadout_sell_combine_and_continue_use_real_services() -> void:
+	var fixture := await _shop_fixture()
+	var shop := fixture.screen as GogoScreenBase
+	var session := fixture.session as GameSession
+	var player := session.run_state.player()
+	var weapon_id := ValidationContentFactory.RANGED_ID
+	assert_int(player.weapon_ids.count(weapon_id)).is_equal(3)
+
+	var slot := shop.get_node_or_null("LoadoutBar/Weapons/WeaponSlot0") as Button
+	assert_object(slot).is_not_null()
+	if slot == null:
+		return
+	slot.pressed.emit()
+	await _settle_ui()
+	var combine := shop.get_node(
+		"LoadoutBar/Weapons/WeaponSlot0/Actions/CombineButton"
+	) as Button
+	combine.grab_focus()
+	combine.pressed.emit()
+	await _settle_ui()
+	assert_int(player.weapon_ids.count(weapon_id)).is_equal(2)
+	assert_int(int(player.weapon_levels.get(String(weapon_id), 0))).is_equal(2)
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	assert_bool(
+		focus_owner != null
+		and focus_owner.get_meta(&"content_id", &"") == weapon_id
+	).is_true()
+
+	var materials_before_sell := player.materials
+	var sell := shop.get_node(
+		"LoadoutBar/Weapons/WeaponSlot0/Actions/SellButton"
+	) as Button
+	sell.pressed.emit()
+	await _settle_ui()
+	assert_int(player.weapon_ids.count(weapon_id)).is_equal(1)
+	assert_bool(player.materials > materials_before_sell).is_true()
+	assert_str((shop.get_node("Status") as Label).text).is_equal("出售成功")
+
+	var wave_before := session.run_state.current_wave
+	(shop.get_node("ContinueButton") as Button).pressed.emit()
+	await get_tree().process_frame
+	assert_int(session.run_state.current_wave).is_equal(wave_before + 1)
+	assert_str(String(session.run_state.phase)).is_equal("combat")
+
+
+func test_shop_initial_focus_starts_on_the_first_enabled_offer() -> void:
+	var fixture := await _shop_fixture()
+	var shop := fixture.screen as GogoScreenBase
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	assert_bool(focus_owner != null and shop.is_ancestor_of(focus_owner)).is_true()
+	if focus_owner == null:
+		return
+	assert_str(String(focus_owner.get_meta(&"focus_role", &""))).is_equal("buy")
+	assert_int(int(focus_owner.get_meta(&"offer_index", -1))).is_equal(0)
+
+
+func test_shop_compact_stats_keep_every_canonical_row_inside_the_right_column() -> void:
+	var fixture := await _shop_fixture(true)
+	var shop := fixture.screen as GogoScreenBase
+	var column := shop.get_node("StatsColumn") as Control
+	var list := column.get_node("StatList") as VBoxContainer
+	assert_int(list.get_child_count()).is_equal(STAT_LIST_PRESENTER.STAT_SPECS.size())
+	assert_bool(column.get_rect().is_equal_approx(Rect2(983, 100, 265, 394))).is_true()
+	for row in list.get_children():
+		assert_bool(column.get_global_rect().encloses((row as Control).get_global_rect())).is_true()
+	assert_bool(
+		column.get_global_rect().end.y
+		< (shop.get_node("ContinueButton") as Control).get_global_rect().position.y
+	).is_true()
+
+
+func test_shop_two_copy_combine_restores_focus_to_the_surviving_weapon() -> void:
+	var fixture := await _shop_fixture()
+	var shop := fixture.screen as GogoScreenBase
+	var player := (fixture.session as GameSession).run_state.player()
+	var weapon_id := ValidationContentFactory.RANGED_ID
+	player.weapon_ids.clear()
+	player.weapon_ids.append(weapon_id)
+	player.weapon_ids.append(weapon_id)
+	shop.call(&"_rebuild")
+	await _settle_ui()
+	(shop.get_node("LoadoutBar/Weapons/WeaponSlot0") as Button).pressed.emit()
+	await _settle_ui()
+	(shop.get_node(
+		"LoadoutBar/Weapons/WeaponSlot0/Actions/CombineButton"
+	) as Button).pressed.emit()
+	await _settle_ui()
+	assert_int(player.weapon_ids.count(weapon_id)).is_equal(1)
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	assert_bool(focus_owner != null and focus_owner.get_meta(&"content_id", &"") == weapon_id).is_true()
+	if focus_owner != null:
+		assert_str(String(focus_owner.get_meta(&"focus_role", &""))).is_equal("weapon")
+
+
+func test_shop_interleaved_combine_tracks_the_nearest_surviving_duplicate() -> void:
+	var fixture := await _shop_fixture()
+	var shop := fixture.screen as GogoScreenBase
+	var player := (fixture.session as GameSession).run_state.player()
+	var weapon_id := ValidationContentFactory.RANGED_ID
+	var others := _other_weapon_ids(fixture.content as ContentSnapshot, weapon_id, 2)
+	assert_int(others.size()).is_equal(2)
+	if others.size() < 2:
+		return
+	player.weapon_ids.clear()
+	for id: StringName in [weapon_id, others[0], weapon_id, others[1], weapon_id]:
+		player.weapon_ids.append(id)
+	shop.call(&"_rebuild")
+	await _settle_ui()
+	(shop.get_node("LoadoutBar/Weapons/WeaponSlot2") as Button).pressed.emit()
+	await _settle_ui()
+	(shop.get_node(
+		"LoadoutBar/Weapons/WeaponSlot2/Actions/CombineButton"
+	) as Button).pressed.emit()
+	await _settle_ui()
+	assert_int(player.weapon_ids.count(weapon_id)).is_equal(2)
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	assert_bool(focus_owner != null and focus_owner.get_meta(&"content_id", &"") == weapon_id).is_true()
+	if focus_owner != null:
+		assert_str(String(focus_owner.get_meta(&"focus_role", &""))).is_equal("combine")
+		assert_int(int(focus_owner.get_meta(&"slot_index", -1))).is_equal(3)
+
+
+func test_shop_rightmost_purchase_keeps_canonical_offers_and_nearest_focus() -> void:
+	var fixture := await _shop_fixture()
+	var shop := fixture.screen as GogoScreenBase
+	var session := fixture.session as GameSession
+	var shop_runtime := shop.get("_shop") as ShopRuntimeService
+	var ids_before: Array[StringName] = []
+	for offer in shop_runtime.offers:
+		ids_before.append((offer as GogoContentDefinition).content_id)
+	var bought_id := ids_before[3]
+	(shop.get_node("OfferRow/OfferSlot3/Card") as Button).pressed.emit()
+	await _settle_ui()
+	assert_int(shop_runtime.offers.size()).is_equal(3)
+	assert_int(session.run_state.reroll_count).is_equal(0)
+	assert_int((shop.get_node("OfferRow") as HBoxContainer).get_child_count()).is_equal(4)
+	var ids_after: Array[StringName] = []
+	for offer in shop_runtime.offers:
+		ids_after.append((offer as GogoContentDefinition).content_id)
+	ids_before.erase(bought_id)
+	assert_array(ids_after).is_equal(ids_before)
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	assert_bool(focus_owner != null).is_true()
+	if focus_owner != null:
+		assert_str(String(focus_owner.get_meta(&"focus_role", &""))).is_equal("buy")
+		assert_int(int(focus_owner.get_meta(&"offer_index", -1))).is_equal(2)
+
+
 func _loadout_content() -> ContentSnapshot:
 	var pack := GogoContentPackDefinition.new()
 	pack.pack_id = &"fixture.ui"
@@ -459,3 +722,112 @@ func _push_pointer_click(viewport: Viewport, at: Vector2) -> void:
 	released.pressed = false
 	viewport.push_input(released)
 	await get_tree().process_frame
+
+
+func _shop_fixture(include_all_stats: bool = false) -> Dictionary:
+	var content := GogoContentRegistry.new().build_snapshot(
+		ValidationContentFactory.create_packs()
+	)
+	var app := auto_free(AppKernel.new()) as AppKernel
+	app.add_to_group(&"gogobro_app")
+	app.content_snapshot = content
+	add_child(app)
+	var session := _shop_session(content)
+	if include_all_stats:
+		var player := session.run_state.player()
+		for spec: Array in STAT_LIST_PRESENTER.STAT_SPECS:
+			var key := spec[0] as StringName
+			player.base_stats[key] = 0.0
+			player.final_stats[key] = 1.0
+	app.current_session = session
+	var screen := auto_free(SHOP_SCREEN.new()) as GogoScreenBase
+	screen.static_asset_snapshot_override = _empty_static_snapshot()
+	add_child(screen)
+	await _settle_ui()
+	return {
+		"app": app,
+		"content": content,
+		"session": session,
+		"screen": screen,
+	}
+
+
+func _shop_session(content: ContentSnapshot) -> GameSession:
+	var config := SessionConfig.new()
+	config.seed = 9137
+	config.character_id = ValidationContentFactory.CHARACTER_ID
+	config.starting_weapon_id = ValidationContentFactory.RANGED_ID
+	config.difficulty_id = ValidationContentFactory.DIFFICULTY_ID
+	config.zone_id = ValidationContentFactory.ZONE_ID
+	var session := GameSession.new()
+	assert_int(session.start(config, content)).is_equal(OK)
+	var player := session.run_state.player()
+	player.materials = 500
+	player.weapon_ids.append(ValidationContentFactory.RANGED_ID)
+	player.weapon_ids.append(ValidationContentFactory.RANGED_ID)
+	player.weapon_levels[String(ValidationContentFactory.RANGED_ID)] = 1
+	var items := content.all(&"item")
+	if not items.is_empty():
+		player.item_ids.append((items[0] as GogoContentDefinition).content_id)
+	assert_int(session.transition(&"shop")).is_equal(OK)
+	return session
+
+
+func _settle_ui() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+
+func _fits_native_capture(control: Control) -> bool:
+	if control == null:
+		return false
+	var rect := control.get_global_rect()
+	return NATIVE_CAPTURE_RECT.encloses(rect)
+
+
+func _offer_row_contains(shop: Node, content_id: StringName) -> bool:
+	var row := shop.get_node_or_null("OfferRow") as HBoxContainer
+	if row == null:
+		return false
+	for slot in row.get_children():
+		var card := (slot as Node).get_node_or_null("Card") as Button
+		if card != null and card.get_meta(&"content_id", &"") == content_id:
+			return true
+	return false
+
+
+func _first_offer_card(shop: Node) -> Button:
+	var row := shop.get_node_or_null("OfferRow") as HBoxContainer
+	if row == null:
+		return null
+	for slot in row.get_children():
+		var card := (slot as Node).get_node_or_null("Card") as Button
+		if card != null and not (card as Button).disabled:
+			return card
+	return null
+
+
+func _content_definition(
+	content: ContentSnapshot,
+	content_id: StringName
+) -> GogoContentDefinition:
+	var item := content.definition(content_id, &"item")
+	if item != null:
+		return item
+	return content.definition(content_id, &"weapon")
+
+
+func _other_weapon_ids(
+	content: ContentSnapshot,
+	excluded_id: StringName,
+	count: int
+) -> Array[StringName]:
+	var result: Array[StringName] = []
+	for definition in content.all(&"weapon"):
+		var content_id := (definition as GogoContentDefinition).content_id
+		if content_id == excluded_id:
+			continue
+		result.append(content_id)
+		if result.size() == count:
+			break
+	return result

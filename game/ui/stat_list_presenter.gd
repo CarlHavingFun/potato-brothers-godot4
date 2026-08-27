@@ -27,35 +27,43 @@ const STAT_SPECS := [
 
 static func build(
 	player: SessionPlayerState,
-	_content: ContentSnapshot
+	_content: ContentSnapshot,
+	layout_variant: StringName = &"default"
 ) -> VBoxContainer:
+	var values: Dictionary = {}
+	if player != null:
+		values = player.final_stats if not player.final_stats.is_empty() else player.base_stats
+	var visible_stat_count := 0
+	for spec: Array in STAT_SPECS:
+		if values.has(spec[0] as StringName):
+			visible_stat_count += 1
+	var compact := layout_variant == &"shop_compact" and visible_stat_count > 12
 	var list := VBoxContainer.new()
 	list.name = "StatList"
-	list.add_theme_constant_override(&"separation", 4)
+	list.add_theme_constant_override(&"separation", 1 if compact else 4)
 	if player == null:
 		return list
-	var values := player.final_stats if not player.final_stats.is_empty() else player.base_stats
 	for spec: Array in STAT_SPECS:
 		var key := spec[0] as StringName
 		if not values.has(key):
 			continue
 		var row := HBoxContainer.new()
 		row.name = String(spec[1])
-		row.custom_minimum_size = Vector2(220, 24)
-		row.add_theme_constant_override(&"separation", 12)
+		row.custom_minimum_size = Vector2(220, 20 if compact else 24)
+		row.add_theme_constant_override(&"separation", 8 if compact else 12)
 		var name_label := Label.new()
 		name_label.name = "Name"
 		name_label.text = String(spec[2])
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_label.add_theme_font_size_override(&"font_size", 17)
+		name_label.add_theme_font_size_override(&"font_size", 14 if compact else 17)
 		name_label.add_theme_color_override(&"font_color", Color("c9c3b1"))
 		row.add_child(name_label)
 		var value_label := Label.new()
 		value_label.name = "Value"
 		value_label.text = _format_value(float(values[key]), spec[3] as StringName)
 		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		value_label.custom_minimum_size.x = 76
-		value_label.add_theme_font_size_override(&"font_size", 17)
+		value_label.custom_minimum_size.x = 68 if compact else 76
+		value_label.add_theme_font_size_override(&"font_size", 14 if compact else 17)
 		var base_value := _baseline_value(key, player.base_stats)
 		value_label.add_theme_color_override(
 			&"font_color",

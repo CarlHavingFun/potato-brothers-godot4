@@ -66,7 +66,8 @@ static var _tier_palette_cache: Dictionary = {}
 static func build_card(
 	definition: GogoContentDefinition,
 	price_text: String,
-	snapshot: GogoStaticAssetSnapshot
+	snapshot: GogoStaticAssetSnapshot,
+	layout_variant: StringName = &"compact"
 ) -> Control:
 	var card := Button.new()
 	card.name = "StaticCard"
@@ -158,6 +159,8 @@ static func build_card(
 	price_label.add_theme_color_override(&"font_color", Color("f1ca52"))
 	card.add_child(price_label)
 	_pin_price_to_right(price_label)
+	if layout_variant == &"shop_offer":
+		_apply_shop_offer_layout(card)
 
 	return card
 
@@ -283,6 +286,72 @@ static func _pin_price_to_right(control: Control) -> void:
 	control.anchor_right = 1.0
 	control.offset_left = -56.0
 	control.offset_right = -6.0
+
+
+static func _apply_shop_offer_layout(card: Button) -> void:
+	card.custom_minimum_size = Vector2(216, 320)
+	card.size = Vector2(216, 320)
+
+	var accent := card.get_node("RarityAccent") as ColorRect
+	accent.offset_right = 4.0
+
+	for node_name: StringName in [&"IconFallback", &"Icon"]:
+		var icon_control := card.get_node(NodePath(node_name)) as Control
+		icon_control.anchor_left = 0.5
+		icon_control.anchor_right = 0.5
+		icon_control.position = Vector2.ZERO
+		icon_control.offset_left = -64.0
+		icon_control.offset_top = 8.0
+		icon_control.offset_right = 64.0
+		icon_control.offset_bottom = 136.0
+	var fallback_label := card.get_node("IconFallback/Label") as Label
+	fallback_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+	var name_label := card.get_node("Name") as Label
+	name_label.anchor_left = 0.0
+	name_label.anchor_right = 1.0
+	name_label.position = Vector2.ZERO
+	name_label.offset_left = 12.0
+	name_label.offset_top = 140.0
+	name_label.offset_right = -12.0
+	name_label.offset_bottom = 172.0
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+	var stat_rows := card.get_node("StatRows") as VBoxContainer
+	stat_rows.anchor_left = 0.0
+	stat_rows.anchor_right = 1.0
+	stat_rows.position = Vector2.ZERO
+	stat_rows.offset_left = 14.0
+	stat_rows.offset_top = 176.0
+	stat_rows.offset_right = -14.0
+	stat_rows.offset_bottom = 228.0
+	stat_rows.add_theme_constant_override(&"separation", 4)
+	for child in stat_rows.get_children():
+		(child as Label).custom_minimum_size.y = 24.0
+		(child as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+	var rarity_label := card.get_node("RarityLabel") as Label
+	rarity_label.anchor_left = 0.0
+	rarity_label.anchor_right = 1.0
+	rarity_label.position = Vector2.ZERO
+	rarity_label.offset_left = 12.0
+	rarity_label.offset_top = 234.0
+	rarity_label.offset_right = -12.0
+	rarity_label.offset_bottom = 254.0
+	rarity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+	var price_label := card.get_node("PriceOrState") as Label
+	price_label.anchor_left = 0.0
+	price_label.anchor_right = 1.0
+	price_label.position = Vector2.ZERO
+	price_label.offset_left = 12.0
+	price_label.offset_top = 268.0
+	price_label.offset_right = -12.0
+	price_label.offset_bottom = 310.0
+	price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	price_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	price_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 
 
 static func _label(

@@ -181,7 +181,10 @@ func test_real_selection_shop_and_upgrade_routes_use_zone_badge_and_shared_cards
 	var shop_screen := auto_free(SHOP_SCREEN.new()) as GogoScreenBase
 	shop_screen.static_asset_snapshot_override = static_snapshot
 	add_child(shop_screen)
-	assert_int(shop_screen.find_children("StaticCard", "Button", true, false).size()).is_equal(4)
+	var offer_row := shop_screen.get_node("OfferRow") as HBoxContainer
+	assert_int(offer_row.get_child_count()).is_equal(4)
+	for slot in offer_row.get_children():
+		assert_object((slot as Node).get_node_or_null("Card") as Button).is_not_null()
 
 	var upgrade_session := _session(content)
 	upgrade_session.run_state.pending_upgrade_count = 1

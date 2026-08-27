@@ -84,6 +84,7 @@ static func _weapon_slot(
 	slot.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	slot.set_meta(&"slot_index", slot_index)
 	slot.set_meta(&"content_id", weapon_id)
+	slot.set_meta(&"focus_role", &"weapon")
 	var occupied := not weapon_id.is_empty()
 	slot.disabled = not occupied
 	slot.focus_mode = Control.FOCUS_ALL if occupied else Control.FOCUS_NONE
@@ -151,11 +152,17 @@ static func _add_selected_actions(
 	var sell_action: Callable = actions.get("sell", Callable())
 	if sell_action.is_valid():
 		var sell := _micro_action_button("SellButton", "售")
+		sell.set_meta(&"focus_role", &"sell")
+		sell.set_meta(&"slot_index", slot_index)
+		sell.set_meta(&"content_id", weapon_id)
 		sell.pressed.connect(func() -> void: sell_action.call(slot_index))
 		action_row.add_child(sell)
 	var combine_action: Callable = actions.get("combine", Callable())
 	if combine_action.is_valid():
 		var combine := _micro_action_button("CombineButton", "合")
+		combine.set_meta(&"focus_role", &"combine")
+		combine.set_meta(&"slot_index", slot_index)
+		combine.set_meta(&"content_id", weapon_id)
 		combine.pressed.connect(func() -> void: combine_action.call(weapon_id))
 		action_row.add_child(combine)
 

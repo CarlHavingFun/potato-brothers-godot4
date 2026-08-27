@@ -6,6 +6,7 @@ const MAIN_MENU_OUTPUT_URI := OUTPUT_DIR_URI + "/menu-1280x720.png"
 const CHARACTER_OUTPUT_URI := OUTPUT_DIR_URI + "/character-select-1280x720.png"
 const WEAPON_OUTPUT_URI := OUTPUT_DIR_URI + "/weapon-select-1280x720.png"
 const DIFFICULTY_OUTPUT_URI := OUTPUT_DIR_URI + "/difficulty-select-1280x720.png"
+const SHOP_OUTPUT_URI := OUTPUT_DIR_URI + "/shop-1280x720.png"
 const MANIFEST_URI := OUTPUT_DIR_URI + "/route-captures-v1.json"
 const CAPTURE_SIZE := Vector2i(1280, 720)
 const APP_SCENE := preload("res://game/app/app_root.tscn")
@@ -39,14 +40,14 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 	var main_menu := _current_screen(host)
 	if not _require(_is_actual_route(main_menu, "res://game/ui/main_menu_screen.gd"), "actual main menu route"):
 		return
-	if not _require(_texture_visible(main_menu, "Center/StaticNineSlicePanel/Body/Wordmark"), "wordmark consumer"):
+	if not _require(_texture_visible(main_menu, "ContentRoot/Body/Wordmark"), "wordmark consumer"):
 		return
 	if not _require(_texture_visible(main_menu, "StaticMenuBackground"), "menu background consumer"):
 		return
-	if not _require(main_menu.get_node_or_null("Center/StaticNineSlicePanel") != null, "nine-slice panel consumer"):
+	if not _require(main_menu.get_node_or_null("StaticNineSlicePanel") == null, "low-border menu shell"):
 		return
 	var start_button := main_menu.get_node_or_null(
-		"Center/StaticNineSlicePanel/Body/StartButton"
+		"ContentRoot/Body/StartButton"
 	) as Button
 	if not _require(
 		start_button != null and _button_uses_texture_states(start_button),
@@ -76,7 +77,7 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 	):
 		return
 	if not _require(
-		_texture_visible(character_screen, "Center/StaticNineSlicePanel/Body/ZoneThumbnail"),
+		_texture_visible(character_screen, "ContentRoot/Body/ZoneThumbnail"),
 		"character route zone thumbnail"
 	):
 		return
@@ -102,21 +103,20 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 	):
 		return
 	var grid := weapon_screen.get_node_or_null(
-		"Center/StaticNineSlicePanel/Body/WeaponCardGrid"
+		"ContentRoot/Body/WeaponCardGrid"
 	) as GridContainer
 	if not _require(grid != null and grid.get_child_count() >= 12, "weapon card grid"):
 		return
 	var first_card := grid.get_child(0) as Button
 	if not _require(
-		_texture_visible(first_card, "Frame")
-		and _texture_visible(first_card, "Icon")
+		_texture_visible(first_card, "Icon")
 		and (first_card.get_node("Icon") as TextureRect).size.x >= 64.0
-		and _button_uses_texture_states(first_card),
-		"rendered card frame, 64px icon, and button states"
+		and _card_uses_low_border_style(first_card),
+		"rendered 64px icon and low-border card"
 	):
 		return
 	var weapon_body := weapon_screen.get_node(
-		"Center/StaticNineSlicePanel/Body"
+		"ContentRoot/Body"
 	) as VBoxContainer
 	var return_button := weapon_body.get_child(weapon_body.get_child_count() - 1) as Button
 	if not _require(
@@ -147,7 +147,7 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 	):
 		return
 	if not _require(
-		_texture_visible(difficulty_screen, "Center/StaticNineSlicePanel/Body/ZoneThumbnail"),
+		_texture_visible(difficulty_screen, "ContentRoot/Body/ZoneThumbnail"),
 		"difficulty route zone thumbnail"
 	):
 		return
@@ -165,6 +165,60 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 		&"difficulty_select",
 		DIFFICULTY_OUTPUT_URI,
 		"res://game/ui/difficulty_select_screen.gd"
+	)
+	if capture.is_empty():
+		return
+	captures.append(capture)
+
+	app.selection_draft["difficulty_id"] = ValidationContentFactory.DIFFICULTY_ID
+	app.selection_draft["zone_id"] = ValidationContentFactory.ZONE_ID
+	if not _require(app.create_session_from_draft() == OK, "shop session creation"):
+		return
+	var player := app.current_session.run_state.player()
+	player.materials = 500
+	player.weapon_ids.append(ValidationContentFactory.RANGED_ID)
+	player.weapon_ids.append(ValidationContentFactory.RANGED_ID)
+	player.weapon_levels[String(ValidationContentFactory.RANGED_ID)] = 1
+	if not _require(app.current_session.transition(&"shop") == OK, "shop phase transition"):
+		return
+	if not _require(app.route(FlowRoute.SHOP) == OK, "shop route"):
+		return
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var shop_screen := _current_screen(host)
+	if not _require(
+		_is_actual_route(shop_screen, "res://game/ui/shop_screen.gd"),
+		"actual shop instance"
+	):
+		return
+	var offer_row := shop_screen.get_node_or_null("OfferRow") as HBoxContainer
+	var loadout := shop_screen.get_node_or_null("LoadoutBar") as Control
+	if not _require(
+		offer_row != null
+		and offer_row.get_child_count() == 4
+		and shop_screen.get_node_or_null("TopBand/Reroll") is Button
+		and shop_screen.get_node_or_null("StatsColumn") != null
+		and loadout != null
+		and loadout.get_node_or_null("Weapons") is HBoxContainer
+		and (loadout.get_node("Weapons") as HBoxContainer).get_child_count() == 6
+		and shop_screen.get_node_or_null("ContinueButton") is Button,
+		"structured shop hierarchy"
+	):
+		return
+	if not _require(
+		_control_fits_capture(offer_row)
+		and _control_fits_capture(shop_screen.get_node("StatsColumn") as Control)
+		and _control_fits_capture(loadout)
+		and _control_fits_capture(shop_screen.get_node("ContinueButton") as Control),
+		"complete shop hierarchy fits 1280x720"
+	):
+		return
+	capture = await _capture_route(
+		root_window,
+		shop_screen,
+		&"shop",
+		SHOP_OUTPUT_URI,
+		"res://game/ui/shop_screen.gd"
 	)
 	if capture.is_empty():
 		return
@@ -200,10 +254,17 @@ func _capture_route(
 		"%s contains only real route UI" % route_name
 	):
 		return {}
-	await get_tree().process_frame
-	await RenderingServer.frame_post_draw
-	await get_tree().process_frame
-	await RenderingServer.frame_post_draw
+	await _wait_for_capture_frame()
+	await _wait_for_capture_frame()
+	if DisplayServer.get_name() == "headless":
+		return {
+			"route": String(route_name),
+			"screen_script": expected_script_path,
+			"user_uri": output_uri,
+			"absolute_path": "",
+			"sha256": "",
+			"capture_mode": "headless-structure",
+		}
 	var image := root_window.get_texture().get_image()
 	if not _require(
 		image != null and image.get_size() == CAPTURE_SIZE,
@@ -236,6 +297,26 @@ func _button_uses_texture_states(button: Button) -> bool:
 		if not style is StyleBoxTexture or (style as StyleBoxTexture).texture == null:
 			return false
 	return true
+
+
+func _card_uses_low_border_style(card: Button) -> bool:
+	if card == null or card.find_children("RarityAccent", "ColorRect", true, false).size() != 1:
+		return false
+	var normal := card.get_theme_stylebox(&"normal")
+	return (
+		normal is StyleBoxFlat
+		and (normal as StyleBoxFlat).border_width_left == 1
+		and not (normal as StyleBoxFlat).anti_aliasing
+	)
+
+
+func _wait_for_capture_frame() -> void:
+	await get_tree().process_frame
+	# The headless display server never emits `frame_post_draw`; awaiting it was the
+	# cause of this smoke test reaching GdUnit's five-minute watchdog. Windowed
+	# capture still waits for the real rendered frame before reading the viewport.
+	if DisplayServer.get_name() != "headless":
+		await RenderingServer.frame_post_draw
 
 
 func _control_fits_capture(control: Control) -> bool:
