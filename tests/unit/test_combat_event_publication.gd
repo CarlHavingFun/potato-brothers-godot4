@@ -73,6 +73,16 @@ func test_canonical_signal_signatures_are_exact_v2() -> void:
 	var weapon := auto_free(GogoWeaponInstance.new()) as GogoWeaponInstance
 	var projectile := auto_free(GogoProjectile.new()) as GogoProjectile
 	var enemy := auto_free(GogoEnemyActor.new()) as GogoEnemyActor
+	var world := auto_free(CombatWorld.new()) as CombatWorld
+
+	assert_array(_signal_argument_names(world, &"hud_snapshot_changed")).is_equal(["snapshot"])
+	assert_array(_signal_argument_types(world, &"hud_snapshot_changed")).is_equal([TYPE_OBJECT])
+	assert_array(_signal_argument_names(world, &"hud_changed")).is_equal([
+		"health", "max_health", "time_left", "wave",
+	])
+	assert_array(_signal_argument_types(world, &"hud_changed")).is_equal([
+		TYPE_FLOAT, TYPE_FLOAT, TYPE_FLOAT, TYPE_INT,
+	])
 
 	assert_array(_signal_argument_names(weapon, &"weapon_fired")).is_equal([
 		"weapon_instance_id", "feedback_profile_id", "integer_muzzle_global_position",
@@ -111,6 +121,44 @@ func test_canonical_signal_signatures_are_exact_v2() -> void:
 		assert_str(String(projectile.impact_kind)).is_equal(String(kind))
 	projectile.activate(null, 0, 0, 0, 0, &"rifle", &"ballistic", &"conflicting_flags")
 	assert_str(String(projectile.impact_kind)).is_equal("normal")
+
+
+func test_world_publishes_typed_and_legacy_hud_values_from_one_immutable_snapshot() -> void:
+	var session := _session_with_player()
+	var player := session.run_state.player()
+	player.current_health = 13.0
+	player.max_health = 21.0
+	player.level = 4
+	player.xp = 12
+	player.xp_to_next_level = 45
+	player.materials = 88
+	player.weapon_ids.assign([&"w1", &"w2"])
+	player.item_ids.assign([&"i1"])
+	var world := auto_free(CombatWorld.new()) as CombatWorld
+	world.session = session
+	world.wave_runtime.elapsed = 2.5
+	var captured: Dictionary = {"snapshot": null, "legacy": []}
+	world.hud_snapshot_changed.connect(func(snapshot: GogoCombatHudSnapshot) -> void:
+		captured["snapshot"] = snapshot
+	)
+	world.hud_changed.connect(func(health: float, maximum: float, seconds: float, wave: int) -> void:
+		captured["legacy"] = [health, maximum, seconds, wave]
+	)
+	world.call("_emit_hud_snapshot", 9.25)
+
+	var snapshot := captured["snapshot"] as GogoCombatHudSnapshot
+	assert_object(snapshot).is_not_null()
+	assert_float(snapshot.health).is_equal_approx(13.0, 0.0001)
+	assert_float(snapshot.maximum_health).is_equal_approx(21.0, 0.0001)
+	assert_float(snapshot.seconds).is_equal_approx(9.25, 0.0001)
+	assert_float(snapshot.wave_elapsed).is_equal_approx(2.5, 0.0001)
+	assert_int(snapshot.level).is_equal(4)
+	assert_int(snapshot.materials).is_equal(88)
+	assert_array(captured["legacy"]).is_equal([13.0, 21.0, 9.25, 1])
+	player.weapon_ids[0] = &"mutated"
+	player.item_ids.clear()
+	assert_array(snapshot.weapon_ids).is_equal([&"w1", &"w2"])
+	assert_array(snapshot.item_ids).is_equal([&"i1"])
 
 
 func test_multishot_shares_sequence_and_uses_unique_projectile_ids() -> void:

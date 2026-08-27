@@ -4,6 +4,7 @@ extends Node2D
 signal wave_completed
 signal run_failed
 signal hud_changed(health: float, max_health: float, time_left: float, wave: int)
+signal hud_snapshot_changed(snapshot: GogoCombatHudSnapshot)
 signal weapon_fired(
 	weapon_instance_id: int,
 	feedback_profile_id: StringName,
@@ -118,6 +119,7 @@ func start_wave(next_session: GameSession, wave_definition: GogoWaveDefinition) 
 	feedback_presenter.configure(player_camera, session.static_asset_snapshot)
 	feedback_presenter.clear_feedback()
 	running = true
+	_emit_hud_snapshot(wave_runtime.wave.duration_seconds)
 	return OK
 
 
@@ -146,9 +148,8 @@ func _physics_process(delta: float) -> void:
 	session.run_state.elapsed_seconds += delta
 	for enemy_id in wave_runtime.tick(delta):
 		_spawn_enemy(enemy_id)
-	var player := session.run_state.player()
 	var remaining := maxf(wave_runtime.wave.duration_seconds - wave_runtime.elapsed, 0.0)
-	hud_changed.emit(player.current_health, player.max_health, remaining, session.run_state.current_wave)
+	_emit_hud_snapshot(remaining)
 	if wave_runtime.is_finished():
 		_finish_wave()
 
@@ -320,9 +321,27 @@ func _random_edge_position() -> Vector2:
 		_: return Vector2(20.0, session.rng.randf_range(20.0, arena_rect.size.y - 20.0))
 
 
-func _on_player_health_changed(current: float, maximum: float) -> void:
+func _on_player_health_changed(_current: float, _maximum: float) -> void:
+	if session == null or session.run_state == null or wave_runtime.wave == null:
+		return
 	var remaining := maxf(wave_runtime.wave.duration_seconds - wave_runtime.elapsed, 0.0)
-	hud_changed.emit(current, maximum, remaining, session.run_state.current_wave)
+	_emit_hud_snapshot(remaining)
+
+
+func _emit_hud_snapshot(remaining: float) -> void:
+	if session == null or session.run_state == null:
+		return
+	var player := session.run_state.player()
+	if player == null:
+		return
+	var snapshot := GogoCombatHudSnapshot.create(
+		player,
+		remaining,
+		session.run_state.current_wave,
+		wave_runtime.elapsed
+	)
+	hud_snapshot_changed.emit(snapshot)
+	hud_changed.emit(snapshot.health, snapshot.maximum_health, snapshot.seconds, snapshot.wave)
 
 
 func _on_player_died() -> void:
