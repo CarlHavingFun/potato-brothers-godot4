@@ -81,15 +81,29 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 	if capture.is_empty():
 		return
 	captures.append(capture)
+	var diagnostic_details: Array[String] = []
+	for detail_index in 28:
+		diagnostic_details.append(
+			"诊断细节 %02d：真实路由、候选来源与哈希均需保持可追溯。" % detail_index
+		)
 	if not _require(app.route(FlowRoute.DIAGNOSTIC, {
 		"message": "静态素材诊断",
-		"details": ["真实路由可见性检查"],
+		"details": diagnostic_details,
 	}) == OK, "diagnostic route"):
 		return
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var diagnostic_screen := _current_screen(host)
 	var principal_surface := diagnostic_screen.get_node_or_null("PrincipalSurface") as NinePatchRect
+	var diagnostic_content := principal_surface.get_node_or_null(
+		"DiagnosticContent"
+	) as VBoxContainer if principal_surface != null else null
+	var details_scroll := diagnostic_content.get_node_or_null(
+		"DetailsScroll"
+	) as ScrollContainer if diagnostic_content != null else null
+	var return_button := diagnostic_content.get_node_or_null(
+		"ReturnButton"
+	) as Button if diagnostic_content != null else null
 	if not _require(
 		_is_actual_route(diagnostic_screen, "res://game/ui/diagnostic_screen.gd")
 		and principal_surface != null
@@ -97,8 +111,13 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 		and principal_surface.is_visible_in_tree()
 		and principal_surface.position == Vector2(272, 184)
 		and principal_surface.size == Vector2(736, 352)
-		and principal_surface.has_node("DiagnosticContent"),
-		"actual diagnostic principal texture"
+		and diagnostic_content != null
+		and details_scroll != null
+		and return_button != null
+		and _control_fits_capture(details_scroll)
+		and _control_fits_capture(return_button)
+		and details_scroll.get_v_scroll_bar().max_value > details_scroll.get_v_scroll_bar().page,
+		"actual scrollable diagnostic principal texture"
 	):
 		return
 	capture = await _capture_route(

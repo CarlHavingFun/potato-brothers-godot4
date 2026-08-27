@@ -990,11 +990,11 @@
       "category": "ui_brand",
       "role": "ui_texture",
       "resource_path": "res://game/assets/gogobro_static_preview/ui/zone_thumbnail.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/zone_thumbnail/candidate-001/curated/zone_thumbnail-512x288.png",
-      "sha256": "BBEB5E11F0AFFDA04DD525461E264A8FEF831A9126039A78512E79E45AC2A65F",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/zone_thumbnail/candidate-002/curated/zone_thumbnail-256x144.png",
+      "sha256": "6856B72C4594AFB44E2F82CA050F879E5C45FDFEDC02FFC2D1B13D4CB0D32531",
       "pixel_size": [
-        512,
-        288
+        256,
+        144
       ],
       "variants": []
     }

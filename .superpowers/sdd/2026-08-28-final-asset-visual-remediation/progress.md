@@ -62,5 +62,12 @@ Task 3: visible UI consumers and compact main-menu actions implemented from revi
 
 - Real Diagnostic, Difficulty, and Combat HUD routes provide the three required visible-texture observations; ordinary and synthetic records cannot cover them. Final real report remains 70/70.
 - Main-menu actions are two centered 320x48 authored buttons; one Diagnostic principal panel, one unframed 256x144 zone thumbnail, and the preview-only low-border HUD underlay pass actual-size review.
+
+## Task 3 whole-branch review closure
+
+- Replaced the inaccurate 512x288-to-256x144 zone rendering with a deterministic nearest-neighbor 256x144 `candidate-002`; preview and curated candidate share SHA-256 `6856B72C4594AFB44E2F82CA050F879E5C45FDFEDC02FFC2D1B13D4CB0D32531`. Shipping rasters and approval state remain unchanged.
+- Visible TextureRect observations now validate claimed integer display scale against the actual stretch-mode render size. The real zone route records 256x144 at 1x; the HUD records 320x180 at 4x; nine-patch 1x semantics remain explicit.
+- Diagnostic details now scroll inside the existing single 736x352 principal panel while its Return button remains pinned and reachable. A 28-detail isolated 1280x720 capture confirms containment and visible scrolling.
+- Final focused tests pass 7/7 scale/provenance, 10/10 menu/Diagnostic, 9/9 candidate manifest, 3/3 HUD, and 9/9 preview runtime. Fresh windowed routes pass menu 1/1 and combat 2/2; coverage is 70/70. Full regression passes 346/346 across 35 suites.
 - Initial scoped review found one Important provenance false-positive. A strict RED/GREEN fix now binds the claimed scene to an actual ancestor script resource path and the claimed node to the real named ancestor suffix ending at the CanvasItem; wrong allowed-scene and wrong allowed-node claims both fail without creating records.
 - Post-fix focused suites and windowed real-route integration pass; final full Godot regression is 343/343 across 35 suites with zero errors, failures, flaky cases, skips, or orphans.

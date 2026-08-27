@@ -106,6 +106,40 @@ func test_diagnostic_route_uses_one_centered_principal_surface() -> void:
 	assert_bool(surface.has_node("DiagnosticContent")).is_true()
 
 
+func test_diagnostic_many_details_scroll_inside_panel_and_keep_return_reachable() -> void:
+	var details: Array[String] = []
+	for index in 40:
+		details.append("诊断细节 %02d：候选素材校验失败，需要保留完整来源与哈希。" % index)
+	var screen := auto_free(DIAGNOSTIC_SCREEN.new()) as GogoScreenBase
+	screen.static_asset_snapshot_override = _static_ui_snapshot()
+	screen.receive_route_payload({"message": "批量诊断", "details": details})
+	add_child(screen)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var surface := screen.get_node("PrincipalSurface") as NinePatchRect
+	var content := surface.get_node("DiagnosticContent") as VBoxContainer
+	var scroll := content.get_node_or_null("DetailsScroll") as ScrollContainer
+	var return_button := content.get_node_or_null("ReturnButton") as Button
+	assert_vector(surface.position).is_equal(Vector2(272, 184))
+	assert_vector(surface.size).is_equal(Vector2(736, 352))
+	assert_object(scroll).is_not_null()
+	assert_object(return_button).is_not_null()
+	if scroll == null or return_button == null:
+		return
+	var content_bounds := Rect2(Vector2.ZERO, content.size)
+	assert_bool(content_bounds.encloses(Rect2(scroll.position, scroll.size))).is_true()
+	assert_bool(content_bounds.encloses(Rect2(return_button.position, return_button.size))).is_true()
+	assert_bool(return_button.is_visible_in_tree()).is_true()
+	assert_bool(scroll.has_node("DetailsList")).is_true()
+	assert_int(scroll.get_node("DetailsList").get_child_count()).is_equal(40)
+	var scrollbar := scroll.get_v_scroll_bar()
+	assert_bool(scrollbar.max_value > scrollbar.page).is_true()
+	scroll.scroll_vertical = int(scrollbar.max_value)
+	await get_tree().process_frame
+	assert_bool(scroll.scroll_vertical > 0).is_true()
+
+
 func test_action_button_uses_empty_selector_texture_for_all_states_when_atlas_has_no_selectors() -> void:
 	var snapshot := _static_ui_snapshot(false)
 	var screen := auto_free(GogoScreenBase.new()) as GogoScreenBase
@@ -285,7 +319,7 @@ func _static_ui_snapshot(include_selectors: bool = true) -> GogoStaticAssetSnaps
 		[&"gogobro_wordmark", Vector2i(1024, 256)],
 		[&"four_state_button", Vector2i(64, 64)],
 		[&"card_and_rarity_frame_kit", Vector2i(64, 64)],
-		[&"zone_thumbnail", Vector2i(512, 288)],
+		[&"zone_thumbnail", Vector2i(256, 144)],
 	]:
 		_add_global_handle(handles, global_bindings, spec[0], spec[1])
 	if include_selectors:

@@ -168,6 +168,15 @@ func test_visible_texture_observer_requires_exact_live_texture_and_provenance() 
 		"SelectedDifficultyDetail/FakeThumbnail"
 	)).is_false()
 	assert_array(GogoStaticConsumerRegistry.current().records()).is_empty()
+	thumbnail.size = Vector2(128, 72)
+	assert_bool(registry_script.call(
+		"observe_visible_texture", handle, thumbnail,
+		"res://game/ui/difficulty_select_screen.gd",
+		"SelectedDifficultyDetail/ZoneThumbnail",
+		Vector2i.ONE
+	)).is_false()
+	assert_array(GogoStaticConsumerRegistry.current().records()).is_empty()
+	thumbnail.size = Vector2(256, 144)
 	assert_bool(registry_script.call(
 		"observe_visible_texture", handle, thumbnail,
 		"res://game/ui/difficulty_select_screen.gd",

@@ -53,6 +53,11 @@ static func observe_visible_texture(
 		or node_path.strip_edges().is_empty()
 		or _canvas_texture(canvas_item) != handle.texture
 		or not _has_verified_provenance(canvas_item, scene_path, node_path)
+		or not _has_verified_integer_scale(
+			canvas_item,
+			handle.texture,
+			integer_display_scale
+		)
 	):
 		return false
 	return current().observe(
@@ -187,3 +192,54 @@ static func _has_verified_provenance(
 		if claimed_segments[index] != actual_segments[offset + index]:
 			return false
 	return true
+
+
+static func _has_verified_integer_scale(
+	canvas_item: CanvasItem,
+	texture: Texture2D,
+	integer_display_scale: Vector2i
+) -> bool:
+	if integer_display_scale.x <= 0 or integer_display_scale.y <= 0:
+		return false
+	# Nine-patch controls tile and stretch separate edge/center regions. Their
+	# outer rect is not a uniform texture scale, so ONE records authored-pixel
+	# sampling rather than claiming the whole rect is a scaled 64x64 image.
+	if canvas_item is NinePatchRect:
+		return integer_display_scale == Vector2i.ONE
+	if not canvas_item is TextureRect:
+		return false
+	var texture_rect := canvas_item as TextureRect
+	var texture_size := Vector2(texture.get_width(), texture.get_height())
+	if texture_size.x <= 0.0 or texture_size.y <= 0.0:
+		return false
+	var rendered_size := _texture_rect_rendered_size(texture_rect, texture_size)
+	var expected_size := Vector2(
+		texture_size.x * integer_display_scale.x,
+		texture_size.y * integer_display_scale.y
+	)
+	return rendered_size.is_equal_approx(expected_size)
+
+
+static func _texture_rect_rendered_size(
+	texture_rect: TextureRect,
+	texture_size: Vector2
+) -> Vector2:
+	match texture_rect.stretch_mode:
+		TextureRect.STRETCH_KEEP, TextureRect.STRETCH_KEEP_CENTERED:
+			return texture_size
+		TextureRect.STRETCH_KEEP_ASPECT, TextureRect.STRETCH_KEEP_ASPECT_CENTERED:
+			var contained_scale := minf(
+				texture_rect.size.x / texture_size.x,
+				texture_rect.size.y / texture_size.y
+			)
+			return texture_size * contained_scale
+		TextureRect.STRETCH_KEEP_ASPECT_COVERED:
+			var covered_scale := maxf(
+				texture_rect.size.x / texture_size.x,
+				texture_rect.size.y / texture_size.y
+			)
+			return texture_size * covered_scale
+		TextureRect.STRETCH_TILE:
+			return texture_size
+		_:
+			return texture_rect.size

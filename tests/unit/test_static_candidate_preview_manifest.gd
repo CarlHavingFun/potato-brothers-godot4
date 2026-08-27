@@ -45,6 +45,7 @@ const EXPECTED_REMEDIATED_SOURCE_PATHS := {
 	"pre_aim_drills": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/pre_aim_drills/candidate-002/curated/pre_aim_drills-icon-64x64.png",
 	"smoke_shell_helmet": "GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-005/curated/smoke_shell_helmet-icon-64x64.png",
 	"combat_hud_shell": "GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/combat_hud_shell/candidate-002/curated/combat_hud_shell-logical-320x180.png",
+	"zone_thumbnail": "GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/zone_thumbnail/candidate-002/curated/zone_thumbnail-256x144.png",
 }
 
 
@@ -203,6 +204,29 @@ func test_repaired_hud_underlay_has_transparent_outer_edge_and_empty_bottom_half
 	for y in range(image.get_height() / 2, image.get_height()):
 		for x in image.get_width():
 			assert_float(image.get_pixel(x, y).a).is_zero()
+
+
+func test_zone_thumbnail_preview_is_a_true_one_to_one_256_by_144_candidate() -> void:
+	var manifest := JSON.parse_string(FileAccess.get_file_as_string(MANIFEST_PATH)) as Dictionary
+	var unit: Dictionary = {}
+	for unit_value: Variant in manifest.get("units", []) as Array:
+		var candidate := unit_value as Dictionary
+		if String(candidate.get("asset_id", "")) == "zone_thumbnail":
+			unit = candidate
+			break
+	assert_bool(not unit.is_empty()).is_true()
+	if unit.is_empty():
+		return
+	assert_str(String(unit.get("source_candidate_path", ""))).is_equal(
+		"GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/zone_thumbnail/candidate-002/curated/zone_thumbnail-256x144.png"
+	)
+	_assert_integer_pair_equals(unit.get("pixel_size"), 256, 144)
+	_assert_integer_pair_equals(unit.get("display_size_px"), 256, 144)
+	_assert_integer_pair_equals(unit.get("pivot_px"), 128, 72)
+	var image := Image.load_from_file(String(unit.get("resource_path", "")))
+	assert_bool(not image.is_empty()).is_true()
+	assert_int(image.get_width()).is_equal(256)
+	assert_int(image.get_height()).is_equal(144)
 
 
 func test_preview_builder_check_is_non_mutating_and_bound_to_fresh_coverage() -> void:
