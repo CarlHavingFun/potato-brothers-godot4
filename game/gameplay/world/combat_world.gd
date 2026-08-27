@@ -3,6 +3,7 @@ extends Node2D
 
 const STATIC_WORLD_PRESENTER := preload("res://game/gameplay/world/static_world_presenter.gd")
 const STATIC_SPAWN_MARKER := preload("res://game/gameplay/world/static_spawn_marker.gd")
+const COMBAT_PICKUP := preload("res://game/gameplay/world/combat_pickup.gd")
 const LOCAL_HITSTOP_MIN_SECONDS := 0.025
 const LOCAL_HITSTOP_MAX_SECONDS := 0.060
 const PLAYER_DAMAGE_HITSTOP_SECONDS := 0.040
@@ -47,6 +48,13 @@ signal enemy_defeated(
 	materials: int,
 	death_sequence: int
 )
+signal pickup_collected(
+	pickup_instance_id: int,
+	kind: StringName,
+	amount: int,
+	integer_collection_global_position: Vector2i,
+	collection_sequence: int
+)
 
 var session: GameSession
 var wave_runtime := WaveRuntime.new()
@@ -54,6 +62,7 @@ var zone_runtime := ZoneRuntime.new()
 var player_actor: GogoPlayerActor
 var enemy_layer: Node2D
 var projectile_layer: Node2D
+var pickup_layer: Node2D
 var effect_layer: Node2D
 var player_camera: GogoCombatCamera
 var feedback_presenter: GogoCombatFeedbackPresenter
@@ -63,6 +72,8 @@ var arena_rect := Rect2(Vector2.ZERO, Vector2(2048.0, 1536.0))
 var running := false
 var _active_enemies: Array[GogoEnemyActor] = []
 var _active_enemies_by_runtime_id: Dictionary = {}
+var _active_pickups: Array[Node2D] = []
+var _active_pickups_by_runtime_id: Dictionary = {}
 var _pending_spawn_enemies: Dictionary = {}
 var _projectile_source_item_ids: Dictionary = {}
 var _wave_transition_committed := false
@@ -70,6 +81,7 @@ var _wave_start_materials := 0
 var _local_hitstop_remaining := 0.0
 var _local_hitstop_actor_phase_latched := false
 var _run_failure_pending := false
+var _pickup_collection_sequence := 0
 
 
 func _ready() -> void:
@@ -82,6 +94,10 @@ func _ready() -> void:
 	projectile_layer = Node2D.new()
 	projectile_layer.name = "PlayerProjectiles"
 	add_child(projectile_layer)
+	pickup_layer = Node2D.new()
+	pickup_layer.name = "PickupLayer"
+	pickup_layer.z_index = 20
+	add_child(pickup_layer)
 	effect_layer = Node2D.new()
 	effect_layer.name = "Effects"
 	effect_layer.z_index = 40
@@ -204,9 +220,10 @@ func _physics_process(delta: float) -> void:
 	for enemy_id in wave_runtime.tick(delta):
 		_spawn_enemy(enemy_id)
 	var remaining := maxf(wave_runtime.wave.duration_seconds - wave_runtime.elapsed, 0.0)
-	_emit_hud_snapshot(remaining)
 	if wave_runtime.is_finished():
 		_finish_wave()
+	else:
+		_emit_hud_snapshot(remaining)
 
 
 func request_local_hitstop(seconds: float) -> void:
@@ -295,6 +312,83 @@ func nearest_active_enemy(origin: Vector2, maximum_distance: float) -> GogoEnemy
 	return nearest
 
 
+func register_active_pickup(pickup: Node2D) -> bool:
+	if (
+		pickup == null
+		or int(pickup.get("runtime_instance_id")) <= 0
+		or int(pickup.get("state")) == int(COMBAT_PICKUP.COLLECTED)
+	):
+		return false
+	var runtime_id := int(pickup.get("runtime_instance_id"))
+	if _active_pickups_by_runtime_id.has(runtime_id):
+		return _active_pickups_by_runtime_id[runtime_id] == pickup
+	_active_pickups_by_runtime_id[runtime_id] = pickup
+	var insert_at := 0
+	while (
+		insert_at < _active_pickups.size()
+		and int(_active_pickups[insert_at].get("runtime_instance_id")) < runtime_id
+	):
+		insert_at += 1
+	_active_pickups.insert(insert_at, pickup)
+	return true
+
+
+func unregister_active_pickup(
+	runtime_instance_id: int,
+	expected_pickup: Node2D = null
+) -> void:
+	if runtime_instance_id <= 0 or not _active_pickups_by_runtime_id.has(runtime_instance_id):
+		return
+	var registered := _active_pickups_by_runtime_id[runtime_instance_id] as Node2D
+	if expected_pickup != null and registered != expected_pickup:
+		return
+	_active_pickups_by_runtime_id.erase(runtime_instance_id)
+	_active_pickups.erase(registered)
+
+
+func active_pickup_count() -> int:
+	return _active_pickups.size()
+
+
+func active_pickup_at(index: int) -> Node2D:
+	if index < 0 or index >= _active_pickups.size():
+		return null
+	return _active_pickups[index]
+
+
+func collect_pickup(pickup: Node2D) -> StringName:
+	if pickup == null or session == null:
+		return GameSession.REWARD_INVALID
+	var runtime_instance_id := int(pickup.get("runtime_instance_id"))
+	if _active_pickups_by_runtime_id.get(runtime_instance_id) != pickup:
+		return GameSession.REWARD_DUPLICATE
+	unregister_active_pickup(runtime_instance_id, pickup)
+	var result := session.apply_reserved_reward(
+		StringName(pickup.get("reward_token")),
+		int(pickup.get("reward_reservation_id"))
+	)
+	if result == GameSession.REWARD_APPLIED:
+		_pickup_collection_sequence += 1
+		pickup_collected.emit(
+			runtime_instance_id,
+			StringName(pickup.get("reward_kind")),
+			int(pickup.get("reward_amount")),
+			Vector2i(pickup.global_position.round()),
+			_pickup_collection_sequence
+		)
+	pickup.queue_free()
+	return result
+
+
+func collect_all_live_pickups() -> void:
+	# `_active_pickups` is maintained in runtime-ID order. Duplicate the list
+	# because every successful or stale collection unregisters itself synchronously.
+	var ordered_pickups := _active_pickups.duplicate()
+	for pickup: Node2D in ordered_pickups:
+		if pickup != null and is_instance_valid(pickup):
+			pickup.call(&"collect_now")
+
+
 func commit_enemy_reward_snapshot(
 	enemy_instance_id: int,
 	death_sequence: int,
@@ -325,20 +419,24 @@ func _reserve_enemy_reward_snapshot(
 		return reservations
 	if xp > 0:
 		var experience_token := enemy_reward_token(enemy_instance_id, death_sequence, GameSession.REWARD_EXPERIENCE)
-		reservations[GameSession.REWARD_EXPERIENCE] = session.reserve_reward_once(
+		var experience_reservation := session.reserve_reward_once(
 			experience_token,
 			GameSession.REWARD_EXPERIENCE,
 			xp,
 			player_index
 		)
+		experience_reservation[&"amount"] = xp
+		reservations[GameSession.REWARD_EXPERIENCE] = experience_reservation
 	if materials > 0:
 		var supply_token := enemy_reward_token(enemy_instance_id, death_sequence, GameSession.REWARD_SUPPLY)
-		reservations[GameSession.REWARD_SUPPLY] = session.reserve_reward_once(
+		var supply_reservation := session.reserve_reward_once(
 			supply_token,
 			GameSession.REWARD_SUPPLY,
 			materials,
 			player_index
 		)
+		supply_reservation[&"amount"] = materials
+		reservations[GameSession.REWARD_SUPPLY] = supply_reservation
 	return reservations
 
 
@@ -360,6 +458,57 @@ func _apply_reserved_enemy_rewards(reservations: Dictionary) -> Dictionary:
 		else:
 			results[kind] = status
 	return results
+
+
+func spawn_reserved_enemy_pickups(
+	enemy_runtime_instance_id: int,
+	integer_death_global_position: Vector2i,
+	reservations: Dictionary
+) -> int:
+	if (
+		session == null
+		or player_actor == null
+		or pickup_layer == null
+		or enemy_runtime_instance_id <= 0
+	):
+		return 0
+	var spawned := 0
+	for kind in [GameSession.REWARD_EXPERIENCE, GameSession.REWARD_SUPPLY]:
+		if not reservations.has(kind):
+			continue
+		var reservation := reservations[kind] as Dictionary
+		if StringName(reservation.get("status", GameSession.REWARD_INVALID)) != GameSession.REWARD_RESERVED:
+			continue
+		var runtime_instance_id := allocate_runtime_instance_id(&"pickup")
+		if runtime_instance_id <= 0:
+			continue
+		var visual_handle: GogoStaticAssetHandle
+		if session.static_asset_snapshot != null:
+			var asset_id := &"experience_pickup" if kind == GameSession.REWARD_EXPERIENCE else &"supply_pickup"
+			visual_handle = session.static_asset_snapshot.resolve_asset(asset_id, &"world_sprite")
+		var pickup := COMBAT_PICKUP.new() as Node2D
+		pickup.name = "Pickup_%d_%s" % [runtime_instance_id, String(kind)]
+		pickup_layer.add_child(pickup)
+		if not bool(pickup.call(
+			&"configure",
+			self,
+			player_actor,
+			runtime_instance_id,
+			enemy_runtime_instance_id,
+			kind,
+			int(reservation.get("amount", 0)),
+			StringName(reservation.token),
+			int(reservation.reservation_id),
+			visual_handle,
+			Vector2(integer_death_global_position)
+		)):
+			pickup.queue_free()
+			continue
+		if not register_active_pickup(pickup):
+			pickup.queue_free()
+			continue
+		spawned += 1
+	return spawned
 
 
 static func enemy_reward_token(enemy_instance_id: int, death_sequence: int, kind: StringName) -> StringName:
@@ -617,6 +766,8 @@ func _finish_wave() -> void:
 	if _wave_transition_committed:
 		return
 	_wave_transition_committed = true
+	collect_all_live_pickups()
+	_emit_hud_snapshot(0.0)
 	running = false
 	_clear_active_combat_actors()
 	session.finish_wave()
@@ -632,6 +783,8 @@ func _clear_active_combat_actors(preserve_terminal_hit_feedback := false) -> voi
 	_projectile_source_item_ids.clear()
 	_active_enemies.clear()
 	_active_enemies_by_runtime_id.clear()
+	_active_pickups.clear()
+	_active_pickups_by_runtime_id.clear()
 	if enemy_layer != null:
 		for enemy in enemy_layer.get_children():
 			if enemy is GogoEnemyActor:
@@ -644,6 +797,9 @@ func _clear_active_combat_actors(preserve_terminal_hit_feedback := false) -> voi
 				(projectile as GogoProjectile).retire()
 			else:
 				projectile.queue_free()
+	if pickup_layer != null:
+		for pickup in pickup_layer.get_children():
+			pickup.queue_free()
 	if feedback_presenter != null and not preserve_terminal_hit_feedback:
 		feedback_presenter.clear_feedback()
 	if effect_layer != null:

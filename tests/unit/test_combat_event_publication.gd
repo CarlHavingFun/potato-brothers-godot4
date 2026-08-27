@@ -122,6 +122,13 @@ func test_canonical_signal_signatures_are_exact_v2() -> void:
 	assert_array(_signal_argument_types(enemy, &"enemy_defeated")).is_equal([
 		TYPE_INT, TYPE_VECTOR2I, TYPE_INT, TYPE_INT, TYPE_INT,
 	])
+	assert_array(_signal_argument_names(world, &"pickup_collected")).is_equal([
+		"pickup_instance_id", "kind", "amount",
+		"integer_collection_global_position", "collection_sequence",
+	])
+	assert_array(_signal_argument_types(world, &"pickup_collected")).is_equal([
+		TYPE_INT, TYPE_STRING_NAME, TYPE_INT, TYPE_VECTOR2I, TYPE_INT,
+	])
 
 	for kind in GogoProjectile.VALID_IMPACT_KINDS:
 		projectile.activate(null, 0, 0, 0, 0, &"rifle", &"ballistic", kind)
@@ -270,7 +277,7 @@ func test_multishot_shares_sequence_and_uses_unique_projectile_ids() -> void:
 	assert_array(internal_shot_sequences).is_equal([1, 1, 1, 2, 2, 2])
 
 
-func test_lethal_trace_is_weapon_contact_death_reward_then_legacy() -> void:
+func test_lethal_trace_defers_reserved_rewards_until_ordered_pickup_collection() -> void:
 	var session := _session_with_player()
 	var player := session.run_state.players[0]
 	var world := auto_free(CombatWorld.new()) as CombatWorld
@@ -278,6 +285,9 @@ func test_lethal_trace_is_weapon_contact_death_reward_then_legacy() -> void:
 	world.session = session
 	var owner := auto_free(GogoPlayerActor.new()) as GogoPlayerActor
 	owner.combat_world = world
+	owner.player_state = player
+	world.player_actor = owner
+	world.add_child(owner)
 	var weapon := GogoWeaponInstance.new()
 	world.add_child(weapon)
 	var stats := _ranged_stats(1)
@@ -292,6 +302,15 @@ func test_lethal_trace_is_weapon_contact_death_reward_then_legacy() -> void:
 	enemy.enemy_defeated.connect(_on_enemy_canonical.bind(world, enemy, session))
 	enemy.defeated.connect(_on_legacy_defeated.bind(session))
 	session.reward_committed.connect(_on_reward_committed)
+	world.pickup_collected.connect(func(
+		_pickup_instance_id: int,
+		kind: StringName,
+		_amount: int,
+		_integer_collection_global_position: Vector2i,
+		_collection_sequence: int
+	) -> void:
+		_trace.append("pickup_%s" % String(kind))
+	)
 
 	weapon._fire_projectiles(Vector2.RIGHT)
 	var projectile := world.projectile_layer.get_child(0) as GogoProjectile
@@ -299,8 +318,7 @@ func test_lethal_trace_is_weapon_contact_death_reward_then_legacy() -> void:
 	projectile._physics_process(0.1)
 
 	assert_array(_trace).is_equal([
-		"weapon_fired", "projectile_contact", "enemy_defeated",
-		"reward_experience", "reward_supply", "legacy_defeated",
+		"weapon_fired", "projectile_contact", "enemy_defeated", "legacy_defeated",
 	])
 	assert_float(_contact_health_before).is_equal(1.0)
 	assert_bool(_contact_defeated_before).is_false()
@@ -311,11 +329,21 @@ func test_lethal_trace_is_weapon_contact_death_reward_then_legacy() -> void:
 	assert_bool(_reentrant_damage_accepted).is_false()
 	assert_str(String(_reentrant_reward_duplicate)).is_equal(String(GameSession.REWARD_DUPLICATE))
 	assert_str(String(_reentrant_reward_collision)).is_equal(String(GameSession.REWARD_TOKEN_COLLISION))
-	assert_int(_legacy_reward_xp_after).is_equal(4)
-	assert_int(_legacy_reward_supply_after).is_equal(37)
+	assert_int(_legacy_reward_xp_after).is_zero()
+	assert_int(_legacy_reward_supply_after).is_equal(35)
+	assert_int(player.xp).is_zero()
+	assert_int(player.materials).is_equal(35)
+	assert_int(session.committed_reward_count()).is_equal(2)
+	assert_int(world.active_pickup_count()).is_equal(2)
+
+	world.collect_all_live_pickups()
+	assert_array(_trace).is_equal([
+		"weapon_fired", "projectile_contact", "enemy_defeated", "legacy_defeated",
+		"reward_experience", "pickup_experience", "reward_supply", "pickup_supply",
+	])
 	assert_int(player.xp).is_equal(4)
 	assert_int(player.materials).is_equal(37)
-	assert_int(session.committed_reward_count()).is_equal(2)
+	assert_int(world.active_pickup_count()).is_zero()
 
 	assert_int(_contact_payload.projectile_instance_id).is_equal(projectile.runtime_instance_id)
 	assert_int(_contact_payload.target_instance_id).is_equal(enemy.runtime_instance_id)

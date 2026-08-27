@@ -84,6 +84,40 @@ func test_token_collision_preserves_original_fingerprint_and_reward() -> void:
 	assert_int(_reward_signal_count).is_equal(1)
 
 
+func test_reservation_is_side_effect_free_until_apply_and_reentrant_apply_is_duplicate() -> void:
+	var session := _session_with_players(1)
+	var player := session.run_state.players[0]
+	player.xp_to_next_level = 5
+	var reservation := session.reserve_reward_once(
+		&"enemy/12/death/1/experience",
+		GameSession.REWARD_EXPERIENCE,
+		5,
+		0
+	)
+	assert_str(String(reservation.status)).is_equal(String(GameSession.REWARD_RESERVED))
+	assert_int(player.level).is_equal(1)
+	assert_int(player.xp).is_zero()
+	assert_int(session.run_state.pending_upgrade_count).is_zero()
+	var reentrant_apply := [GameSession.REWARD_INVALID]
+	var on_reward_committed := func(
+		token: StringName,
+		_kind: StringName,
+		_amount: int,
+		_player_index: int
+	) -> void:
+		reentrant_apply[0] = session.apply_reserved_reward(token, int(reservation.reservation_id))
+	session.reward_committed.connect(on_reward_committed)
+
+	assert_str(String(session.apply_reserved_reward(
+		StringName(reservation.token), int(reservation.reservation_id)
+	))).is_equal(String(GameSession.REWARD_APPLIED))
+	assert_str(String(reentrant_apply[0])).is_equal(String(GameSession.REWARD_DUPLICATE))
+	session.reward_committed.disconnect(on_reward_committed)
+	assert_int(player.level).is_equal(2)
+	assert_int(player.xp).is_zero()
+	assert_int(session.run_state.pending_upgrade_count).is_equal(1)
+
+
 func test_legacy_immediate_adapter_uses_independent_tokens_across_worlds() -> void:
 	var session := _session_with_players(1)
 	var player := session.run_state.players[0]

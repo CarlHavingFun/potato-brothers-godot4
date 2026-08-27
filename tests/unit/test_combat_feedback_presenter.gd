@@ -210,6 +210,9 @@ func test_world_bindings_present_lethal_trace_once_without_changing_gameplay() -
 
 	var owner := auto_free(GogoPlayerActor.new()) as GogoPlayerActor
 	owner.combat_world = world
+	owner.player_state = session.run_state.players[0]
+	world.player_actor = owner
+	world.add_child(owner)
 	var weapon := GogoWeaponInstance.new()
 	world.add_child(weapon)
 	var stats := _ranged_stats()
@@ -237,11 +240,16 @@ func test_world_bindings_present_lethal_trace_once_without_changing_gameplay() -
 	assert_int(world.feedback_presenter.active_effect_count(&"contact")).is_equal(1)
 	assert_int(world.feedback_presenter.active_effect_count(&"death")).is_equal(1)
 	assert_float(enemy.current_health).is_equal(0.0)
-	assert_int(session.run_state.players[0].xp).is_equal(4)
-	assert_int(session.run_state.players[0].materials).is_equal(37)
+	assert_int(session.run_state.players[0].xp).is_zero()
+	assert_int(session.run_state.players[0].materials).is_equal(35)
 	assert_int(session.committed_reward_count()).is_equal(2)
+	assert_int(world.active_pickup_count()).is_equal(2)
 	assert_float(Engine.time_scale).is_equal(original_time_scale)
 	assert_bool(get_tree().paused).is_equal(original_paused)
+	world.collect_all_live_pickups()
+	assert_int(session.run_state.players[0].xp).is_equal(4)
+	assert_int(session.run_state.players[0].materials).is_equal(37)
+	assert_int(world.active_pickup_count()).is_zero()
 
 	assert_bool(world.feedback_presenter.present_enemy_defeated(999, Vector2i(0, 0), 999, 999, 1)).is_true()
 	assert_int(session.run_state.players[0].xp).is_equal(4)

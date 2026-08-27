@@ -48,8 +48,6 @@ func test_world_consumes_persistent_assets_at_deterministic_collision_free_nodes
 	assert_object(first.get_node("Boundary/arena_boundary_border_top")).is_not_null()
 	for asset_id in [
 		"community_server_decor_pack",
-		"experience_pickup",
-		"supply_pickup",
 		"medical_pickup",
 		"hazard_beacon",
 		"supply_crate",
@@ -57,6 +55,8 @@ func test_world_consumes_persistent_assets_at_deterministic_collision_free_nodes
 		"site_hold_turret",
 	]:
 		assert_bool(first.has_node("Props/%s" % asset_id)).is_true()
+	assert_bool(first.has_node("Props/experience_pickup")).is_false()
+	assert_bool(first.has_node("Props/supply_pickup")).is_false()
 	assert_int(first.find_children("*", "CollisionShape2D", true, false).size()).is_equal(0)
 	var foreground_rects: Array[Rect2] = []
 	var off_grid_count := 0
@@ -74,7 +74,7 @@ func test_world_consumes_persistent_assets_at_deterministic_collision_free_nodes
 		for prior in foreground_rects:
 			assert_bool(rect.intersects(prior)).is_false()
 		foreground_rects.append(rect)
-	assert_int(off_grid_count).is_greater_equal(8)
+	assert_int(off_grid_count).is_greater_equal(6)
 
 
 func test_boundary_decoration_is_sparse_and_keeps_floor_and_corner_coverage() -> void:
@@ -139,7 +139,7 @@ func test_capture_safe_layout_exposes_every_real_world_node_without_hud_overlap(
 		CAPTURE_VIEW_RECT,
 		CAPTURE_HUD_EXCLUSION_RECTS
 	)
-	assert_int(records.size()).is_equal(15)
+	assert_int(records.size()).is_equal(13)
 	var expected_counts := {
 		&"community_server_floor": 1,
 		&"arena_boundary_border": 1,
@@ -147,8 +147,6 @@ func test_capture_safe_layout_exposes_every_real_world_node_without_hud_overlap(
 		&"hazard_beacon": 1,
 		&"supply_crate": 1,
 		&"weapon_rack": 1,
-		&"experience_pickup": 1,
-		&"supply_pickup": 1,
 		&"medical_pickup": 1,
 		&"site_hold_turret": 1,
 	}

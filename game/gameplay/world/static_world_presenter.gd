@@ -10,8 +10,6 @@ const PROP_ASSET_IDS: Array[StringName] = [
 	&"weapon_rack",
 ]
 const PICKUP_ASSET_IDS: Array[StringName] = [
-	&"experience_pickup",
-	&"supply_pickup",
 	&"medical_pickup",
 ]
 const DECOR_SELECTORS: Array[StringName] = [

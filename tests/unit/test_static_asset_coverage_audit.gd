@@ -244,9 +244,26 @@ func _exercise_real_consumers(
 			null
 		)
 
-	var world := auto_free(GogoStaticWorldPresenter.new()) as GogoStaticWorldPresenter
-	add_child(world)
-	world.configure(snapshot, Rect2(Vector2.ZERO, Vector2(2048, 1536)), 9137, true)
+	var static_world := auto_free(GogoStaticWorldPresenter.new()) as GogoStaticWorldPresenter
+	add_child(static_world)
+	static_world.configure(snapshot, Rect2(Vector2.ZERO, Vector2(2048, 1536)), 9137, true)
+	var pickup_session := GameSession.new()
+	var pickup_run := GogoRunState.new()
+	pickup_run.phase = &"combat"
+	var pickup_player := SessionPlayerState.new()
+	pickup_run.players.append(pickup_player)
+	pickup_session.run_state = pickup_run
+	pickup_session.static_asset_snapshot = snapshot
+	var combat_world := auto_free(CombatWorld.new()) as CombatWorld
+	add_child(combat_world)
+	combat_world.session = pickup_session
+	combat_world.player_actor = GogoPlayerActor.new()
+	combat_world.player_actor.player_state = pickup_player
+	combat_world.add_child(combat_world.player_actor)
+	var pickup_reservations := combat_world._reserve_enemy_reward_snapshot(1, 1, 1, 1, 0)
+	assert_int(combat_world.spawn_reserved_enemy_pickups(
+		1, Vector2i(1024, 768), pickup_reservations
+	)).is_equal(2)
 	var marker := auto_free(GogoStaticSpawnMarker.new()) as GogoStaticSpawnMarker
 	add_child(marker)
 	marker.configure_visual(snapshot.resolve_asset(&"spawn_marker", &"world_sprite"))

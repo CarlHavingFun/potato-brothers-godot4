@@ -45,8 +45,6 @@ const EXPECTED_WORLD_EVIDENCE_COUNTS := {
 	"hazard_beacon": 1,
 	"supply_crate": 1,
 	"weapon_rack": 1,
-	"experience_pickup": 1,
-	"supply_pickup": 1,
 	"medical_pickup": 1,
 	"site_hold_turret": 1,
 	"spawn_marker": 1,
@@ -77,6 +75,8 @@ var _shot_count := 0
 var _impact_count := 0
 var _impact_kinds_observed: Dictionary = {}
 var _impact_sources: Dictionary = {}
+var _pickup_collection_count := 0
+var _pickup_kinds_observed: Dictionary = {}
 
 
 func before_test() -> void:
@@ -84,6 +84,8 @@ func before_test() -> void:
 	_impact_count = 0
 	_impact_kinds_observed.clear()
 	_impact_sources.clear()
+	_pickup_collection_count = 0
+	_pickup_kinds_observed.clear()
 
 
 func test_capture_enemy_geometry_gate_rejects_rings_and_radial_jitter() -> void:
@@ -214,6 +216,7 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	world.weapon_fired.connect(_on_weapon_fired)
 	world.projectile_contact.connect(_on_projectile_contact)
 	world.projectile_contact_published.connect(_on_projectile_contact_published)
+	world.pickup_collected.connect(_on_pickup_collected)
 	# Freeze only feedback aging so naturally emitted hit marks remain visible in
 	# the proof frame. Weapons, projectiles, damage and event publication stay live.
 	world.feedback_presenter.set_process(false)
@@ -228,7 +231,7 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		world.arena_rect,
 		world_hud_exclusions
 	)
-	if not _require(presenter_evidence.size() == 15, "fifteen presenter evidence instances"):
+	if not _require(presenter_evidence.size() == 13, "thirteen non-reward presenter evidence instances"):
 		return
 	if not _require(
 		_transform_rect(world.arena_rect, world_to_screen).encloses(
@@ -237,7 +240,7 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		"arena floor and boundary cover the complete 1280x720 route"
 	):
 		return
-	if not _require(_off_grid_foreground_count(presenter_evidence) >= 8, "off-grid foreground composition"):
+	if not _require(_off_grid_foreground_count(presenter_evidence) >= 6, "off-grid foreground composition"):
 		return
 
 	var orbit := world.player_actor.get_node_or_null("WeaponOrbit") as Node2D
@@ -353,6 +356,46 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 			"live impact kind %s" % required_kind
 		):
 			return
+	# Normalize any naturally dropped rewards, then create one deterministic visible
+	# death so both real pickup assets are present in the captured combat route.
+	world.collect_all_live_pickups()
+	_pickup_collection_count = 0
+	_pickup_kinds_observed.clear()
+	world.call("_spawn_enemy", TARGET_ENEMY_ID)
+	var pickup_enemy_markers := world.effect_layer.find_children(
+		"SpawnMarker_*", "GogoStaticSpawnMarker", false, false
+	)
+	if not _require(not pickup_enemy_markers.is_empty(), "pickup evidence spawn marker"):
+		return
+	(pickup_enemy_markers.back() as GogoStaticSpawnMarker).complete_now()
+	var pickup_enemy := world.active_enemy_at(world.active_enemy_count() - 1)
+	if not _require(pickup_enemy != null, "pickup evidence enemy activated"):
+		return
+	pickup_enemy.global_position = world.clamp_to_arena(
+		world.player_actor.global_position + Vector2(0, 180),
+		64.0
+	).round()
+	pickup_enemy.take_damage(99999.0)
+	if not _require(world.active_pickup_count() == 2, "one dynamic pickup per non-zero reward"):
+		return
+	var live_pickup_kinds: Dictionary = {}
+	for pickup_index in world.active_pickup_count():
+		var pickup := world.active_pickup_at(pickup_index)
+		var pickup_sprite := pickup.get_node_or_null("StaticVisual") as Sprite2D
+		if not _require(
+			pickup_sprite != null
+			and pickup_sprite.texture != null
+			and pickup_sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST,
+			"dynamic pickup uses active static texture"
+		):
+			return
+		live_pickup_kinds[StringName(pickup.get("reward_kind"))] = true
+	if not _require(
+		live_pickup_kinds.has(GameSession.REWARD_EXPERIENCE)
+		and live_pickup_kinds.has(GameSession.REWARD_SUPPLY),
+		"experience and supply pickups are both live"
+	):
+		return
 	world.call("_spawn_enemy", TARGET_ENEMY_ID)
 	await get_tree().process_frame
 	var evidence_markers := world.effect_layer.find_children(
@@ -380,7 +423,7 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		snapshot,
 		world_to_screen
 	)
-	if not _require(world_evidence.size() == 16, "sixteen real world evidence instances"):
+	if not _require(world_evidence.size() == 14, "fourteen real static world evidence instances"):
 		print(
 			"WORLD_EVIDENCE_DIAGNOSTIC arena=%s player=%s camera=%s viewport=%s transform=%s"
 			% [
@@ -419,6 +462,16 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 			"render_backend": DisplayServer.get_name(),
 			"available": true,
 		}
+	world.collect_all_live_pickups()
+	await get_tree().process_frame
+	if not _require(
+		world.active_pickup_count() == 0
+		and _pickup_collection_count == 2
+		and _pickup_kinds_observed.has(GameSession.REWARD_EXPERIENCE)
+		and _pickup_kinds_observed.has(GameSession.REWARD_SUPPLY),
+		"both dynamic pickup kinds collect through the canonical event"
+	):
+		return
 	var pause_state_before := _pause_state_signature(app.current_session)
 	combat_screen.call("_open_pause")
 	var pause_overlay := combat_screen.get("pause_overlay") as Control
@@ -513,6 +566,10 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 			func(kind: Variant) -> String: return String(kind)
 		),
 		"impact_sources": _string_dictionary(_impact_sources),
+		"pickup_collection_count": _pickup_collection_count,
+		"pickup_kinds_observed": _pickup_kinds_observed.keys().map(
+			func(kind: Variant) -> String: return String(kind)
+		),
 	}
 	report["world_evidence"] = {
 		"arena_size": [CAPTURE_ARENA_SIZE.x, CAPTURE_ARENA_SIZE.y],
@@ -980,6 +1037,17 @@ func _on_projectile_contact_published(event: Dictionary) -> void:
 	var source_item_id := StringName(event.get("source_item_id", &""))
 	if not impact_kind.is_empty() and not source_item_id.is_empty():
 		_impact_sources[impact_kind] = source_item_id
+
+
+func _on_pickup_collected(
+	_pickup_instance_id: int,
+	kind: StringName,
+	_amount: int,
+	_integer_collection_global_position: Vector2i,
+	_collection_sequence: int
+) -> void:
+	_pickup_collection_count += 1
+	_pickup_kinds_observed[kind] = true
 
 
 func _string_dictionary(source: Dictionary) -> Dictionary:

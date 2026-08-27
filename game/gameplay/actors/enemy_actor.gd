@@ -204,10 +204,13 @@ func _apply_damage(amount: float, impulse: Vector2) -> bool:
 				xp,
 				materials
 			)
+			combat_world.spawn_reserved_enemy_pickups(
+				runtime_instance_id,
+				death_position,
+				reward_reservations
+			)
 		if runtime_instance_id > 0:
 			enemy_defeated.emit(runtime_instance_id, death_position, xp, materials, death_sequence)
-		if not reward_reservations.is_empty():
-			combat_world._apply_reserved_enemy_rewards(reward_reservations)
 		defeated.emit(self, xp, materials)
 		queue_free()
 	return true

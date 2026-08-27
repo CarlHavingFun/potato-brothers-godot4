@@ -226,6 +226,7 @@ func test_combat_camera_follows_on_integer_world_pixels() -> void:
 
 func test_enemy_xp_reward_preserves_pending_upgrade_count() -> void:
 	var world := auto_free(CombatWorld.new()) as CombatWorld
+	add_child(world)
 	var session := GameSession.new()
 	var run_state := GogoRunState.new()
 	var player := SessionPlayerState.new()
@@ -233,11 +234,19 @@ func test_enemy_xp_reward_preserves_pending_upgrade_count() -> void:
 	run_state.players.append(player)
 	session.run_state = run_state
 	world.session = session
+	world.player_actor = GogoPlayerActor.new()
+	world.player_actor.player_state = player
+	world.add_child(world.player_actor)
 
-	var result := world.commit_enemy_reward_snapshot(1, 1, 5, 3)
+	var reservations := world.call(&"_reserve_enemy_reward_snapshot", 1, 1, 5, 3) as Dictionary
 
-	assert_str(String(result[GameSession.REWARD_EXPERIENCE])).is_equal(String(GameSession.REWARD_APPLIED))
-	assert_str(String(result[GameSession.REWARD_SUPPLY])).is_equal(String(GameSession.REWARD_APPLIED))
+	assert_str(String((reservations[GameSession.REWARD_EXPERIENCE] as Dictionary).status)).is_equal(String(GameSession.REWARD_RESERVED))
+	assert_str(String((reservations[GameSession.REWARD_SUPPLY] as Dictionary).status)).is_equal(String(GameSession.REWARD_RESERVED))
+	assert_int(player.level).is_equal(1)
+	assert_int(run_state.pending_upgrade_count).is_zero()
+	assert_int(player.materials).is_equal(35)
+	assert_int(world.spawn_reserved_enemy_pickups(1, Vector2i(100, 100), reservations)).is_equal(2)
+	world.collect_all_live_pickups()
 	assert_int(player.level).is_equal(2)
 	assert_int(run_state.pending_upgrade_count).is_equal(1)
 	assert_int(player.materials).is_equal(38)
