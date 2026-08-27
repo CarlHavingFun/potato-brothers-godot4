@@ -50,6 +50,34 @@ Mutation RED and restored GREEN:
 
 The fixed-24px change was temporary and is absent from the final diff. No production behavior changed during this scoped-review closure.
 
+### Final visual-audit capture-fixture closure
+
+The final visual audit found that the capture fixture itself placed ten chasers on a mathematically perfect radius-330 ring. The root cause was the direct capture-only expression `Vector2.RIGHT.rotated(TAU * index / 10.0) * 330.0`; production spawning and enemy mechanics were not involved.
+
+TDD first added distribution assertions and observed the expected RED in the real integration route: `capture enemies use varied distances instead of a ring` (`reports/combat-enemy-layout-red/report_1/results.xml`). The fixture now deterministically shuffles asymmetric anchor candidates from run seed `9137`, applies small seeded offsets, and rejects enemy rectangles that cross the arena, HUD exclusions, Niko plus the complete weapon orbit, presenter prop rectangles, or another accepted enemy. A separate geometry-gate test proves that a perfect ring, radial-only jitter, and angular-only jitter cannot satisfy both required asymmetry predicates.
+
+Focused and real-window GREEN:
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| capture fixture | 2/2 pass; deterministic/safe/asymmetric layout plus live route | `reports/combat-enemy-layout-focused-repro/report_1/results.xml` |
+| combat correctness | 25/25 pass | `reports/combat-enemy-layout-combat-unit-final/report_1/results.xml` |
+| world presenter | 8/8 pass | `reports/combat-enemy-layout-world-unit-final/report_1/results.xml` |
+| fresh Windows OpenGL capture | 2/2 pass; 29 shots, 25 contacts, normal/critical/pierce-exit/explosion retained | `reports/combat-enemy-layout-windowed-final-2/report_1/results.xml` |
+| final full Godot regression | 346/346 pass across 35 suites, 0 errors/failures/flaky/skipped/orphans | `reports/combat-enemy-layout-full-final/report_1/results.xml` |
+
+The final deterministic positions have ten distinct radii from `305.9px` to `583.8px` (spread `277.9px`) and unequal angular gaps from `0.2°` to `149.3°` (spread `149.1°`). The coverage JSON records the seed, all ten positions, and the three passing layout flags (`asymmetric_radii`, `unequal_angular_gaps`, `capture_safe`).
+
+Fresh isolated-data artifacts:
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `E:/01_gobro/.worktrees/full-static-assets-runtime/reports/runtime-data/combat-enemy-layout-final-20260828-2/Roaming/GOGOBRO/full-static-assets-combat-v1/combat-1280x720.png` | `656DD274A996DA61E378C70510F46ACDE7F05F7C2C5C3C074370DC199E69591C` |
+| `E:/01_gobro/.worktrees/full-static-assets-runtime/reports/runtime-data/combat-enemy-layout-final-20260828-2/Roaming/GOGOBRO/full-static-assets-combat-v1/pause-1280x720.png` | `E8112F376B1B7AEE58098C87BEE1CDA839BA37C61968C2E70865CCA53C2B7F22` |
+| `E:/01_gobro/.worktrees/full-static-assets-runtime/reports/runtime-data/combat-enemy-layout-final-20260828-2/Roaming/GOGOBRO/full-static-assets-combat-v1/gogobro-static-coverage-v1.json` | `0418EBECB6CA2F3DBE75947A70CB9B7B511264106E9FAB264A6879DF7227CCF5` |
+
+Both 1280x720 PNGs were inspected at original size. The combat frame retains the six clear target-facing weapons, active muzzle/projectile/hit feedback, sparse off-grid props, and arena coverage, while the surviving enemies read as irregular left/right combat pressure rather than an evidence ring. No enemy silhouette crosses the HUD, Niko/weapon orbit, a prop, another enemy, or the arena boundary.
+
 ## Real windowed combat evidence
 
 Windowed OpenGL real-route capture passed:
@@ -87,5 +115,5 @@ The fresh 1280x720 combat PNG was inspected at original pixels. The floor and bo
 
 - This task retains the existing mechanical 70/70 report but does not claim to fix the separate 67/70 visible UI-consumer audit. `nine_slice_panel`, `combat_hud_shell`, and `zone_thumbnail` remain Task 3.
 - The integrated screenshot exercises rust chasers; olive shooter and amber charger swatches are locked by pure role-mapping tests and will receive broader final-route comparison in Task 4.
-- The capture-only enemy evidence ring was moved from 180px to 330px because the old ring sat inside the new weapon/muzzle footprint. This does not change live enemy spawning or combat balance.
+- Capture-only enemy evidence now uses deterministic asymmetric safe positions; production enemy spawning and combat balance remain unchanged.
 - Camera physics is frozen only after all required live events occur, solely to keep the evidence transform stable while the screenshot is written.

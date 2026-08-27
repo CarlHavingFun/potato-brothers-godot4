@@ -8,6 +8,10 @@ const COVERAGE_URI := OUTPUT_DIR_URI + "/gogobro-static-coverage-v1.json"
 const REGISTRY_PATH := "res://game/content/assets/gogobro_static_assets_v1.json"
 const CAPTURE_SIZE := Vector2i(1280, 720)
 const CAPTURE_ARENA_SIZE := Vector2(1280, 720)
+const CAPTURE_ENEMY_COUNT := 10
+const CAPTURE_ENEMY_HALF_EXTENT := Vector2(22.0, 22.0)
+const CAPTURE_ENEMY_MINIMUM_SEPARATION := 66.0
+const CAPTURE_ENEMY_WEAPON_GAP := 28.0
 const APP_SCENE := preload("res://game/app/app_root.tscn")
 const TARGET_ENEMY_ID: StringName = &"gogobro.core:enemy/drifter"
 const SKYLINE_GRENADE_ID: StringName = &"gogobro.preview:item/skyline_grenade"
@@ -50,6 +54,19 @@ const EXPECTED_DECOR_SELECTORS: Array[StringName] = [
 	&"decor_variant_05",
 	&"decor_variant_06",
 ]
+const CAPTURE_ENEMY_ANCHOR_FACTORS: Array[Vector2] = [
+	Vector2(0.32, 0.23), Vector2(0.68, 0.24), Vector2(0.78, 0.26),
+	Vector2(0.88, 0.32), Vector2(0.96, 0.40), Vector2(0.91, 0.50),
+	Vector2(0.95, 0.62), Vector2(0.88, 0.72), Vector2(0.76, 0.62),
+	Vector2(0.72, 0.80), Vector2(0.63, 0.83), Vector2(0.54, 0.90),
+	Vector2(0.42, 0.86), Vector2(0.32, 0.82), Vector2(0.22, 0.86),
+	Vector2(0.12, 0.78), Vector2(0.16, 0.64), Vector2(0.08, 0.56),
+	Vector2(0.14, 0.43), Vector2(0.24, 0.38), Vector2(0.30, 0.27),
+	Vector2(0.40, 0.18), Vector2(0.58, 0.18), Vector2(0.74, 0.18),
+	Vector2(0.84, 0.42), Vector2(0.82, 0.58), Vector2(0.66, 0.91),
+	Vector2(0.48, 0.92), Vector2(0.28, 0.74), Vector2(0.10, 0.68),
+	Vector2(0.18, 0.52), Vector2(0.20, 0.32), Vector2(0.36, 0.30),
+]
 
 var _shot_count := 0
 var _impact_count := 0
@@ -62,6 +79,28 @@ func before_test() -> void:
 	_impact_count = 0
 	_impact_kinds_observed.clear()
 	_impact_sources.clear()
+
+
+func test_capture_enemy_geometry_gate_rejects_rings_and_radial_jitter() -> void:
+	var center := Vector2(640.0, 360.0)
+	var perfect_ring: Array[Vector2] = []
+	var radial_jitter_only: Array[Vector2] = []
+	var angular_jitter_only: Array[Vector2] = []
+	for index in CAPTURE_ENEMY_COUNT:
+		var equal_angle := TAU * float(index) / float(CAPTURE_ENEMY_COUNT)
+		perfect_ring.append(center + Vector2.RIGHT.rotated(equal_angle) * 330.0)
+		radial_jitter_only.append(
+			center + Vector2.RIGHT.rotated(equal_angle) * (270.0 + 24.0 * float(index))
+		)
+		var uneven_angle := equal_angle + deg_to_rad(float((index * index) % 9) * 2.5)
+		angular_jitter_only.append(center + Vector2.RIGHT.rotated(uneven_angle) * 330.0)
+
+	assert_bool(_enemy_positions_have_asymmetric_radii(perfect_ring, center)).is_false()
+	assert_bool(_enemy_positions_have_unequal_angular_gaps(perfect_ring, center)).is_false()
+	assert_bool(_enemy_positions_have_asymmetric_radii(radial_jitter_only, center)).is_true()
+	assert_bool(_enemy_positions_have_unequal_angular_gaps(radial_jitter_only, center)).is_false()
+	assert_bool(_enemy_positions_have_asymmetric_radii(angular_jitter_only, center)).is_false()
+	assert_bool(_enemy_positions_have_unequal_angular_gaps(angular_jitter_only, center)).is_true()
 
 
 func test_capture_actual_six_weapon_combat_and_coverage() -> void:
@@ -212,7 +251,39 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	if not _require(_six_weapon_footprints_clear_player(world.player_actor, orbit), "six rotated weapon footprints clear Niko"):
 		return
 
-	for index in 10:
+	var enemy_evidence_positions := _capture_enemy_evidence_positions(
+		world,
+		presenter_evidence,
+		world_hud_exclusions,
+		session.run_state.run_seed
+	)
+	var repeated_enemy_positions := _capture_enemy_evidence_positions(
+		world,
+		presenter_evidence,
+		world_hud_exclusions,
+		session.run_state.run_seed
+	)
+	if not _require(
+		enemy_evidence_positions == repeated_enemy_positions,
+		"capture enemy evidence positions are deterministic for the run seed"
+	):
+		return
+	if not _require(
+		enemy_evidence_positions.size() == CAPTURE_ENEMY_COUNT,
+		"ten asymmetric capture enemy positions"
+	):
+		return
+	if not _require(
+		_enemy_positions_are_capture_safe(
+			enemy_evidence_positions,
+			world,
+			presenter_evidence,
+			world_hud_exclusions
+		),
+		"capture enemies avoid arena edges, HUD, Niko/weapons, props, and each other"
+	):
+		return
+	for index in enemy_evidence_positions.size():
 		world.call("_spawn_enemy", TARGET_ENEMY_ID)
 		var markers := world.effect_layer.find_children("SpawnMarker_*", "GogoStaticSpawnMarker", false, false)
 		if not markers.is_empty():
@@ -221,11 +292,20 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		var enemy := world.active_enemy_at(index)
 		if enemy == null:
 			continue
-		enemy.global_position = (
-			world.player_actor.global_position
-			+ Vector2.RIGHT.rotated(TAU * float(index) / 10.0) * 330.0
-		)
+		enemy.global_position = enemy_evidence_positions[index]
 		enemy.set_physics_process(false)
+	var asymmetric_radii := _enemy_positions_have_asymmetric_radii(
+		enemy_evidence_positions,
+		world.player_actor.global_position
+	)
+	var asymmetric_angles := _enemy_positions_have_unequal_angular_gaps(
+		enemy_evidence_positions,
+		world.player_actor.global_position
+	)
+	if not _require(asymmetric_radii, "capture enemies use varied distances instead of a ring"):
+		return
+	if not _require(asymmetric_angles, "capture enemies use unequal angular spacing instead of a ring"):
+		return
 
 	if not await _wait_for_combat(12, 4, 600):
 		_fail(
@@ -382,6 +462,16 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	report["pause_capture"] = pause_capture_record
 	report["live_combat"] = {
 		"character_count": content.all(&"character").size(),
+		"enemy_layout": {
+			"run_seed": session.run_state.run_seed,
+			"count": enemy_evidence_positions.size(),
+			"positions": enemy_evidence_positions.map(
+				func(position: Vector2) -> Array: return _vector_array(position)
+			),
+			"asymmetric_radii": asymmetric_radii,
+			"unequal_angular_gaps": asymmetric_angles,
+			"capture_safe": true,
+		},
 		"weapon_asset_ids": distinct_assets.keys().map(func(id: Variant) -> String: return String(id)),
 		"shot_count": _shot_count,
 		"contact_count": _impact_count,
@@ -571,6 +661,133 @@ func _six_weapon_footprints_clear_player(player: GogoPlayerActor, orbit: Node2D)
 		if weapon.position.length() - footprint < 76.0:
 			return false
 	return true
+
+
+func _enemy_positions_have_asymmetric_radii(positions: Array[Vector2], center: Vector2) -> bool:
+	if positions.size() < 4:
+		return false
+	var radii: Array[float] = []
+	var radius_buckets: Dictionary = {}
+	for position in positions:
+		var radius := position.distance_to(center)
+		radii.append(radius)
+		radius_buckets[int(roundf(radius / 24.0))] = true
+	radii.sort()
+	return radius_buckets.size() >= 4 and radii.back() - radii.front() >= 72.0
+
+
+func _enemy_positions_have_unequal_angular_gaps(
+	positions: Array[Vector2],
+	center: Vector2
+) -> bool:
+	if positions.size() < 4:
+		return false
+	var angles: Array[float] = []
+	for position in positions:
+		angles.append(fposmod((position - center).angle(), TAU))
+	angles.sort()
+	var gaps: Array[float] = []
+	for index in angles.size():
+		var next_angle := angles[(index + 1) % angles.size()]
+		if index == angles.size() - 1:
+			next_angle += TAU
+		gaps.append(next_angle - angles[index])
+	gaps.sort()
+	return gaps.back() - gaps.front() >= deg_to_rad(12.0)
+
+
+func _capture_enemy_evidence_positions(
+	world: CombatWorld,
+	presenter_records: Array,
+	hud_exclusions: Array[Rect2],
+	run_seed: int
+) -> Array[Vector2]:
+	var candidates: Array[Vector2] = CAPTURE_ENEMY_ANCHOR_FACTORS.duplicate()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = run_seed ^ 0x5EED330
+	for index in range(candidates.size() - 1, 0, -1):
+		var swap_index := rng.randi_range(0, index)
+		var held := candidates[index]
+		candidates[index] = candidates[swap_index]
+		candidates[swap_index] = held
+	var positions: Array[Vector2] = []
+	for factor in candidates:
+		var position := world.arena_rect.position + factor * world.arena_rect.size
+		position += Vector2(rng.randi_range(-13, 13), rng.randi_range(-11, 11))
+		position = position.round()
+		if _capture_enemy_position_is_safe(
+			position,
+			positions,
+			world,
+			presenter_records,
+			hud_exclusions
+		):
+			positions.append(position)
+			if positions.size() == CAPTURE_ENEMY_COUNT:
+				break
+	return positions
+
+
+func _enemy_positions_are_capture_safe(
+	positions: Array[Vector2],
+	world: CombatWorld,
+	presenter_records: Array,
+	hud_exclusions: Array[Rect2]
+) -> bool:
+	if positions.size() != CAPTURE_ENEMY_COUNT:
+		return false
+	var accepted: Array[Vector2] = []
+	for position in positions:
+		if not _capture_enemy_position_is_safe(
+			position,
+			accepted,
+			world,
+			presenter_records,
+			hud_exclusions
+		):
+			return false
+		accepted.append(position)
+	return true
+
+
+func _capture_enemy_position_is_safe(
+	position: Vector2,
+	accepted_positions: Array[Vector2],
+	world: CombatWorld,
+	presenter_records: Array,
+	hud_exclusions: Array[Rect2]
+) -> bool:
+	var enemy_rect := Rect2(
+		position - CAPTURE_ENEMY_HALF_EXTENT,
+		CAPTURE_ENEMY_HALF_EXTENT * 2.0
+	)
+	if not world.arena_rect.encloses(enemy_rect) or _rect_intersects_any(enemy_rect, hud_exclusions):
+		return false
+	var player_clearance := (
+		world.player_actor.weapon_arena_clamp_margin()
+		+ CAPTURE_ENEMY_HALF_EXTENT.length()
+		+ CAPTURE_ENEMY_WEAPON_GAP
+	)
+	if position.distance_to(world.player_actor.global_position) < player_clearance:
+		return false
+	for raw_record: Variant in presenter_records:
+		var record := raw_record as Dictionary
+		if not String(record.get("node", "")).begins_with("Props/"):
+			continue
+		var prop_rect := record.get("world_rect", Rect2()) as Rect2
+		if prop_rect.has_area() and enemy_rect.intersects(prop_rect):
+			return false
+	for accepted in accepted_positions:
+		if position.distance_to(accepted) < CAPTURE_ENEMY_MINIMUM_SEPARATION:
+			return false
+	return true
+
+
+func _rect_intersects_any(rect: Rect2, others: Array[Rect2]) -> bool:
+	for other in others:
+		if rect.intersects(other):
+			return true
+	return false
 
 
 func _off_grid_foreground_count(records: Array) -> int:
