@@ -91,7 +91,7 @@ Combat behavior follows the visible archetype: knives use short-range contact, S
 
 ## Weapon presentation and combat feedback
 
-Weapons occupy up to six evenly spaced sockets on a 72-pixel ring around Niko. Every instance independently selects the nearest valid target, rotates toward it, and automatically attacks. It owns its own texture, pivot, muzzle anchor, recoil transform, cooldown, projectile sequence, and feedback sequence.
+Weapons occupy up to six evenly spaced sockets close to Niko. The radius is derived from Niko's rendered body radius, the equipped weapon bounds, and the number of occupied sockets; it is not a fixed 72-pixel satellite ring. A single weapon's pivot should sit roughly 20–30 native pixels from Niko's center, while a full six-weapon loadout expands only enough to prevent silhouette collisions. Every instance independently selects the nearest valid target, rotates toward it, and automatically attacks. It owns its own texture, pivot, muzzle anchor, recoil transform, cooldown, projectile sequence, and feedback sequence.
 
 Actual-size recognition takes priority over either realism or forced chunkiness. Candidate textures render at nearest-neighbor integer scale. A weapon that becomes ambiguous at gameplay size is revised in the next candidate by thickening broken features, simplifying noisy detail, or strengthening silhouette contrast; a clear candidate may retain moderate detail. Runtime never smooths or downscales it to conceal the issue.
 
@@ -101,19 +101,16 @@ Shot feedback is emitted from the declared muzzle anchor. The feedback presenter
 
 The HUD stays in a top-level `CanvasLayer` and never moves with camera impulses. It uses native 1280×720 text and controls. Pixel textures may use exact nearest-neighbor integer scaling, but the complete interface is not rendered as a low-resolution canvas.
 
-The information hierarchy is fixed:
+The information hierarchy is fixed from a read-only 1280×720 playthrough of the locally installed reference build:
 
-- top center: large remaining seconds, with `第 X 波` directly below;
-- bottom left: health icon, current/max health, and a wide color-coded health bar;
-- bottom center: level plus current experience progress;
-- bottom right: material icon and current material count;
-- lower edge: six compact weapon slots using weapon icons and one rarity accent per slot;
-- right edge: compact acquired-item icons without an enclosing ornamental column, capped visually and summarized with a count when the list exceeds the visible strip;
+- top left: a compact vertical stack containing current/max health with a wide red bar, experience with the current level embedded in a green bar, current materials, and the current-wave held-material count;
+- top center: `第 X 波` first, with the larger remaining-seconds value directly below it; the final seconds change to the danger color;
+- no permanent lower-edge weapon strip and no permanent right-edge acquired-item strip during active combat; weapons and items remain visible through their world sprites, shop/build screens, and pause loadout instead of covering the arena;
 - control hints appear during wave one and disappear permanently after the first non-zero movement input or after four elapsed combat seconds, whichever occurs first.
 
 The shell, card frame, icons, numbers, and bars use high-contrast off-white, charcoal, orange, red, green, and CSGO utility accents. Text remains readable over every world tile through local dark backplates or one-pixel integer outlines. The HUD does not show decorative prose during combat.
 
-The combat HUD has no full-screen ornamental frame. Health, experience, materials, timer, weapon cells, and item cells may each have one local backing shape or one outline, never both an outer container and nested framed children. World visibility and combat readability take priority over decorative chrome.
+The combat HUD has no full-screen ornamental frame. Health, experience, materials, held materials, and timer may each have one local backing shape or one outline, never both an outer container and nested framed children. World visibility, especially the center and lower half of the arena, takes priority over decorative chrome.
 
 HUD data comes only from canonical session signals. `CombatWorld` adds `hud_snapshot_changed(snapshot: GogoCombatHudSnapshot)` while retaining the existing `hud_changed` signal for compatibility. The typed snapshot contains health, maximum health, seconds, wave, level, experience, next-level requirement, materials, weapon IDs, and item IDs. `CombatScreen` listens to the typed signal and never reads private world fields every frame.
 
@@ -143,13 +140,14 @@ The generic centered vertical menu is not used for the three build screens below
 - top band: current wave, materials, and a prominent reroll action with its current cost;
 - central-left area: exactly four offer cards in one row, each with icon, name, rarity, localized effects, price, buy affordance, and its own lock state;
 - right area: current player stat list, separated by spacing and value color rather than nested boxes;
-- bottom area: six weapon slots followed by a compact acquired-item inventory; weapon sell/combine actions are attached to the relevant slot rather than global prose buttons;
+- bottom area: a wide acquired-item inventory on the left and a narrower six-slot weapon area on the right; empty inventory space stays open instead of becoming a wall of framed slots, and weapon sell/combine actions attach to the relevant weapon slot rather than global prose buttons;
 - lower-right action: one clear continue-to-next-wave button and the next-wave warning/state.
 
 ### Upgrade reward
 
-- left area: the same current-player stat list used by the shop;
-- central/right area: exactly four upgrade choices per reward step, each showing physical or body-part-themed icon, rarity, localized effect, and a choose action;
+- background: the just-finished battlefield remains visible under a strong dim veil so the reward reads as an overlay rather than an unrelated menu;
+- left/central area: exactly four upgrade choices per reward step, each showing physical or body-part-themed icon, rarity, localized effect, and a choose action;
+- right area: the same current-player stat list used by the shop;
 - bottom action: reroll with its material cost;
 - top status: remaining reward choices and current materials;
 - choosing one card updates canonical state and either presents the next pending reward or routes to the shop.
@@ -157,12 +155,16 @@ The generic centered vertical menu is not used for the three build screens below
 ### Character selection
 
 - top-left: back action; top-center: character-selection title;
-- central area: a roster-grid surface using Brotato-like compact selection cells;
+- central area: Niko's larger preview, name, strengths/constraints, and starting-flow summary on one restrained translucent surface;
+- bottom area: a horizontal roster strip using compact selection cells;
 - only Niko is a real selectable character and the only character artwork in the project;
-- the right detail area shows Niko's larger preview, name, strengths/constraints, and starting-flow summary;
 - no duplicated Niko tiles, invented characters, fake character portraits, or restored placeholders are used to fill the grid.
 
-Weapon and difficulty selection continue the same light-border system and card language so the route reads as one flow rather than unrelated pages.
+Weapon and difficulty selection preserve the previously selected Niko/build context beside the current detail, place compact candidates in a lower icon strip, and advance on selection while retaining a top-left back action. They continue the same light-border system and card language so the route reads as one flow rather than unrelated pages.
+
+### Pause and run controls
+
+The pause overlay keeps the dimmed combat view visible, places the action menu on the left, the current loadout in the middle, the shared stat list on the right, and wave progress along the bottom. Continue, restart, end run, settings, and return-to-menu actions have a clear danger order; destructive run-exit actions require a confirmation layer. This is functional UI, not a decorative evidence screen.
 
 ## World rendering
 

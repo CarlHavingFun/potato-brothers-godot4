@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the border-heavy generic screens with dedicated 1280×720 shop, upgrade, Niko character-selection, weapon-selection, difficulty-selection, and combat-HUD layouts that match Brotato's information hierarchy while retaining original GOGOBRO art.
+**Goal:** Replace the border-heavy generic screens with dedicated 1280×720 shop, upgrade, Niko character-selection, weapon-selection, difficulty-selection, combat-HUD, and pause layouts that match the empirically verified Brotato information hierarchy while retaining original GOGOBRO art.
 
 **Architecture:** `GogoScreenBase` supplies only background, typography, spacing, button states, and one optional principal surface; each gameplay screen owns its dedicated composition. A shared stat-list presenter, loadout strip, and compact card presenter keep data and interaction behavior consistent without nesting ornamental frames.
 
@@ -18,6 +18,7 @@
 - A bordered panel may not contain another bordered panel except the icon's single rarity cue.
 - Shop and upgrade reward show exactly four choices.
 - Character selection contains exactly one real character: Niko.
+- The locally installed reference was played read-only at 1280×720 on 2026-08-28. Its observed spatial hierarchy overrides earlier synthetic assumptions: combat metrics stack top-left, wave sits above seconds, upgrade stats sit right, the character roster sits at the bottom, and shop items precede weapons along the bottom.
 - Missing textures retain readable, interactive flat-color fallbacks.
 - All runtime data comes from canonical session/content state; screenshot-only fake rows are forbidden.
 
@@ -124,7 +125,7 @@ Expected: current shop is a vertical generic list and has no dedicated nodes.
 
 - [ ] **Step 3: Build the 1280×720 shop layout**
 
-Place the top band at `Rect2(32, 20, 1216, 64)`, four 220×250 offer cards in `OfferRow` at the left/center, a 250-pixel stats column at the right, and the loadout bar from y=570 to 688. Show reroll cost on the reroll button, lock state on each offer card, and attach buy behavior to the card.
+Place the top band at `Rect2(32, 20, 1216, 64)`, four approximately 235×320 offer cards in `OfferRow` at the left/center, a 265-pixel stats column at the right, and the loadout bar from y=570 to 688. Within the loadout bar, give acquired items the wider left region and the six weapon slots the narrower right region; do not render empty item space as a framed slot wall. Show reroll cost on the reroll button, an independent lock action directly below each offer, and attach buy behavior to the card.
 
 - [ ] **Step 4: Preserve every existing shop action**
 
@@ -148,7 +149,7 @@ git commit -m "feat: rebuild shop with Brotato information hierarchy"
 - Modify: `tests/integration/full_static_assets_menu_v1_smoke.gd`
 
 **Interfaces:**
-- Produces named nodes: `RewardStatus`, `StatsColumn`, `UpgradeChoiceRow`, and `RerollButton`.
+- Produces named nodes: `BattlefieldBackdrop`, `DimVeil`, `RewardStatus`, `UpgradeChoiceRow`, `StatsColumn`, and `RerollButton`.
 - Preserves: choosing a card decrements `pending_upgrade_count`, presents the next reward when nonzero, and routes to shop at zero.
 
 - [ ] **Step 1: Write failing four-choice and route tests**
@@ -167,7 +168,7 @@ Expected: the current screen shows at most three choices in one column and has n
 
 - [ ] **Step 3: Implement deterministic four-card rewards and reroll**
 
-Show the stat column on the left and four 210×280 upgrade cards across the center/right. Seed selection from session state, charge the displayed material reroll cost through canonical state, and never duplicate a choice within one offer set.
+Keep the just-finished battlefield visible under a strong dim veil, place four approximately 240×215 upgrade cards across the left/center, and keep the 255-pixel stat column on the right. Seed selection from session state, charge the displayed material reroll cost through canonical state, and never duplicate a choice within one offer set.
 
 - [ ] **Step 4: Verify state flow and commit**
 
@@ -187,7 +188,7 @@ git commit -m "feat: add four-choice upgrade reward screen"
 - Modify: `tests/integration/full_static_assets_menu_v1_smoke.gd`
 
 **Interfaces:**
-- Character nodes: `BackButton`, `RosterGrid`, `NikoCell`, `NikoDetail/Preview`, `NikoDetail/Name`, `NikoDetail/Traits`, and `ConfirmButton`.
+- Character nodes: `BackButton`, `NikoDetail/Preview`, `NikoDetail/Name`, `NikoDetail/Traits`, `RosterStrip`, and `NikoCell`.
 - Setup screens consume the same card/button/selected-state language and never create fake entries.
 
 - [ ] **Step 1: Write failing Niko-only detail tests**
@@ -195,7 +196,7 @@ git commit -m "feat: add four-choice upgrade reward screen"
 ```gdscript
 func test_character_screen_has_one_niko_cell_and_real_detail() -> void:
 	var screen := await _route_character_select()
-	assert_int(screen.get_node("RosterGrid").get_child_count()).is_equal(1)
+	assert_int(screen.get_node("RosterStrip").get_child_count()).is_equal(1)
 	assert_str(String(screen.get_node("NikoCell").get_meta("content_id"))).is_equal("character.niko:character/niko")
 	assert_object(screen.get_node("NikoDetail/Preview").texture).is_not_null()
 	assert_bool(screen.get_node("NikoDetail/Traits").text.is_empty()).is_false()
@@ -207,11 +208,11 @@ Expected: current screen is a zone thumbnail plus a generic Niko button.
 
 - [ ] **Step 3: Implement the roster/detail composition**
 
-Place back/title at the top, a compact roster surface on the left, and a large Niko preview plus canonical traits/starting summary on the right. Use the real Niko content definition and existing Niko texture; do not duplicate the tile to fill space.
+Place back/title at the top, a large Niko preview plus canonical traits/starting summary in the center, and a compact horizontal roster strip at the bottom. Selecting the sole Niko cell advances immediately while retaining a clear selected-fill state; do not add an unrelated confirmation page or duplicate the tile to fill space. Use the real Niko content definition and existing Niko texture.
 
 - [ ] **Step 4: Apply the same low-border language to weapon and difficulty selection**
 
-Weapon cards show the new CS name, icon, melee/ranged label, damage, cooldown, and selected fill. Difficulty cards show the canonical badge, concise modifiers, and selected fill. Preserve existing route order and selection draft keys.
+Weapon selection keeps the Niko summary visible beside the selected weapon detail and uses a bottom compact icon strip. Difficulty selection keeps both Niko and selected-weapon summaries beside its detail and uses a bottom badge strip. Cards show the new CS name, icon, melee/ranged label, damage, cooldown, concise modifiers, and selected fill. Selection advances immediately, top-left back traverses one step, and existing draft keys/context survive the round trip.
 
 - [ ] **Step 5: Run setup-flow tests and commit**
 
@@ -232,7 +233,7 @@ git commit -m "feat: rebuild Niko and setup selection screens"
 
 **Interfaces:**
 - Consumes: `GogoCombatHudSnapshot` only.
-- Produces: timer/wave top center, health bottom left, XP bottom center, materials bottom right, six weapon cells along the lower edge, and compact item icons on the right.
+- Produces: health/XP/material/held-material stack at top left and wave-over-seconds at top center, leaving the lower and right arena edges clear during combat.
 
 - [ ] **Step 1: Add failing native-size and border-budget assertions**
 
@@ -241,8 +242,10 @@ func test_hud_uses_native_1280_layout_without_full_screen_frame() -> void:
 	var hud := _configured_hud()
 	assert_vec2(hud.size).is_equal(Vector2(1280, 720))
 	assert_bool(hud.has_node("FullScreenOrnamentalFrame")).is_false()
-	assert_int(hud.get_node("WeaponStrip").get_child_count()).is_equal(6)
-	assert_bool(hud.get_node("TopCenter/Timer").position.y < hud.get_node("TopCenter/Wave").position.y).is_true()
+	assert_bool(hud.has_node("WeaponStrip")).is_false()
+	assert_bool(hud.has_node("ItemStrip")).is_false()
+	assert_bool(hud.get_node("TopCenter/Wave").position.y < hud.get_node("TopCenter/Timer").position.y).is_true()
+	assert_bool(hud.get_node("TopLeft/Health").position.y < hud.get_node("TopLeft/Experience").position.y).is_true()
 ```
 
 - [ ] **Step 2: Run focused tests and record RED**
@@ -251,7 +254,7 @@ Expected: any remaining logical-canvas scaling or nested HUD frames violate the 
 
 - [ ] **Step 3: Apply native coordinates and one-backing-per-metric rule**
 
-Keep pixel icons at integer scales, but place labels and controls directly in 1280×720 space. A metric group may have one dark backing or one outline, never both. Keep world visibility between groups and collapse item overflow to `+N`.
+Keep pixel icons at integer scales, but place labels and controls directly in 1280×720 space. Stack health, experience/level, materials, and held materials compactly at the top left; place wave above the larger timer at top center and switch the timer to danger color in its final seconds. A metric group may have one dark backing or one outline, never both. Remove the permanent combat weapon/item inventory strips so the center and lower half remain unobstructed.
 
 - [ ] **Step 4: Run HUD tests GREEN and commit**
 
@@ -262,9 +265,36 @@ git add game/ui/brotato_combat_hud.gd game/ui/combat_screen.gd tests/unit/test_b
 git commit -m "feat: finish native low-border combat HUD"
 ```
 
+### Task 6: Add the in-run pause and confirmation overlay
+
+**Files:**
+- Create: `game/ui/pause_overlay.gd`
+- Modify: `game/ui/combat_screen.gd`
+- Modify: `tests/unit/test_brotato_structured_screens.gd`
+- Modify: `tests/integration/full_static_assets_menu_v1_smoke.gd`
+
+**Interfaces:**
+- Produces named nodes: `PauseMenu`, `Loadout`, `StatsColumn`, `WaveProgress`, and `ExitConfirmation`.
+- Preserves the paused combat view under a dim veil and does not mutate run state until an action is confirmed.
+
+- [ ] **Step 1: Write failing pause-structure and confirmation tests**
+
+Assert that the pause overlay exposes continue/restart/end/settings/return actions in danger order, shows current loadout and stats, and requires confirmation before ending the run or returning to the main menu.
+
+- [ ] **Step 2: Implement the native overlay**
+
+Keep the dimmed battlefield visible, place the action column on the left, loadout in the middle, stats on the right, and wave progress along the bottom. Use selected fill rather than nested focus borders and preserve keyboard/controller focus restoration.
+
+- [ ] **Step 3: Verify and commit**
+
+```powershell
+tools\run_tests.ps1 -TestPath res://tests/unit/test_brotato_structured_screens.gd -ReportDir reports/pause-layout
+git add game/ui/pause_overlay.gd game/ui/combat_screen.gd tests/unit/test_brotato_structured_screens.gd tests/integration/full_static_assets_menu_v1_smoke.gd
+git commit -m "feat: add in-run pause and confirmation overlay"
+```
+
 ## Self-review result
 
 - Spec coverage: dedicated shop, four-choice upgrades, Niko-only character selection, unified setup flow, native combat HUD, fallbacks, and all border-budget rules are assigned to Tasks 1-5.
 - Placeholder scan: every layout has exact named regions, counts, data sources, tests, commands, and state transitions.
 - Type consistency: shared presenters consume the same session/content/static-snapshot types used by every screen.
-
