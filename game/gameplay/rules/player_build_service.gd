@@ -10,6 +10,8 @@ func upgrade_reward_offers(session: GameSession, count: int = 4) -> Array[GogoUp
 	var pool: Array[GogoUpgradeDefinition] = []
 	for definition in session.content_snapshot.all(&"upgrade"):
 		pool.append(definition as GogoUpgradeDefinition)
+	if pool.size() < count:
+		return []
 	var rng := RandomNumberGenerator.new()
 	var state := session.run_state
 	rng.seed = (

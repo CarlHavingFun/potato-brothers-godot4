@@ -146,6 +146,10 @@ func _return_to_menu_from_pause() -> void:
 
 func _on_wave_completed() -> void:
 	var app := AppContext.kernel(self)
+	if hud != null:
+		hud.visible = false
+	if DisplayServer.get_name() != "headless":
+		await RenderingServer.frame_post_draw
 	var battlefield_backdrop := _capture_battlefield_backdrop()
 	var save_error := app.save_checkpoint()
 	if save_error != OK:

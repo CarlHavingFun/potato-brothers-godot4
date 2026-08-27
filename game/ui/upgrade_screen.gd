@@ -28,12 +28,23 @@ func _show_offers(focus_index: int = 0, status_text: String = "") -> void:
 	build_screen_chrome("升级奖励", "战斗结束后选择一项强化")
 	_build_battlefield_backdrop()
 	var player := _app.current_session.run_state.player()
-	_build_reward_status(player, status_text)
 	_offers = _build_service.upgrade_reward_offers(_app.current_session)
+	if _offers.size() < 4:
+		call_deferred("_reject_missing_rewards")
+		return
+	_build_reward_status(player, status_text)
 	_build_choice_row()
 	_build_stats_column(player)
 	_build_reroll_button()
 	call_deferred("_restore_choice_focus", focus_index)
+
+
+func _reject_missing_rewards() -> void:
+	if _app != null:
+		_app.route(FlowRoute.DIAGNOSTIC, {
+			"message": "升级奖励不可用",
+			"details": ["当前内容少于四项可用升级"],
+		})
 
 
 func _build_battlefield_backdrop() -> void:
@@ -63,14 +74,11 @@ func _build_reward_status(player: SessionPlayerState, status_text: String) -> vo
 	status.name = "RewardStatus"
 	status.position = Vector2(32, 100)
 	status.size = Vector2(927, 42)
-	status.text = (
-		status_text
-		if not status_text.is_empty()
-		else "选择一项升级 · 剩余 %d 次 · 材料 %d" % [
-			_app.current_session.run_state.pending_upgrade_count,
-			player.materials,
-		]
-	)
+	var canonical_status := "选择一项升级 · 剩余 %d 次 · 材料 %d" % [
+		_app.current_session.run_state.pending_upgrade_count,
+		player.materials,
+	]
+	status.text = canonical_status if status_text.is_empty() else "%s · %s" % [canonical_status, status_text]
 	status.add_theme_font_size_override(&"font_size", 22)
 	status.add_theme_color_override(&"font_color", Color("f1ca52"))
 	status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -165,7 +173,7 @@ func _build_stats_column(player: SessionPlayerState) -> void:
 func _build_reroll_button() -> void:
 	var reroll := Button.new()
 	reroll.name = "RerollButton"
-	reroll.position = Vector2(32, 388)
+	reroll.position = Vector2(32, 640)
 	reroll.size = Vector2(240, 48)
 	reroll.custom_minimum_size = reroll.size
 	reroll.text = "刷新 %d" % _build_service.upgrade_reroll_price(_app.current_session)

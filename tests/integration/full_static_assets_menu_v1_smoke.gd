@@ -243,6 +243,11 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 	if not _require(combat_world != null, "actual combat world before upgrade"):
 		return
 	combat_world.call("_finish_wave")
+	if not _require(
+		(combat_screen.get("hud") as GogoBrotatoCombatHud).visible == false,
+		"combat HUD hidden before battlefield capture"
+	):
+		return
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var upgrade_screen := _current_screen(host)

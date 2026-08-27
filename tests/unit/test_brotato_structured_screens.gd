@@ -681,6 +681,14 @@ func test_upgrade_reroll_charges_its_own_canonical_counter_without_duplicate_cho
 	var after_ids := _upgrade_choice_ids(screen.get_node("UpgradeChoiceRow") as HBoxContainer)
 	assert_int(after_ids.size()).is_equal(4)
 	assert_int(_unique_count(after_ids)).is_equal(4)
+	assert_array(after_ids).is_not_equal(before_ids)
+	var reward_status := screen.get_node("RewardStatus") as Label
+	assert_str(reward_status.text).contains("刷新完成")
+	assert_str(reward_status.text).contains("剩余 1 次")
+	assert_str(reward_status.text).contains("材料 %d" % player.materials)
+	var reroll_button := screen.get_node("RerollButton") as Button
+	assert_bool(reroll_button.get_global_rect().position.y >= 620.0).is_true()
+	assert_bool(NATIVE_CAPTURE_RECT.encloses(reroll_button.get_global_rect())).is_true()
 	var focus_owner := get_viewport().gui_get_focus_owner()
 	assert_bool(focus_owner != null and focus_owner.get_meta(&"focus_role", &"") == &"upgrade_choice").is_true()
 
@@ -698,7 +706,10 @@ func test_upgrade_reroll_with_insufficient_materials_keeps_offers_and_state_unch
 	assert_int(session.run_state.upgrade_reroll_count).is_equal(0)
 	assert_int(player.materials).is_equal(0)
 	assert_array(_upgrade_choice_ids(screen.get_node("UpgradeChoiceRow") as HBoxContainer)).is_equal(before_ids)
-	assert_str((screen.get_node("RewardStatus") as Label).text).is_equal("材料不足")
+	var reward_status := screen.get_node("RewardStatus") as Label
+	assert_str(reward_status.text).contains("材料不足")
+	assert_str(reward_status.text).contains("剩余 1 次")
+	assert_str(reward_status.text).contains("材料 0")
 
 
 func test_upgrade_choice_decrements_pending_rewards_then_routes_to_shop() -> void:
@@ -741,6 +752,24 @@ func test_upgrade_reroll_counter_resets_on_entry_and_loads_legacy_saves_as_zero(
 	serialized.erase("upgrade_reroll_count")
 	var restored := GogoRunState.from_dictionary(serialized)
 	assert_int(restored.upgrade_reroll_count).is_equal(0)
+
+
+func test_upgrade_route_rejects_content_with_fewer_than_four_real_rewards() -> void:
+	var fixture := await _route_upgrade(1, _upgrade_content_with_count(3))
+	var screen := fixture.app.get_node("UpgradeRouteHost").get_child(0) as GogoScreenBase
+	assert_str(screen.get_script().resource_path).is_equal("res://game/ui/diagnostic_screen.gd")
+	assert_str((screen.get_node("TitleBand/Subtitle") as Label).text).contains("升级奖励不可用")
+
+
+func test_upgrade_reward_service_returns_no_partial_choice_set() -> void:
+	var content := _upgrade_content_with_count(3)
+	var session := GameSession.new()
+	session.content_snapshot = content
+	session.run_state = GogoRunState.new()
+	session.run_state.run_seed = 9137
+	session.run_state.players.append(SessionPlayerState.new())
+	var service := PlayerBuildService.new()
+	assert_array(service.upgrade_reward_offers(session)).is_empty()
 
 
 func _loadout_content() -> ContentSnapshot:
@@ -846,10 +875,11 @@ func _shop_fixture(include_all_stats: bool = false) -> Dictionary:
 	}
 
 
-func _route_upgrade(pending_choices: int = 1) -> Dictionary:
-	var content := GogoContentRegistry.new().build_snapshot(
-		ValidationContentFactory.create_packs()
-	)
+func _route_upgrade(pending_choices: int = 1, content: ContentSnapshot = null) -> Dictionary:
+	if content == null:
+		content = GogoContentRegistry.new().build_snapshot(
+			ValidationContentFactory.create_packs()
+		)
 	var app := auto_free(AppKernel.new()) as AppKernel
 	app.add_to_group(&"gogobro_app")
 	app.content_snapshot = content
@@ -862,6 +892,7 @@ func _route_upgrade(pending_choices: int = 1) -> Dictionary:
 	flow.configure(host, {
 		FlowRoute.UPGRADE: preload("res://game/ui/upgrade_screen.tscn"),
 		FlowRoute.SHOP: preload("res://game/ui/shop_screen.tscn"),
+		FlowRoute.DIAGNOSTIC: preload("res://game/ui/diagnostic_screen.tscn"),
 	})
 	app.configure(flow, null)
 	var session := GameSession.new()
@@ -878,6 +909,19 @@ func _route_upgrade(pending_choices: int = 1) -> Dictionary:
 	assert_int(app.route(FlowRoute.UPGRADE)).is_equal(OK)
 	await _settle_ui()
 	return {"app": app, "session": session, "screen": host.get_child(0)}
+
+
+func _upgrade_content_with_count(count: int) -> ContentSnapshot:
+	var packs := ValidationContentFactory.create_packs()
+	var core_pack := packs[0]
+	var retained := 0
+	for index in range(core_pack.definitions.size() - 1, -1, -1):
+		if not core_pack.definitions[index] is GogoUpgradeDefinition:
+			continue
+		retained += 1
+		if retained > count:
+			core_pack.definitions.remove_at(index)
+	return GogoContentRegistry.new().build_snapshot(packs)
 
 
 func _shop_session(content: ContentSnapshot) -> GameSession:
