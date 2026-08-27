@@ -1,0 +1,78 @@
+{
+  "channels": 1,
+  "clips": [
+    {
+      "duration_ms": 240.0,
+      "file": "enemy_down.wav",
+      "frames": 10584,
+      "peak": 0.820002,
+      "sha256": "1238d0ba2d421e943e108e8f03a3c72c576d44bb6be1ae79e326be58da9034a7"
+    },
+    {
+      "duration_ms": 220.0,
+      "file": "heavy_shot.wav",
+      "frames": 9702,
+      "peak": 0.899991,
+      "sha256": "dfd576090eb3250ff9210d29e49388c2473ff1789eeea07c4b70956076f25a02"
+    },
+    {
+      "duration_ms": 130.0,
+      "file": "impact_critical.wav",
+      "frames": 5733,
+      "peak": 0.839991,
+      "sha256": "5dcc9b88a8150f4e90e81e4fe63d7396e94d4473b23f03c091a4a7baa03d22ba"
+    },
+    {
+      "duration_ms": 300.0,
+      "file": "impact_explosion.wav",
+      "frames": 13230,
+      "peak": 0.899991,
+      "sha256": "b2f388292ecda8ee7d4ee4427590ee298c456e22500d3034681a24965af92ca7"
+    },
+    {
+      "duration_ms": 90.0,
+      "file": "impact_normal.wav",
+      "frames": 3969,
+      "peak": 0.779992,
+      "sha256": "553ecedc1ace5162bffc0cf93fffc78389e52e8222fbe541363d30c03af05f41"
+    },
+    {
+      "duration_ms": 180.0,
+      "file": "pickup.wav",
+      "frames": 7938,
+      "peak": 0.719993,
+      "sha256": "548c6c56dc79502d655686f3e273ac417b4b287ae1af39a927b49d48e156f51f"
+    },
+    {
+      "duration_ms": 160.0,
+      "file": "player_hit.wav",
+      "frames": 7056,
+      "peak": 0.839991,
+      "sha256": "ce74ea5d409c5fbda9e374235d102a571c983d1f42904f32b54e79f2eb5b57a8"
+    },
+    {
+      "duration_ms": 90.0,
+      "file": "rapid_shot.wav",
+      "frames": 3969,
+      "peak": 0.779992,
+      "sha256": "5ffd1305a2d73eaaf93f5ced56cc4aa493cf1be24895a51fd188dbb07e16bf2c"
+    },
+    {
+      "duration_ms": 150.0,
+      "file": "rifle_shot.wav",
+      "frames": 6615,
+      "peak": 0.860012,
+      "sha256": "6b7e5734268b1523734dbd1449db09a0d61216ccb86ef3ed3a6fc9ecfa9e460f"
+    },
+    {
+      "duration_ms": 75.011,
+      "file": "suppressed_shot.wav",
+      "frames": 3308,
+      "peak": 0.319987,
+      "sha256": "2719d254a2d09e8d76eb51236e6a7ab8b2fff78da31345ef2d03c398a81015d4"
+    }
+  ],
+  "sample_rate_hz": 44100,
+  "sample_width_bits": 16,
+  "schema": "gogobro-combat-sfx-v1"
+}
