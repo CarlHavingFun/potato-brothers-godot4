@@ -68,6 +68,8 @@ var _projectile_source_item_ids: Dictionary = {}
 var _wave_transition_committed := false
 var _wave_start_materials := 0
 var _local_hitstop_remaining := 0.0
+var _local_hitstop_actor_phase_latched := false
+var _run_failure_pending := false
 
 
 func _ready() -> void:
@@ -191,7 +193,11 @@ func bind_enemy_feedback(enemy: GogoEnemyActor) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_local_hitstop_actor_phase_latched = _local_hitstop_remaining > 0.0
 	_local_hitstop_remaining = maxf(_local_hitstop_remaining - maxf(delta, 0.0), 0.0)
+	if _run_failure_pending and not is_combat_simulation_frozen():
+		_commit_pending_run_failure()
+		return
 	if not running or session == null:
 		return
 	session.run_state.elapsed_seconds += delta
@@ -213,7 +219,7 @@ func request_local_hitstop(seconds: float) -> void:
 
 
 func is_combat_simulation_frozen() -> bool:
-	return _local_hitstop_remaining > 0.0
+	return _local_hitstop_actor_phase_latched or _local_hitstop_remaining > 0.0
 
 
 func debug_local_hitstop_remaining() -> float:
@@ -457,8 +463,16 @@ func _on_player_died() -> void:
 		return
 	_wave_transition_committed = true
 	running = false
-	_clear_active_combat_actors()
-	session.fail_run()
+	_run_failure_pending = true
+	_clear_active_combat_actors(true)
+
+
+func _commit_pending_run_failure() -> void:
+	if not _run_failure_pending:
+		return
+	_run_failure_pending = false
+	if session != null:
+		session.fail_run()
 	run_failed.emit()
 
 
@@ -609,8 +623,11 @@ func _finish_wave() -> void:
 	wave_completed.emit()
 
 
-func _clear_active_combat_actors() -> void:
-	_local_hitstop_remaining = 0.0
+func _clear_active_combat_actors(preserve_terminal_hit_feedback := false) -> void:
+	if not preserve_terminal_hit_feedback:
+		_local_hitstop_remaining = 0.0
+		_local_hitstop_actor_phase_latched = false
+		_run_failure_pending = false
 	weapon_trigger_runtime.reset()
 	_projectile_source_item_ids.clear()
 	_active_enemies.clear()
@@ -627,7 +644,7 @@ func _clear_active_combat_actors() -> void:
 				(projectile as GogoProjectile).retire()
 			else:
 				projectile.queue_free()
-	if feedback_presenter != null:
+	if feedback_presenter != null and not preserve_terminal_hit_feedback:
 		feedback_presenter.clear_feedback()
 	if effect_layer != null:
 		for child in effect_layer.get_children():

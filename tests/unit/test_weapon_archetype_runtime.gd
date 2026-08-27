@@ -192,7 +192,7 @@ func test_preview_weapon_rows_declare_modes_and_factory_rejects_invalid_mode() -
 
 	var invalid := (rows[0] as Dictionary).duplicate(true)
 	invalid["mode"] = "thrown"
-	assert_object(GogoStaticPreviewContentFactory._weapon_definition(invalid)).is_null()
+	assert_object(GogoStaticPreviewContentFactory._weapon_definition(invalid, true)).is_null()
 
 
 func test_skyline_grenade_emits_only_on_each_seventh_owned_ranged_attack() -> void:

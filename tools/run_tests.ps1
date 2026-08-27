@@ -72,4 +72,14 @@ if ($exitCode -eq 0 -and $leakLines.Count -gt 0) {
 	exit 1
 }
 
+$discoveryFailurePattern = "Script errors were detected during test discovery!|No test cases found, abort test run!"
+$discoveryFailureLines = @(
+	$output | ForEach-Object { $_.ToString() } | Where-Object { $_ -match $discoveryFailurePattern }
+)
+if ($exitCode -eq 0 -and $discoveryFailureLines.Count -gt 0) {
+	Write-Output "GdUnit did not execute the requested test cases:"
+	$discoveryFailureLines | ForEach-Object { Write-Output $_ }
+	exit 1
+}
+
 exit $exitCode

@@ -299,6 +299,40 @@ func test_local_hitstop_clamps_coalesces_and_preserves_global_time_state() -> vo
 	assert_bool(get_tree().paused).is_equal(original_paused)
 
 
+func test_local_hitstop_holds_the_actor_phase_that_consumes_25ms_at_60hz_and_30hz() -> void:
+	var cases := [
+		{&"frame_delta": 1.0 / 60.0, &"frozen_ticks": 2, &"label": "60Hz"},
+		{&"frame_delta": 1.0 / 30.0, &"frozen_ticks": 1, &"label": "30Hz"},
+	]
+	for current: Dictionary in cases:
+		var world := auto_free(CombatWorld.new()) as CombatWorld
+		add_child(world)
+		var projectile := GogoProjectile.new()
+		projectile.combat_world = world
+		projectile.direction = Vector2.RIGHT
+		projectile.speed = 60.0
+		projectile.lifetime = 1.0
+		world.projectile_layer.add_child(projectile)
+		var initial_position := projectile.global_position
+
+		world.request_local_hitstop(0.025)
+		for _tick in int(current.frozen_ticks):
+			world._physics_process(float(current.frame_delta))
+			projectile._physics_process(float(current.frame_delta))
+			assert_vector(projectile.global_position).override_failure_message(
+				"The %s actor phase resumed before the requested 25ms elapsed" % current.label
+			).is_equal(initial_position)
+
+		assert_float(world.debug_local_hitstop_remaining()).is_equal(0.0)
+		assert_bool(world.is_combat_simulation_frozen()).override_failure_message(
+			"The %s actor phase that consumed the final remainder must stay frozen" % current.label
+		).is_true()
+		world._physics_process(float(current.frame_delta))
+		assert_bool(world.is_combat_simulation_frozen()).is_false()
+		projectile._physics_process(float(current.frame_delta))
+		assert_float(projectile.global_position.x).is_greater(initial_position.x)
+
+
 func test_local_hitstop_freezes_four_actor_types_while_wave_hud_and_feedback_advance() -> void:
 	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
 	var session := _combat_session(content)
@@ -452,6 +486,80 @@ func test_player_dodge_and_invulnerability_do_not_present_but_real_damage_does()
 	assert_float(state.current_health).is_equal(17.0)
 	assert_int(world.feedback_presenter.active_effect_count(&"player_hit")).is_equal(1)
 	assert_float(float(world.call(&"debug_local_hitstop_remaining"))).is_equal_approx(0.040, 0.0001)
+
+
+func test_lethal_player_hit_preserves_feedback_until_local_freeze_finishes_before_run_failed() -> void:
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	var session := _combat_session(content)
+	var wave := content.definition(&"gogobro.core:wave/training_1", &"wave") as GogoWaveDefinition
+	var difficulty := content.definition(
+		ValidationContentFactory.DIFFICULTY_ID, &"difficulty"
+	) as GogoDifficultyDefinition
+	var enemy_definition := content.definition(
+		&"gogobro.core:enemy/drifter", &"enemy"
+	) as GogoEnemyDefinition
+	var world := auto_free(CombatWorld.new()) as CombatWorld
+	add_child(world)
+	assert_int(world.start_wave(session, wave)).is_equal(OK)
+
+	var enemy := GogoEnemyActor.new()
+	enemy.configure(
+		enemy_definition,
+		world.player_actor,
+		difficulty,
+		world,
+		world.allocate_runtime_instance_id(&"enemy")
+	)
+	world.enemy_layer.add_child(enemy)
+	assert_bool(world.register_active_enemy(enemy)).is_true()
+	var projectile := GogoProjectile.new()
+	projectile.combat_world = world
+	world.projectile_layer.add_child(projectile)
+	var route_snapshots: Array[Dictionary] = []
+	world.run_failed.connect(func() -> void:
+		route_snapshots.append({
+			&"player_hit_count": world.feedback_presenter.active_effect_count(&"player_hit"),
+			&"camera_impulse": world.player_camera.visual_impulse_magnitude(),
+		})
+	)
+
+	var player_state := session.run_state.player()
+	player_state.current_health = 1.0
+	player_state.final_stats[&"armor"] = 0.0
+	player_state.final_stats[&"dodge"] = 0.0
+	world.player_actor.damage_cooldown = 0.0
+	world.player_actor.take_damage(10.0)
+
+	assert_bool(enemy.defeated_once).is_true()
+	assert_bool(projectile.active).is_false()
+	assert_int(world.active_enemy_count()).is_zero()
+	assert_int(route_snapshots.size()).is_zero()
+	assert_bool(session.run_state.ended).is_false()
+	assert_float(world.debug_local_hitstop_remaining()).is_equal_approx(0.040, 0.0001)
+	assert_int(world.feedback_presenter.active_effect_count(&"player_hit")).is_equal(1)
+	assert_float(world.player_camera.visual_impulse_magnitude()).is_greater(0.0)
+
+	for _tick in 2:
+		world._physics_process(0.020)
+		world.feedback_presenter._physics_process(0.020)
+		world.player_camera._physics_process(0.020)
+	assert_float(world.debug_local_hitstop_remaining()).is_equal(0.0)
+	assert_bool(world.is_combat_simulation_frozen()).is_true()
+	assert_int(route_snapshots.size()).is_zero()
+	assert_bool(session.run_state.ended).is_false()
+	assert_int(world.feedback_presenter.active_effect_count(&"player_hit")).is_equal(1)
+	assert_float(world.player_camera.visual_impulse_magnitude()).is_greater(0.0)
+
+	world._physics_process(0.001)
+	assert_int(route_snapshots.size()).is_equal(1)
+	assert_bool(session.run_state.ended).is_true()
+	if route_snapshots.size() == 1:
+		assert_int(int(route_snapshots[0].player_hit_count)).is_equal(1)
+		assert_float(float(route_snapshots[0].camera_impulse)).is_greater(0.0)
+
+	world.call(&"_clear_active_combat_actors")
+	assert_int(world.feedback_presenter.active_effect_count(&"player_hit")).is_zero()
+	assert_float(world.player_camera.visual_impulse_magnitude()).is_equal(0.0)
 
 
 func test_enemy_stays_inactive_until_spawn_marker_completes_and_cannot_arrive_after_clear() -> void:
