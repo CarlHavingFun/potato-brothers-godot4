@@ -204,12 +204,21 @@ func _exit_tree() -> void:
 		combat_world.unregister_active_enemy(runtime_instance_id, self)
 
 
+static func visual_color_for_role(role: GogoEnemyDefinition.Role) -> Color:
+	match role:
+		GogoEnemyDefinition.Role.SHOOTER:
+			return Color("9aa75a")
+		GogoEnemyDefinition.Role.CHARGER:
+			return Color("d68a3a")
+		_:
+			return Color("b86d52")
+
+
 func _draw() -> void:
-	var color := Color("ef6b67")
+	var role := GogoEnemyDefinition.Role.CHASER
 	if definition != null:
-		match definition.role:
-			GogoEnemyDefinition.Role.SHOOTER: color = Color("b37feb")
-			GogoEnemyDefinition.Role.CHARGER: color = Color("ff9f43")
-	draw_circle(Vector2.ZERO, 15.0, color)
+		role = definition.role
+	draw_circle(Vector2.ZERO, 16.0, Color("241f2b"))
+	draw_circle(Vector2.ZERO, 14.0, visual_color_for_role(role))
 	draw_circle(Vector2(-5.0, -3.0), 2.0, Color("241f2b"))
 	draw_circle(Vector2(5.0, -3.0), 2.0, Color("241f2b"))

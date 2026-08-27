@@ -194,16 +194,16 @@ func test_brotato_weapon_layout_keeps_one_and_six_weapons_close_and_evenly_space
 	for index in 6:
 		offsets.append(actor.call("weapon_orbit_offset", index, 6) as Vector2)
 	var expected := [
-		Vector2(56.0, 0.0),
-		Vector2(28.0, 48.497423),
-		Vector2(-28.0, 48.497423),
-		Vector2(-56.0, 0.0),
-		Vector2(-28.0, -48.497423),
-		Vector2(28.0, -48.497423),
+		Vector2(152.9113, 0.0),
+		Vector2(76.45565, 132.4249),
+		Vector2(-76.45565, 132.4249),
+		Vector2(-152.9113, 0.0),
+		Vector2(-76.45565, -132.4249),
+		Vector2(76.45565, -132.4249),
 	]
 	for index in 6:
 		assert_vector(offsets[index]).is_equal_approx(expected[index], Vector2(0.001, 0.001))
-		assert_float(offsets[index].length()).is_between(54.0, 60.0)
+		assert_float(offsets[index].length()).is_between(152.0, 154.0)
 
 
 func test_weapon_orbit_radius_derives_from_body_bounds_and_rejects_invalid_slots() -> void:
@@ -212,10 +212,11 @@ func test_weapon_orbit_radius_derives_from_body_bounds_and_rejects_invalid_slots
 	if not actor.has_method("weapon_orbit_radius"):
 		return
 	var standard_bounds: Array[Vector2i] = [Vector2i(96, 64)]
-	var taller_bounds: Array[Vector2i] = [Vector2i(96, 80)]
+	var taller_bounds: Array[Vector2i] = [Vector2i(96, 96)]
+	var standard_pivots: Array[Vector2i] = [Vector2i(38, 40)]
 	assert_float(float(actor.call("weapon_orbit_radius", 1, standard_bounds))).is_equal_approx(30.0, 0.001)
-	assert_float(float(actor.call("weapon_orbit_radius", 6, standard_bounds))).is_equal_approx(56.0, 0.001)
-	assert_float(float(actor.call("weapon_orbit_radius", 6, taller_bounds))).is_equal_approx(70.0, 0.001)
+	assert_float(float(actor.call("weapon_orbit_radius", 6, standard_bounds, standard_pivots))).is_between(152.0, 154.0)
+	assert_float(float(actor.call("weapon_orbit_radius", 6, taller_bounds, standard_pivots))).is_greater_equal(170.0)
 	assert_vector(actor.call("weapon_orbit_offset", -1, 6)).is_equal(Vector2.ZERO)
 	assert_vector(actor.call("weapon_orbit_offset", 6, 6)).is_equal(Vector2.ZERO)
 	assert_vector(actor.call("weapon_orbit_offset", 0, 0)).is_equal(Vector2.ZERO)

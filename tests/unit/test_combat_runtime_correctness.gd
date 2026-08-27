@@ -341,6 +341,64 @@ func test_targeting_and_projectiles_ignore_defeat_committed_enemies() -> void:
 	assert_bool(projectile.is_queued_for_deletion()).is_false()
 
 
+func test_six_pivoted_weapon_footprints_clear_niko_and_each_other() -> void:
+	var player := auto_free(GogoPlayerActor.new()) as GogoPlayerActor
+	assert_bool(player.has_method("weapon_visual_footprint_radius")).is_true()
+	if not player.has_method("weapon_visual_footprint_radius"):
+		return
+	var bounds: Array[Vector2i] = []
+	var pivots: Array[Vector2i] = []
+	for _index in 6:
+		bounds.append(Vector2i(96, 64))
+		pivots.append(Vector2i(38, 40))
+	var footprint := float(player.call("weapon_visual_footprint_radius", bounds[0], pivots[0]))
+	assert_float(footprint).is_equal_approx(sqrt(58.0 * 58.0 + 40.0 * 40.0), 0.001)
+	var radius := float(player.call("weapon_orbit_radius", 6, bounds, pivots))
+	for index in 6:
+		var offset := player.weapon_orbit_offset(index, 6, radius)
+		assert_float(offset.length() - footprint).is_greater_equal(76.0)
+		for prior in index:
+			var other := player.weapon_orbit_offset(prior, 6, radius)
+			assert_float(offset.distance_to(other)).is_greater_equal(
+				footprint * 2.0 + 12.0 - 0.001
+			)
+
+
+func test_weapon_orbit_extent_is_cached_for_edge_safe_arena_clamping() -> void:
+	var player := auto_free(GogoPlayerActor.new()) as GogoPlayerActor
+	assert_bool(player.has_method("weapon_arena_clamp_margin")).is_true()
+	if not player.has_method("weapon_arena_clamp_margin"):
+		return
+	var bounds: Array[Vector2i] = []
+	var pivots: Array[Vector2i] = []
+	for _index in 6:
+		bounds.append(Vector2i(96, 64))
+		pivots.append(Vector2i(38, 40))
+	var radius := float(player.call("weapon_orbit_radius", 6, bounds, pivots))
+	var footprint := float(player.call("weapon_visual_footprint_radius", bounds[0], pivots[0]))
+	player.call("cache_weapon_orbit_extent", radius, bounds, pivots)
+	assert_float(float(player.call("weapon_arena_clamp_margin"))).is_equal_approx(
+		radius + footprint,
+		0.001
+	)
+
+
+func test_enemy_role_palette_uses_rust_olive_and_amber_body_colors() -> void:
+	var enemy := auto_free(GogoEnemyActor.new()) as GogoEnemyActor
+	assert_bool(enemy.has_method("visual_color_for_role")).is_true()
+	if not enemy.has_method("visual_color_for_role"):
+		return
+	assert_str(String(enemy.call(
+		"visual_color_for_role", GogoEnemyDefinition.Role.CHASER
+	).to_html(false))).is_equal("b86d52")
+	assert_str(String(enemy.call(
+		"visual_color_for_role", GogoEnemyDefinition.Role.SHOOTER
+	).to_html(false))).is_equal("9aa75a")
+	assert_str(String(enemy.call(
+		"visual_color_for_role", GogoEnemyDefinition.Role.CHARGER
+	).to_html(false))).is_equal("d68a3a")
+
+
 func test_high_speed_projectile_uses_nearest_swept_contact() -> void:
 	var far_enemy := _configured_enemy(80.0)
 	var near_enemy := _configured_enemy(40.0)

@@ -24,10 +24,26 @@ const DECOR_SELECTORS: Array[StringName] = [
 ]
 const GRID_SIZE := 64
 const PLAYER_CLEAR_RADIUS := 240.0
-const CAPTURE_SOCKET_STEP := 96.0
-const CAPTURE_SIDE_INSET := 64.0
-const CAPTURE_TOP_INSET := 112.0
 const CAPTURE_CENTER_HALF_SIZE := Vector2(176.0, 112.0)
+const PROP_EDGE_INSET := 96.0
+const PROP_MINIMUM_SEPARATION := 128.0
+const PROP_ANCHOR_FACTORS: Array[Vector2] = [
+	Vector2(0.08, 0.13), Vector2(0.22, 0.09), Vector2(0.38, 0.14),
+	Vector2(0.55, 0.08), Vector2(0.72, 0.15), Vector2(0.88, 0.10),
+	Vector2(0.93, 0.29), Vector2(0.89, 0.48), Vector2(0.94, 0.68),
+	Vector2(0.86, 0.88), Vector2(0.68, 0.92), Vector2(0.51, 0.86),
+	Vector2(0.32, 0.93), Vector2(0.14, 0.86), Vector2(0.07, 0.70),
+	Vector2(0.12, 0.48), Vector2(0.06, 0.31), Vector2(0.27, 0.29),
+	Vector2(0.76, 0.34), Vector2(0.25, 0.70), Vector2(0.73, 0.73),
+]
+const CAPTURE_ANCHOR_FACTORS: Array[Vector2] = [
+	Vector2(0.72, 0.14), Vector2(0.87, 0.10), Vector2(0.95, 0.25),
+	Vector2(0.07, 0.45), Vector2(0.20, 0.55), Vector2(0.34, 0.38),
+	Vector2(0.09, 0.75), Vector2(0.27, 0.84), Vector2(0.72, 0.74),
+	Vector2(0.86, 0.57), Vector2(0.94, 0.81), Vector2(0.42, 0.90),
+	Vector2(0.63, 0.91), Vector2(0.82, 0.91), Vector2(0.34, 0.68),
+	Vector2(0.95, 0.48), Vector2(0.55, 0.84), Vector2(0.18, 0.36),
+]
 
 var _snapshot: GogoStaticAssetSnapshot
 var _arena_rect := Rect2()
@@ -284,11 +300,11 @@ func _build_props(run_seed: int, development_preview: bool) -> void:
 		pickup.configure(handle)
 		_prop_layer.add_child(pickup)
 		_record(handle, pickup, Vector2i(pickup.position))
-	if development_preview:
-		_build_preview_turret()
+	if development_preview and socket_index < sockets.size():
+		_build_preview_turret(sockets[socket_index])
 
 
-func _build_preview_turret() -> void:
+func _build_preview_turret(at: Vector2) -> void:
 	var handle := _handle(&"site_hold_turret")
 	if handle == null:
 		_issue(&"site_hold_turret")
@@ -299,10 +315,7 @@ func _build_preview_turret() -> void:
 	turret.collision_mask = 0
 	turret.configure(20.0, -1)
 	turret.configure_visual(handle)
-	turret.position = Vector2(
-		floorf((_arena_rect.end.x - 256.0) / GRID_SIZE) * GRID_SIZE,
-		ceilf((_arena_rect.position.y + 256.0) / GRID_SIZE) * GRID_SIZE
-	)
+	turret.position = at
 	_prop_layer.add_child(turret)
 	_record(handle, turret, Vector2i(turret.position))
 
@@ -310,22 +323,42 @@ func _build_preview_turret() -> void:
 func _prop_sockets(run_seed: int) -> Array[Vector2]:
 	var result: Array[Vector2] = []
 	var center := _arena_rect.get_center()
-	var start_x := ceili((_arena_rect.position.x + 128.0) / GRID_SIZE) * GRID_SIZE
-	var end_x := floori((_arena_rect.end.x - 128.0) / GRID_SIZE) * GRID_SIZE
-	var start_y := ceili((_arena_rect.position.y + 128.0) / GRID_SIZE) * GRID_SIZE
-	var end_y := floori((_arena_rect.end.y - 128.0) / GRID_SIZE) * GRID_SIZE
-	for y in range(start_y, end_y + 1, GRID_SIZE):
-		for x in range(start_x, end_x + 1, GRID_SIZE):
-			var socket := Vector2(x, y)
-			if socket.distance_to(center) >= PLAYER_CLEAR_RADIUS:
-				result.append(socket)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = run_seed
-	for index in range(result.size() - 1, 0, -1):
+	var factors: Array[Vector2] = PROP_ANCHOR_FACTORS.duplicate()
+	for index in range(factors.size() - 1, 0, -1):
 		var swap_index := rng.randi_range(0, index)
-		var held := result[index]
-		result[index] = result[swap_index]
-		result[swap_index] = held
+		var held: Vector2 = factors[index]
+		factors[index] = factors[swap_index]
+		factors[swap_index] = held
+	for factor in factors:
+		var socket := _arena_rect.position + Vector2(
+			factor.x * _arena_rect.size.x,
+			factor.y * _arena_rect.size.y
+		)
+		socket += Vector2(rng.randi_range(-23, 23), rng.randi_range(-19, 19))
+		socket.x = clampf(
+			socket.x,
+			_arena_rect.position.x + PROP_EDGE_INSET,
+			_arena_rect.end.x - PROP_EDGE_INSET
+		)
+		socket.y = clampf(
+			socket.y,
+			_arena_rect.position.y + PROP_EDGE_INSET,
+			_arena_rect.end.y - PROP_EDGE_INSET
+		)
+		socket = socket.round()
+		if int(socket.x) % GRID_SIZE == 0 and int(socket.y) % GRID_SIZE == 0:
+			socket += Vector2(11.0, -7.0)
+		if socket.distance_to(center) < PLAYER_CLEAR_RADIUS:
+			continue
+		var separated := true
+		for existing in result:
+			if socket.distance_to(existing) < PROP_MINIMUM_SEPARATION:
+				separated = false
+				break
+		if separated:
+			result.append(socket)
 	return result
 
 
@@ -386,22 +419,17 @@ func _record(handle: GogoStaticAssetHandle, node: Node, at: Vector2i) -> void:
 
 func _capture_candidate_centers(visible_rect: Rect2) -> Array[Vector2]:
 	var result: Array[Vector2] = []
-	var left_x := visible_rect.position.x + CAPTURE_SIDE_INSET
-	var right_x := visible_rect.end.x - CAPTURE_SIDE_INSET
-	var center_x := visible_rect.get_center().x
-	var columns: Array[float] = []
-	while left_x <= center_x - PLAYER_CLEAR_RADIUS:
-		columns.append(left_x)
-		left_x += CAPTURE_SOCKET_STEP
-	while right_x >= center_x + PLAYER_CLEAR_RADIUS:
-		columns.append(right_x)
-		right_x -= CAPTURE_SOCKET_STEP
-	columns.sort()
-	var y := visible_rect.position.y + CAPTURE_TOP_INSET
-	while y <= visible_rect.end.y - CAPTURE_SIDE_INSET:
-		for x in columns:
-			result.append(Vector2(x, y).round())
-		y += CAPTURE_SOCKET_STEP
+	for index in CAPTURE_ANCHOR_FACTORS.size():
+		var factor := CAPTURE_ANCHOR_FACTORS[index]
+		var center := visible_rect.position + Vector2(
+			factor.x * visible_rect.size.x,
+			factor.y * visible_rect.size.y
+		)
+		var phase := Vector2(
+			float((index * 17) % 23) - 11.0,
+			float((index * 13) % 19) - 9.0
+		)
+		result.append((center + phase).round())
 	return result
 
 

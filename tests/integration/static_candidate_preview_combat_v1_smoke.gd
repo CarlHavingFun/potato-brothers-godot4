@@ -80,6 +80,8 @@ func _initialize() -> void:
 		if not _require(orbit_weapon.position.is_equal_approx(expected_offset), "orbit slot %d" % index):
 			return
 		orbit_offsets.append(orbit_weapon.position)
+	if not _require(_weapon_footprints_clear_niko_and_each_other(world.player_actor, weapon_orbit), "six Glock footprints clear Niko and neighboring weapons"):
+		return
 
 	for index in 6:
 		world.call("_spawn_enemy", TARGET_ENEMY_ID)
@@ -186,6 +188,28 @@ func _add_runtime_caption(root_window: Window, value: String) -> void:
 	label.add_theme_font_size_override(&"font_size", 18)
 	label.add_theme_color_override(&"font_color", Color("f0c76b"))
 	panel.add_child(label)
+
+
+func _weapon_footprints_clear_niko_and_each_other(player: GogoPlayerActor, orbit: Node2D) -> bool:
+	for index in orbit.get_child_count():
+		var weapon := orbit.get_child(index) as GogoWeaponInstance
+		if weapon == null or weapon.weapon_visual_handle == null:
+			return false
+		var footprint := float(player.call("weapon_visual_footprint_radius",
+			weapon.weapon_visual_handle.display_size_px,
+			weapon.weapon_visual_handle.pivot_px
+		))
+		if weapon.position.length() - footprint < 76.0:
+			return false
+		for prior in index:
+			var other := orbit.get_child(prior) as GogoWeaponInstance
+			var other_footprint := float(player.call("weapon_visual_footprint_radius",
+				other.weapon_visual_handle.display_size_px,
+				other.weapon_visual_handle.pivot_px
+			))
+			if weapon.position.distance_to(other.position) < footprint + other_footprint + 12.0 - 0.001:
+				return false
+	return true
 
 
 func _on_weapon_fired(

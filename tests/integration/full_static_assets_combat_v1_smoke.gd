@@ -7,7 +7,7 @@ const PAUSE_CAPTURE_URI := OUTPUT_DIR_URI + "/pause-1280x720.png"
 const COVERAGE_URI := OUTPUT_DIR_URI + "/gogobro-static-coverage-v1.json"
 const REGISTRY_PATH := "res://game/content/assets/gogobro_static_assets_v1.json"
 const CAPTURE_SIZE := Vector2i(1280, 720)
-const CAPTURE_ARENA_SIZE := Vector2(1024, 448)
+const CAPTURE_ARENA_SIZE := Vector2(1280, 720)
 const APP_SCENE := preload("res://game/app/app_root.tscn")
 const TARGET_ENEMY_ID: StringName = &"gogobro.core:enemy/drifter"
 const SKYLINE_GRENADE_ID: StringName = &"gogobro.preview:item/skyline_grenade"
@@ -142,6 +142,15 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	)
 	if not _require(presenter_evidence.size() == 15, "fifteen presenter evidence instances"):
 		return
+	if not _require(
+		_transform_rect(world.arena_rect, world_to_screen).encloses(
+			Rect2(Vector2.ZERO, Vector2(CAPTURE_SIZE))
+		),
+		"arena floor and boundary cover the complete 1280x720 route"
+	):
+		return
+	if not _require(_off_grid_foreground_count(presenter_evidence) >= 8, "off-grid foreground composition"):
+		return
 
 	var orbit := world.player_actor.get_node_or_null("WeaponOrbit") as Node2D
 	if not _require(orbit != null and orbit.get_child_count() == 6, "six orbit weapons"):
@@ -153,6 +162,10 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 			return
 		distinct_assets[weapon.weapon_visual_handle.asset_id] = true
 	if not _require(distinct_assets.size() == 6, "six distinct weapon silhouettes"):
+		return
+	if not _require(_six_weapon_footprints_are_disjoint(world.player_actor, orbit), "six rotated weapon footprints stay disjoint"):
+		return
+	if not _require(_six_weapon_footprints_clear_player(world.player_actor, orbit), "six rotated weapon footprints clear Niko"):
 		return
 
 	for index in 10:
@@ -166,7 +179,7 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 			continue
 		enemy.global_position = (
 			world.player_actor.global_position
-			+ Vector2.RIGHT.rotated(TAU * float(index) / 10.0) * 180.0
+			+ Vector2.RIGHT.rotated(TAU * float(index) / 10.0) * 330.0
 		)
 		enemy.set_physics_process(false)
 
@@ -200,11 +213,12 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	if not _require(not evidence_markers.is_empty(), "live spawn marker evidence node"):
 		return
 	var evidence_marker := evidence_markers.back() as GogoStaticSpawnMarker
-	evidence_marker.position = Vector2(512, 96)
+	evidence_marker.position = Vector2(640, 180)
 	var marker_timer := evidence_marker.get_node_or_null("ActivationDelay") as Timer
 	if marker_timer != null:
 		marker_timer.stop()
 	world.player_camera.clear_visual_impulses()
+	world.player_camera.set_physics_process(false)
 	await _wait_for_capture_frame()
 	await _wait_for_capture_frame()
 	world_to_screen = world.get_global_transform_with_canvas()
@@ -479,6 +493,51 @@ func _node_has_static_texture(node: CanvasItem) -> bool:
 		return (node as MultiMeshInstance2D).texture != null
 	var sprite := node.get_node_or_null("StaticVisual") as Sprite2D
 	return sprite != null and sprite.texture != null
+
+
+func _six_weapon_footprints_are_disjoint(player: GogoPlayerActor, orbit: Node2D) -> bool:
+	for index in orbit.get_child_count():
+		var weapon := orbit.get_child(index) as GogoWeaponInstance
+		if weapon == null or weapon.weapon_visual_handle == null:
+			return false
+		var radius := float(player.call("weapon_visual_footprint_radius",
+			weapon.weapon_visual_handle.display_size_px,
+			weapon.weapon_visual_handle.pivot_px
+		))
+		for prior in index:
+			var other := orbit.get_child(prior) as GogoWeaponInstance
+			var other_radius := float(player.call("weapon_visual_footprint_radius",
+				other.weapon_visual_handle.display_size_px,
+				other.weapon_visual_handle.pivot_px
+			))
+			if weapon.position.distance_to(other.position) < radius + other_radius + 12.0 - 0.001:
+				return false
+	return true
+
+
+func _six_weapon_footprints_clear_player(player: GogoPlayerActor, orbit: Node2D) -> bool:
+	for child in orbit.get_children():
+		var weapon := child as GogoWeaponInstance
+		if weapon == null or weapon.weapon_visual_handle == null:
+			return false
+		var footprint := float(player.call("weapon_visual_footprint_radius",
+			weapon.weapon_visual_handle.display_size_px,
+			weapon.weapon_visual_handle.pivot_px
+		))
+		if weapon.position.length() - footprint < 76.0:
+			return false
+	return true
+
+
+func _off_grid_foreground_count(records: Array) -> int:
+	var count := 0
+	for raw_record: Variant in records:
+		var record := raw_record as Dictionary
+		if String(record.get("node", "")).begins_with("Props/"):
+			var position := record.get("position", Vector2i.ZERO) as Vector2i
+			if position.x % 64 != 0 or position.y % 64 != 0:
+				count += 1
+	return count
 
 
 func _transform_rects(rects: Array[Rect2], transform: Transform2D) -> Array[Rect2]:

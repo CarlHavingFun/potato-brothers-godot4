@@ -25,10 +25,10 @@ const DECOR_SELECTORS: Array[StringName] = [
 	&"decor_variant_05",
 	&"decor_variant_06",
 ]
-const CAPTURE_VIEW_RECT := Rect2(0, 0, 1024, 448)
+const CAPTURE_VIEW_RECT := Rect2(0, 0, 1280, 720)
 const CAPTURE_HUD_EXCLUSION_RECTS: Array[Rect2] = [
-	Rect2(240, 348, 560, 100),
-	Rect2(944, 168, 80, 280),
+	Rect2(0, 0, 368, 244),
+	Rect2(448, 0, 384, 112),
 ]
 
 
@@ -58,9 +58,23 @@ func test_world_consumes_persistent_assets_at_deterministic_collision_free_nodes
 	]:
 		assert_bool(first.has_node("Props/%s" % asset_id)).is_true()
 	assert_int(first.find_children("*", "CollisionShape2D", true, false).size()).is_equal(0)
+	var foreground_rects: Array[Rect2] = []
+	var off_grid_count := 0
 	for record: Dictionary in first.call("consumer_records"):
-		assert_bool((record.position as Vector2i).x % 64 == 0).is_true()
-		assert_bool((record.position as Vector2i).y % 64 == 0).is_true()
+		if not String(record.node).begins_with("Props/"):
+			continue
+		var position := record.position as Vector2i
+		if position.x % 64 != 0 or position.y % 64 != 0:
+			off_grid_count += 1
+		assert_float(Vector2(position).distance_to(Vector2(1024, 768))).is_greater_equal(240.0)
+		var rect := Rect2(
+			Vector2(position - (record.pivot_px as Vector2i)),
+			Vector2(record.display_size_px as Vector2i)
+		)
+		for prior in foreground_rects:
+			assert_bool(rect.intersects(prior)).is_false()
+		foreground_rects.append(rect)
+	assert_int(off_grid_count).is_greater_equal(8)
 
 
 func test_release_world_omits_neutral_preview_turret() -> void:
@@ -99,6 +113,8 @@ func test_capture_safe_layout_exposes_every_real_world_node_without_hud_overlap(
 	var actual_decor_selectors: Array[StringName] = []
 	var floor_evidence_rect := Rect2()
 	var boundary_evidence_rect := Rect2()
+	var off_grid_count := 0
+	var capture_lattice_residues: Dictionary = {}
 	for raw_record: Variant in records:
 		var record := raw_record as Dictionary
 		var asset_id := StringName(record.get("asset_id", &""))
@@ -120,12 +136,18 @@ func test_capture_safe_layout_exposes_every_real_world_node_without_hud_overlap(
 		elif asset_id == &"arena_boundary_border":
 			boundary_evidence_rect = world_rect
 		if asset_id not in [&"community_server_floor", &"arena_boundary_border"]:
+			var position := record.get("position", Vector2i.ZERO) as Vector2i
+			if position.x % 64 != 0 or position.y % 64 != 0:
+				off_grid_count += 1
+			capture_lattice_residues[Vector2i(position.x % 96, position.y % 96)] = true
 			for prior_rect in foreground_rects:
 				assert_bool(world_rect.intersects(prior_rect)).is_false()
 			foreground_rects.append(world_rect)
 	assert_dict(actual_counts).is_equal(expected_counts)
 	assert_bool(floor_evidence_rect.intersects(boundary_evidence_rect)).is_false()
 	assert_int(actual_decor_selectors.size()).is_equal(DECOR_SELECTORS.size())
+	assert_int(off_grid_count).is_greater_equal(8)
+	assert_int(capture_lattice_residues.size()).is_greater_equal(4)
 	for selector in DECOR_SELECTORS:
 		assert_bool(actual_decor_selectors.has(selector)).is_true()
 
