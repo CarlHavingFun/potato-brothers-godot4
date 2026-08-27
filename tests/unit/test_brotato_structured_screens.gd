@@ -421,7 +421,14 @@ func test_character_setup_has_exactly_one_real_niko_cell_and_first_frame_detail(
 	)
 	assert_int(preview.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
 	assert_str((screen.get_node("NikoDetail/Name") as Label).text).is_equal("Niko")
-	assert_bool((screen.get_node("NikoDetail/Traits") as Label).text.is_empty()).is_false()
+	var traits_text := (screen.get_node("NikoDetail/Traits") as Label).text
+	assert_str(traits_text).starts_with("初始生命")
+	assert_bool(
+		traits_text.contains("标签")
+		or traits_text.contains("niko")
+		or traits_text.contains("balanced")
+		or traits_text.contains("均衡型")
+	).is_false()
 	assert_int(screen.find_children("*", "PanelContainer", true, false).size()).is_equal(0)
 	assert_bool(_fits_native_capture(screen.get_node("NikoDetail") as Control)).is_true()
 	assert_bool(_fits_native_capture(roster)).is_true()

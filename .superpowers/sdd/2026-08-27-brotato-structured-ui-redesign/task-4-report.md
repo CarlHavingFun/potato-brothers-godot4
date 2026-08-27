@@ -167,3 +167,77 @@ Report: `reports/task4-full-final-ids/report_1/index.html`
 - The windowed GdUnit launcher emits a remote-debugger port `0` connection warning before running successfully.
 
 Neither warning caused a test failure, leak, orphan, capture failure, or visual defect. No open Task 4 concern remains.
+
+## FIX ROUND 1
+
+### Review disposition
+
+- **Important — rejected after direct artifact verification.** The review claimed that the weapon-selection Back affordance was absent, but the cited final artifact itself contradicts that observation. `C:\Users\18421\AppData\Roaming\GOGOBRO\full-static-assets-menu-v1\weapon-select-1280x720.png` has SHA-256 `1257769976F95EFE132DEF20F47AA542E9E306A578D7FD03C48D16A4508C9DBC`; an original-resolution inspection and an independent `240x110` pixel crop both show `← 返回` at approximately `Rect(40, 28, 154, 48)`. The production Back implementation was therefore preserved without churn.
+- During fresh capture verification, the windowed harness intermittently read a partially redrawn route tree. The integration-only capture helper now recursively calls `queue_redraw()` on the real route tree before its existing frame waits. This stabilized artifact acquisition without changing any runtime setup route or Back implementation. The stabilized weapon image is byte-for-byte identical to the previously verified artifact above.
+- **Minor — accepted and fixed.** Character detail no longer renders internal tags such as `niko` or `balanced`. The already-localized role line remains `唯一可用角色 · 均衡型`, while the detail block begins directly with localized gameplay stats, avoiding a redundant second role label.
+
+### TDD evidence
+
+Localization RED:
+
+```powershell
+tools\run_tests.ps1 -GodotBinary 'E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64.exe' -TestPath res://tests/unit/test_brotato_structured_screens.gd -ReportDirectory res://reports/task4-fix1-character-localization-red
+```
+
+Result: 33 cases executed with 2 expected assertion failures. The failure output exposed the pre-fix text `标签  niko · balanced` and failed both the localized-stat prefix assertion and the no-internal-token assertion.
+
+Localization GREEN after the minimal display-only change:
+
+```powershell
+tools\run_tests.ps1 -GodotBinary 'E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64.exe' -TestPath res://tests/unit/test_brotato_structured_screens.gd -ReportDirectory res://reports/task4-fix1-character-localization-green
+```
+
+Result: 33/33, 0 errors, 0 failures, 0 skipped, 0 orphans. The regression asserts that character detail starts with `初始生命` and contains none of `标签`, `niko`, `balanced`, or a redundant `均衡型`.
+
+Consumer GREEN:
+
+```powershell
+tools\run_tests.ps1 -GodotBinary 'E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64.exe' -TestPath res://tests/unit/test_static_menu_consumers.gd -ReportDirectory res://reports/task4-fix1-consumers-final
+```
+
+Result: 7/7, 0 errors, 0 failures, 0 skipped, 0 orphans.
+
+### Real windowed verification and fresh artifacts
+
+```powershell
+cmd.exe /c "addons\gdUnit4\runtest.cmd --godot_binary E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64.exe -c -a res://tests/integration/full_static_assets_menu_v1_smoke.gd"
+```
+
+Final result: 1/1 passed in a real 1280x720 windowed OpenGL run (`report_132`), including actual character, weapon, difficulty, session, combat, shop, and upgrade route transitions.
+
+Fresh uncached evidence directory:
+
+`C:\Users\18421\AppData\Roaming\GOGOBRO\full-static-assets-menu-v1-fix-round-1-final`
+
+SHA-256:
+
+- `character-select-1280x720.png` — `90B408F234919E035AC80D2C0D4E67C967C61503BAD5D9EBFCAD5C2F935740AA`
+- `weapon-select-1280x720.png` — `1257769976F95EFE132DEF20F47AA542E9E306A578D7FD03C48D16A4508C9DBC`
+- `difficulty-select-1280x720.png` — `A933FA73E851A8507F0FC733186180B99A4D21A1BF042F63D6A6F47F5B31AB45`
+- `weapon-select-top-left-240x110.png` — `0D2E2401060FD0536AB461D0D652DF933A2CAB5CAC1656253CB37544A3DB2837` (lossless diagnostic crop from the full weapon capture)
+
+All three full route images were inspected at original resolution. Character detail contains localized stats and no raw tag tokens. Weapon detail remains readable and its top-left Back affordance is visibly present; the lossless diagnostic crop records the exact disputed region. Difficulty remains readable with its Back affordance and single real Standard entry. No production Back file changed in this round.
+
+### Full-suite verification
+
+```powershell
+tools\run_tests.ps1 -GodotBinary 'E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64.exe' -ReportDirectory res://reports/task4-fix1-full-final
+```
+
+Result: 35/35 suites, 329/329 cases, 0 errors, 0 failures, 0 flaky, 0 skipped, 0 orphans; 43.313 seconds. Exit code 0.
+
+Report: `reports/task4-fix1-full-final/report_1/index.html`
+
+### Changed files and self-review
+
+- `game/ui/character_select_screen.gd` — removed raw internal tag rendering from the player-facing Niko summary; canonical tags and gameplay data remain unchanged.
+- `tests/unit/test_brotato_structured_screens.gd` — added regression coverage for localized, non-redundant character detail.
+- `tests/integration/full_static_assets_menu_v1_smoke.gd` — stabilized real-route capture freshness by queueing redraws before the existing frame waits.
+- `.superpowers/sdd/2026-08-27-brotato-structured-ui-redesign/task-4-report.md` — recorded this review round and evidence.
+
+Self-review confirmed that `game/ui/weapon_select_screen.gd` and `game/ui/difficulty_select_screen.gd` have no diff from the Task 4 commit, internal character tags and all gameplay/session values are unchanged, no candidate/shipping/approval state was modified, and `git diff --check` is clean. The only remaining console noise is the previously documented non-blocking Godot anchor warning and windowed remote-debugger port warning.

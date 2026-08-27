@@ -388,6 +388,7 @@ func _capture_route(
 		"%s contains only real route UI" % route_name
 	):
 		return {}
+	_queue_canvas_redraw(screen)
 	await _wait_for_capture_frame()
 	await _wait_for_capture_frame()
 	if DisplayServer.get_name() == "headless":
@@ -451,6 +452,13 @@ func _wait_for_capture_frame() -> void:
 	# capture still waits for the real rendered frame before reading the viewport.
 	if DisplayServer.get_name() != "headless":
 		await RenderingServer.frame_post_draw
+
+
+func _queue_canvas_redraw(node: Node) -> void:
+	if node is CanvasItem:
+		(node as CanvasItem).queue_redraw()
+	for child in node.get_children():
+		_queue_canvas_redraw(child)
 
 
 func _control_fits_capture(control: Control) -> bool:

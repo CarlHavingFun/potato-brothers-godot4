@@ -159,13 +159,9 @@ func _first_frame(niko: CharacterDefinition) -> Texture2D:
 
 func _niko_summary(niko: CharacterDefinition) -> String:
 	var stats := niko.base_stats
-	var tags: Array[String] = []
-	for tag: StringName in niko.tags:
-		tags.append(String(tag))
 	return (
-		"标签  %s\n初始生命  %s\n移动速度  %s\n伤害倍率  %s%%\n护甲  %s\n闪避  %s%%\n初始道具  %s"
+		"初始生命  %s\n移动速度  %s\n伤害倍率  %s%%\n护甲  %s\n闪避  %s%%\n初始道具  %s"
 		% [
-			" · ".join(tags),
 			_num(float(stats.get(&"max_health", 0.0))),
 			_num(float(stats.get(&"movement_speed", 0.0))),
 			_num(float(stats.get(&"damage_multiplier", 1.0)) * 100.0),
