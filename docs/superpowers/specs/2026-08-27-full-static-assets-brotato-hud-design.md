@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make every registered non-character static asset visible through a real game consumer while keeping Niko as the only character placeholder. The combat presentation follows Brotato's information hierarchy, immediacy, large readable silhouettes, automatic weapon behavior, and compact feedback language, while all rendered artwork remains original GOGOBRO CSGO-community pixel art.
+Make every registered non-character static asset visible through a real game consumer while keeping Niko as the only character placeholder. The combat presentation follows Brotato's information hierarchy, immediacy, actual-size readability, automatic weapon behavior, and compact feedback language, while all rendered artwork remains original GOGOBRO CSGO-community pixel art.
 
 This is a functional and visual reference, not a copy of Brotato source art. No Brotato textures, fonts, icons, logos, or source files enter the project.
 
@@ -56,7 +56,7 @@ Every replacement follows one shared generation contract:
 - reference Niko's mother art plus the approved crisp item batch for palette, outline weight, and pixel density;
 - use a perfectly solid `#FF00FF` raw background with no shadows, texture, glow, gradients, or subject-colored spill in the background;
 - show one centered three-quarter-view physical object with a large, immediately readable silhouette and a four-pixel safe margin;
-- use chunky pixel clusters, hard edges, no antialiasing, no photographic micro-detail, and a restrained charcoal/orange/off-white/utility-color palette;
+- use crisp pixel clusters, hard edges, no antialiasing, no photographic micro-detail, and a restrained charcoal/orange/off-white/utility-color palette; moderate structural and surface detail is allowed when it stays clear at final size;
 - prefer an exaggerated CSGO-community prop or joke over a realistic miniature when realism becomes unreadable at 64 pixels;
 - chroma-key only after generation, then export a transparent 64×64 PNG with nearest-neighbor sampling and strict edge, alpha, palette, and actual-size QC.
 
@@ -64,7 +64,7 @@ The magenta background is a generation and cleanup tool only. It is never visibl
 
 ## CS weapon archetype contract
 
-All 12 weapon visuals are regenerated through the same solid-magenta, chunky-pixel pipeline as the physical items. A weapon is not accepted as a generic rifle, generic pistol, or invented sci-fi silhouette: its defining CS archetype must be readable at actual gameplay size before the name is shown.
+All 12 weapon visuals are regenerated through the same solid-magenta, crisp-pixel pipeline as the physical items. A weapon is not accepted as a generic rifle, generic pistol, or invented sci-fi silhouette: its defining CS archetype must be readable at actual gameplay size before the name is shown.
 
 The stable slot mapping is:
 
@@ -85,7 +85,7 @@ The stable slot mapping is:
 
 This mapping references real silhouette families, not Valve textures or commercial skins. Surface treatment remains original GOGOBRO: charcoal metal, warm orange accents, muted utility green, off-white highlights, and small community-joke stickers that do not obscure the weapon class.
 
-Firearms are authored right-facing in a 96×64 gameplay texture; knives use a 64×64 gameplay texture. The occupied silhouette must use most of the safe region, barrels and suppressors must remain several pixels thick after final export, and small controls are collapsed into larger color blocks. Every weapon declares an integer pivot plus muzzle or contact anchor. Runtime rotation/mirroring happens around that pivot with nearest-neighbor rendering.
+Firearms are authored right-facing in a 96×64 gameplay texture; knives use a 64×64 gameplay texture. The occupied silhouette must use most of the safe region, barrels and suppressors must remain intact after final export, and any detail that becomes noise at actual size is simplified. Finer structure is allowed when it survives nearest-neighbor presentation cleanly. Every weapon declares an integer pivot plus muzzle or contact anchor. Runtime rotation/mirroring happens around that pivot with nearest-neighbor rendering.
 
 Combat behavior follows the visible archetype: knives use short-range contact, SMGs use rapid low-recoil fire, pistols use compact deliberate fire, AK/M4 use readable rifle recoil, and AWP uses a slow high-impact shot. Critical, penetration, and explosion feedback must arise from canonical mechanics. A gun is not given an implausible explosive identity merely to make a screenshot; explosive feedback comes from a grenade, explosive prop, or another explicitly authored CS-grounded source.
 
@@ -93,7 +93,7 @@ Combat behavior follows the visible archetype: knives use short-range contact, S
 
 Weapons occupy up to six evenly spaced sockets on a 72-pixel ring around Niko. Every instance independently selects the nearest valid target, rotates toward it, and automatically attacks. It owns its own texture, pivot, muzzle anchor, recoil transform, cooldown, projectile sequence, and feedback sequence.
 
-Large pixel silhouettes take priority over firearm realism. Candidate textures render at nearest-neighbor integer scale. A weapon that becomes ambiguous at gameplay size is revised in the next candidate with fewer thin barrel pixels and larger color masses; runtime never smooths or downscales it to conceal the issue.
+Actual-size recognition takes priority over either realism or forced chunkiness. Candidate textures render at nearest-neighbor integer scale. A weapon that becomes ambiguous at gameplay size is revised in the next candidate by thickening broken features, simplifying noisy detail, or strengthening silhouette contrast; a clear candidate may retain moderate detail. Runtime never smooths or downscales it to conceal the issue.
 
 Shot feedback is emitted from the declared muzzle anchor. The feedback presenter supplies a short high-contrast muzzle flash, integer recoil, visible projectile, contact burst, damage event, death burst, and bounded integer camera impulse. This keeps the Brotato-like cause-and-effect chain readable without changing combat simulation order.
 

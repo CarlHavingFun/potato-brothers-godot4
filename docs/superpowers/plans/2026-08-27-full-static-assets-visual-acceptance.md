@@ -185,7 +185,7 @@ Require the reviewer to actively play both games, inspect the exact-size evidenc
 4. Border restraint and world visibility.
 5. Combat cause/effect readability and six-weapon legibility.
 
-Hard failures are: any unrecognizable weapon, abstract item, soft/blurred pixel art, duplicate/fake character, nested decorative frames, missing required route, fake combat event, or clipped/unreadable primary text.
+Hard failures are: any unrecognizable weapon, abstract item, soft/blurred pixel art, detail that collapses at actual size, duplicate/fake character, nested decorative frames, missing required route, fake combat event, or clipped/unreadable primary text. Moderate crisp detail is not a failure merely because it is less chunky than Brotato.
 
 - [ ] **Step 3: Record direct comparison observations and scores**
 

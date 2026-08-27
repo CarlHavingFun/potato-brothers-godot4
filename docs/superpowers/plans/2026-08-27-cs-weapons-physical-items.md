@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace all twelve weapon visuals with unmistakable CS archetypes and make every one of the thirty item icons a concrete, consistently styled physical object while preserving stable IDs and item numbers.
+**Goal:** Replace all twelve weapon visuals with unmistakable, crisp-at-runtime CS archetypes and make every one of the thirty item icons a concrete, consistently styled physical object while preserving stable IDs and item numbers.
 
 **Architecture:** A checked-in redraw contract is the single source of truth for visible archetypes, physical subjects, dimensions, pivots, anchors, and localization. Generated work stays in numbered inbox candidates; only QC-passing files are copied into the development-preview asset tree and hash-bound in the preview manifest. Runtime content consumes the same stable IDs, with melee/ranged behavior matching the visible archetype and the existing `skyline_grenade` trigger providing the canonical explosion source.
 
@@ -16,7 +16,7 @@
 - Preserve all existing weapon/item asset IDs and item gameplay numbers.
 - Every raw generation uses a perfectly solid `#FF00FF` background; final runtime PNGs use transparent alpha and transparent RGB zero.
 - Firearms are right-facing 96×64 gameplay textures; knives and item icons are 64×64 gameplay textures.
-- Weapon silhouettes must be readable at 100% gameplay size and use chunky color masses; no gun may be accepted merely because its name disambiguates it.
+- Weapon silhouettes must be readable at 100% gameplay size; moderate detail is allowed when it remains crisp, and no gun may be accepted merely because its name disambiguates it.
 - Items depict concrete physical objects. Footprints, arrows, speed streaks, isolated crosshairs, floating numbers, and abstract status glyphs are hard failures.
 - Candidates remain development-preview assets and never inherit shipping approval.
 - `heavy_hand_cannon` is a Desert Eagle and does not cause explosions. Explosion feedback comes from the existing `skyline_grenade` every-seventh-ranged-attack rule.
@@ -141,7 +141,7 @@ git commit -m "test: lock CS weapon and physical item redraw contract"
 Use this exact invariant prefix for every weapon, changing only the contract subject and silhouette cues:
 
 ```text
-Original GOGOBRO chunky pixel-art game weapon, visual hierarchy inspired by Brotato but no copied art. Strictly recognizable as {SUBJECT}. Right-facing gameplay silhouette, very large readable color masses, thick barrel and controls, charcoal metal, warm orange accents, muted utility green, off-white highlights, one tiny original CS-community joke sticker. Hard square pixel clusters, no antialiasing, no photorealism, no micro-detail, no text, no logo. Centered with safe margin on a perfectly flat solid #FF00FF background; no shadow, glow, texture, gradient, or magenta spill.
+Original GOGOBRO crisp pixel-art game weapon, visual hierarchy inspired by Brotato but no copied art. Strictly recognizable as {SUBJECT}. Right-facing gameplay silhouette, strong contrast and intact key features at 96x64 or 64x64, charcoal metal, warm orange accents, muted utility green, off-white highlights, one tiny original CS-community joke sticker. Moderate structural and surface detail is allowed only when it stays clear at final size. Hard pixel edges, no antialiasing, no photorealism, no noisy micro-detail, no text, no logo. Centered with safe margin on a perfectly flat solid #FF00FF background; no shadow, glow, texture, gradient, or magenta spill.
 ```
 
 - [ ] **Step 2: Generate four independently reviewable batches**
@@ -196,7 +196,7 @@ Hard-reject any icon that depicts an abstract event, reads only because of its n
 - [ ] **Step 2: Generate replacement candidates with the locked physical-item prompt**
 
 ```text
-Original GOGOBRO chunky pixel-art inventory item, visual hierarchy inspired by Brotato but no copied art. One concrete {SUBJECT}, centered three-quarter view, immediately readable at 64x64, oversized silhouette, hard square pixel clusters, restrained charcoal/orange/off-white/utility-color palette, one subtle original CS-community joke detail, no text, no logo, no floating symbols, no arrows, no footprints. Perfectly flat solid #FF00FF background, no shadow, glow, texture, gradient, or magenta spill.
+Original GOGOBRO crisp pixel-art inventory item, visual hierarchy inspired by Brotato but no copied art. One concrete {SUBJECT}, centered three-quarter view, immediately readable at 64x64, strong silhouette, hard pixel edges, restrained charcoal/orange/off-white/utility-color palette, one subtle original CS-community joke detail. Moderate object detail is allowed only when it survives at final size. No text, no logo, no floating symbols, no arrows, no footprints. Perfectly flat solid #FF00FF background, no shadow, glow, texture, gradient, or magenta spill.
 ```
 
 Generate the next numbered candidate for every rejected row and rescore it. A row is installable only when all three review booleans are true.
@@ -273,4 +273,3 @@ git commit -m "feat: align combat behavior with CS weapon archetypes"
 - Spec coverage: all twelve weapon slots, all thirty item IDs, concrete item rules, magenta pipeline, anchors, stable mechanics, melee/ranged behavior, and CS-grounded explosion source are assigned to Tasks 1-4.
 - Placeholder scan: no deferred asset names, subject choices, dimensions, modes, commands, or acceptance thresholds remain.
 - Type consistency: the redraw contract, manifest, content factory, and trigger runtime use the same asset IDs, `mode` values, anchor names, and `impact_kind` values.
-
