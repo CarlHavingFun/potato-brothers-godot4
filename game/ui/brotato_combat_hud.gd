@@ -20,6 +20,7 @@ var experience_bar: ProgressBar
 var experience_label: Label
 var level_label: Label
 var materials_label: Label
+var wave_materials_label: Label
 var control_hint: PanelContainer
 var metric_panels: Array[Panel] = []
 var global_icons: Dictionary = {}
@@ -63,6 +64,7 @@ func apply_snapshot(snapshot: GogoCombatHudSnapshot) -> void:
 	experience_label.text = "%d / %d" % [snapshot.experience, snapshot.next_level_requirement]
 	level_label.text = "LV.%d" % snapshot.level
 	materials_label.text = "%d" % snapshot.materials
+	wave_materials_label.text = "+%d" % snapshot.wave_materials
 	if snapshot.wave > 1 or (snapshot.wave == 1 and snapshot.wave_elapsed >= 4.0):
 		_dismiss_control_hint()
 	control_hint.visible = not control_hint_dismissed
@@ -83,7 +85,7 @@ func _build_hierarchy() -> void:
 	var top_left := Control.new()
 	top_left.name = "TopLeft"
 	top_left.position = Vector2(24, 20)
-	top_left.size = Vector2(320, 140)
+	top_left.size = Vector2(320, 180)
 	add_child(top_left)
 
 	var health_metric := _metric_panel("Health", Vector2.ZERO, Vector2(320, 48))
@@ -91,7 +93,7 @@ func _build_hierarchy() -> void:
 	var health_icon := _texture_rect("HealthIcon", Vector2(8, 8), Vector2(32, 32))
 	health_metric.add_child(health_icon)
 	global_icons["hud_icon_kit|health"] = health_icon
-	health_label = _label("Value", 18, HORIZONTAL_ALIGNMENT_LEFT)
+	health_label = _metric_label("Value", 18, HORIZONTAL_ALIGNMENT_LEFT)
 	health_label.position = Vector2(48, 0)
 	health_label.size = Vector2(248, 26)
 	health_metric.add_child(health_label)
@@ -102,32 +104,45 @@ func _build_hierarchy() -> void:
 
 	var experience_metric := _metric_panel("Experience", Vector2(0, 52), Vector2(320, 40))
 	top_left.add_child(experience_metric)
-	level_label = _label("Level", 18, HORIZONTAL_ALIGNMENT_LEFT)
-	level_label.position = Vector2(8, 0)
-	level_label.size = Vector2(74, 40)
-	experience_metric.add_child(level_label)
-	experience_label = _label("Value", 14, HORIZONTAL_ALIGNMENT_RIGHT)
-	experience_label.position = Vector2(224, 0)
-	experience_label.size = Vector2(80, 20)
-	experience_metric.add_child(experience_label)
-	experience_bar = _progress_bar("ExperienceBar", Color("5aa9df"))
-	experience_bar.position = Vector2(82, 23)
-	experience_bar.size = Vector2(222, 10)
+	experience_bar = _progress_bar("ExperienceBar", Color("64c957"))
+	experience_bar.position = Vector2(8, 6)
+	experience_bar.size = Vector2(296, 28)
 	experience_metric.add_child(experience_bar)
+	level_label = _metric_label("Level", 18, HORIZONTAL_ALIGNMENT_LEFT)
+	level_label.position = Vector2(8, 0)
+	level_label.size = Vector2(88, 28)
+	experience_bar.add_child(level_label)
+	experience_label = _metric_label("Value", 14, HORIZONTAL_ALIGNMENT_RIGHT)
+	experience_label.position = Vector2(188, 0)
+	experience_label.size = Vector2(100, 28)
+	experience_bar.add_child(experience_label)
 
 	var material_metric := _metric_panel("Materials", Vector2(0, 96), Vector2(160, 44))
 	top_left.add_child(material_metric)
-	var material_symbol := _label("Symbol", 24, HORIZONTAL_ALIGNMENT_CENTER)
+	var material_symbol := _metric_label("Symbol", 24, HORIZONTAL_ALIGNMENT_CENTER)
 	material_symbol.text = "◆"
 	material_symbol.position = Vector2(8, 0)
 	material_symbol.size = Vector2(34, 44)
 	material_symbol.add_theme_color_override("font_color", Color("f3c742"))
 	material_metric.add_child(material_symbol)
-	materials_label = _label("Value", 26, HORIZONTAL_ALIGNMENT_LEFT)
+	materials_label = _metric_label("Value", 26, HORIZONTAL_ALIGNMENT_LEFT)
 	materials_label.position = Vector2(44, 0)
 	materials_label.size = Vector2(108, 44)
 	materials_label.add_theme_color_override("font_color", Color("f3c742"))
 	material_metric.add_child(materials_label)
+
+	var wave_material_metric := _metric_panel("WaveMaterials", Vector2(0, 140), Vector2(240, 40))
+	top_left.add_child(wave_material_metric)
+	var wave_material_title := _metric_label("Title", 16, HORIZONTAL_ALIGNMENT_LEFT)
+	wave_material_title.text = "本波材料"
+	wave_material_title.position = Vector2(8, 0)
+	wave_material_title.size = Vector2(112, 40)
+	wave_material_metric.add_child(wave_material_title)
+	wave_materials_label = _metric_label("Value", 22, HORIZONTAL_ALIGNMENT_LEFT)
+	wave_materials_label.position = Vector2(124, 0)
+	wave_materials_label.size = Vector2(108, 40)
+	wave_materials_label.add_theme_color_override("font_color", Color("f3c742"))
+	wave_material_metric.add_child(wave_materials_label)
 
 	var top_center := Control.new()
 	top_center.name = "TopCenter"
@@ -138,20 +153,20 @@ func _build_hierarchy() -> void:
 	wave_label.position = Vector2(0, 0)
 	wave_label.size = Vector2(384, 28)
 	top_center.add_child(wave_label)
-	var wave_icon := _texture_rect("WaveIcon", Vector2(104, 2), Vector2(24, 24))
+	var wave_icon := _texture_rect("WaveIcon", Vector2(96, 0), Vector2(32, 32))
 	top_center.add_child(wave_icon)
 	global_icons["hud_icon_kit|wave"] = wave_icon
 	timer_label = _label("Timer", 48, HORIZONTAL_ALIGNMENT_CENTER)
 	timer_label.position = Vector2(0, 32)
 	timer_label.size = Vector2(384, 58)
 	top_center.add_child(timer_label)
-	var timer_icon := _texture_rect("TimerIcon", Vector2(92, 45), Vector2(28, 28))
+	var timer_icon := _texture_rect("TimerIcon", Vector2(88, 43), Vector2(32, 32))
 	top_center.add_child(timer_icon)
 	global_icons["hud_icon_kit|wave_timer"] = timer_icon
 
 	control_hint = PanelContainer.new()
 	control_hint.name = "ControlHint"
-	control_hint.position = Vector2(24, 176)
+	control_hint.position = Vector2(24, 216)
 	control_hint.size = Vector2(400, 56)
 	control_hint.add_theme_stylebox_override(
 		"panel",
@@ -167,13 +182,13 @@ func _build_hierarchy() -> void:
 		["MoveGamepadIcon", "move_gamepad_left_stick"],
 		["AutoAttackIcon", "auto_attack"],
 	]:
-		var hint_icon := _texture_rect(spec[0], Vector2.ZERO, Vector2(28, 28))
-		hint_icon.custom_minimum_size = Vector2(28, 28)
+		var hint_icon := _texture_rect(spec[0], Vector2.ZERO, Vector2(32, 32))
+		hint_icon.custom_minimum_size = Vector2(32, 32)
 		hint_content.add_child(hint_icon)
 		global_icons["control_icon_kit|%s" % spec[1]] = hint_icon
 	var hint_label := _label("HintText", 16, HORIZONTAL_ALIGNMENT_CENTER)
 	hint_label.text = "WASD / 左摇杆移动 · 自动开火"
-	hint_label.custom_minimum_size = Vector2(284, 44)
+	hint_label.custom_minimum_size = Vector2(280, 44)
 	hint_content.add_child(hint_label)
 
 	_apply_static_textures()
@@ -262,6 +277,12 @@ func _label(node_name: String, font_size: int, alignment: HorizontalAlignment) -
 	label.add_theme_color_override("font_outline_color", Color("161719"))
 	label.add_theme_constant_override("outline_size", 1)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return label
+
+
+func _metric_label(node_name: String, font_size: int, alignment: HorizontalAlignment) -> Label:
+	var label := _label(node_name, font_size, alignment)
+	label.add_theme_constant_override("outline_size", 0)
 	return label
 
 

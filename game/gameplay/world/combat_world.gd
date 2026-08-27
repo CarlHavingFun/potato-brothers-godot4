@@ -63,6 +63,7 @@ var _active_enemies_by_runtime_id: Dictionary = {}
 var _pending_spawn_enemies: Dictionary = {}
 var _projectile_source_item_ids: Dictionary = {}
 var _wave_transition_committed := false
+var _wave_start_materials := 0
 
 
 func _ready() -> void:
@@ -112,6 +113,7 @@ func start_wave(next_session: GameSession, wave_definition: GogoWaveDefinition) 
 		return ERR_INVALID_DATA
 	_clear_active_combat_actors()
 	session = next_session
+	_wave_start_materials = session.run_state.player().materials
 	zone_runtime = next_zone_runtime
 	_wave_transition_committed = false
 	arena_rect = Rect2(Vector2.ZERO, zone.arena_size)
@@ -401,7 +403,8 @@ func _emit_hud_snapshot(remaining: float) -> void:
 		player,
 		remaining,
 		session.run_state.current_wave,
-		wave_runtime.elapsed
+		wave_runtime.elapsed,
+		maxi(player.materials - _wave_start_materials, 0)
 	)
 	hud_snapshot_changed.emit(snapshot)
 	hud_changed.emit(snapshot.health, snapshot.maximum_health, snapshot.seconds, snapshot.wave)

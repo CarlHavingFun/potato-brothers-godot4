@@ -75,6 +75,26 @@ func test_missing_required_floor_is_a_hard_failure_even_with_other_sixty_nine_un
 	assert_bool(report.complete).is_false()
 
 
+func test_real_rarity_selectors_produce_opaque_readable_accent_colors() -> void:
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	var snapshot := _debug_snapshot(content)
+	assert_object(snapshot).is_not_null()
+	var card_background := Color("171b1e")
+	for tier in range(1, 5):
+		var definition := GogoItemDefinition.new()
+		definition.content_id = StringName("fixture:item/contrast_tier_%d" % tier)
+		definition.display_name = "稀有度 %d" % tier
+		definition.tier = tier
+		var card := auto_free(GogoStaticCardPresenter.build_card(
+			definition,
+			"已接入",
+			snapshot
+		)) as Control
+		var accent := card.get_node("RarityAccent") as ColorRect
+		assert_float(accent.color.a).is_equal_approx(1.0, 0.0001)
+		assert_float(_contrast_ratio(accent.color, card_background)).is_greater_equal(3.0)
+
+
 func _exercise_real_consumers(
 	content: ContentSnapshot,
 	snapshot: GogoStaticAssetSnapshot
@@ -126,3 +146,26 @@ func _debug_snapshot(content: ContentSnapshot) -> GogoStaticAssetSnapshot:
 		shipping.active_snapshot(),
 		content
 	)
+
+
+func _contrast_ratio(first: Color, second: Color) -> float:
+	var first_luminance := _relative_luminance(first)
+	var second_luminance := _relative_luminance(second)
+	return (
+		(maxf(first_luminance, second_luminance) + 0.05)
+		/ (minf(first_luminance, second_luminance) + 0.05)
+	)
+
+
+func _relative_luminance(color: Color) -> float:
+	return (
+		0.2126 * _linear_channel(color.r)
+		+ 0.7152 * _linear_channel(color.g)
+		+ 0.0722 * _linear_channel(color.b)
+	)
+
+
+func _linear_channel(channel: float) -> float:
+	if channel <= 0.04045:
+		return channel / 12.92
+	return pow((channel + 0.055) / 1.055, 2.4)

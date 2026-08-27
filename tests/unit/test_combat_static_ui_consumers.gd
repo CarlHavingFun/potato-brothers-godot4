@@ -43,6 +43,14 @@ func test_combat_hud_resolves_accent_hud_and_control_texture_consumers_at_neares
 			continue
 		assert_object(icon.texture).is_not_null()
 		assert_int(icon.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
+		var displayed_size := Vector2i(roundi(icon.size.x), roundi(icon.size.y))
+		var source_size := icon.texture.get_size()
+		assert_bool(displayed_size.x > 0 and displayed_size.y > 0).is_true()
+		assert_int(int(source_size.x) % displayed_size.x).is_zero()
+		assert_int(int(source_size.y) % displayed_size.y).is_zero()
+		assert_int(int(source_size.x) / displayed_size.x).is_equal(
+			int(source_size.y) / displayed_size.y
+		)
 	var hud := combat.get_node("HUDCanvas/BrotatoHUD") as GogoBrotatoCombatHud
 	var metric_style := (hud.get_node("TopLeft/Health") as Panel).get_theme_stylebox("panel") as StyleBoxFlat
 	assert_bool(metric_style.bg_color.is_equal_approx(

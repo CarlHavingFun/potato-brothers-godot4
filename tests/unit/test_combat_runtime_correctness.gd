@@ -243,6 +243,33 @@ func test_enemy_xp_reward_preserves_pending_upgrade_count() -> void:
 	assert_int(player.materials).is_equal(38)
 
 
+func test_combat_hud_snapshot_reports_only_materials_gained_in_the_current_wave() -> void:
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	var session := _combat_session(content)
+	session.static_asset_snapshot = _spawn_marker_snapshot()
+	var player := session.run_state.player()
+	player.materials = 80
+	var wave := content.definition(&"gogobro.core:wave/training_1", &"wave") as GogoWaveDefinition
+	var world := auto_free(CombatWorld.new()) as CombatWorld
+	add_child(world)
+	var snapshots: Array[GogoCombatHudSnapshot] = []
+	world.hud_snapshot_changed.connect(func(snapshot: GogoCombatHudSnapshot) -> void:
+		snapshots.append(snapshot)
+	)
+	assert_int(world.start_wave(session, wave)).is_equal(OK)
+	assert_int(snapshots.size()).is_equal(1)
+	assert_bool(_has_property(snapshots[0], &"wave_materials")).is_true()
+	if not _has_property(snapshots[0], &"wave_materials"):
+		return
+	assert_int(snapshots[0].get(&"wave_materials")).is_zero()
+
+	player.materials = 88
+	world.call("_emit_hud_snapshot", 9.25)
+	assert_int(snapshots.size()).is_equal(2)
+	assert_int(snapshots[1].get(&"wave_materials")).is_equal(8)
+	assert_int(player.materials).is_equal(88)
+
+
 func test_enemy_stays_inactive_until_spawn_marker_completes_and_cannot_arrive_after_clear() -> void:
 	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
 	var session := _combat_session(content)
@@ -617,6 +644,13 @@ func _combat_session(content: ContentSnapshot) -> GameSession:
 	var session := GameSession.new()
 	assert_int(session.start(config, content)).is_equal(OK)
 	return session
+
+
+func _has_property(object: Object, property_name: StringName) -> bool:
+	for property: Dictionary in object.get_property_list():
+		if StringName(property.get("name", "")) == property_name:
+			return true
+	return false
 
 
 func _on_enemy_defeated(_enemy: GogoEnemyActor, _xp: int, _materials: int) -> void:

@@ -28,6 +28,10 @@ func test_snapshot_copies_all_canonical_player_values_and_inventory_arrays() -> 
 	assert_int(snapshot.experience).is_equal(11)
 	assert_int(snapshot.next_level_requirement).is_equal(42)
 	assert_int(snapshot.materials).is_equal(77)
+	assert_bool(_has_property(snapshot, &"wave_materials")).is_true()
+	if not _has_property(snapshot, &"wave_materials"):
+		return
+	assert_int(snapshot.get(&"wave_materials")).is_zero()
 	assert_float(snapshot.health).is_equal_approx(17.0, 0.0001)
 	assert_float(snapshot.maximum_health).is_equal_approx(23.0, 0.0001)
 	assert_float(snapshot.seconds).is_equal_approx(9.25, 0.0001)
@@ -64,6 +68,8 @@ func test_hud_uses_native_1280_layout_without_full_screen_or_inventory_frames() 
 	for index in 10:
 		player.item_ids.append(StringName("gogobro.core:item/training_%d" % ((index % 6) + 1)))
 	var snapshot: Variant = snapshot_script.create(player, 9.25, 1, 1.0)
+	if _has_property(snapshot, &"wave_materials"):
+		snapshot.set(&"wave_materials", 19)
 	var hud := auto_free(hud_script.new()) as Control
 	hud.call("configure", snapshot, _content_fixture(), _static_ui_snapshot())
 	add_child(hud)
@@ -77,10 +83,14 @@ func test_hud_uses_native_1280_layout_without_full_screen_or_inventory_frames() 
 	assert_bool(hud.has_node("TopLeft/Health/HealthBar")).is_true()
 	assert_bool(hud.has_node("TopLeft/Experience/ExperienceBar")).is_true()
 	assert_bool(hud.has_node("TopLeft/Materials/Value")).is_true()
+	assert_bool(hud.has_node("TopLeft/WaveMaterials/Value")).is_true()
+	assert_bool(hud.has_node("TopLeft/Experience/ExperienceBar/Level")).is_true()
 	assert_bool(hud.has_node("WeaponStrip")).is_false()
 	assert_bool(hud.has_node("ItemStrip")).is_false()
 	assert_float((hud.get_node("TopLeft/Health/HealthBar") as ProgressBar).value).is_equal(7.0)
 	assert_str((hud.get_node("TopLeft/Materials/Value") as Label).text).is_equal("91")
+	if hud.has_node("TopLeft/WaveMaterials/Value"):
+		assert_str((hud.get_node("TopLeft/WaveMaterials/Value") as Label).text).is_equal("+19")
 	assert_bool(hud.has_node("TopLeft/ShellAccent")).is_false()
 	var metric_style := (hud.get_node("TopLeft/Health") as Panel).get_theme_stylebox("panel") as StyleBoxFlat
 	assert_bool(metric_style.bg_color.is_equal_approx(
@@ -121,9 +131,18 @@ func test_hud_information_rectangles_are_ordered_clear_and_outside_the_play_cent
 	var material_metric := hud.get_node("TopLeft/Materials") as Control
 	assert_bool(health_metric.position.y < experience_metric.position.y).is_true()
 	assert_bool(experience_metric.position.y < material_metric.position.y).is_true()
-	var level := hud.get_node("TopLeft/Experience/Level") as Label
+	assert_bool(hud.has_node("TopLeft/Experience/ExperienceBar/Level")).is_true()
+	if not hud.has_node("TopLeft/Experience/ExperienceBar/Level"):
+		return
+	var level := hud.get_node("TopLeft/Experience/ExperienceBar/Level") as Label
 	assert_str(level.text).is_equal("LV.12")
 	assert_int(level.get_theme_font_size("font_size")).is_greater_equal(18)
+	var experience_fill := (
+		(hud.get_node("TopLeft/Experience/ExperienceBar") as ProgressBar)
+		.get_theme_stylebox("fill") as StyleBoxFlat
+	)
+	assert_bool(experience_fill.bg_color.g > experience_fill.bg_color.r).is_true()
+	assert_bool(experience_fill.bg_color.g > experience_fill.bg_color.b).is_true()
 	var material_symbol := hud.get_node_or_null("TopLeft/Materials/Symbol") as Label
 	var material_value := hud.get_node("TopLeft/Materials/Value") as Label
 	assert_object(material_symbol).is_not_null()
@@ -189,6 +208,13 @@ func _content_fixture() -> ContentSnapshot:
 
 func _local_rect(control: Control) -> Rect2:
 	return Rect2(control.position, control.size)
+
+
+func _has_property(object: Object, property_name: StringName) -> bool:
+	for property: Dictionary in object.get_property_list():
+		if StringName(property.get("name", "")) == property_name:
+			return true
+	return false
 
 
 func _static_ui_snapshot() -> GogoStaticAssetSnapshot:

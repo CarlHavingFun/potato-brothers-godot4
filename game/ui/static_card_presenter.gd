@@ -4,6 +4,8 @@ extends RefCounted
 
 const CARD_SIZE := Vector2(294, 76)
 const CARD_MINIMUM_SIZE := Vector2(216, 76)
+const CARD_BACKGROUND_COLOR := Color("171b1e")
+const MINIMUM_RARITY_CONTRAST := 3.0
 const TIER_NAMES := ["", "普通", "精良", "稀有", "传说"]
 const TIER_FRAME_SELECTORS: Array[StringName] = [
 	&"",
@@ -57,6 +59,8 @@ const PERCENT_DELTA_KEYS: Array[StringName] = [
 	&"dodge",
 	&"explosion_damage_multiplier",
 ]
+
+static var _tier_palette_cache: Dictionary = {}
 
 
 static func build_card(
@@ -340,6 +344,15 @@ static func _authored_tier_color(
 	)
 	if handle == null or handle.texture == null:
 		return fallback
+	var cache_key := "%s|%d|%s|%s|%d" % [
+		snapshot.registry_sha256,
+		snapshot.generation,
+		handle.binding_key,
+		selector,
+		handle.texture.get_instance_id(),
+	]
+	if _tier_palette_cache.has(cache_key):
+		return _tier_palette_cache[cache_key] as Color
 	var image := handle.texture.get_image()
 	if image == null or image.is_empty():
 		return fallback
@@ -349,13 +362,40 @@ static func _authored_tier_color(
 	var step_y := maxi(1, image.get_height() / 16)
 	for y in range(0, image.get_height(), step_y):
 		for x in range(0, image.get_width(), step_x):
-			var color := image.get_pixel(x, y)
+			var sampled := image.get_pixel(x, y)
+			var color := Color(sampled.r, sampled.g, sampled.b, 1.0)
 			var saturation := color.s
-			var score := color.a * saturation * color.v
-			if color.a >= 0.5 and score > best_score:
+			var contrast := _contrast_ratio(color, CARD_BACKGROUND_COLOR)
+			var score := saturation * color.v
+			if sampled.a >= 0.5 and contrast >= MINIMUM_RARITY_CONTRAST and score > best_score:
 				best_score = score
 				best_color = color
-	return best_color if best_score >= 0.08 else fallback
+	var result := best_color if best_score >= 0.08 else fallback
+	_tier_palette_cache[cache_key] = result
+	return result
+
+
+static func _contrast_ratio(first: Color, second: Color) -> float:
+	var first_luminance := _relative_luminance(first)
+	var second_luminance := _relative_luminance(second)
+	return (
+		(maxf(first_luminance, second_luminance) + 0.05)
+		/ (minf(first_luminance, second_luminance) + 0.05)
+	)
+
+
+static func _relative_luminance(color: Color) -> float:
+	return (
+		0.2126 * _linear_channel(color.r)
+		+ 0.7152 * _linear_channel(color.g)
+		+ 0.0722 * _linear_channel(color.b)
+	)
+
+
+static func _linear_channel(channel: float) -> float:
+	if channel <= 0.04045:
+		return channel / 12.92
+	return pow((channel + 0.055) / 1.055, 2.4)
 
 
 static func _signed_modifier(key: StringName, amount: float) -> String:
