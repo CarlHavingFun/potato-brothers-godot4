@@ -82,8 +82,8 @@ const REDRAW_BINDINGS := {
 		"sha256": "B4B156E01D7BBC962E850556D3DE6243ABA0DD2A5610E4B80515D321337F90AA",
 	},
 	"smoke_shell_helmet": {
-		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-004/curated/smoke_shell_helmet-icon-64x64.png",
-		"sha256": "B277DBA77D0C92A81938911FCF5415FDB3D8A0DC1F0256E24995ADAA38DD3006",
+		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-005/curated/smoke_shell_helmet-icon-64x64.png",
+		"sha256": "AC3ACB1118DEFA21907EE7323BC4D07B8DEE53FCCCABDD94CD26DA73686680DE",
 	},
 	"force_buy_runners": {
 		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/force_buy_runners/candidate-002/curated/force_buy_runners-icon-64x64.png",

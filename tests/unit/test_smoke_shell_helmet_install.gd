@@ -3,6 +3,9 @@ extends GdUnitTestSuite
 
 const ICON_PATH := "res://game/assets/gogobro_static/items/smoke_shell_helmet.png"
 const APPEARANCE_PATH := "res://game/assets/gogobro_static/items/smoke_shell_helmet_appearance.png"
+const PREVIEW_APPEARANCE_PATH := (
+	"res://game/assets/gogobro_static_preview/items/smoke_shell_helmet_appearance.png"
+)
 const ANCHORS_PATH := (
 	"res://game/content/packs/items/smoke_shell_helmet/anchors_walk_down.json"
 )
@@ -59,6 +62,7 @@ func test_debug_item_definition_installs_the_approved_niko_head_shell_appearance
 	assert_vector(Vector2(appearance.rendered_pivot_px)).is_equal(Vector2(36, 48))
 	assert_vector(Vector2(appearance.local_offset_px)).is_equal(Vector2.ZERO)
 	assert_object(appearance.texture).is_not_null()
+	assert_str(String(appearance.texture.resource_path)).is_equal(PREVIEW_APPEARANCE_PATH)
 	assert_bool(appearance.is_valid()).is_true()
 
 

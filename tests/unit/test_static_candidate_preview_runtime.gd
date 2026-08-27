@@ -64,7 +64,7 @@ func test_development_overlay_adds_independent_butterfly_glock_and_ak_candidates
 	assert_object(preview.resolve_asset(&"service_carbine", &"world_sprite")).is_null()
 
 
-func test_development_overlay_replaces_liner_and_helmet_inventory_icons_only() -> void:
+func test_development_overlay_replaces_liner_and_helmet_inventory_icons_without_shipping_mutation() -> void:
 	var service_script := load(PREVIEW_SERVICE_PATH) as Script
 	assert_object(service_script).is_not_null()
 	if service_script == null:
@@ -108,6 +108,15 @@ func test_development_overlay_replaces_liner_and_helmet_inventory_icons_only() -
 			"res://game/assets/gogobro_static/items/smoke_shell_helmet_appearance.png"
 		).to_upper()
 	).is_equal("B3932E02DAF39074CE048E45B6FAE7F221019D87AD7B3A4327FA40714F25874A")
+	var preview_item := content.definition(
+		&"gogobro.preview:item/smoke_shell_helmet", &"item"
+	) as GogoItemDefinition
+	assert_object(preview_item).is_not_null()
+	if preview_item == null or preview_item.appearances.is_empty():
+		return
+	assert_str(String(preview_item.appearances[0].texture.resource_path)).is_equal(
+		"res://game/assets/gogobro_static_preview/items/smoke_shell_helmet_appearance.png"
+	)
 
 
 func test_development_overlay_resolves_complete_ui_and_decor_variant_sets() -> void:

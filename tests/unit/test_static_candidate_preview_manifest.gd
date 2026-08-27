@@ -27,7 +27,7 @@ const EXPECTED_WEAPON_IDS := [
 	"folding_stock_submachine_gun",
 ]
 const EXPECTED_WEAPON_SOURCE_PATHS := {
-	"warmup_shiv": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/warmup_shiv/candidate-002/curated/warmup-shiv-butterfly-knife-64x64.png",
+	"warmup_shiv": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/warmup_shiv/candidate-003/curated/warmup-shiv-butterfly-knife-64x64.png",
 	"community_tapper": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/community_tapper/candidate-002/curated/community-tapper-karambit-64x64.png",
 	"wood_stock_assault_rifle": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/wood_stock_assault_rifle/candidate-004/curated/wood-stock-assault-rifle-ak-world-96x64.png",
 	"heavy_bolt_sniper": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/heavy_bolt_sniper/candidate-002/curated/heavy-bolt-sniper-awp-world-96x64.png",
@@ -39,6 +39,12 @@ const EXPECTED_WEAPON_SOURCE_PATHS := {
 	"compact_submachine_gun": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/compact_submachine_gun/candidate-002/curated/compact-submachine-gun-mp9-96x64.png",
 	"bullpup_pdw": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/bullpup_pdw/candidate-002/curated/bullpup-pdw-p90-96x64.png",
 	"folding_stock_submachine_gun": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/folding_stock_submachine_gun/candidate-002/curated/folding-stock-submachine-gun-ump45-96x64.png",
+}
+const EXPECTED_REMEDIATED_SOURCE_PATHS := {
+	"warmup_shiv": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/warmup_shiv/candidate-003/curated/warmup-shiv-butterfly-knife-64x64.png",
+	"pre_aim_drills": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/pre_aim_drills/candidate-002/curated/pre_aim_drills-icon-64x64.png",
+	"smoke_shell_helmet": "GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-005/curated/smoke_shell_helmet-icon-64x64.png",
+	"combat_hud_shell": "GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/combat_hud_shell/candidate-002/curated/combat_hud_shell-logical-320x180.png",
 }
 
 
@@ -166,6 +172,37 @@ func test_preview_manifest_never_aliases_any_weapon_identity() -> void:
 		if String(unit.get("category", "")) != "weapon":
 			continue
 		assert_array(unit.get("preview_alias_asset_ids", []) as Array).is_empty()
+
+
+func test_remediated_units_bind_only_the_new_preview_candidate_sources() -> void:
+	var manifest := JSON.parse_string(FileAccess.get_file_as_string(MANIFEST_PATH)) as Dictionary
+	var units_by_id: Dictionary = {}
+	for unit_variant: Variant in manifest.get("units", []) as Array:
+		var unit := unit_variant as Dictionary
+		units_by_id[String(unit.get("asset_id", ""))] = unit
+	for asset_id: String in EXPECTED_REMEDIATED_SOURCE_PATHS:
+		var unit := units_by_id.get(asset_id, {}) as Dictionary
+		assert_bool(not unit.is_empty()).is_true()
+		assert_str(String(unit.get("source_candidate_path", ""))).is_equal(
+			String(EXPECTED_REMEDIATED_SOURCE_PATHS[asset_id])
+		)
+		assert_str(String(unit.get("approval_status", ""))).is_equal("candidate_preview_only")
+
+
+func test_repaired_hud_underlay_has_transparent_outer_edge_and_empty_bottom_half() -> void:
+	var image := Image.load_from_file(
+		"res://game/assets/gogobro_static_preview/ui/combat_hud_shell.png"
+	)
+	assert_bool(not image.is_empty()).is_true()
+	assert_int(image.get_width()).is_equal(320)
+	assert_int(image.get_height()).is_equal(180)
+	for y in image.get_height():
+		for x in image.get_width():
+			if x < 3 or y < 3 or x >= image.get_width() - 3 or y >= image.get_height() - 3:
+				assert_float(image.get_pixel(x, y).a).is_zero()
+	for y in range(image.get_height() / 2, image.get_height()):
+		for x in image.get_width():
+			assert_float(image.get_pixel(x, y).a).is_zero()
 
 
 func test_preview_builder_check_is_non_mutating_and_bound_to_fresh_coverage() -> void:

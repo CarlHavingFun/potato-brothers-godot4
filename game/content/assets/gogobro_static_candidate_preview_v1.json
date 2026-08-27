@@ -13,15 +13,15 @@
     "ui_brand": 7
   },
   "coverage_report_path": "res://tools/assets/gogobro_static_candidate_preview_coverage_v1.json",
-  "coverage_report_sha256": "FBFB9A40007521781186460A0A1A3F2EFBD41FE11ABCC8A1975732D3EBA80CAC",
+  "coverage_report_sha256": "6BF3B37D1170891AE9FCDA95BE11CF25E4F0AF07D9FDAACD2B764637040B5FDB",
   "units": [
     {
       "asset_id": "warmup_shiv",
       "category": "weapon",
       "role": "world_sprite",
       "resource_path": "res://game/assets/gogobro_static_preview/weapons/warmup_shiv.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/warmup_shiv/candidate-002/curated/warmup-shiv-butterfly-knife-64x64.png",
-      "sha256": "C7C50E66D77252126CDC2343E5B3F26B4CB4C595D76608658F025A43CC0229D8",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/warmup_shiv/candidate-003/curated/warmup-shiv-butterfly-knife-64x64.png",
+      "sha256": "C68E43AEC6CA95337D3338318279BB3DEAA744EC2B1B34469EC1C1D49FA2922E",
       "pixel_size": [
         64,
         64
@@ -530,8 +530,8 @@
       "category": "item",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/items/smoke_shell_helmet.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-004/curated/smoke_shell_helmet-icon-64x64.png",
-      "sha256": "B277DBA77D0C92A81938911FCF5415FDB3D8A0DC1F0256E24995ADAA38DD3006",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-005/curated/smoke_shell_helmet-icon-64x64.png",
+      "sha256": "AC3ACB1118DEFA21907EE7323BC4D07B8DEE53FCCCABDD94CD26DA73686680DE",
       "pixel_size": [
         64,
         64
@@ -1155,8 +1155,8 @@
       "category": "upgrade",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/upgrades/pre_aim_drills.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/pre_aim_drills/candidate-001/curated/pre_aim_drills-icon-64x64.png",
-      "sha256": "8895D3DC74F50F5BFDC25F509FE014A1F6F33CF1573B0926447DAE160AE091E7",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/pre_aim_drills/candidate-002/curated/pre_aim_drills-icon-64x64.png",
+      "sha256": "2BB496AB5B31BE7063F4281C2D3784AE473EDB9A1027D789872BF50D03AF1180",
       "pixel_size": [
         64,
         64
@@ -1675,8 +1675,8 @@
       "category": "ui_brand",
       "role": "ui_texture",
       "resource_path": "res://game/assets/gogobro_static_preview/ui/combat_hud_shell.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/combat_hud_shell/candidate-001/curated/combat_hud_shell-logical-320x180.png",
-      "sha256": "60E72384C8924DA1F3AFC323385DE62A4ED5CD5176B271DE31D681B80B9AA8B0",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/combat_hud_shell/candidate-002/curated/combat_hud_shell-logical-320x180.png",
+      "sha256": "8212E0C9708A6DD7EE4FB8F669033F63D18B15A387CC50E6034D9AF3BDE2E74A",
       "pixel_size": [
         320,
         180

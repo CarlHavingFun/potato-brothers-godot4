@@ -66,7 +66,7 @@
 - Produce: `SmokeShellHelmetPreviewFactory.configure_item(definition: GogoItemDefinition) -> void`, using the new preview worn raster and the existing `head/head_shell/RIGID/40`, scale `0.625`, pivot `[36,48]`, offset `[0,0]` tuple.
 - Preserve: `SmokeShellHelmetFactory` and every approved shipping raster/hash byte-for-byte.
 
-- [ ] **Step 1: Write failing preview identity/isolation tests**
+- [x] **Step 1: Write failing preview identity/isolation tests**
 
 Add exact candidate-source assertions for `warmup_shiv/candidate-003`, `pre_aim_drills/candidate-002`, `smoke_shell_helmet/candidate-005`, and `combat_hud_shell/candidate-002`. Assert preview helmet appearance texture path is `res://game/assets/gogobro_static_preview/items/smoke_shell_helmet_appearance.png`, while the shipping path and hashes remain unchanged. Add a shell pixel-structure check that its outer 3px border is fully transparent and its bottom half contains no empty inventory-slot frame.
 
@@ -79,7 +79,7 @@ assert_str(FileAccess.get_sha256(
 ).to_upper()).is_equal("B3932E02DAF39074CE048E45B6FAE7F221019D87AD7B3A4327FA40714F25874A")
 ```
 
-- [ ] **Step 2: Run the focused tests RED**
+- [x] **Step 2: Run the focused tests RED**
 
 ```powershell
 tools\run_tests.ps1 -GodotBinary 'E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-stable_win64.exe' -TestPath res://tests/unit/test_static_candidate_preview_manifest.gd -ReportDir reports/art-remediation-red
@@ -88,7 +88,7 @@ tools\run_tests.ps1 -GodotBinary 'E:\01_gobro\.tools\godot-4.7.1\Godot_v4.7.1-st
 
 Expected: old candidate paths fail, preview helmet still loads shipping appearance, and the old HUD shell violates the transparent-edge/no-slot check.
 
-- [ ] **Step 3: Generate four new candidate rasters**
+- [x] **Step 3: Generate four new candidate rasters**
 
 Before generation, view Niko's mother frame plus accepted detailed item/weapon references. Call built-in ImageGen once per distinct asset. Save raw and prompt/provenance under these new inbox roots:
 
@@ -99,17 +99,17 @@ Before generation, view Niko's mother frame plus accepted detailed item/weapon r
 
 The prompts must require, respectively: a side-on open Butterfly Knife with two separated handles and two exposed pivots; a tangible optic-adjustment training jig rather than a reticle; one olive smoke-filter helmet identity used for icon and worn layer; and a transparent low-border HUD underlay containing only separated top-left/top-center backing accents with no outer frame or bottom inventory slots.
 
-- [ ] **Step 4: Postprocess and visually gate at actual size**
+- [x] **Step 4: Postprocess and visually gate at actual size**
 
-Use `generate2dsprite` only for chroma cleanup, alpha, component filtering, nearest scaling, safe margins, and QC. Export 64×64 weapon/upgrade/icon, 128×128 helmet appearance, and 320×180 HUD underlay. Inspect 1× and 6× views. Reject a generic knife, freestanding reticle, mismatched helmet, blurry edge, clipped subject, or shell that outlines the viewport.
+Use `generate2dsprite` only for chroma cleanup, alpha, component filtering, nearest scaling, safe margins, and QC. Export 64×64 weapon/upgrade/icon, the 128×128 helmet appearance used by the current `walk_down` preview runtime, a candidate-only 96×96 derivative of the same helmet identity for trusted `walk_left45` compatibility checking, and a 320×180 HUD underlay. Inspect 1× and 6× views. Reject a generic knife, freestanding reticle, mismatched helmet, blurry edge, clipped subject, or shell that outlines the viewport. The 96×96 derivative is evidence for the differently sized trusted animation, not a claim that `walk_left45` is already runtime-integrated.
 
-- [ ] **Step 5: Integrate preview-only files and update exact hashes**
+- [x] **Step 5: Integrate preview-only files and update exact hashes**
 
 Copy byte-identical curated outputs to the preview paths, update candidate manifest/coverage hashes and source paths, and make `GogoStaticPreviewContentFactory` use `SmokeShellHelmetPreviewFactory` only in preview content. Shipping service and approved factory remain unchanged.
 
-- [ ] **Step 6: Run helmet harmony and focused GREEN**
+- [x] **Step 6: Run helmet harmony and focused GREEN**
 
-Run both trusted Niko rig checks and strict v2 helmet harmony checks for `walk_down` and `walk_left45` exactly as specified in `remediation-art-preflight.md`; both must return `harmony_pass`. Then run:
+Run both trusted Niko rig checks and strict v2 helmet harmony checks for `walk_down` and `walk_left45`; both must return `harmony_pass`. Correct the preflight's impossible single-source command by using the 128×128 runtime appearance for the 128×128 `walk_down` rig and the explicitly candidate-only 96×96 derivative for the 96×96 `walk_left45` rig. Report `walk_down` as actual preview-runtime parity and `walk_left45` only as trusted-animation compatibility; do not claim that the latter is currently runtime-integrated. Then run:
 
 ```powershell
 python tools/assets/build_static_candidate_preview.py --check --source-root E:\01_gobro
