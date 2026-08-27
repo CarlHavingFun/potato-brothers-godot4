@@ -2,12 +2,41 @@ extends GdUnitTestSuite
 
 
 const MANIFEST_PATH := "res://game/content/assets/gogobro_static_candidate_preview_v1.json"
+const REDRAW_CONTRACT_PATH := "res://tools/assets/gogobro_static_redraw_contract_v1.json"
 const EXPECTED_COUNTS := {
-	"weapon": 10,
+	"weapon": 12,
 	"item": 28,
 	"upgrade": 5,
 	"world": 11,
 	"ui_brand": 7,
+}
+const EXPECTED_WEAPON_IDS := [
+	"warmup_shiv",
+	"community_tapper",
+	"wood_stock_assault_rifle",
+	"heavy_bolt_sniper",
+	"suppressed_carbine",
+	"suppressed_tactical_pistol",
+	"heavy_hand_cannon",
+	"service_pistol",
+	"box_submachine_gun",
+	"compact_submachine_gun",
+	"bullpup_pdw",
+	"folding_stock_submachine_gun",
+]
+const EXPECTED_WEAPON_SOURCE_PATHS := {
+	"warmup_shiv": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/warmup_shiv/candidate-002/curated/warmup-shiv-butterfly-knife-64x64.png",
+	"community_tapper": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/community_tapper/candidate-002/curated/community-tapper-karambit-64x64.png",
+	"wood_stock_assault_rifle": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/wood_stock_assault_rifle/candidate-004/curated/wood-stock-assault-rifle-ak-world-96x64.png",
+	"heavy_bolt_sniper": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/heavy_bolt_sniper/candidate-002/curated/heavy-bolt-sniper-awp-world-96x64.png",
+	"suppressed_carbine": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/suppressed_carbine/candidate-003/curated/suppressed-carbine-m4a1s-world-96x64.png",
+	"suppressed_tactical_pistol": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/suppressed_tactical_pistol/candidate-002/curated/suppressed-tactical-pistol-usps-96x64.png",
+	"heavy_hand_cannon": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/heavy_hand_cannon/candidate-003/curated/heavy-hand-cannon-desert-eagle-96x64.png",
+	"service_pistol": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/service_pistol/candidate-002/curated/service-pistol-glock18-96x64.png",
+	"box_submachine_gun": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/box_submachine_gun/candidate-002/curated/box-submachine-gun-mac10-96x64.png",
+	"compact_submachine_gun": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/compact_submachine_gun/candidate-002/curated/compact-submachine-gun-mp9-96x64.png",
+	"bullpup_pdw": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/bullpup_pdw/candidate-002/curated/bullpup-pdw-p90-96x64.png",
+	"folding_stock_submachine_gun": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/folding_stock_submachine_gun/candidate-002/curated/folding-stock-submachine-gun-ump45-96x64.png",
 }
 
 
@@ -21,13 +50,13 @@ func test_candidate_preview_covers_all_planned_noncharacter_units_without_shippi
 	assert_bool(bool(manifest.get("enabled_in_shipping", true))).is_false()
 	assert_bool(bool(manifest.get("human_approval_implied", true))).is_false()
 	assert_bool(bool(manifest.get("character_assets_included", true))).is_false()
-	assert_int(int(manifest.get("expected_unit_count", -1))).is_equal(61)
+	assert_int(int(manifest.get("expected_unit_count", -1))).is_equal(63)
 	var category_counts := manifest.get("category_counts", {}) as Dictionary
 	for category: String in EXPECTED_COUNTS:
 		assert_int(int(category_counts.get(category, -1))).is_equal(int(EXPECTED_COUNTS[category]))
 
 	var units := manifest.get("units", []) as Array
-	assert_int(units.size()).is_equal(61)
+	assert_int(units.size()).is_equal(63)
 	var ids: Dictionary = {}
 	for unit_variant: Variant in units:
 		assert_bool(unit_variant is Dictionary).is_true()
@@ -50,9 +79,51 @@ func test_candidate_preview_covers_all_planned_noncharacter_units_without_shippi
 		assert_bool(int(pivot[0]) >= 0 and int(pivot[0]) < int(pixel_size[0])).is_true()
 		assert_bool(int(pivot[1]) >= 0 and int(pivot[1]) < int(pixel_size[1])).is_true()
 		if String(unit.get("category", "")) == "weapon":
-			var muzzle := (unit.get("anchors_px", {}) as Dictionary).get("muzzle", []) as Array
-			assert_int(muzzle.size()).is_equal(2)
-			assert_bool(int(muzzle[0]) >= int(pivot[0])).is_true()
+			var anchor_name := "contact" if asset_id in ["warmup_shiv", "community_tapper"] else "muzzle"
+			var anchor := (unit.get("anchors_px", {}) as Dictionary).get(anchor_name, []) as Array
+			assert_int(anchor.size()).is_equal(2)
+			if anchor.size() != 2:
+				continue
+			assert_bool(int(anchor[0]) >= int(pivot[0])).is_true()
+
+
+func test_preview_manifest_binds_the_exact_twelve_weapon_candidates_to_contract_geometry() -> void:
+	var manifest := JSON.parse_string(FileAccess.get_file_as_string(MANIFEST_PATH)) as Dictionary
+	var contract := JSON.parse_string(FileAccess.get_file_as_string(REDRAW_CONTRACT_PATH)) as Dictionary
+	var contract_weapons := contract.get("weapons", {}) as Dictionary
+	var weapon_units: Array[Dictionary] = []
+	for unit_value: Variant in manifest.get("units", []) as Array:
+		var unit := unit_value as Dictionary
+		if String(unit.get("category", "")) == "weapon":
+			weapon_units.append(unit)
+	var weapon_ids: Array[String] = []
+	for unit: Dictionary in weapon_units:
+		weapon_ids.append(String(unit.get("asset_id", "")))
+	assert_array(weapon_ids).is_equal(EXPECTED_WEAPON_IDS)
+	for unit: Dictionary in weapon_units:
+		var asset_id := String(unit.get("asset_id", ""))
+		var record := contract_weapons.get(asset_id, {}) as Dictionary
+		assert_str(String(unit.get("resource_path", ""))).is_equal(
+			"res://game/assets/gogobro_static_preview/weapons/%s.png" % asset_id
+		)
+		assert_str(String(unit.get("source_candidate_path", ""))).is_equal(
+			String(EXPECTED_WEAPON_SOURCE_PATHS[asset_id])
+		)
+		assert_str(FileAccess.get_sha256(String(unit.resource_path)).to_upper()).is_equal(
+			String(unit.get("sha256", "")).to_upper()
+		)
+		_assert_integer_pair_equals(unit.get("pixel_size"), int(record.width), int(record.height))
+		_assert_integer_pair_equals(unit.get("display_size_px"), int(record.width), int(record.height))
+		_assert_integer_pair_equals(
+			unit.get("pivot_px"), int((record.pivot_px as Array)[0]), int((record.pivot_px as Array)[1])
+		)
+		var expected_anchors := record.get("anchor_px", {}) as Dictionary
+		var actual_anchors := unit.get("anchors_px", {}) as Dictionary
+		assert_array(actual_anchors.keys()).contains_exactly_in_any_order(expected_anchors.keys())
+		for anchor_name: String in expected_anchors:
+			var point := expected_anchors[anchor_name] as Array
+			_assert_integer_pair_equals(actual_anchors.get(anchor_name), int(point[0]), int(point[1]))
+		assert_array(unit.get("preview_alias_asset_ids", []) as Array).is_empty()
 
 
 func test_multi_part_preview_units_declare_every_runtime_selector_as_a_real_png() -> void:
@@ -86,12 +157,22 @@ func test_multi_part_preview_units_declare_every_runtime_selector_as_a_real_png(
 		assert_array(selectors).is_equal(expected_selectors[asset_id])
 
 
-func test_preview_manifest_never_aliases_the_approved_service_pistol_to_the_ak() -> void:
+func test_preview_manifest_never_aliases_any_weapon_identity() -> void:
 	var manifest := JSON.parse_string(FileAccess.get_file_as_string(MANIFEST_PATH)) as Dictionary
 	for unit_variant: Variant in manifest.get("units", []) as Array:
 		var unit := unit_variant as Dictionary
-		if String(unit.get("asset_id", "")) != "wood_stock_assault_rifle":
+		if String(unit.get("category", "")) != "weapon":
 			continue
 		assert_array(unit.get("preview_alias_asset_ids", []) as Array).is_empty()
+
+
+func _assert_integer_pair_equals(value: Variant, expected_x: int, expected_y: int) -> void:
+	assert_bool(value is Array).is_true()
+	if not value is Array:
 		return
-	fail("wood_stock_assault_rifle preview unit is missing")
+	var pair := value as Array
+	assert_int(pair.size()).is_equal(2)
+	if pair.size() != 2:
+		return
+	assert_int(int(pair[0])).is_equal(expected_x)
+	assert_int(int(pair[1])).is_equal(expected_y)

@@ -5,9 +5,9 @@ const MANIFEST_PATH := "res://game/content/assets/gogobro_static_candidate_previ
 const ASSET_ROOT := "res://game/assets/gogobro_static_preview/"
 const SCHEMA_VERSION := "gogobro-static-candidate-preview-v1"
 const MANIFEST_KIND := "development_candidate_preview_only"
-const EXPECTED_UNIT_COUNT := 61
+const EXPECTED_UNIT_COUNT := 63
 const EXPECTED_CATEGORY_COUNTS := {
-	"weapon": 10,
+	"weapon": 12,
 	"item": 28,
 	"upgrade": 5,
 	"world": 11,
@@ -68,7 +68,7 @@ func build_overlay(
 		return null
 	var units := units_variant as Array
 	if units.size() != EXPECTED_UNIT_COUNT:
-		_issue(&"candidate_preview_count_mismatch", "Candidate preview must contain exactly 61 units.")
+		_issue(&"candidate_preview_count_mismatch", "Candidate preview must contain exactly 63 units.")
 
 	var states: Dictionary = {}
 	var handles: Dictionary = {}
@@ -145,7 +145,6 @@ func build_overlay(
 	for category: String in EXPECTED_CATEGORY_COUNTS:
 		if int(category_counts.get(category, 0)) != int(EXPECTED_CATEGORY_COUNTS[category]):
 			_issue(&"candidate_preview_category_count_mismatch", "Candidate preview category counts are incomplete.")
-	_install_service_pistol_world_visual(base_snapshot, handles)
 	if not last_errors.is_empty():
 		return null
 	return base_snapshot.with_development_overlay(
@@ -254,25 +253,6 @@ func _install_variants(
 		handles[key] = _handle(asset_id, role, texture, display_size, pivot, anchors, selector)
 		if category == "ui_brand":
 			global_bindings[_binding_key(&"global", &"", asset_id, selector)] = key
-
-
-func _install_service_pistol_world_visual(
-	base_snapshot: GogoStaticAssetSnapshot,
-	handles: Dictionary
-) -> void:
-	var icon := base_snapshot.resolve_asset(&"service_pistol", &"icon")
-	if icon == null or icon.texture == null:
-		_issue(&"candidate_preview_service_pistol_missing", "Approved service pistol icon is unavailable for its world visual.", &"service_pistol")
-		return
-	var key := _asset_key(&"service_pistol", &"world_sprite")
-	handles[key] = _handle(
-		&"service_pistol",
-		&"world_sprite",
-		icon.texture,
-		icon.display_size_px,
-		Vector2i(21, 35),
-		{"muzzle": Vector2i(59, 19)}
-	)
 
 
 func _anchors(value: Variant, size: Vector2i, asset_id: StringName) -> Dictionary:

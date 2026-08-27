@@ -27,8 +27,8 @@ func test_actual_consumers_cover_every_canonical_unit() -> void:
 	assert_array(report.unresolved_asset_ids).is_empty()
 	assert_array(report.required_visual_failures).is_empty()
 	assert_bool(report.complete).is_true()
-	assert_int(report.source_unit_counts.approved_shipping).is_equal(9)
-	assert_int(report.source_unit_counts.development_preview).is_equal(61)
+	assert_int(report.source_unit_counts.approved_shipping).is_equal(7)
+	assert_int(report.source_unit_counts.development_preview).is_equal(63)
 
 
 func test_gallery_observation_cannot_satisfy_or_break_real_coverage() -> void:

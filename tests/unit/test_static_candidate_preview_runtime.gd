@@ -7,7 +7,7 @@ const REGISTRY_PATH := "res://game/content/assets/gogobro_static_assets_v1.json"
 const SHIPPING_ROOT := "res://game/assets/gogobro_static/"
 
 
-func test_development_overlay_preserves_shipping_handles_and_adds_ak_world_sprite() -> void:
+func test_development_overlay_adds_independent_butterfly_glock_and_ak_candidates() -> void:
 	var service_script := load(PREVIEW_SERVICE_PATH) as Script
 	assert_object(service_script).is_not_null()
 	if service_script == null:
@@ -16,8 +16,10 @@ func test_development_overlay_preserves_shipping_handles_and_adds_ak_world_sprit
 	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
 	assert_int(shipping.stage(content)).is_equal(OK)
 	assert_int(shipping.activate_staged(&"", null)).is_equal(OK)
-	var approved_icon := shipping.active_snapshot().resolve_asset(&"service_pistol", &"icon")
-	assert_object(approved_icon).is_not_null()
+	var approved_shiv_icon := shipping.active_snapshot().resolve_asset(&"warmup_shiv", &"icon")
+	var approved_pistol_icon := shipping.active_snapshot().resolve_asset(&"service_pistol", &"icon")
+	assert_object(approved_shiv_icon).is_not_null()
+	assert_object(approved_pistol_icon).is_not_null()
 
 	var preview_service: RefCounted = service_script.new()
 	var preview: GogoStaticAssetSnapshot = preview_service.call(
@@ -28,14 +30,37 @@ func test_development_overlay_preserves_shipping_handles_and_adds_ak_world_sprit
 
 	assert_object(preview).is_not_null()
 	assert_bool(bool(preview.call("is_development_preview"))).is_true()
-	assert_object(preview.resolve_asset(&"service_pistol", &"icon")).is_same(approved_icon)
+	assert_bool(bool(shipping.active_snapshot().call("is_development_preview"))).is_false()
 	var ak := preview.resolve_asset(&"wood_stock_assault_rifle", &"world_sprite")
+	var shiv := preview.resolve_asset(&"warmup_shiv", &"world_sprite")
+	var shiv_icon := preview.resolve_asset(&"warmup_shiv", &"icon")
+	var pistol := preview.resolve_asset(&"service_pistol", &"world_sprite")
+	var pistol_icon := preview.resolve_asset(&"service_pistol", &"icon")
 	assert_object(ak).is_not_null()
+	assert_object(shiv).is_not_null()
+	assert_object(shiv_icon).is_not_null()
+	assert_object(pistol).is_not_null()
+	assert_object(pistol_icon).is_not_null()
+	if shiv == null or shiv_icon == null or pistol == null or pistol_icon == null:
+		return
+	assert_object(shiv.texture).is_same(shiv_icon.texture)
+	assert_object(pistol.texture).is_same(pistol_icon.texture)
+	assert_object(shiv.texture).is_not_same(approved_shiv_icon.texture)
+	assert_object(pistol.texture).is_not_same(approved_pistol_icon.texture)
+	assert_object(shiv.texture).is_not_same(pistol.texture)
+	assert_object(shiv.texture).is_not_same(ak.texture)
+	assert_object(pistol.texture).is_not_same(ak.texture)
 	assert_int(ak.texture.get_width()).is_equal(96)
 	assert_int(ak.texture.get_height()).is_equal(64)
-	assert_bool(ak.pivot_px == Vector2i(33, 34)).is_true()
-	assert_bool(ak.anchors_px.get("muzzle") == Vector2i(91, 22)).is_true()
+	assert_bool(ak.pivot_px == Vector2i(37, 40)).is_true()
+	assert_bool(ak.anchors_px.get("muzzle") == Vector2i(92, 25)).is_true()
+	assert_bool(shiv.pivot_px == Vector2i(24, 39)).is_true()
+	assert_bool(shiv.anchors_px.get("contact") == Vector2i(52, 25)).is_true()
+	assert_bool(pistol.pivot_px == Vector2i(38, 40)).is_true()
+	assert_bool(pistol.anchors_px.get("muzzle") == Vector2i(90, 27)).is_true()
 	assert_str(String(preview.state_for_asset(&"wood_stock_assault_rifle"))).is_equal("preview_ready")
+	assert_str(String(preview.state_for_asset(&"warmup_shiv"))).is_equal("preview_ready")
+	assert_str(String(preview.state_for_asset(&"service_pistol"))).is_equal("preview_ready")
 	assert_object(preview.resolve_asset(&"service_carbine", &"world_sprite")).is_null()
 
 
@@ -59,15 +84,21 @@ func test_development_overlay_resolves_complete_ui_and_decor_variant_sets() -> v
 		assert_str(String(decor.selector)).is_equal(String(selector))
 
 
-func test_approved_service_pistol_world_visual_is_not_the_ak_preview_alias() -> void:
+func test_development_weapon_candidates_do_not_alias_each_other() -> void:
 	var preview := _development_preview()
 	assert_object(preview).is_not_null()
 	if preview == null:
 		return
+	var shiv := preview.resolve_asset(&"warmup_shiv", &"world_sprite")
 	var pistol := preview.resolve_asset(&"service_pistol", &"world_sprite")
 	var ak := preview.resolve_asset(&"wood_stock_assault_rifle", &"world_sprite")
+	assert_object(shiv).is_not_null()
 	assert_object(pistol).is_not_null()
 	assert_object(ak).is_not_null()
+	if shiv == null or pistol == null or ak == null:
+		return
+	assert_object(shiv.texture).is_not_same(pistol.texture)
+	assert_object(shiv.texture).is_not_same(ak.texture)
 	assert_object(pistol.texture).is_not_same(ak.texture)
 	assert_object(pistol.texture).is_same(preview.resolve_asset(&"service_pistol", &"icon").texture)
 
@@ -131,8 +162,8 @@ func test_app_kernel_debug_boot_activates_candidate_overlay_without_shipping_app
 	assert_object(training_weapon).is_not_null()
 	assert_object(training_weapon.texture).is_not_same(ak.texture)
 	assert_object(training_weapon.texture).is_same(snapshot.resolve_asset(&"service_pistol", &"icon").texture)
-	assert_bool(training_weapon.pivot_px == Vector2i(21, 35)).is_true()
-	assert_bool(training_weapon.anchors_px.get("muzzle") == Vector2i(59, 19)).is_true()
+	assert_bool(training_weapon.pivot_px == Vector2i(38, 40)).is_true()
+	assert_bool(training_weapon.anchors_px.get("muzzle") == Vector2i(90, 27)).is_true()
 	assert_bool(training_weapon.display_scale == Vector2.ONE).is_true()
 	assert_bool(kernel.static_asset_service.release_readiness().get("release_ready", true) == false).is_true()
 

@@ -4,9 +4,9 @@
   "enabled_in_shipping": false,
   "human_approval_implied": false,
   "character_assets_included": false,
-  "expected_unit_count": 61,
+  "expected_unit_count": 63,
   "category_counts": {
-    "weapon": 10,
+    "weapon": 12,
     "item": 28,
     "upgrade": 5,
     "world": 11,
@@ -15,28 +15,58 @@
   "coverage_report_sha256": "0A5DCAC2C4C66F012C0381502564B32F1073E4D644F3602FB0E467942652766F",
   "units": [
     {
+      "asset_id": "warmup_shiv",
+      "category": "weapon",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/weapons/warmup_shiv.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/warmup_shiv/candidate-002/curated/warmup-shiv-butterfly-knife-64x64.png",
+      "sha256": "C7C50E66D77252126CDC2343E5B3F26B4CB4C595D76608658F025A43CC0229D8",
+      "pixel_size": [
+        64,
+        64
+      ],
+      "display_size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        24,
+        39
+      ],
+      "anchors_px": {
+        "contact": [
+          52,
+          25
+        ]
+      },
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
       "asset_id": "community_tapper",
       "category": "weapon",
       "role": "world_sprite",
       "resource_path": "res://game/assets/gogobro_static_preview/weapons/community_tapper.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/community_tapper/candidate-001/curated/community_tapper-world-96x64.png",
-      "sha256": "C0586A9DF25A80132B4F9C322DD4C79D66049763CAE3345084CC0BC7DF588132",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/community_tapper/candidate-002/curated/community-tapper-karambit-64x64.png",
+      "sha256": "EA8D7B6BF712EDCD26F7E47074B9459A6DA3DF2C4DC2B6AEBC6AD4A4A7D80ADD",
       "pixel_size": [
-        96,
+        64,
         64
       ],
       "display_size_px": [
-        96,
+        64,
         64
       ],
       "pivot_px": [
-        42,
-        34
+        24,
+        39
       ],
       "anchors_px": {
-        "muzzle": [
-          69,
-          32
+        "contact": [
+          51,
+          23
         ]
       },
       "texture_filter": "nearest",
@@ -60,13 +90,13 @@
         64
       ],
       "pivot_px": [
-        33,
-        34
+        37,
+        40
       ],
       "anchors_px": {
         "muzzle": [
-          91,
-          22
+          92,
+          25
         ]
       },
       "texture_filter": "nearest",
@@ -79,24 +109,24 @@
       "category": "weapon",
       "role": "world_sprite",
       "resource_path": "res://game/assets/gogobro_static_preview/weapons/heavy_bolt_sniper.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/heavy_bolt_sniper/candidate-001/curated/heavy-bolt-sniper-64.png",
-      "sha256": "23F37B96B8781C4BBCC0CBC980431CB8CD8AA94D54E962ADDDA3F2CC405B9B52",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/heavy_bolt_sniper/candidate-002/curated/heavy-bolt-sniper-awp-world-96x64.png",
+      "sha256": "695ACC5CB1026D072BC098C5EAE864DCAA12493594363616477E2B398354CE1C",
       "pixel_size": [
-        64,
+        96,
         64
       ],
       "display_size_px": [
-        64,
+        96,
         64
       ],
       "pivot_px": [
-        22,
-        34
+        39,
+        41
       ],
       "anchors_px": {
         "muzzle": [
-          59,
-          34
+          92,
+          25
         ]
       },
       "texture_filter": "nearest",
@@ -109,24 +139,24 @@
       "category": "weapon",
       "role": "world_sprite",
       "resource_path": "res://game/assets/gogobro_static_preview/weapons/suppressed_carbine.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/suppressed_carbine/candidate-001/curated/suppressed-carbine-64.png",
-      "sha256": "F5A02473AD0361133A81C17A3F768DA6E49D3C1FF5C247B6516C0BB841CCCFBB",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/suppressed_carbine/candidate-003/curated/suppressed-carbine-m4a1s-world-96x64.png",
+      "sha256": "E230B66432ABFFF824CF4186C76778358B7C7C73F1A62DE9C4133C8476EB6B4E",
       "pixel_size": [
-        64,
+        96,
         64
       ],
       "display_size_px": [
-        64,
+        96,
         64
       ],
       "pivot_px": [
-        22,
-        33
+        38,
+        40
       ],
       "anchors_px": {
         "muzzle": [
-          59,
-          29
+          92,
+          25
         ]
       },
       "texture_filter": "nearest",
@@ -139,8 +169,8 @@
       "category": "weapon",
       "role": "world_sprite",
       "resource_path": "res://game/assets/gogobro_static_preview/weapons/suppressed_tactical_pistol.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/suppressed_tactical_pistol/candidate-001/curated/suppressed_tactical_pistol-world-96x64.png",
-      "sha256": "17F69610C10F97189ED14B0BBEA8C0932588A1A2127B55BF86C9D388F866166B",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/suppressed_tactical_pistol/candidate-002/curated/suppressed-tactical-pistol-usps-96x64.png",
+      "sha256": "7592261F69750D97BDE1A8CCE7320D090B83B6AAD8313FB5936FE69B9ECAF9D5",
       "pixel_size": [
         96,
         64
@@ -150,13 +180,13 @@
         64
       ],
       "pivot_px": [
-        26,
-        35
+        37,
+        40
       ],
       "anchors_px": {
         "muzzle": [
-          71,
-          44
+          92,
+          26
         ]
       },
       "texture_filter": "nearest",
@@ -169,24 +199,54 @@
       "category": "weapon",
       "role": "world_sprite",
       "resource_path": "res://game/assets/gogobro_static_preview/weapons/heavy_hand_cannon.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/heavy_hand_cannon/candidate-002/curated/heavy-hand-cannon-v2-64.png",
-      "sha256": "3304225A2556234A7FB95BBCC61A1597F29C37209E1009D319EE02A6A52208E9",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/heavy_hand_cannon/candidate-003/curated/heavy-hand-cannon-desert-eagle-96x64.png",
+      "sha256": "E7F6DDF38F59A325D9DDB8D3BF87A3FCF0D49BD771ED106B379C8C7D8521BE0A",
       "pixel_size": [
-        64,
+        96,
         64
       ],
       "display_size_px": [
-        64,
+        96,
         64
       ],
       "pivot_px": [
-        23,
-        35
+        42,
+        40
       ],
       "anchors_px": {
         "muzzle": [
-          57,
-          23
+          91,
+          26
+        ]
+      },
+      "texture_filter": "nearest",
+      "mipmaps": false,
+      "approval_status": "candidate_preview_only",
+      "preview_alias_asset_ids": []
+    },
+    {
+      "asset_id": "service_pistol",
+      "category": "weapon",
+      "role": "world_sprite",
+      "resource_path": "res://game/assets/gogobro_static_preview/weapons/service_pistol.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/service_pistol/candidate-002/curated/service-pistol-glock18-96x64.png",
+      "sha256": "2D4519DBE039466DE9E0B2F5AD384CA98578EF594F9E7520C0C7187D7203529B",
+      "pixel_size": [
+        96,
+        64
+      ],
+      "display_size_px": [
+        96,
+        64
+      ],
+      "pivot_px": [
+        38,
+        40
+      ],
+      "anchors_px": {
+        "muzzle": [
+          90,
+          27
         ]
       },
       "texture_filter": "nearest",
@@ -199,8 +259,8 @@
       "category": "weapon",
       "role": "world_sprite",
       "resource_path": "res://game/assets/gogobro_static_preview/weapons/box_submachine_gun.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/box_submachine_gun/candidate-001/curated/box_submachine_gun-world-96x64.png",
-      "sha256": "CDFD08F663242533EBD01FC90AADACEBE1ED97E27C422AD92D8A1140C84B10D7",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/box_submachine_gun/candidate-002/curated/box-submachine-gun-mac10-96x64.png",
+      "sha256": "10CCBB314CB67F84068E8EDCF3D0DCD889C225CB43E2C8818CE813DE2244C125",
       "pixel_size": [
         96,
         64
@@ -210,13 +270,13 @@
         64
       ],
       "pivot_px": [
-        38,
-        35
+        41,
+        40
       ],
       "anchors_px": {
         "muzzle": [
-          71,
-          31
+          89,
+          28
         ]
       },
       "texture_filter": "nearest",
@@ -229,24 +289,24 @@
       "category": "weapon",
       "role": "world_sprite",
       "resource_path": "res://game/assets/gogobro_static_preview/weapons/compact_submachine_gun.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/compact_submachine_gun/candidate-001/curated/frame-0.png",
-      "sha256": "70066356DCFC1276C4539EF9604FDE6CB86C127C377E5D696D6AE5787380FAA2",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/compact_submachine_gun/candidate-002/curated/compact-submachine-gun-mp9-96x64.png",
+      "sha256": "E3E8972A5109889C6E4787D1DF8316EB1B077F7B59BB557F5E9D464FB5AD1A55",
       "pixel_size": [
-        64,
+        96,
         64
       ],
       "display_size_px": [
-        64,
+        96,
         64
       ],
       "pivot_px": [
-        22,
-        36
+        40,
+        40
       ],
       "anchors_px": {
         "muzzle": [
-          59,
-          18
+          89,
+          27
         ]
       },
       "texture_filter": "nearest",
@@ -259,24 +319,24 @@
       "category": "weapon",
       "role": "world_sprite",
       "resource_path": "res://game/assets/gogobro_static_preview/weapons/bullpup_pdw.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/bullpup_pdw/candidate-001/curated/frame-0.png",
-      "sha256": "DAFD3448BCE6F6B42A91FDE7B8FFED4FC7545B11B34FCE6C2C5C8F86C4A19B43",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/bullpup_pdw/candidate-002/curated/bullpup-pdw-p90-96x64.png",
+      "sha256": "439E6F97EF98A3FF9A1152DB6ECE41DD83A440CBD4A01325DA036268F7B6A143",
       "pixel_size": [
-        64,
+        96,
         64
       ],
       "display_size_px": [
-        64,
+        96,
         64
       ],
       "pivot_px": [
-        22,
-        35
+        42,
+        40
       ],
       "anchors_px": {
         "muzzle": [
-          59,
-          30
+          91,
+          28
         ]
       },
       "texture_filter": "nearest",
@@ -289,8 +349,8 @@
       "category": "weapon",
       "role": "world_sprite",
       "resource_path": "res://game/assets/gogobro_static_preview/weapons/folding_stock_submachine_gun.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/folding_stock_submachine_gun/candidate-001/curated/folding_stock_submachine_gun-world-96x64.png",
-      "sha256": "F86DBF7C7AEFFEAC8460F95A6623B92B824DB685E1B7493070BDF17B0B72C83B",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/folding_stock_submachine_gun/candidate-002/curated/folding-stock-submachine-gun-ump45-96x64.png",
+      "sha256": "DA1C2E3B1740EBAF89EB60DB6488E0D0846D2AF6B5E0BD4EEDB619314C820CAF",
       "pixel_size": [
         96,
         64
@@ -301,11 +361,11 @@
       ],
       "pivot_px": [
         40,
-        35
+        40
       ],
       "anchors_px": {
         "muzzle": [
-          89,
+          91,
           27
         ]
       },
