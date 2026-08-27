@@ -244,8 +244,8 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 		return
 	combat_world.call("_finish_wave")
 	if not _require(
-		(combat_screen.get("hud") as GogoBrotatoCombatHud).visible == false,
-		"combat HUD hidden before battlefield capture"
+		(combat_screen.get("hud") as GogoBrotatoCombatHud).visible,
+		"combat HUD retained beneath upgrade backdrop"
 	):
 		return
 	await get_tree().process_frame
@@ -269,6 +269,13 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 		and upgrade_screen.get_node_or_null("StatsColumn") != null
 		and upgrade_screen.get_node_or_null("RerollButton") is Button,
 		"four-choice upgrade hierarchy with captured battlefield"
+	):
+		return
+	var dim_veil := upgrade_screen.get_node("DimVeil") as ColorRect
+	if not _require(
+		dim_veil.color.a >= 0.75
+		and upgrade_screen.get_node("TitleBand").get_index() > dim_veil.get_index(),
+		"upgrade veil subordinates retained combat HUD beneath title UI"
 	):
 		return
 	if not _require(

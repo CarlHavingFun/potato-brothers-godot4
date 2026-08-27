@@ -27,9 +27,7 @@ func upgrade_reward_offers(session: GameSession, count: int = 4) -> Array[GogoUp
 
 
 func upgrade_reroll_price(session: GameSession) -> int:
-	if session == null or session.run_state == null:
-		return 1
-	return maxi(1, 1 + int(floor(float(session.run_state.current_wave) * 0.5)) + session.run_state.upgrade_reroll_count)
+	return 1
 
 
 func reroll_upgrade_rewards(session: GameSession) -> Error:

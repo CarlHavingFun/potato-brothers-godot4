@@ -686,8 +686,12 @@ func test_upgrade_reroll_charges_its_own_canonical_counter_without_duplicate_cho
 	assert_str(reward_status.text).contains("刷新完成")
 	assert_str(reward_status.text).contains("剩余 1 次")
 	assert_str(reward_status.text).contains("材料 %d" % player.materials)
+	assert_str((screen.get_node("RerollButton") as Button).text).is_equal("刷新 1")
 	var reroll_button := screen.get_node("RerollButton") as Button
-	assert_bool(reroll_button.get_global_rect().position.y >= 620.0).is_true()
+	var choice_row := screen.get_node("UpgradeChoiceRow") as HBoxContainer
+	assert_bool(
+		is_equal_approx(reroll_button.get_global_rect().position.y, choice_row.get_global_rect().end.y + 16.0)
+	).is_true()
 	assert_bool(NATIVE_CAPTURE_RECT.encloses(reroll_button.get_global_rect())).is_true()
 	var focus_owner := get_viewport().gui_get_focus_owner()
 	assert_bool(focus_owner != null and focus_owner.get_meta(&"focus_role", &"") == &"upgrade_choice").is_true()
