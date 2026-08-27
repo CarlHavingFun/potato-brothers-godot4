@@ -77,6 +77,34 @@ func test_world_consumes_persistent_assets_at_deterministic_collision_free_nodes
 	assert_int(off_grid_count).is_greater_equal(8)
 
 
+func test_boundary_decoration_is_sparse_and_keeps_floor_and_corner_coverage() -> void:
+	if not FileAccess.file_exists(PRESENTER_PATH):
+		return
+	var presenter := _build_presenter(9137, true, [], false, CAPTURE_VIEW_RECT)
+	var floor := presenter.get_node("Floor/community_server_floor") as MultiMeshInstance2D
+	var top := presenter.get_node("Boundary/arena_boundary_border_top") as MultiMeshInstance2D
+	var bottom := presenter.get_node("Boundary/arena_boundary_border_bottom") as MultiMeshInstance2D
+	var left := presenter.get_node("Boundary/arena_boundary_border_left") as MultiMeshInstance2D
+	var right := presenter.get_node("Boundary/arena_boundary_border_right") as MultiMeshInstance2D
+	assert_int(floor.multimesh.instance_count).is_equal(240)
+	var boundary_count := (
+		top.multimesh.instance_count
+		+ bottom.multimesh.instance_count
+		+ left.multimesh.instance_count
+		+ right.multimesh.instance_count
+	)
+	assert_int(boundary_count).is_between(10, 14)
+	assert_int(top.multimesh.instance_count).is_greater_equal(2)
+	assert_int(bottom.multimesh.instance_count).is_greater_equal(2)
+	assert_int(left.multimesh.instance_count).is_greater_equal(1)
+	assert_int(right.multimesh.instance_count).is_greater_equal(1)
+	var approximate_perimeter_coverage := (
+		float(boundary_count) * 96.0
+		/ (2.0 * (CAPTURE_VIEW_RECT.size.x + CAPTURE_VIEW_RECT.size.y))
+	)
+	assert_float(approximate_perimeter_coverage).is_between(0.24, 0.34)
+
+
 func test_release_world_omits_neutral_preview_turret() -> void:
 	if not FileAccess.file_exists(PRESENTER_PATH):
 		return

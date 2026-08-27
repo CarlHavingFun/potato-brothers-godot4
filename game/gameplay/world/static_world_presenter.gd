@@ -23,6 +23,7 @@ const DECOR_SELECTORS: Array[StringName] = [
 	&"decor_variant_06",
 ]
 const GRID_SIZE := 64
+const BOUNDARY_SPACING_MULTIPLIER := 3.0
 const PLAYER_CLEAR_RADIUS := 240.0
 const CAPTURE_CENTER_HALF_SIZE := Vector2(176.0, 112.0)
 const PROP_EDGE_INSET := 96.0
@@ -197,36 +198,44 @@ func _build_boundary() -> void:
 		_issue(&"arena_boundary_border")
 		return
 	var segment_size := Vector2(handle.display_size_px)
+	var target_spacing := segment_size.x * BOUNDARY_SPACING_MULTIPLIER
+	var horizontal_count := maxi(2, ceili(_arena_rect.size.x / target_spacing))
+	var bottom_count := maxi(2, horizontal_count - 1)
+	var vertical_count := maxi(1, ceili(_arena_rect.size.y / target_spacing) - 1)
+	var horizontal_span := maxf(0.0, _arena_rect.size.x - segment_size.x)
+	var top_step := horizontal_span / float(horizontal_count - 1)
+	var bottom_step := horizontal_span / float(bottom_count - 1)
+	var vertical_step := _arena_rect.size.y / float(vertical_count + 1)
 	_build_boundary_edge(
 		handle,
 		"arena_boundary_border_top",
-		ceili(_arena_rect.size.x / segment_size.x),
+		horizontal_count,
 		Vector2(_arena_rect.position.x + segment_size.x * 0.5, _arena_rect.position.y + segment_size.y * 0.5),
-		Vector2(segment_size.x, 0.0),
+		Vector2(top_step, 0.0),
 		0.0
 	)
 	_build_boundary_edge(
 		handle,
 		"arena_boundary_border_bottom",
-		ceili(_arena_rect.size.x / segment_size.x),
+		bottom_count,
 		Vector2(_arena_rect.position.x + segment_size.x * 0.5, _arena_rect.end.y - segment_size.y * 0.5),
-		Vector2(segment_size.x, 0.0),
+		Vector2(bottom_step, 0.0),
 		PI
 	)
 	_build_boundary_edge(
 		handle,
 		"arena_boundary_border_left",
-		ceili(_arena_rect.size.y / segment_size.x),
-		Vector2(_arena_rect.position.x + segment_size.y * 0.5, _arena_rect.position.y + segment_size.x * 0.5),
-		Vector2(0.0, segment_size.x),
+		vertical_count,
+		Vector2(_arena_rect.position.x + segment_size.y * 0.5, _arena_rect.position.y + vertical_step),
+		Vector2(0.0, vertical_step),
 		-PI * 0.5
 	)
 	_build_boundary_edge(
 		handle,
 		"arena_boundary_border_right",
-		ceili(_arena_rect.size.y / segment_size.x),
-		Vector2(_arena_rect.end.x - segment_size.y * 0.5, _arena_rect.position.y + segment_size.x * 0.5),
-		Vector2(0.0, segment_size.x),
+		vertical_count,
+		Vector2(_arena_rect.end.x - segment_size.y * 0.5, _arena_rect.position.y + vertical_step),
+		Vector2(0.0, vertical_step),
 		PI * 0.5
 	)
 	_record(handle, _boundary_layer.get_child(0), Vector2i(_arena_rect.position))
