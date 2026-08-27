@@ -51,6 +51,13 @@ Task 2: pivot-aware combat composition implemented from reviewed Task 1 HEAD and
 - The post-review final full Godot regression passes 339/339 across 35 suites with zero errors, failures, flaky cases, skips, or orphans.
 - Fresh re-review of commits `586df4b` + `18c46ff` is **APPROVED** with no remaining Critical or Important findings. The reviewer independently confirmed the real physics/clamp path, counts 1–6, all four edges, negative-control failures, and that the review fix changed no production file.
 
+Task 3: honest visible UI consumers and compact menu actions implemented in `8be3501`, with provenance hardening in `830357b`.
+
+- Real Diagnostic, Difficulty, and Combat HUD nodes now own `nine_slice_panel`, `zone_thumbnail`, and `combat_hud_shell` observations; the final route evidence is 70/70 and every required record has `visible_texture: true`.
+- Main Menu actions are centered at 320×104 with two 320×48 buttons and an 8px gap; the repaired HUD underlay remains two restrained top accents, not a viewport frame.
+- Initial review found one Important false-positive: a caller could self-report any broadly allowed scene/node provenance. The fix now derives provenance from the exact rendered CanvasItem ancestry and rejects wrong-but-allowed scene or node claims without recording them.
+- Fresh re-review of commits `8be3501` + `830357b` is **APPROVED** with no remaining Critical or Important findings. Independent focused and windowed route reruns passed; full regression remains 343/343.
+
 Task 3: visible UI consumers and compact main-menu actions implemented from reviewed Task 2 HEAD and recorded in `.superpowers/sdd/2026-08-28-final-asset-visual-remediation/task-3-report.md`.
 
 - Real Diagnostic, Difficulty, and Combat HUD routes provide the three required visible-texture observations; ordinary and synthetic records cannot cover them. Final real report remains 70/70.
