@@ -215,9 +215,9 @@ func _spawn_item_triggered_projectiles(
 	direction: Vector2,
 	current_shot_sequence: int
 ) -> void:
-	if world == null or stats == null or stats.definition_id.is_empty():
+	if world == null or stats == null or runtime_instance_id <= 0:
 		return
-	for event: Dictionary in world.note_ranged_attack(stats.definition_id):
+	for event: Dictionary in world.note_ranged_attack(runtime_instance_id):
 		var impact_kind := StringName(event.get("impact_kind", &""))
 		var source_item_id := StringName(event.get("source_item_id", &""))
 		var damage_scale := float(event.get("damage_scale", 0.0))

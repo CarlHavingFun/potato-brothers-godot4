@@ -163,16 +163,16 @@ func bind_projectile_feedback(projectile: GogoProjectile) -> void:
 		projectile.projectile_contact.connect(_on_projectile_contact)
 
 
-func note_ranged_attack(weapon_definition_id: StringName) -> Array[Dictionary]:
+func note_ranged_attack(weapon_instance_id: int) -> Array[Dictionary]:
 	if (
-		weapon_definition_id.is_empty()
+		weapon_instance_id <= 0
 		or session == null
 		or session.run_state == null
 		or session.run_state.player() == null
 	):
 		return []
 	return weapon_trigger_runtime.note_ranged_attack(
-		weapon_definition_id,
+		weapon_instance_id,
 		session.run_state.player().item_ids
 	)
 

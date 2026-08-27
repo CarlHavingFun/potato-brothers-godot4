@@ -206,10 +206,8 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	if marker_timer != null:
 		marker_timer.stop()
 	world.player_camera.clear_visual_impulses()
-	await get_tree().process_frame
-	await RenderingServer.frame_post_draw
-	await get_tree().process_frame
-	await RenderingServer.frame_post_draw
+	await _wait_for_capture_frame()
+	await _wait_for_capture_frame()
 	world_to_screen = world.get_global_transform_with_canvas()
 	var world_evidence := _build_world_evidence(
 		world,
@@ -230,16 +228,33 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 			]
 		)
 		return
-	var capture_path := ProjectSettings.globalize_path(CAPTURE_URI)
-	if DirAccess.make_dir_recursive_absolute(capture_path.get_base_dir()) != OK:
-		_fail("could not create combat capture directory")
+	var capture_path := "headless-unavailable"
+	var capture_record := {
+		"path": "",
+		"size": [CAPTURE_SIZE.x, CAPTURE_SIZE.y],
+		"sha256": "",
+		"render_backend": DisplayServer.get_name(),
+		"available": false,
+	}
+	var output_dir := ProjectSettings.globalize_path(OUTPUT_DIR_URI)
+	if DirAccess.make_dir_recursive_absolute(output_dir) != OK:
+		_fail("could not create combat evidence directory")
 		return
-	var image := root_window.get_texture().get_image()
-	if not _require(image != null and image.get_size() == CAPTURE_SIZE, "1280x720 combat capture"):
-		return
-	if image.save_png(capture_path) != OK:
-		_fail("could not save combat capture")
-		return
+	if DisplayServer.get_name() != "headless":
+		capture_path = ProjectSettings.globalize_path(CAPTURE_URI)
+		var image := root_window.get_texture().get_image()
+		if not _require(image != null and image.get_size() == CAPTURE_SIZE, "1280x720 combat capture"):
+			return
+		if image.save_png(capture_path) != OK:
+			_fail("could not save combat capture")
+			return
+		capture_record = {
+			"path": capture_path,
+			"size": [CAPTURE_SIZE.x, CAPTURE_SIZE.y],
+			"sha256": FileAccess.get_sha256(capture_path),
+			"render_backend": DisplayServer.get_name(),
+			"available": true,
+		}
 
 	_exercise_remaining_real_consumers(content, snapshot)
 	var report := GogoStaticCoverageAudit.build(
@@ -256,11 +271,7 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		"complete 70/70 real-consumer coverage"
 	):
 		return
-	report["capture"] = {
-		"path": ProjectSettings.globalize_path(CAPTURE_URI),
-		"size": [CAPTURE_SIZE.x, CAPTURE_SIZE.y],
-		"sha256": FileAccess.get_sha256(ProjectSettings.globalize_path(CAPTURE_URI)),
-	}
+	report["capture"] = capture_record
 	report["live_combat"] = {
 		"character_count": content.all(&"character").size(),
 		"weapon_asset_ids": distinct_assets.keys().map(func(id: Variant) -> String: return String(id)),
@@ -482,6 +493,16 @@ func _wait_for_combat(minimum_shots: int, minimum_impacts: int, maximum_frames: 
 			return true
 		await get_tree().physics_frame
 	return false
+
+
+func _wait_for_capture_frame() -> void:
+	await get_tree().process_frame
+	# `frame_post_draw` is not emitted by Godot's headless display server. Waiting on
+	# it made the same real-combat test hang until GdUnit's five-minute watchdog.
+	# Non-headless OpenGL capture still waits for the rendered frame before reading
+	# the SubViewport texture; headless runs validate gameplay and coverage only.
+	if DisplayServer.get_name() != "headless":
+		await RenderingServer.frame_post_draw
 
 
 func _exercise_remaining_real_consumers(

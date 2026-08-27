@@ -9,17 +9,17 @@ var _ranged_attack_counts: Dictionary = {}
 
 
 func note_ranged_attack(
-	weapon_id: StringName,
+	weapon_instance_id: int,
 	item_ids: Array[StringName]
 ) -> Array[Dictionary]:
 	var events: Array[Dictionary] = []
-	if weapon_id.is_empty() or not item_ids.has(SKYLINE_GRENADE_ID):
+	if weapon_instance_id <= 0 or not item_ids.has(SKYLINE_GRENADE_ID):
 		return events
-	var next_count := int(_ranged_attack_counts.get(weapon_id, 0)) + 1
+	var next_count := int(_ranged_attack_counts.get(weapon_instance_id, 0)) + 1
 	if next_count < SKYLINE_ATTACK_INTERVAL:
-		_ranged_attack_counts[weapon_id] = next_count
+		_ranged_attack_counts[weapon_instance_id] = next_count
 		return events
-	_ranged_attack_counts[weapon_id] = 0
+	_ranged_attack_counts[weapon_instance_id] = 0
 	events.append({
 		"impact_kind": &"explosion",
 		"damage_scale": 1.0,

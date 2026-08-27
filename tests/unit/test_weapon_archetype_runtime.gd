@@ -201,10 +201,10 @@ func test_skyline_grenade_emits_only_on_each_seventh_owned_ranged_attack() -> vo
 		return
 	var owned_items: Array[StringName] = [SKYLINE_GRENADE_ID]
 	for _index in 6:
-		assert_array(runtime.call("note_ranged_attack", &"gogobro.preview:weapon/ak", owned_items)).is_empty()
+		assert_array(runtime.call("note_ranged_attack", 101, owned_items)).is_empty()
 	var events := runtime.call(
 		"note_ranged_attack",
-		&"gogobro.preview:weapon/ak",
+		101,
 		owned_items
 	) as Array
 	assert_int(events.size()).is_equal(1)
@@ -212,26 +212,40 @@ func test_skyline_grenade_emits_only_on_each_seventh_owned_ranged_attack() -> vo
 	assert_float(float(events[0].damage_scale)).is_equal_approx(1.0, 0.0001)
 	assert_str(String(events[0].source_item_id)).is_equal(String(SKYLINE_GRENADE_ID))
 	for _index in 6:
-		assert_array(runtime.call("note_ranged_attack", &"gogobro.preview:weapon/ak", owned_items)).is_empty()
-	assert_int((runtime.call("note_ranged_attack", &"gogobro.preview:weapon/ak", owned_items) as Array).size()).is_equal(1)
+		assert_array(runtime.call("note_ranged_attack", 101, owned_items)).is_empty()
+	assert_int((runtime.call("note_ranged_attack", 101, owned_items) as Array).size()).is_equal(1)
 
 
-func test_skyline_counter_is_per_definition_ignores_unowned_calls_and_resets() -> void:
+func test_skyline_counter_is_per_weapon_instance_ignores_unowned_calls_and_resets() -> void:
 	var runtime := _trigger_runtime()
 	if runtime == null:
 		return
 	var owned_items: Array[StringName] = [SKYLINE_GRENADE_ID]
 	var no_items: Array[StringName] = []
 	for _index in 9:
-		assert_array(runtime.call("note_ranged_attack", &"ak", no_items)).is_empty()
+		assert_array(runtime.call("note_ranged_attack", 101, no_items)).is_empty()
 	for _index in 6:
-		assert_array(runtime.call("note_ranged_attack", &"ak", owned_items)).is_empty()
-		assert_array(runtime.call("note_ranged_attack", &"awp", owned_items)).is_empty()
-	assert_int((runtime.call("note_ranged_attack", &"ak", owned_items) as Array).size()).is_equal(1)
-	assert_int((runtime.call("note_ranged_attack", &"awp", owned_items) as Array).size()).is_equal(1)
+		assert_array(runtime.call("note_ranged_attack", 101, owned_items)).is_empty()
+		assert_array(runtime.call("note_ranged_attack", 202, owned_items)).is_empty()
+	assert_int((runtime.call("note_ranged_attack", 101, owned_items) as Array).size()).is_equal(1)
+	assert_int((runtime.call("note_ranged_attack", 202, owned_items) as Array).size()).is_equal(1)
 	runtime.call("reset")
 	for _index in 6:
-		assert_array(runtime.call("note_ranged_attack", &"ak", owned_items)).is_empty()
+		assert_array(runtime.call("note_ranged_attack", 101, owned_items)).is_empty()
+
+
+func test_duplicate_weapon_definitions_keep_independent_skyline_counters() -> void:
+	var runtime := _trigger_runtime()
+	if runtime == null:
+		return
+	var owned_items: Array[StringName] = [SKYLINE_GRENADE_ID]
+	for _index in 6:
+		assert_array(runtime.call("note_ranged_attack", 301, owned_items)).is_empty()
+	assert_array(runtime.call("note_ranged_attack", 302, owned_items)).is_empty()
+	assert_int((runtime.call("note_ranged_attack", 301, owned_items) as Array).size()).is_equal(1)
+	for _index in 5:
+		assert_array(runtime.call("note_ranged_attack", 302, owned_items)).is_empty()
+	assert_int((runtime.call("note_ranged_attack", 302, owned_items) as Array).size()).is_equal(1)
 
 
 func _debug_content() -> ContentSnapshot:
