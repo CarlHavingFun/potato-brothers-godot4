@@ -15,7 +15,7 @@ func _initialize() -> void:
 		_fail("canonical static shipping snapshot could not be activated")
 		return
 	var snapshot := service.active_snapshot()
-	if snapshot == null or snapshot.ready_count() != 8 or snapshot.expected_count() != 70:
+	if snapshot == null or snapshot.ready_count() != 9 or snapshot.expected_count() != 70:
 		_fail("canonical static shipping readiness mismatch")
 		return
 	if not snapshot.issues().is_empty():
@@ -33,13 +33,20 @@ func _initialize() -> void:
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	canvas.add_child(background)
 	_add_label(canvas, "GOGOBRO · CANONICAL STATIC SHIPPING · RUNTIME PROOF", Vector2(520, 18), 26, Color("f2e8c9"))
-	_add_label(canvas, "8 READY / 62 FALLBACK · SCOPE 70 · NO CARBINE / EXTRA CHARACTERS", Vector2(522, 54), 15, Color("8fe0b0"))
+	_add_label(canvas, "9 READY / 61 FALLBACK · SCOPE 70 · NIKO-ONLY CHARACTER", Vector2(522, 54), 15, Color("8fe0b0"))
 
-	var combat_screen := preload("res://game/ui/combat_screen.tscn").instantiate()
-	combat_screen.static_asset_snapshot_override = snapshot
-	canvas.add_child(combat_screen)
-	combat_screen._build_hud()
-	combat_screen._on_hud_changed(20.0, 20.0, 11.4, 1)
+	var hud_player := SessionPlayerState.new()
+	hud_player.current_health = 20.0
+	hud_player.max_health = 20.0
+	var hud := GogoBrotatoCombatHud.new()
+	hud.name = "CanonicalShippingHUD"
+	hud.scale = Vector2(4.0, 4.0)
+	hud.configure(
+		GogoCombatHudSnapshot.create(hud_player, 11.4, 1, 0.6),
+		content,
+		snapshot
+	)
+	canvas.add_child(hud)
 
 	_add_panel(canvas, Rect2(28, 190, 580, 500), "CONTENT + PROJECTILES · EXACT CANONICAL HANDLES")
 	var content_entries := [
