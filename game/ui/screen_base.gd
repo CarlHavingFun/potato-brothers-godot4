@@ -2,16 +2,105 @@ class_name GogoScreenBase
 extends Control
 
 const STATIC_CARD_PRESENTER := preload("res://game/ui/static_card_presenter.gd")
+const NATIVE_SIZE := Vector2(1280, 720)
+const TITLE_BAND_RECT := Rect2(32, 20, 1216, 64)
+const CONTENT_RECT := Rect2(32, 100, 1216, 588)
 
 static var _stable_ui_theme: Theme
 
 var body: VBoxContainer
+var content_root: Control
 var static_asset_snapshot_override: GogoStaticAssetSnapshot
 
 
 func build_screen(title: String, subtitle: String = "") -> VBoxContainer:
+	var root := build_screen_chrome(title, subtitle)
+	body = VBoxContainer.new()
+	body.name = "Body"
+	body.add_theme_constant_override("separation", 8)
+	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(body)
+	body.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	return body
+
+
+func build_screen_chrome(title: String, subtitle: String = "") -> Control:
 	theme = _shared_stable_ui_theme()
+	custom_minimum_size = NATIVE_SIZE
+	size = NATIVE_SIZE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_add_screen_background()
+
+	var title_band := Control.new()
+	title_band.name = "TitleBand"
+	title_band.position = TITLE_BAND_RECT.position
+	title_band.size = TITLE_BAND_RECT.size
+	title_band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(title_band)
+
+	var heading := Label.new()
+	heading.name = "Title"
+	heading.position = Vector2.ZERO
+	heading.size = Vector2(780, 42)
+	heading.text = title
+	heading.add_theme_font_size_override(&"font_size", 34)
+	heading.add_theme_color_override(&"font_color", Color("f3edd7"))
+	heading.add_theme_color_override(&"font_outline_color", Color("111416"))
+	heading.add_theme_constant_override(&"outline_size", 1)
+	heading.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_band.add_child(heading)
+
+	var description := Label.new()
+	description.name = "Subtitle"
+	description.position = Vector2(2, 38)
+	description.size = Vector2(900, 24)
+	description.text = subtitle
+	description.add_theme_font_size_override(&"font_size", 16)
+	description.add_theme_color_override(&"font_color", Color("c9c3b1"))
+	description.add_theme_color_override(&"font_outline_color", Color("111416"))
+	description.add_theme_constant_override(&"outline_size", 1)
+	description.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_band.add_child(description)
+
+	content_root = Control.new()
+	content_root.name = "ContentRoot"
+	content_root.position = CONTENT_RECT.position
+	content_root.size = CONTENT_RECT.size
+	content_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(content_root)
+	return content_root
+
+
+func add_principal_surface(rect: Rect2) -> Control:
+	if content_root == null:
+		build_screen_chrome("", "")
+	var panel_texture := _global_texture(&"nine_slice_panel")
+	var surface: Control
+	if panel_texture != null:
+		var nine_patch := NinePatchRect.new()
+		nine_patch.texture = panel_texture
+		nine_patch.patch_margin_left = 16
+		nine_patch.patch_margin_top = 16
+		nine_patch.patch_margin_right = 16
+		nine_patch.patch_margin_bottom = 16
+		nine_patch.axis_stretch_horizontal = NinePatchRect.AXIS_STRETCH_MODE_TILE
+		nine_patch.axis_stretch_vertical = NinePatchRect.AXIS_STRETCH_MODE_TILE
+		surface = nine_patch
+	else:
+		var fallback := PanelContainer.new()
+		fallback.add_theme_stylebox_override(&"panel", _principal_surface_style())
+		surface = fallback
+	surface.name = "PrincipalSurface"
+	surface.position = rect.position
+	surface.size = rect.size
+	surface.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	surface.mouse_filter = Control.MOUSE_FILTER_PASS
+	add_child(surface)
+	move_child(surface, content_root.get_index())
+	return surface
+
+
+func _add_screen_background() -> void:
 	var background := ColorRect.new()
 	background.name = "FlatMenuFallback"
 	background.color = Color("151922")
@@ -32,46 +121,6 @@ func build_screen(title: String, subtitle: String = "") -> VBoxContainer:
 	veil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(veil)
-	var center := CenterContainer.new()
-	center.name = "Center"
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
-	var panel_texture := _global_texture(&"nine_slice_panel")
-	var panel: Control
-	if panel_texture != null:
-		var nine_patch := NinePatchRect.new()
-		nine_patch.texture = panel_texture
-		nine_patch.patch_margin_left = 16
-		nine_patch.patch_margin_top = 16
-		nine_patch.patch_margin_right = 16
-		nine_patch.patch_margin_bottom = 16
-		nine_patch.axis_stretch_horizontal = NinePatchRect.AXIS_STRETCH_MODE_TILE
-		nine_patch.axis_stretch_vertical = NinePatchRect.AXIS_STRETCH_MODE_TILE
-		nine_patch.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		panel = nine_patch
-	else:
-		panel = PanelContainer.new()
-	panel.name = "StaticNineSlicePanel"
-	panel.custom_minimum_size = Vector2(660.0, 700.0)
-	center.add_child(panel)
-	body = VBoxContainer.new()
-	body.name = "Body"
-	body.position = Vector2(28, 22)
-	body.size = Vector2(604, 656)
-	body.add_theme_constant_override("separation", 14)
-	panel.add_child(body)
-	var heading := Label.new()
-	heading.text = title
-	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	heading.add_theme_font_size_override("font_size", 34)
-	body.add_child(heading)
-	if not subtitle.is_empty():
-		var description := Label.new()
-		description.text = subtitle
-		description.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		body.add_child(description)
-	return body
 
 
 func add_action(
@@ -238,14 +287,24 @@ static func _button_style(background: Color, border: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = background
 	style.border_color = border
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(6)
-	style.anti_aliasing = true
-	style.anti_aliasing_size = 1.25
-	style.border_blend = true
-	style.corner_detail = 12
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(0)
+	style.anti_aliasing = false
+	style.border_blend = false
+	style.corner_detail = 1
 	style.content_margin_left = 24.0
-	style.content_margin_top = 12.0
+	style.content_margin_top = 6.0
 	style.content_margin_right = 24.0
-	style.content_margin_bottom = 12.0
+	style.content_margin_bottom = 6.0
+	return style
+
+
+static func _principal_surface_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.055, 0.065, 0.075, 0.94)
+	style.border_color = Color(0.25, 0.27, 0.28, 1.0)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(0)
+	style.anti_aliasing = false
+	style.border_blend = false
 	return style

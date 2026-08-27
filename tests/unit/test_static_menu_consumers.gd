@@ -14,17 +14,18 @@ func test_shared_static_card_presenter_exists() -> void:
 	assert_bool(FileAccess.file_exists(CARD_PRESENTER_PATH)).is_true()
 
 
-func test_main_menu_consumes_background_wordmark_panel_and_button_without_losing_fallbacks() -> void:
+func test_main_menu_consumes_background_wordmark_and_button_without_a_viewport_frame() -> void:
 	var snapshot := _static_ui_snapshot()
 	var screen := auto_free(MAIN_MENU.new()) as GogoScreenBase
 	screen.set("static_asset_snapshot_override", snapshot)
 	add_child(screen)
 	var background := screen.get_node("StaticMenuBackground") as TextureRect
-	var panel := screen.get_node("Center/StaticNineSlicePanel") as Control
-	var wordmark := screen.get_node("Center/StaticNineSlicePanel/Body/Wordmark") as TextureRect
-	var start_button := screen.get_node("Center/StaticNineSlicePanel/Body/StartButton") as Button
+	var content_root := screen.get_node("ContentRoot") as Control
+	var wordmark := screen.get_node("ContentRoot/Body/Wordmark") as TextureRect
+	var start_button := screen.get_node("ContentRoot/Body/StartButton") as Button
 	assert_object(background.texture).is_not_null()
-	assert_object(panel).is_not_null()
+	assert_object(content_root).is_not_null()
+	assert_int(screen.find_children("StaticNineSlicePanel", "*", true, false).size()).is_equal(0)
 	assert_object(wordmark.texture).is_not_null()
 	var all_states_use_textures := true
 	for state: StringName in [&"normal", &"hover", &"pressed", &"disabled"]:
@@ -74,13 +75,16 @@ func test_missing_icon_keeps_shared_text_card_selectable_and_complete() -> void:
 	var card := auto_free(presenter.build_card(definition, "12 材料", _empty_snapshot())) as Control
 	assert_bool(card.has_node("Icon")).is_true()
 	assert_bool(card.has_node("Name")).is_true()
-	assert_bool(card.has_node("Tier")).is_true()
-	assert_bool(card.has_node("StatLine")).is_true()
+	assert_bool(card.has_node("RarityAccent")).is_true()
+	assert_bool(card.has_node("RarityLabel")).is_true()
+	assert_bool(card.has_node("StatRows/Stat1")).is_true()
+	assert_bool(card.has_node("StatRows/Stat2")).is_true()
 	assert_bool(card.has_node("PriceOrState")).is_true()
 	assert_bool(card.mouse_filter != Control.MOUSE_FILTER_IGNORE).is_true()
 	assert_str((card.get_node("Name") as Label).text).is_equal("无贴图道具")
 	assert_str((card.get_node("PriceOrState") as Label).text).is_equal("12 材料")
 	assert_object((card.get_node("Icon") as TextureRect).texture).is_null()
+	assert_bool((card.get_node("IconFallback") as ColorRect).visible).is_true()
 	var icon := card.get_node("Icon") as TextureRect
 	var price_or_state := card.get_node("PriceOrState") as Label
 	assert_bool(
@@ -97,7 +101,7 @@ func test_missing_icon_keeps_shared_text_card_selectable_and_complete() -> void:
 	).is_true()
 
 
-func test_shared_card_draws_exact_rarity_variant_without_recoloring_it() -> void:
+func test_shared_card_uses_one_flat_rarity_accent_without_an_authored_frame() -> void:
 	if not FileAccess.file_exists(CARD_PRESENTER_PATH):
 		return
 	var presenter := load(CARD_PRESENTER_PATH) as GDScript
@@ -107,19 +111,22 @@ func test_shared_card_draws_exact_rarity_variant_without_recoloring_it() -> void
 	definition.tier = 3
 	var snapshot := _static_ui_snapshot()
 	var card := auto_free(presenter.build_card(definition, "已装备", snapshot)) as Control
-	var frame := card.get_node("Frame") as TextureRect
-	assert_object(frame.texture).is_same(
-		snapshot.resolve_global(&"card_and_rarity_frame_kit", &"rare").texture
-	)
-	assert_bool(frame.modulate.is_equal_approx(Color.WHITE)).is_true()
+	assert_bool(card.has_node("Frame")).is_false()
+	assert_bool(
+		(card.get_node("RarityAccent") as ColorRect).color.is_equal_approx(Color("c65ce2"))
+	).is_true()
+	var normal := (card as Button).get_theme_stylebox(&"normal")
+	assert_bool(normal is StyleBoxFlat).is_true()
+	if normal is StyleBoxFlat:
+		assert_int((normal as StyleBoxFlat).border_width_left).is_equal(1)
+		assert_bool((normal as StyleBoxFlat).anti_aliasing).is_false()
 
 
-func test_shared_card_tints_base_frame_with_fallback_rarity_palette() -> void:
+func test_shared_card_keeps_the_rarity_palette_when_ui_textures_are_missing() -> void:
 	if not FileAccess.file_exists(CARD_PRESENTER_PATH):
 		return
 	var presenter := load(CARD_PRESENTER_PATH) as GDScript
 	var snapshot := _static_ui_snapshot(false)
-	var base_frame := snapshot.resolve_global(&"card_and_rarity_frame_kit")
 	var expected_by_tier := {
 		2: Color("4c88df"),
 		3: Color("c65ce2"),
@@ -132,10 +139,10 @@ func test_shared_card_tints_base_frame_with_fallback_rarity_palette() -> void:
 		definition.display_name = "回退稀有度 %d" % tier
 		definition.tier = tier
 		var card := auto_free(presenter.build_card(definition, "已装备", snapshot)) as Control
-		var frame := card.get_node("Frame") as TextureRect
-		assert_object(frame.texture).is_same(base_frame.texture)
 		assert_bool(
-			frame.modulate.is_equal_approx(expected_by_tier[tier] as Color)
+			(card.get_node("RarityAccent") as ColorRect).color.is_equal_approx(
+				expected_by_tier[tier] as Color
+			)
 		).is_true()
 
 
@@ -151,14 +158,14 @@ func test_real_selection_shop_and_upgrade_routes_use_zone_badge_and_shared_cards
 	character_screen.static_asset_snapshot_override = static_snapshot
 	add_child(character_screen)
 	assert_object((character_screen.get_node(
-		"Center/StaticNineSlicePanel/Body/ZoneThumbnail"
+		"ContentRoot/Body/ZoneThumbnail"
 	) as TextureRect).texture).is_not_null()
 
 	var weapon_screen := auto_free(WEAPON_SELECT.new()) as GogoScreenBase
 	weapon_screen.static_asset_snapshot_override = static_snapshot
 	add_child(weapon_screen)
 	assert_int(weapon_screen.get_node(
-		"Center/StaticNineSlicePanel/Body/WeaponCardGrid"
+		"ContentRoot/Body/WeaponCardGrid"
 	).get_child_count()).is_equal(12)
 
 	var difficulty_screen := auto_free(DIFFICULTY_SELECT.new()) as GogoScreenBase
@@ -184,7 +191,7 @@ func test_real_selection_shop_and_upgrade_routes_use_zone_badge_and_shared_cards
 	upgrade_screen.static_asset_snapshot_override = static_snapshot
 	add_child(upgrade_screen)
 	assert_int(upgrade_screen.get_node(
-		"Center/StaticNineSlicePanel/Body/UpgradeCardGrid"
+		"ContentRoot/Body/UpgradeCardGrid"
 	).get_child_count()).is_equal(3)
 
 

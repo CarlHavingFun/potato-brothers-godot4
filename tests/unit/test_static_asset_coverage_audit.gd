@@ -105,6 +105,7 @@ func _exercise_real_consumers(
 	var screen := auto_free(GogoScreenBase.new()) as GogoScreenBase
 	screen.static_asset_snapshot_override = snapshot
 	screen.build_screen("审计")
+	screen.add_principal_surface(Rect2(192, 144, 640, 360))
 	screen.add_static_texture(&"gogobro_wordmark", "Wordmark", Vector2(460, 115))
 	screen.add_static_texture(&"zone_thumbnail", "ZoneThumbnail", Vector2(320, 180))
 	screen.resolve_global_icon(&"difficulty_badge_kit", &"standard")
