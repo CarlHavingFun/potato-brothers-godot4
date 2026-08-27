@@ -1,0 +1,481 @@
+{
+  "schema_version": "gogobro-static-redraw-contract-v1",
+  "art_direction": {
+    "rendering": "crisp pixel art",
+    "actual_size_readability": "At 100% gameplay size, the physical object or CS archetype must be identifiable without its visible name.",
+    "detail_policy": "Moderate structural and surface detail is allowed when edges stay crisp and the defining silhouette remains continuous.",
+    "visual_rejections": [
+      "smoothing or blur",
+      "a broken defining silhouette or firearm barrel",
+      "an object or archetype that requires its visible name to identify"
+    ],
+    "mechanical_palette_rejection": false,
+    "visual_approval": "separate_human_actual_size_review"
+  },
+  "weapons": {
+    "warmup_shiv": {
+      "asset_id": "warmup_shiv",
+      "visible_name_zh": "蝴蝶刀",
+      "visible_name_en": "Butterfly Knife",
+      "subject": "Butterfly Knife with split handles and exposed pivot",
+      "width": 64,
+      "height": 64,
+      "mode": "melee",
+      "pivot_px": [24, 39],
+      "anchor_px": {"contact": [52, 25]}
+    },
+    "community_tapper": {
+      "asset_id": "community_tapper",
+      "visible_name_zh": "爪子刀",
+      "visible_name_en": "Karambit",
+      "subject": "Karambit with finger ring and curved claw blade",
+      "width": 64,
+      "height": 64,
+      "mode": "melee",
+      "pivot_px": [24, 39],
+      "anchor_px": {"contact": [51, 23]}
+    },
+    "wood_stock_assault_rifle": {
+      "asset_id": "wood_stock_assault_rifle",
+      "visible_name_zh": "AK-47",
+      "visible_name_en": "AK-47",
+      "subject": "AK-47 with wood furniture and curved magazine",
+      "width": 96,
+      "height": 64,
+      "mode": "ranged",
+      "pivot_px": [37, 40],
+      "anchor_px": {"muzzle": [92, 25]}
+    },
+    "heavy_bolt_sniper": {
+      "asset_id": "heavy_bolt_sniper",
+      "visible_name_zh": "AWP",
+      "visible_name_en": "AWP",
+      "subject": "AWP with large scope and green chassis",
+      "width": 96,
+      "height": 64,
+      "mode": "ranged",
+      "pivot_px": [39, 41],
+      "anchor_px": {"muzzle": [92, 25]}
+    },
+    "suppressed_carbine": {
+      "asset_id": "suppressed_carbine",
+      "visible_name_zh": "M4A1-S",
+      "visible_name_en": "M4A1-S",
+      "subject": "M4A1-S with straight magazine and long suppressor",
+      "width": 96,
+      "height": 64,
+      "mode": "ranged",
+      "pivot_px": [38, 40],
+      "anchor_px": {"muzzle": [92, 25]}
+    },
+    "suppressed_tactical_pistol": {
+      "asset_id": "suppressed_tactical_pistol",
+      "visible_name_zh": "USP-S",
+      "visible_name_en": "USP-S",
+      "subject": "USP-S with angular slide and suppressor",
+      "width": 96,
+      "height": 64,
+      "mode": "ranged",
+      "pivot_px": [37, 40],
+      "anchor_px": {"muzzle": [92, 26]}
+    },
+    "heavy_hand_cannon": {
+      "asset_id": "heavy_hand_cannon",
+      "visible_name_zh": "Desert Eagle",
+      "visible_name_en": "Desert Eagle",
+      "subject": "Desert Eagle with oversized squared slide",
+      "width": 96,
+      "height": 64,
+      "mode": "ranged",
+      "pivot_px": [42, 40],
+      "anchor_px": {"muzzle": [91, 26]}
+    },
+    "service_pistol": {
+      "asset_id": "service_pistol",
+      "visible_name_zh": "Glock-18",
+      "visible_name_en": "Glock-18",
+      "subject": "Glock-18 with compact squared slide",
+      "width": 96,
+      "height": 64,
+      "mode": "ranged",
+      "pivot_px": [38, 40],
+      "anchor_px": {"muzzle": [90, 27]}
+    },
+    "box_submachine_gun": {
+      "asset_id": "box_submachine_gun",
+      "visible_name_zh": "MAC-10",
+      "visible_name_en": "MAC-10",
+      "subject": "MAC-10 with boxy receiver and short barrel",
+      "width": 96,
+      "height": 64,
+      "mode": "ranged",
+      "pivot_px": [41, 40],
+      "anchor_px": {"muzzle": [89, 28]}
+    },
+    "compact_submachine_gun": {
+      "asset_id": "compact_submachine_gun",
+      "visible_name_zh": "MP9",
+      "visible_name_en": "MP9",
+      "subject": "MP9 with polymer body and skeleton stock",
+      "width": 96,
+      "height": 64,
+      "mode": "ranged",
+      "pivot_px": [40, 40],
+      "anchor_px": {"muzzle": [89, 27]}
+    },
+    "bullpup_pdw": {
+      "asset_id": "bullpup_pdw",
+      "visible_name_zh": "P90",
+      "visible_name_en": "P90",
+      "subject": "P90 with horizontal top magazine",
+      "width": 96,
+      "height": 64,
+      "mode": "ranged",
+      "pivot_px": [42, 40],
+      "anchor_px": {"muzzle": [91, 28]}
+    },
+    "folding_stock_submachine_gun": {
+      "asset_id": "folding_stock_submachine_gun",
+      "visible_name_zh": "UMP-45",
+      "visible_name_en": "UMP-45",
+      "subject": "UMP-45 with long box magazine and folding stock",
+      "width": 96,
+      "height": 64,
+      "mode": "ranged",
+      "pivot_px": [40, 40],
+      "anchor_px": {"muzzle": [91, 27]}
+    }
+  },
+  "items": {
+    "ballistic_liner": {
+      "asset_id": "ballistic_liner",
+      "visible_name_zh": "防弹内衬",
+      "visible_name_en": "Ballistic Liner",
+      "subject": "ballistic plate insert",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "silent_step_insoles": {
+      "asset_id": "silent_step_insoles",
+      "visible_name_zh": "静步鞋垫",
+      "visible_name_en": "Silent-Step Insoles",
+      "subject": "gel tactical insoles",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "crosshair_shim": {
+      "asset_id": "crosshair_shim",
+      "visible_name_zh": "准星校片",
+      "visible_name_en": "Crosshair Shim",
+      "subject": "sight-calibration shim plate",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "supply_radar": {
+      "asset_id": "supply_radar",
+      "visible_name_zh": "补给雷达",
+      "visible_name_en": "Supply Radar",
+      "subject": "handheld supply radar",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "trade_guard": {
+      "asset_id": "trade_guard",
+      "visible_name_zh": "补枪护腕",
+      "visible_name_en": "Trade Guard",
+      "subject": "padded forearm guard",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "tactical_med_patch": {
+      "asset_id": "tactical_med_patch",
+      "visible_name_zh": "战术急救贴",
+      "visible_name_en": "Tactical Med Patch",
+      "subject": "sealed trauma patch pouch",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "smoke_shell_helmet": {
+      "asset_id": "smoke_shell_helmet",
+      "visible_name_zh": "封烟头盔",
+      "visible_name_en": "Smoke-Shell Helmet",
+      "subject": "smoke-shell helmet",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "force_buy_runners": {
+      "asset_id": "force_buy_runners",
+      "visible_name_zh": "强起跑鞋",
+      "visible_name_en": "Force-Buy Runners",
+      "subject": "tactical running shoes",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "eco_round_coin_pouch": {
+      "asset_id": "eco_round_coin_pouch",
+      "visible_name_zh": "经济局零钱袋",
+      "visible_name_en": "Eco-Round Coin Pouch",
+      "subject": "coin pouch",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "rebound_fire_bottle": {
+      "asset_id": "rebound_fire_bottle",
+      "visible_name_zh": "反弹火线瓶",
+      "visible_name_en": "Rebound Fire Bottle",
+      "subject": "Molotov bottle",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "entry_fragger_dumbbell": {
+      "asset_id": "entry_fragger_dumbbell",
+      "visible_name_zh": "突破手哑铃",
+      "visible_name_en": "Entry-Fragger Dumbbell",
+      "subject": "entry-fragger dumbbell",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "corner_lucky_claw": {
+      "asset_id": "corner_lucky_claw",
+      "visible_name_zh": "夹点幸运爪",
+      "visible_name_en": "Corner Lucky Claw",
+      "subject": "claw keychain",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "scorched_defuse_pliers": {
+      "asset_id": "scorched_defuse_pliers",
+      "visible_name_zh": "灼热拆包钳",
+      "visible_name_en": "Scorched Defuse Pliers",
+      "subject": "scorched defuse pliers",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "save_time_watch": {
+      "asset_id": "save_time_watch",
+      "visible_name_zh": "保枪倒计表",
+      "visible_name_en": "Save-Time Watch",
+      "subject": "digital save-time watch",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "skyline_grenade": {
+      "asset_id": "skyline_grenade",
+      "visible_name_zh": "天外高抛雷",
+      "visible_name_en": "Skyline Grenade",
+      "subject": "taped HE grenade",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "post_match_analysis_desk": {
+      "asset_id": "post_match_analysis_desk",
+      "visible_name_zh": "赛后复盘台",
+      "visible_name_en": "Post-Match Analysis Desk",
+      "subject": "folding laptop analysis desk",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "one_missed_shot": {
+      "asset_id": "one_missed_shot",
+      "visible_name_zh": "裂镜纪念盒",
+      "visible_name_en": "Cracked-Scope Keepsake",
+      "subject": "cracked scope lens in a protective case",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "falling_sniper_charm": {
+      "asset_id": "falling_sniper_charm",
+      "visible_name_zh": "坠线狙击挂件",
+      "visible_name_en": "Falling Sniper Charm",
+      "subject": "dangling sniper charm",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "boost_step_stool": {
+      "asset_id": "boost_step_stool",
+      "visible_name_zh": "垫点折凳",
+      "visible_name_en": "Boost Step Stool",
+      "subject": "folding boost stool",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "post_match_mic": {
+      "asset_id": "post_match_mic",
+      "visible_name_zh": "赛后嘴硬麦",
+      "visible_name_en": "Post-Match Mic",
+      "subject": "broadcast microphone",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "halftime_tactics_board": {
+      "asset_id": "halftime_tactics_board",
+      "visible_name_zh": "半场战术板",
+      "visible_name_en": "Halftime Tactics Board",
+      "subject": "tactics clipboard",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "hand_cannon_ace_coin": {
+      "asset_id": "hand_cannon_ace_coin",
+      "visible_name_zh": "手炮五杀币",
+      "visible_name_en": "Hand-Cannon Ace Coin",
+      "subject": "engraved ace coin",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "sneaky_site_mask": {
+      "asset_id": "sneaky_site_mask",
+      "visible_name_zh": "静步面罩",
+      "visible_name_en": "Sneaky-Site Mask",
+      "subject": "balaclava",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "arena_chant_cassette": {
+      "asset_id": "arena_chant_cassette",
+      "visible_name_zh": "主场合唱磁带",
+      "visible_name_en": "Arena Chant Cassette",
+      "subject": "arena-chant cassette",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "mouse_lift_pad": {
+      "asset_id": "mouse_lift_pad",
+      "visible_name_zh": "抬鼠垫",
+      "visible_name_en": "Mouse-Lift Pad",
+      "subject": "mouse-lift pad",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "lineup_chalk": {
+      "asset_id": "lineup_chalk",
+      "visible_name_zh": "道具点位粉笔",
+      "visible_name_en": "Lineup Chalk",
+      "subject": "chalk holder",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "site_hold_bandana": {
+      "asset_id": "site_hold_bandana",
+      "visible_name_zh": "守点头巾",
+      "visible_name_en": "Site-Hold Bandana",
+      "subject": "site-hold bandana",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "airshot_wing_charm": {
+      "asset_id": "airshot_wing_charm",
+      "visible_name_zh": "腾空狙击翼章",
+      "visible_name_en": "Airshot Wing Charm",
+      "subject": "wing-shaped sniper charm",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "clutch_stopwatch": {
+      "asset_id": "clutch_stopwatch",
+      "visible_name_zh": "残局秒表",
+      "visible_name_en": "Clutch Stopwatch",
+      "subject": "clutch stopwatch",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    },
+    "three_beat_magazine": {
+      "asset_id": "three_beat_magazine",
+      "visible_name_zh": "三发节奏弹匣",
+      "visible_name_en": "Three-Beat Magazine",
+      "subject": "three-stripe rifle magazine",
+      "width": 64,
+      "height": 64,
+      "mode": "item",
+      "pivot_px": [32, 32],
+      "anchor_px": {"contact": [32, 32]}
+    }
+  }
+}
