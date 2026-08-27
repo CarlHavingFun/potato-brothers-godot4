@@ -3,6 +3,8 @@ extends GdUnitTestSuite
 
 const MANIFEST_PATH := "res://game/content/assets/gogobro_static_candidate_preview_v1.json"
 const REDRAW_CONTRACT_PATH := "res://tools/assets/gogobro_static_redraw_contract_v1.json"
+const BUILDER_PATH := "res://tools/assets/build_static_candidate_preview.py"
+const COVERAGE_EVIDENCE_PATH := "res://tools/assets/gogobro_static_candidate_preview_coverage_v1.json"
 const EXPECTED_COUNTS := {
 	"weapon": 12,
 	"item": 30,
@@ -166,6 +168,39 @@ func test_preview_manifest_never_aliases_any_weapon_identity() -> void:
 		assert_array(unit.get("preview_alias_asset_ids", []) as Array).is_empty()
 
 
+func test_preview_builder_check_is_non_mutating_and_bound_to_fresh_coverage() -> void:
+	assert_bool(FileAccess.file_exists(BUILDER_PATH)).is_true()
+	assert_bool(FileAccess.file_exists(COVERAGE_EVIDENCE_PATH)).is_true()
+	if not FileAccess.file_exists(BUILDER_PATH) or not FileAccess.file_exists(COVERAGE_EVIDENCE_PATH):
+		return
+	var manifest_before := FileAccess.get_sha256(MANIFEST_PATH).to_upper()
+	var output: Array = []
+	var exit_code := OS.execute(
+		_python_executable(),
+		[ProjectSettings.globalize_path(BUILDER_PATH), "--check"],
+		output,
+		true,
+		false
+	)
+	assert_int(exit_code).is_equal(0)
+	assert_str(FileAccess.get_sha256(MANIFEST_PATH).to_upper()).is_equal(manifest_before)
+	var manifest := JSON.parse_string(FileAccess.get_file_as_string(MANIFEST_PATH)) as Dictionary
+	var evidence := JSON.parse_string(
+		FileAccess.get_file_as_string(COVERAGE_EVIDENCE_PATH)
+	) as Dictionary
+	assert_str(String(manifest.get("coverage_report_path", ""))).is_equal(
+		COVERAGE_EVIDENCE_PATH
+	)
+	assert_str(String(manifest.get("coverage_report_sha256", "")).to_upper()).is_equal(
+		FileAccess.get_sha256(COVERAGE_EVIDENCE_PATH).to_upper()
+	)
+	assert_int(int(evidence.get("unit_count", -1))).is_equal(65)
+	var evidence_counts := evidence.get("category_counts", {}) as Dictionary
+	for category: String in EXPECTED_COUNTS:
+		assert_int(int(evidence_counts.get(category, -1))).is_equal(int(EXPECTED_COUNTS[category]))
+	assert_int((evidence.get("rows", []) as Array).size()).is_equal(65)
+
+
 func _assert_integer_pair_equals(value: Variant, expected_x: int, expected_y: int) -> void:
 	assert_bool(value is Array).is_true()
 	if not value is Array:
@@ -176,3 +211,8 @@ func _assert_integer_pair_equals(value: Variant, expected_x: int, expected_y: in
 		return
 	assert_int(int(pair[0])).is_equal(expected_x)
 	assert_int(int(pair[1])).is_equal(expected_y)
+
+
+func _python_executable() -> String:
+	var configured := String(ProjectSettings.get_setting("gogobro/tools/python_executable", ""))
+	return configured if not configured.is_empty() else "python"
