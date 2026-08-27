@@ -34,6 +34,20 @@ const CAPTURE_ITEM_IDS: Array[StringName] = [
 	&"gogobro.preview:item/corner_lucky_claw",
 	&"gogobro.preview:item/sneaky_site_mask",
 ]
+const EXPECTED_AUDIO_EVENT_CLASSES: Array[StringName] = [
+	&"weapon_fired",
+	&"projectile_contact",
+	&"melee_contact",
+	&"enemy_defeated",
+	&"player_damage_taken",
+	&"pickup_collected",
+]
+const EXPECTED_AUDIO_SHOT_VARIANTS: Array[StringName] = [
+	&"rapid", &"rifle", &"heavy", &"suppressed",
+]
+const EXPECTED_AUDIO_CONTACT_VARIANTS: Array[StringName] = [
+	&"normal", &"critical", &"pierce_exit", &"explosion",
+]
 const HUD_SCREEN_EXCLUSION_RECTS: Array[Rect2] = [
 	Rect2(0, 0, 368, 244),
 	Rect2(448, 0, 384, 112),
@@ -194,7 +208,11 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	var combat_screen := host.get_child(0) as Node2D
 	var world := combat_screen.get("world") as CombatWorld
 	var hud := combat_screen.get("hud") as GogoBrotatoCombatHud
-	if not _require(world != null and hud != null, "actual combat world and fixed HUD"):
+	var audio_presenter := combat_screen.get("audio_presenter") as GogoCombatAudioPresenter
+	if not _require(
+		world != null and hud != null and audio_presenter != null,
+		"actual combat world, fixed HUD, and combat audio presenter"
+	):
 		return
 	var hud_shell := hud.get_node_or_null("Shell") as TextureRect
 	if not _require(
@@ -220,6 +238,25 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	# Freeze only feedback aging so naturally emitted hit marks remain visible in
 	# the proof frame. Weapons, projectiles, damage and event publication stay live.
 	world.feedback_presenter.set_process(false)
+	# Exercise event classes that this ranged capture route cannot naturally emit,
+	# while still traversing CombatScreen's canonical signal wiring.
+	world.melee_contact.emit(
+		900001,
+		900002,
+		&"heavy",
+		Vector2i(world.player_actor.global_position.round()),
+		Vector2.RIGHT,
+		&"melee",
+		&"normal",
+		1
+	)
+	world.player_actor.damage_taken.emit(
+		Vector2i(world.player_actor.global_position.round()),
+		1.0,
+		maxf(world.player_actor.player_state.current_health - 1.0, 0.0),
+		false,
+		1
+	)
 	if not _require(world.static_world_presenter != null and world.static_world_presenter.issues().is_empty(), "static world presenter"):
 		return
 	var world_to_screen := world.get_global_transform_with_canvas()
@@ -472,6 +509,13 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		"both dynamic pickup kinds collect through the canonical event"
 	):
 		return
+	var audio_ledger := audio_presenter.debug_ledger()
+	if not _require(
+		_audio_ledger_has_complete_combat_coverage(audio_ledger),
+		"combat audio debug ledger covers every event class and mapped variant (%s)"
+		% [_audio_ledger_summary(audio_ledger)]
+	):
+		return
 	var pause_state_before := _pause_state_signature(app.current_session)
 	combat_screen.call("_open_pause")
 	var pause_overlay := combat_screen.get("pause_overlay") as Control
@@ -570,6 +614,7 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		"pickup_kinds_observed": _pickup_kinds_observed.keys().map(
 			func(kind: Variant) -> String: return String(kind)
 		),
+		"audio_ledger": _audio_ledger_summary(audio_ledger),
 	}
 	report["world_evidence"] = {
 		"arena_size": [CAPTURE_ARENA_SIZE.x, CAPTURE_ARENA_SIZE.y],
@@ -962,6 +1007,43 @@ func _wait_for_capture_frame() -> void:
 	# the SubViewport texture; headless runs validate gameplay and coverage only.
 	if DisplayServer.get_name() != "headless":
 		await RenderingServer.frame_post_draw
+
+
+func _audio_ledger_has_complete_combat_coverage(ledger: Array[Dictionary]) -> bool:
+	var summary := _audio_ledger_summary(ledger)
+	var event_classes := summary.event_classes_observed as Array
+	var shot_variants := summary.shot_variants_observed as Array
+	var contact_variants := summary.contact_variants_observed as Array
+	for event_class in EXPECTED_AUDIO_EVENT_CLASSES:
+		if not event_classes.has(String(event_class)):
+			return false
+	for variant in EXPECTED_AUDIO_SHOT_VARIANTS:
+		if not shot_variants.has(String(variant)):
+			return false
+	for variant in EXPECTED_AUDIO_CONTACT_VARIANTS:
+		if not contact_variants.has(String(variant)):
+			return false
+	return true
+
+
+func _audio_ledger_summary(ledger: Array[Dictionary]) -> Dictionary:
+	var event_classes: Dictionary = {}
+	var shot_variants: Dictionary = {}
+	var contact_variants: Dictionary = {}
+	for event in ledger:
+		var event_class := StringName(event.get("event_class", &""))
+		var variant := StringName(event.get("variant", &""))
+		event_classes[String(event_class)] = true
+		if event_class == &"weapon_fired":
+			shot_variants[String(variant)] = true
+		elif event_class in [&"projectile_contact", &"melee_contact"]:
+			contact_variants[String(variant)] = true
+	return {
+		"entry_count": ledger.size(),
+		"event_classes_observed": event_classes.keys(),
+		"shot_variants_observed": shot_variants.keys(),
+		"contact_variants_observed": contact_variants.keys(),
+	}
 
 
 func _pause_state_signature(session: GameSession) -> Dictionary:

@@ -1,10 +1,12 @@
 extends Node2D
 
 const PAUSE_OVERLAY := preload("res://game/ui/pause_overlay.gd")
+const COMBAT_AUDIO_PRESENTER := preload("res://game/gameplay/feedback/combat_audio_presenter.gd")
 
 var world: CombatWorld
 var hud: GogoBrotatoCombatHud
 var pause_overlay: Control
+var audio_presenter: GogoCombatAudioPresenter
 var latest_hud_snapshot: GogoCombatHudSnapshot
 var static_asset_snapshot_override: GogoStaticAssetSnapshot
 
@@ -27,6 +29,36 @@ func _ready() -> void:
 	var error := world.start_wave(session, wave)
 	if error != OK:
 		app.route(FlowRoute.DIAGNOSTIC, {"message": "战斗启动失败", "details": [error_string(error)]})
+		return
+	_build_combat_audio(app.audio_service)
+
+
+func _build_combat_audio(audio_service: GogoAudioService) -> void:
+	audio_presenter = COMBAT_AUDIO_PRESENTER.new() as GogoCombatAudioPresenter
+	audio_presenter.name = "CombatAudioPresenter"
+	audio_presenter.configure(audio_service)
+	add_child(audio_presenter)
+	_route_combat_audio_events_once(world, audio_presenter)
+
+
+func _route_combat_audio_events_once(
+	next_world: CombatWorld,
+	next_presenter: GogoCombatAudioPresenter
+) -> void:
+	if next_world == null or next_presenter == null:
+		return
+	_connect_once(next_world.weapon_fired, next_presenter.present_weapon_fired)
+	_connect_once(next_world.melee_contact, next_presenter.present_melee_contact)
+	_connect_once(next_world.projectile_contact, next_presenter.present_projectile_contact)
+	_connect_once(next_world.enemy_defeated, next_presenter.present_enemy_defeated)
+	_connect_once(next_world.pickup_collected, next_presenter.present_pickup_collected)
+	if next_world.player_actor != null:
+		_connect_once(next_world.player_actor.damage_taken, next_presenter.present_player_damage_taken)
+
+
+func _connect_once(source_signal: Signal, receiver: Callable) -> void:
+	if not source_signal.is_connected(receiver):
+		source_signal.connect(receiver)
 
 
 func _build_hud() -> void:
