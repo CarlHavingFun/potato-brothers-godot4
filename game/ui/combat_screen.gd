@@ -30,7 +30,6 @@ func _build_hud() -> void:
 	add_child(layer)
 	hud = GogoBrotatoCombatHud.new()
 	hud.name = "BrotatoHUD"
-	hud.scale = Vector2(4.0, 4.0)
 	var app := AppContext.kernel(self)
 	var content: ContentSnapshot
 	if app != null and app.current_session != null:

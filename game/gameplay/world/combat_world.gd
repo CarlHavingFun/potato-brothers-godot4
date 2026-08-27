@@ -82,6 +82,11 @@ func _ready() -> void:
 	queue_redraw()
 
 
+func _exit_tree() -> void:
+	running = false
+	_clear_active_combat_actors()
+
+
 func start_wave(next_session: GameSession, wave_definition: GogoWaveDefinition) -> Error:
 	if running:
 		return ERR_ALREADY_IN_USE

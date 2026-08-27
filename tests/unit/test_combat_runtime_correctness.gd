@@ -95,6 +95,27 @@ func test_weapon_world_sprite_uses_approved_pivot_muzzle_and_left_facing_flip() 
 	assert_vector(weapon.integer_muzzle_global_position()).is_equal(Vector2(176.0, 84.0))
 
 
+func test_weapon_world_sprite_applies_handle_display_scale_without_scaling_runtime_anchors() -> void:
+	var world := auto_free(CombatWorld.new()) as CombatWorld
+	add_child(world)
+	var owner := auto_free(GogoPlayerActor.new()) as GogoPlayerActor
+	owner.combat_world = world
+	var weapon := GogoWeaponInstance.new()
+	weapon.static_asset_snapshot_override = _scaled_weapon_visual_snapshot()
+	world.add_child(weapon)
+	var stats := GogoWeaponRuntimeStats.new()
+	stats.mode = GogoWeaponDefinition.Mode.RANGED
+	stats.static_asset_id = &"service_pistol"
+	stats.feedback_profile_id = &"rifle"
+	weapon.configure(stats, owner)
+	weapon.global_position = Vector2(100.0, 100.0)
+
+	var sprite := weapon.get_node("WeaponVisualRoot/WeaponSprite") as Sprite2D
+	assert_vector(sprite.scale).is_equal(Vector2(0.5, 0.5))
+	assert_vector(sprite.position).is_equal(Vector2(-16.0, -32.0))
+	assert_vector(weapon.integer_muzzle_global_position()).is_equal(Vector2(140.0, 92.0))
+
+
 func test_projectile_sprite_uses_feedback_selector_pivot_rotation_and_nearest_filter() -> void:
 	var world := auto_free(CombatWorld.new()) as CombatWorld
 	add_child(world)
@@ -230,6 +251,26 @@ func test_enemy_stays_inactive_until_spawn_marker_completes_and_cannot_arrive_af
 	assert_int(world.active_enemy_count()).is_equal(0)
 
 
+func test_world_exit_frees_pending_enemy_spawn() -> void:
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	var session := _combat_session(content)
+	session.static_asset_snapshot = _spawn_marker_snapshot()
+	var wave := content.definition(&"gogobro.core:wave/training_1", &"wave") as GogoWaveDefinition
+	var world := CombatWorld.new()
+	add_child(world)
+	assert_int(world.start_wave(session, wave)).is_equal(OK)
+
+	world.call("_spawn_enemy", &"gogobro.core:enemy/drifter")
+	var pending: Dictionary = world.get("_pending_spawn_enemies")
+	assert_int(pending.size()).is_equal(1)
+	var pending_enemy_ref: WeakRef = weakref(pending.values()[0])
+
+	world.free()
+	await get_tree().process_frame
+
+	assert_object(pending_enemy_ref.get_ref()).is_null()
+
+
 func test_targeting_and_projectiles_ignore_defeat_committed_enemies() -> void:
 	var weapon := auto_free(GogoWeaponInstance.new()) as GogoWeaponInstance
 	var defeated_enemy := auto_free(GogoEnemyActor.new()) as GogoEnemyActor
@@ -311,6 +352,36 @@ func _weapon_visual_snapshot() -> GogoStaticAssetSnapshot:
 		"display_scale": Vector2.ONE,
 		"pivot_px": Vector2i(32, 64),
 		"anchors_px": {"muzzle": Vector2i(112, 48)},
+		"atlas_rect_px": Rect2i(0, 0, 128, 128),
+	}, ImageTexture.create_from_image(image))
+	var snapshot := GogoStaticAssetSnapshot.new()
+	snapshot._configure(
+		1,
+		"fixture",
+		70,
+		{&"service_pistol": &"ready"},
+		{"service_pistol|world_sprite|": handle},
+		{},
+		{},
+		{},
+		[]
+	)
+	return snapshot
+
+
+func _scaled_weapon_visual_snapshot() -> GogoStaticAssetSnapshot:
+	var image := Image.create(128, 128, false, Image.FORMAT_RGBA8)
+	image.fill(Color8(58, 66, 74, 255))
+	var handle := GogoStaticAssetHandle.new()
+	handle._configure({
+		"binding_key": &"service_pistol|world_sprite|",
+		"asset_id": &"service_pistol",
+		"role": &"world_sprite",
+		"selector": &"",
+		"display_size_px": Vector2i(64, 64),
+		"display_scale": Vector2(0.5, 0.5),
+		"pivot_px": Vector2i(16, 32),
+		"anchors_px": {"muzzle": Vector2i(56, 24)},
 		"atlas_rect_px": Rect2i(0, 0, 128, 128),
 	}, ImageTexture.create_from_image(image))
 	var snapshot := GogoStaticAssetSnapshot.new()

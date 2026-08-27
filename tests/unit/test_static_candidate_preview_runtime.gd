@@ -39,6 +39,39 @@ func test_development_overlay_preserves_shipping_handles_and_adds_ak_world_sprit
 	assert_object(preview.resolve_asset(&"service_carbine", &"world_sprite")).is_null()
 
 
+func test_development_overlay_resolves_complete_ui_and_decor_variant_sets() -> void:
+	var preview := _development_preview()
+	assert_object(preview).is_not_null()
+	if preview == null:
+		return
+	for selector in [&"normal", &"hover", &"pressed", &"disabled"]:
+		var button := preview.resolve_global(&"four_state_button", selector)
+		assert_object(button).is_not_null()
+		assert_str(String(button.selector)).is_equal(String(selector))
+	for selector in [&"common", &"uncommon", &"rare", &"legendary"]:
+		var frame := preview.resolve_global(&"card_and_rarity_frame_kit", selector)
+		assert_object(frame).is_not_null()
+		assert_str(String(frame.selector)).is_equal(String(selector))
+	for index in range(1, 7):
+		var selector := StringName("decor_variant_%02d" % index)
+		var decor := preview.resolve_asset(&"community_server_decor_pack", &"world_sprite", selector)
+		assert_object(decor).is_not_null()
+		assert_str(String(decor.selector)).is_equal(String(selector))
+
+
+func test_approved_service_pistol_world_visual_is_not_the_ak_preview_alias() -> void:
+	var preview := _development_preview()
+	assert_object(preview).is_not_null()
+	if preview == null:
+		return
+	var pistol := preview.resolve_asset(&"service_pistol", &"world_sprite")
+	var ak := preview.resolve_asset(&"wood_stock_assault_rifle", &"world_sprite")
+	assert_object(pistol).is_not_null()
+	assert_object(ak).is_not_null()
+	assert_object(pistol.texture).is_not_same(ak.texture)
+	assert_object(pistol.texture).is_same(preview.resolve_asset(&"service_pistol", &"icon").texture)
+
+
 func test_shipping_service_requires_explicit_development_authorization_before_preview_activation() -> void:
 	var service_script := load(PREVIEW_SERVICE_PATH) as Script
 	assert_object(service_script).is_not_null()
@@ -96,9 +129,11 @@ func test_app_kernel_debug_boot_activates_candidate_overlay_without_shipping_app
 	assert_object(ak).is_not_null()
 	var training_weapon := snapshot.resolve_asset(&"service_pistol", &"world_sprite")
 	assert_object(training_weapon).is_not_null()
-	assert_object(training_weapon.texture).is_same(ak.texture)
-	assert_bool(training_weapon.pivot_px == ak.pivot_px).is_true()
-	assert_bool(training_weapon.anchors_px.get("muzzle") == ak.anchors_px.get("muzzle")).is_true()
+	assert_object(training_weapon.texture).is_not_same(ak.texture)
+	assert_object(training_weapon.texture).is_same(snapshot.resolve_asset(&"service_pistol", &"icon").texture)
+	assert_bool(training_weapon.pivot_px == Vector2i(21, 35)).is_true()
+	assert_bool(training_weapon.anchors_px.get("muzzle") == Vector2i(59, 19)).is_true()
+	assert_bool(training_weapon.display_scale == Vector2.ONE).is_true()
 	assert_bool(kernel.static_asset_service.release_readiness().get("release_ready", true) == false).is_true()
 
 
@@ -110,3 +145,16 @@ func test_validation_content_keeps_niko_as_the_only_character_placeholder() -> v
 	var niko := characters[0] as CharacterDefinition
 	assert_object(niko.sprite_frames).is_not_null()
 	assert_str(String(ValidationContentFactory.CHARACTER_ID)).is_equal("character.niko:character/niko")
+
+
+func _development_preview() -> GogoStaticAssetSnapshot:
+	var service_script := load(PREVIEW_SERVICE_PATH) as Script
+	var shipping := GogoStaticAssetRuntimeService.new()
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	assert_int(shipping.stage(content)).is_equal(OK)
+	assert_int(shipping.activate_staged(&"", null)).is_equal(OK)
+	return service_script.new().call(
+		"build_overlay",
+		shipping.active_snapshot(),
+		content
+	) as GogoStaticAssetSnapshot

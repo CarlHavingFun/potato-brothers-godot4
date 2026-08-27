@@ -10,9 +10,11 @@ func test_combat_hud_keeps_large_block_fallbacks_when_static_textures_are_unavai
 	combat.call("_build_hud")
 
 	var hud := combat.get_node("HUDCanvas/BrotatoHUD") as GogoBrotatoCombatHud
-	assert_vector(hud.custom_minimum_size).is_equal(Vector2(320, 180))
-	assert_vector(hud.scale).is_equal(Vector2(4, 4))
+	assert_vector(hud.custom_minimum_size).is_equal(Vector2(1280, 720))
+	assert_vector(hud.scale).is_equal(Vector2.ONE)
 	assert_object((hud.get_node("Shell") as TextureRect).texture).is_null()
+	assert_vector((hud.get_node("Shell") as TextureRect).size).is_equal(Vector2(320, 180))
+	assert_vector((hud.get_node("Shell") as TextureRect).scale).is_equal(Vector2(4, 4))
 	assert_bool(hud.has_node("TopCenter/Timer")).is_true()
 	assert_bool(hud.has_node("BottomLeft/HealthBar")).is_true()
 	assert_int(hud.get_node("WeaponStrip").get_child_count()).is_equal(6)
@@ -34,10 +36,13 @@ func test_combat_hud_resolves_shell_hud_and_control_texture_consumers_at_nearest
 		"HUDCanvas/BrotatoHUD/ControlHint/HintContent/MoveKeyboardIcon",
 		"HUDCanvas/BrotatoHUD/ControlHint/HintContent/MoveGamepadIcon",
 		"HUDCanvas/BrotatoHUD/ControlHint/HintContent/AutoAttackIcon",
+		"HUDCanvas/BrotatoHUD/WeaponStrip/WeaponCell00/TierFrame",
 	]
 	for path: String in paths:
-		var icon := combat.get_node(path) as TextureRect
+		var icon := combat.get_node_or_null(path) as TextureRect
 		assert_object(icon).is_not_null()
+		if icon == null:
+			continue
 		assert_object(icon.texture).is_not_null()
 		assert_int(icon.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
 
@@ -50,6 +55,7 @@ func _static_ui_snapshot() -> GogoStaticAssetSnapshot:
 		_add_global_handle(handles, global_bindings, &"hud_icon_kit", selector, Vector2i(64, 64))
 	for selector in [&"move_keyboard_wasd", &"move_gamepad_left_stick", &"auto_attack"]:
 		_add_global_handle(handles, global_bindings, &"control_icon_kit", selector, Vector2i(64, 64))
+	_add_global_handle(handles, global_bindings, &"card_and_rarity_frame_kit", &"", Vector2i(64, 64))
 	var snapshot := GogoStaticAssetSnapshot.new()
 	snapshot._configure(1, "fixture", 70, {}, handles, {}, {}, global_bindings, [])
 	return snapshot

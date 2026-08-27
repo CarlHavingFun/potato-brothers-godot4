@@ -15,8 +15,9 @@ func test_shared_static_card_presenter_exists() -> void:
 
 
 func test_main_menu_consumes_background_wordmark_panel_and_button_without_losing_fallbacks() -> void:
+	var snapshot := _static_ui_snapshot()
 	var screen := auto_free(MAIN_MENU.new()) as GogoScreenBase
-	screen.set("static_asset_snapshot_override", _static_ui_snapshot())
+	screen.set("static_asset_snapshot_override", snapshot)
 	add_child(screen)
 	var background := screen.get_node("StaticMenuBackground") as TextureRect
 	var panel := screen.get_node("Center/StaticNineSlicePanel") as Control
@@ -25,9 +26,40 @@ func test_main_menu_consumes_background_wordmark_panel_and_button_without_losing
 	assert_object(background.texture).is_not_null()
 	assert_object(panel).is_not_null()
 	assert_object(wordmark.texture).is_not_null()
-	assert_object(start_button.get_meta(&"static_four_state_texture", null)).is_not_null()
+	var all_states_use_textures := true
+	for state: StringName in [&"normal", &"hover", &"pressed", &"disabled"]:
+		all_states_use_textures = (
+			all_states_use_textures
+			and start_button.get_theme_stylebox(state) is StyleBoxTexture
+		)
+	assert_bool(all_states_use_textures).is_true()
+	if all_states_use_textures:
+		for state: StringName in [&"normal", &"hover", &"pressed", &"disabled"]:
+			var style := start_button.get_theme_stylebox(state) as StyleBoxTexture
+			assert_object((style as StyleBoxTexture).texture).is_same(
+				snapshot.resolve_global(&"four_state_button", state).texture
+			)
 	assert_object(screen.theme).is_not_null()
 	assert_bool(start_button.disabled).is_false()
+
+
+func test_action_button_uses_empty_selector_texture_for_all_states_when_atlas_has_no_selectors() -> void:
+	var snapshot := _static_ui_snapshot(false)
+	var screen := auto_free(GogoScreenBase.new()) as GogoScreenBase
+	screen.static_asset_snapshot_override = snapshot
+	add_child(screen)
+	screen.build_screen("兼容按钮")
+	var button := screen.add_action("开始", func() -> void: pass)
+	var fallback := snapshot.resolve_global(&"four_state_button").texture
+	var all_states_use_fallback := true
+	for state: StringName in [&"normal", &"hover", &"pressed", &"disabled"]:
+		var style := button.get_theme_stylebox(state)
+		all_states_use_fallback = (
+			all_states_use_fallback
+			and style is StyleBoxTexture
+			and (style as StyleBoxTexture).texture == fallback
+		)
+	assert_bool(all_states_use_fallback).is_true()
 
 
 func test_missing_icon_keeps_shared_text_card_selectable_and_complete() -> void:
@@ -49,6 +81,36 @@ func test_missing_icon_keeps_shared_text_card_selectable_and_complete() -> void:
 	assert_str((card.get_node("Name") as Label).text).is_equal("无贴图道具")
 	assert_str((card.get_node("PriceOrState") as Label).text).is_equal("12 材料")
 	assert_object((card.get_node("Icon") as TextureRect).texture).is_null()
+	var icon := card.get_node("Icon") as TextureRect
+	var price_or_state := card.get_node("PriceOrState") as Label
+	assert_bool(
+		icon.size.x >= 64.0
+		and icon.size.y >= 64.0
+		and icon.position.x + icon.size.x <= card.size.x
+		and icon.position.y + icon.size.y <= card.size.y
+		and (
+			price_or_state.clip_text
+			or price_or_state.autowrap_mode != TextServer.AUTOWRAP_OFF
+		)
+		and price_or_state.position.x + price_or_state.size.x <= card.size.x
+		and price_or_state.position.y + price_or_state.size.y <= card.size.y
+	).is_true()
+
+
+func test_shared_card_draws_the_selector_matching_definition_rarity() -> void:
+	if not FileAccess.file_exists(CARD_PRESENTER_PATH):
+		return
+	var presenter := load(CARD_PRESENTER_PATH) as GDScript
+	var definition := GogoItemDefinition.new()
+	definition.content_id = &"fixture:item/rare"
+	definition.display_name = "稀有道具"
+	definition.tier = 3
+	var snapshot := _static_ui_snapshot()
+	var card := auto_free(presenter.build_card(definition, "已装备", snapshot)) as Control
+	var frame := card.get_node("Frame") as TextureRect
+	assert_object(frame.texture).is_same(
+		snapshot.resolve_global(&"card_and_rarity_frame_kit", &"rare").texture
+	)
 
 
 func test_real_selection_shop_and_upgrade_routes_use_zone_badge_and_shared_cards() -> void:
@@ -100,7 +162,7 @@ func test_real_selection_shop_and_upgrade_routes_use_zone_badge_and_shared_cards
 	).get_child_count()).is_equal(3)
 
 
-func _static_ui_snapshot() -> GogoStaticAssetSnapshot:
+func _static_ui_snapshot(include_selectors: bool = true) -> GogoStaticAssetSnapshot:
 	var handles: Dictionary = {}
 	var global_bindings: Dictionary = {}
 	for spec in [
@@ -112,6 +174,28 @@ func _static_ui_snapshot() -> GogoStaticAssetSnapshot:
 		[&"zone_thumbnail", Vector2i(512, 288)],
 	]:
 		_add_global_handle(handles, global_bindings, spec[0], spec[1])
+	if include_selectors:
+		for selector: StringName in [&"normal", &"hover", &"pressed", &"disabled"]:
+			_add_global_handle(
+				handles,
+				global_bindings,
+				&"four_state_button",
+				Vector2i(64, 64),
+				selector
+			)
+		for selector: StringName in [
+			&"common",
+			&"uncommon",
+			&"rare",
+			&"legendary",
+		]:
+			_add_global_handle(
+				handles,
+				global_bindings,
+				&"card_and_rarity_frame_kit",
+				Vector2i(64, 64),
+				selector
+			)
 	_add_global_handle(
 		handles,
 		global_bindings,

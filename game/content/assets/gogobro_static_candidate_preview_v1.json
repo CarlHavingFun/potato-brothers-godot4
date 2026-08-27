@@ -72,9 +72,7 @@
       "texture_filter": "nearest",
       "mipmaps": false,
       "approval_status": "candidate_preview_only",
-      "preview_alias_asset_ids": [
-        "service_pistol"
-      ]
+      "preview_alias_asset_ids": []
     },
     {
       "asset_id": "heavy_bolt_sniper",
@@ -1211,6 +1209,14 @@
         32
       ],
       "anchors_px": {},
+      "variants": [
+        {"selector":"decor_variant_01","resource_path":"res://game/assets/gogobro_static_preview/world/community_server_decor_pack_01.png","source_candidate_path":"GOGOBRO_ASSET_INBOX/02_static_assets/world/community_server_decor_pack/candidate-003/pipeline-v4/decor-1.png","sha256":"44DABB0150EF20CF2DC292395AEC87E9CD569591AEEC6AF3D43EA8F3B72F8B7C","pixel_size":[64,64],"display_size_px":[64,64],"pivot_px":[32,32],"anchors_px":{}},
+        {"selector":"decor_variant_02","resource_path":"res://game/assets/gogobro_static_preview/world/community_server_decor_pack_02.png","source_candidate_path":"GOGOBRO_ASSET_INBOX/02_static_assets/world/community_server_decor_pack/candidate-003/pipeline-v4/decor-2.png","sha256":"685134F6C834AB933211924BFC4610E2B823DF0FD234D9C4145746310836695A","pixel_size":[64,64],"display_size_px":[64,64],"pivot_px":[32,32],"anchors_px":{}},
+        {"selector":"decor_variant_03","resource_path":"res://game/assets/gogobro_static_preview/world/community_server_decor_pack_03.png","source_candidate_path":"GOGOBRO_ASSET_INBOX/02_static_assets/world/community_server_decor_pack/candidate-003/pipeline-v4/decor-3.png","sha256":"7127EED64717F89D72FBE9DEB38EB176D735F0DDB5BD35BAC20A7569289E421C","pixel_size":[64,64],"display_size_px":[64,64],"pivot_px":[32,32],"anchors_px":{}},
+        {"selector":"decor_variant_04","resource_path":"res://game/assets/gogobro_static_preview/world/community_server_decor_pack_04.png","source_candidate_path":"GOGOBRO_ASSET_INBOX/02_static_assets/world/community_server_decor_pack/candidate-003/pipeline-v4/decor-4.png","sha256":"9A2D91E344B2C280B5D7797B762F3F4DFB695508CB555843A5E40DBCDD32AED5","pixel_size":[64,64],"display_size_px":[64,64],"pivot_px":[32,32],"anchors_px":{}},
+        {"selector":"decor_variant_05","resource_path":"res://game/assets/gogobro_static_preview/world/community_server_decor_pack_05.png","source_candidate_path":"GOGOBRO_ASSET_INBOX/02_static_assets/world/community_server_decor_pack/candidate-003/pipeline-v4/decor-5.png","sha256":"34A28733E55BFD88900E3AE9FD75BECF5E7938FF1E2C6E525EF64C3E54C8855C","pixel_size":[64,64],"display_size_px":[64,64],"pivot_px":[32,32],"anchors_px":{}},
+        {"selector":"decor_variant_06","resource_path":"res://game/assets/gogobro_static_preview/world/community_server_decor_pack_06.png","source_candidate_path":"GOGOBRO_ASSET_INBOX/02_static_assets/world/community_server_decor_pack/candidate-003/pipeline-v4/decor-6.png","sha256":"3629FBAFFFED6DF7C349EB9C03C3F84BEC9DA1D164CF9239299D1BDA1F44CA8A","pixel_size":[64,64],"display_size_px":[64,64],"pivot_px":[32,32],"anchors_px":{}}
+      ],
       "texture_filter": "nearest",
       "mipmaps": false,
       "approval_status": "candidate_preview_only",
@@ -1511,6 +1517,12 @@
         32
       ],
       "anchors_px": {},
+      "variants": [
+        {"selector":"common","resource_path":"res://game/assets/gogobro_static_preview/ui/card_and_rarity_frame_kit_common.png","source_candidate_path":"GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/card_and_rarity_frame_kit/candidate-002/pipeline/rarity-1.png","sha256":"654CCFAA23A48221D1D710A830E8501A0DF90F846BE84FB32C1829606E1E64D5","pixel_size":[64,64],"display_size_px":[64,64],"pivot_px":[32,32],"anchors_px":{}},
+        {"selector":"uncommon","resource_path":"res://game/assets/gogobro_static_preview/ui/card_and_rarity_frame_kit_uncommon.png","source_candidate_path":"GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/card_and_rarity_frame_kit/candidate-002/pipeline/rarity-2.png","sha256":"39BEDAACD89802A3FBF09F1967718358CE575F884A52A177BA7ED87502EF1875","pixel_size":[64,64],"display_size_px":[64,64],"pivot_px":[32,32],"anchors_px":{}},
+        {"selector":"rare","resource_path":"res://game/assets/gogobro_static_preview/ui/card_and_rarity_frame_kit_rare.png","source_candidate_path":"GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/card_and_rarity_frame_kit/candidate-002/pipeline/rarity-3.png","sha256":"6C3C2F6BE811029CC823AF8F748218647C87930ED3BE4DEE43270D3E3B364FA0","pixel_size":[64,64],"display_size_px":[64,64],"pivot_px":[32,32],"anchors_px":{}},
+        {"selector":"legendary","resource_path":"res://game/assets/gogobro_static_preview/ui/card_and_rarity_frame_kit_legendary.png","source_candidate_path":"GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/card_and_rarity_frame_kit/candidate-002/pipeline/rarity-4.png","sha256":"AAB08CFE887F32B496642508832509A05F2941E6F1F25FD477AE274211D8359A","pixel_size":[64,64],"display_size_px":[64,64],"pivot_px":[32,32],"anchors_px":{}}
+      ],
       "texture_filter": "nearest",
       "mipmaps": false,
       "approval_status": "candidate_preview_only",
@@ -1536,6 +1548,12 @@
         32
       ],
       "anchors_px": {},
+      "variants": [
+        {"selector":"normal","resource_path":"res://game/assets/gogobro_static_preview/ui/four_state_button_normal.png","source_candidate_path":"GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/four_state_button/candidate-003/pipeline/button-1.png","sha256":"BD3E23332EC1ECB92316FB6B10E2C03C3E1AA041AE61DCE3D3599236E0E57F82","pixel_size":[64,64],"display_size_px":[64,64],"pivot_px":[32,32],"anchors_px":{}},
+        {"selector":"hover","resource_path":"res://game/assets/gogobro_static_preview/ui/four_state_button_hover.png","source_candidate_path":"GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/four_state_button/candidate-003/pipeline/button-2.png","sha256":"A95CADEB5685B37B33B7C162B2F8745238CE49F5A1F22AAA6840223538FEBBF8","pixel_size":[64,64],"display_size_px":[64,64],"pivot_px":[32,32],"anchors_px":{}},
+        {"selector":"pressed","resource_path":"res://game/assets/gogobro_static_preview/ui/four_state_button_pressed.png","source_candidate_path":"GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/four_state_button/candidate-003/pipeline/button-3.png","sha256":"2CE6C973BF57C30CBFA339DFCF6E9BEBB30A31A17A9377029EADF169E08230B0","pixel_size":[64,64],"display_size_px":[64,64],"pivot_px":[32,32],"anchors_px":{}},
+        {"selector":"disabled","resource_path":"res://game/assets/gogobro_static_preview/ui/four_state_button_disabled.png","source_candidate_path":"GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/four_state_button/candidate-003/pipeline/button-4.png","sha256":"348DFFBBF0F95492A9F99F22D338FD32D934EFA9AC73654964CC11EF9887484D","pixel_size":[64,64],"display_size_px":[64,64],"pivot_px":[32,32],"anchors_px":{}}
+      ],
       "texture_filter": "nearest",
       "mipmaps": false,
       "approval_status": "candidate_preview_only",

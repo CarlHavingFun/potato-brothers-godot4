@@ -15,6 +15,10 @@ signal projectile_contact(
 const PROJECTILE_RADIUS := 5.0
 const ENEMY_HURT_RADIUS := 14.0
 const CONTACT_TIE_EPSILON := 0.000001
+const CRITICAL_DAMAGE_MULTIPLIER := 2.0
+const PIERCE_MAX_CONTACTS := 2
+const EXPLOSION_RADIUS := 80.0
+const SWEEP_CONTINUE_EPSILON := 0.01
 const VALID_FEEDBACK_PROFILES: Array[StringName] = [&"rapid", &"rifle", &"heavy", &"suppressed"]
 const VALID_IMPACT_KINDS: Array[StringName] = [&"normal", &"critical", &"pierce_exit", &"explosion"]
 const PROJECTILE_ASSET_ID: StringName = &"projectile_hit_kit"
@@ -42,6 +46,7 @@ var impact_kind: StringName = &"normal"
 var contact_sequence := 0
 var contact_committed := false
 var active := true
+var _hit_enemy_runtime_ids: Dictionary = {}
 var static_asset_snapshot_override: GogoStaticAssetSnapshot
 var projectile_sprite: Sprite2D
 var projectile_visual_handle: GogoStaticAssetHandle
@@ -68,6 +73,7 @@ func activate(
 	contact_sequence = 0
 	contact_committed = false
 	active = true
+	_hit_enemy_runtime_ids.clear()
 	rotation = direction.angle() if direction.is_finite() and not direction.is_zero_approx() else 0.0
 	_build_static_visual()
 	set_physics_process(true)
@@ -122,8 +128,11 @@ func _physics_process(delta: float) -> void:
 	var travel_seconds := minf(maxf(delta, 0.0), lifetime)
 	var start_global := global_position
 	var end_global := start_global + direction * speed * travel_seconds
-	var contact := _first_swept_contact(start_global, end_global)
-	if not contact.is_empty():
+	var sweep_start := start_global
+	while active:
+		var contact := _first_swept_contact(sweep_start, end_global, _hit_enemy_runtime_ids)
+		if contact.is_empty():
+			break
 		global_position = contact.projectile_center
 		var enemy := contact.enemy as GogoEnemyActor
 		var canonical_activation := _has_valid_canonical_activation(enemy)
@@ -131,15 +140,17 @@ func _physics_process(delta: float) -> void:
 			contact_committed = true
 			retire()
 			return
+		var contact_damage := _contact_damage()
 		var damage_reservation_id := 0
 		if canonical_activation:
-			damage_reservation_id = enemy._reserve_projectile_damage(damage, direction * knockback)
+			damage_reservation_id = enemy._reserve_projectile_damage(contact_damage, direction * knockback)
 			if damage_reservation_id <= 0:
 				contact_committed = true
 				retire()
 				return
 		contact_committed = true
 		if canonical_activation:
+			_hit_enemy_runtime_ids[enemy.runtime_instance_id] = true
 			contact_sequence += 1
 			projectile_contact.emit(
 				runtime_instance_id,
@@ -154,7 +165,21 @@ func _physics_process(delta: float) -> void:
 			if is_instance_valid(enemy):
 				enemy._commit_reserved_projectile_damage(damage_reservation_id)
 		else:
-			enemy.take_damage(damage, direction * knockback)
+			enemy.take_damage(contact_damage, direction * knockback)
+		if canonical_activation and impact_kind == &"explosion":
+			_apply_explosion_damage(contact.projectile_center, enemy)
+		if (
+			canonical_activation
+			and impact_kind == &"pierce_exit"
+			and contact_sequence < PIERCE_MAX_CONTACTS
+		):
+			contact_committed = false
+			var normalized_direction := direction.normalized()
+			sweep_start = contact.projectile_center + normalized_direction * SWEEP_CONTINUE_EPSILON
+			if normalized_direction.dot(end_global - sweep_start) > 0.0:
+				continue
+			global_position = end_global
+			break
 		retire()
 		return
 	global_position = end_global
@@ -163,7 +188,11 @@ func _physics_process(delta: float) -> void:
 		retire()
 
 
-func _first_swept_contact(start_global: Vector2, end_global: Vector2) -> Dictionary:
+func _first_swept_contact(
+	start_global: Vector2,
+	end_global: Vector2,
+	excluded_enemy_runtime_ids: Dictionary = {}
+) -> Dictionary:
 	var best_enemy: GogoEnemyActor
 	var best_t := INF
 	var fallback_candidates: Array = []
@@ -179,6 +208,8 @@ func _first_swept_contact(start_global: Vector2, end_global: Vector2) -> Diction
 			continue
 		var enemy := candidate as GogoEnemyActor
 		if not is_instance_valid(enemy) or not enemy.can_receive_projectile_contact():
+			continue
+		if enemy.runtime_instance_id > 0 and excluded_enemy_runtime_ids.has(enemy.runtime_instance_id):
 			continue
 		if combat_world != null and not combat_world.is_active_enemy(enemy):
 			continue
@@ -212,6 +243,34 @@ func _first_swept_contact(start_global: Vector2, end_global: Vector2) -> Diction
 		"normal": normal,
 		"travel_fraction": best_t,
 	}
+
+
+func _contact_damage() -> float:
+	if impact_kind == &"critical":
+		return damage * CRITICAL_DAMAGE_MULTIPLIER
+	return damage
+
+
+func _apply_explosion_damage(epicenter: Vector2, direct_enemy: GogoEnemyActor) -> void:
+	if combat_world == null:
+		return
+	var candidates: Array[GogoEnemyActor] = []
+	for index in combat_world.active_enemy_count():
+		candidates.append(combat_world.active_enemy_at(index))
+	var radius_squared := EXPLOSION_RADIUS * EXPLOSION_RADIUS
+	for enemy in candidates:
+		if (
+			enemy == null
+			or enemy == direct_enemy
+			or not is_instance_valid(enemy)
+			or not combat_world.is_active_enemy(enemy)
+			or enemy.global_position.distance_squared_to(epicenter) > radius_squared
+		):
+			continue
+		var impulse_direction := (enemy.global_position - epicenter).normalized()
+		if not impulse_direction.is_finite() or impulse_direction.is_zero_approx():
+			impulse_direction = direction.normalized()
+		enemy.take_damage(damage, impulse_direction * knockback)
 
 
 func _has_valid_canonical_activation(enemy: GogoEnemyActor) -> bool:

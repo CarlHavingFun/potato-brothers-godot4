@@ -52,12 +52,12 @@ func build_screen(title: String, subtitle: String = "") -> VBoxContainer:
 	else:
 		panel = PanelContainer.new()
 	panel.name = "StaticNineSlicePanel"
-	panel.custom_minimum_size = Vector2(660.0, 620.0)
+	panel.custom_minimum_size = Vector2(660.0, 700.0)
 	center.add_child(panel)
 	body = VBoxContainer.new()
 	body.name = "Body"
 	body.position = Vector2(28, 22)
-	body.size = Vector2(604, 576)
+	body.size = Vector2(604, 656)
 	body.add_theme_constant_override("separation", 14)
 	panel.add_child(body)
 	var heading := Label.new()
@@ -102,9 +102,6 @@ func add_static_card(
 		_static_asset_snapshot()
 	) as Button
 	card.disabled = disabled
-	var four_state_texture := _global_texture(&"four_state_button")
-	if four_state_texture != null:
-		card.set_meta(&"static_four_state_texture", four_state_texture)
 	if callback.is_valid() and not card.pressed.is_connected(callback):
 		card.pressed.connect(callback)
 	(parent if parent != null else body).add_child(card)
@@ -142,9 +139,11 @@ func configure_action_button(
 	button.expand_icon = icon != null
 	button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	button.add_theme_constant_override(&"icon_max_width", 64)
-	var four_state_texture := _global_texture(&"four_state_button")
-	if four_state_texture != null:
-		button.set_meta(&"static_four_state_texture", four_state_texture)
+	STATIC_CARD_PRESENTER.apply_button_state_textures(
+		button,
+		_static_asset_snapshot(),
+		"ActionButton/%s" % (button.name if not button.name.is_empty() else text)
+	)
 	if callback.is_valid() and not button.pressed.is_connected(callback):
 		button.pressed.connect(callback)
 	return button

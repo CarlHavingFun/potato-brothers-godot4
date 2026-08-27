@@ -232,6 +232,7 @@ func _build_static_visual() -> void:
 	weapon_sprite.texture = weapon_visual_handle.texture
 	weapon_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	weapon_sprite.position = -Vector2(weapon_visual_handle.pivot_px)
+	weapon_sprite.scale = weapon_visual_handle.display_scale
 	weapon_visual_root.add_child(weapon_sprite)
 	GogoStaticConsumerRegistry.observe_handle(
 		weapon_visual_handle,

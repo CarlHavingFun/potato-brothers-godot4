@@ -20,8 +20,17 @@ const CATEGORY_ROLE := {
 	"world": &"world_sprite",
 	"ui_brand": &"ui_texture",
 }
-const ALLOWED_PREVIEW_ALIASES := {
-	"wood_stock_assault_rifle": ["service_pistol"],
+const REQUIRED_VARIANT_SELECTORS := {
+	"community_server_decor_pack": [
+		"decor_variant_01",
+		"decor_variant_02",
+		"decor_variant_03",
+		"decor_variant_04",
+		"decor_variant_05",
+		"decor_variant_06",
+	],
+	"card_and_rarity_frame_kit": ["common", "uncommon", "rare", "legendary"],
+	"four_state_button": ["normal", "hover", "pressed", "disabled"],
 }
 
 var last_errors: Array[Dictionary] = []
@@ -118,14 +127,12 @@ func build_overlay(
 		handles[key] = _handle(asset_id, expected_role, texture, display_size, pivot, anchors)
 		states[asset_id] = &"preview_ready"
 		var aliases_variant: Variant = unit.get("preview_alias_asset_ids", [])
-		var expected_aliases: Array = ALLOWED_PREVIEW_ALIASES.get(String(asset_id), []) as Array
-		if not aliases_variant is Array or aliases_variant != expected_aliases:
-			_issue(&"candidate_preview_alias_invalid", "Candidate preview aliases do not match the allowed development mapping.", asset_id)
+		if not aliases_variant is Array or not (aliases_variant as Array).is_empty():
+			_issue(&"candidate_preview_alias_invalid", "Candidate preview aliases are forbidden; every weapon identity needs its own visual.", asset_id)
 			continue
-		for alias_variant: Variant in aliases_variant as Array:
-			var alias_id := StringName(String(alias_variant))
-			var alias_key := _asset_key(alias_id, expected_role)
-			handles[alias_key] = _handle(alias_id, expected_role, texture, display_size, pivot, anchors)
+		_install_variants(unit, asset_id, expected_role, category, normalized_root, handles, global_bindings)
+		if not last_errors.is_empty():
+			continue
 		if category == "weapon":
 			var icon_key := _asset_key(asset_id, &"icon")
 			handles[icon_key] = _handle(asset_id, &"icon", texture, display_size, Vector2i(display_size / 2), {})
@@ -138,6 +145,7 @@ func build_overlay(
 	for category: String in EXPECTED_CATEGORY_COUNTS:
 		if int(category_counts.get(category, 0)) != int(EXPECTED_CATEGORY_COUNTS[category]):
 			_issue(&"candidate_preview_category_count_mismatch", "Candidate preview category counts are incomplete.")
+	_install_service_pistol_world_visual(base_snapshot, handles)
 	if not last_errors.is_empty():
 		return null
 	return base_snapshot.with_development_overlay(
@@ -168,23 +176,103 @@ func _handle(
 	texture: Texture2D,
 	display_size: Vector2i,
 	pivot: Vector2i,
-	anchors: Dictionary
+	anchors: Dictionary,
+	selector: StringName = &"",
+	display_scale: Vector2 = Vector2.ONE
 ) -> GogoStaticAssetHandle:
 	var handle := GogoStaticAssetHandle.new()
-	var key := _asset_key(asset_id, role)
+	var key := _asset_key(asset_id, role, selector)
 	handle._configure({
 		"binding_key": StringName(key),
 		"asset_id": asset_id,
 		"role": role,
-		"selector": &"",
+		"selector": selector,
 		"display_size_px": display_size,
-		"display_scale": Vector2.ONE,
+		"display_scale": display_scale,
 		"pivot_px": pivot,
 		"anchors_px": anchors,
-		"atlas_rect_px": Rect2i(Vector2i.ZERO, display_size),
+		"atlas_rect_px": Rect2i(Vector2i.ZERO, Vector2i(texture.get_size())),
 		"source_kind": &"development_preview",
 	}, texture)
 	return handle
+
+
+func _install_variants(
+	unit: Dictionary,
+	asset_id: StringName,
+	role: StringName,
+	category: String,
+	normalized_root: String,
+	handles: Dictionary,
+	global_bindings: Dictionary
+) -> void:
+	var variants_variant: Variant = unit.get("variants", [])
+	if not variants_variant is Array:
+		_issue(&"candidate_preview_variants_invalid", "Candidate variants must be an array.", asset_id)
+		return
+	var variants := variants_variant as Array
+	var expected: Array = REQUIRED_VARIANT_SELECTORS.get(String(asset_id), []) as Array
+	if variants.size() != expected.size():
+		_issue(&"candidate_preview_variant_count_mismatch", "Candidate variant count does not match the registry sub-assets.", asset_id)
+		return
+	for index in variants.size():
+		var value: Variant = variants[index]
+		if not value is Dictionary:
+			_issue(&"candidate_preview_variant_invalid", "Candidate variant must be an object.", asset_id)
+			return
+		var variant := value as Dictionary
+		var selector := StringName(String(variant.get("selector", "")))
+		if selector.is_empty() or String(selector) != String(expected[index]):
+			_issue(&"candidate_preview_variant_selector_invalid", "Candidate variant selector is missing or out of order.", asset_id)
+			return
+		var path := _normalized_path(String(variant.get("resource_path", "")))
+		if not path.begins_with(normalized_root) or path.contains("..") or not FileAccess.file_exists(path):
+			_issue(&"candidate_preview_variant_path_invalid", "Candidate variant PNG is missing or outside its root.", asset_id)
+			return
+		var declared_hash := String(variant.get("sha256", "")).to_upper()
+		if declared_hash.length() != 64 or FileAccess.get_sha256(path).to_upper() != declared_hash:
+			_issue(&"candidate_preview_variant_hash_mismatch", "Candidate variant PNG hash does not match.", asset_id)
+			return
+		var image := Image.new()
+		if image.load_png_from_buffer(FileAccess.get_file_as_bytes(path)) != OK or image.is_empty():
+			_issue(&"candidate_preview_variant_texture_invalid", "Candidate variant is not a readable PNG.", asset_id)
+			return
+		var pixel_size := _pair_i(variant.get("pixel_size"))
+		var display_size := _pair_i(variant.get("display_size_px"))
+		var pivot := _pair_i(variant.get("pivot_px"))
+		if pixel_size != image.get_size() or display_size != pixel_size:
+			_issue(&"candidate_preview_variant_size_mismatch", "Candidate variant dimensions do not match the PNG.", asset_id)
+			return
+		if pivot.x < 0 or pivot.y < 0 or pivot.x >= display_size.x or pivot.y >= display_size.y:
+			_issue(&"candidate_preview_variant_pivot_invalid", "Candidate variant pivot is outside its texture.", asset_id)
+			return
+		var anchors := _anchors(variant.get("anchors_px", {}), display_size, asset_id)
+		if not last_errors.is_empty():
+			return
+		var texture := ImageTexture.create_from_image(image)
+		var key := _asset_key(asset_id, role, selector)
+		handles[key] = _handle(asset_id, role, texture, display_size, pivot, anchors, selector)
+		if category == "ui_brand":
+			global_bindings[_binding_key(&"global", &"", asset_id, selector)] = key
+
+
+func _install_service_pistol_world_visual(
+	base_snapshot: GogoStaticAssetSnapshot,
+	handles: Dictionary
+) -> void:
+	var icon := base_snapshot.resolve_asset(&"service_pistol", &"icon")
+	if icon == null or icon.texture == null:
+		_issue(&"candidate_preview_service_pistol_missing", "Approved service pistol icon is unavailable for its world visual.", &"service_pistol")
+		return
+	var key := _asset_key(&"service_pistol", &"world_sprite")
+	handles[key] = _handle(
+		&"service_pistol",
+		&"world_sprite",
+		icon.texture,
+		icon.display_size_px,
+		Vector2i(21, 35),
+		{"muzzle": Vector2i(59, 19)}
+	)
 
 
 func _anchors(value: Variant, size: Vector2i, asset_id: StringName) -> Dictionary:
@@ -220,12 +308,17 @@ static func _normalized_root(path: String) -> String:
 	return result if result.ends_with("/") else result + "/"
 
 
-static func _asset_key(asset_id: StringName, role: StringName) -> String:
-	return "%s|%s|" % [asset_id, role]
+static func _asset_key(asset_id: StringName, role: StringName, selector: StringName = &"") -> String:
+	return "%s|%s|%s" % [asset_id, role, selector]
 
 
-static func _binding_key(kind: StringName, consumer_id: StringName, role: StringName) -> String:
-	return "%s|%s|%s|" % [kind, consumer_id, role]
+static func _binding_key(
+	kind: StringName,
+	consumer_id: StringName,
+	role: StringName,
+	selector: StringName = &""
+) -> String:
+	return "%s|%s|%s|%s" % [kind, consumer_id, role, selector]
 
 
 func _issue(code: StringName, message: String, asset_id: StringName = &"") -> void:

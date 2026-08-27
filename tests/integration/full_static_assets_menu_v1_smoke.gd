@@ -1,12 +1,17 @@
 extends GdUnitTestSuite
 
 
-const OUTPUT_URI := "user://full-static-assets-menu-v1/menu-1280x720.png"
+const OUTPUT_DIR_URI := "user://full-static-assets-menu-v1"
+const MAIN_MENU_OUTPUT_URI := OUTPUT_DIR_URI + "/menu-1280x720.png"
+const CHARACTER_OUTPUT_URI := OUTPUT_DIR_URI + "/character-select-1280x720.png"
+const WEAPON_OUTPUT_URI := OUTPUT_DIR_URI + "/weapon-select-1280x720.png"
+const DIFFICULTY_OUTPUT_URI := OUTPUT_DIR_URI + "/difficulty-select-1280x720.png"
+const MANIFEST_URI := OUTPUT_DIR_URI + "/route-captures-v1.json"
 const CAPTURE_SIZE := Vector2i(1280, 720)
 const APP_SCENE := preload("res://game/app/app_root.tscn")
 
 
-func test_capture_actual_menu_at_1280() -> void:
+func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 	GogoStaticConsumerRegistry.reset_current()
 	var root_window := auto_free(SubViewport.new()) as SubViewport
 	root_window.size = CAPTURE_SIZE
@@ -23,10 +28,16 @@ func test_capture_actual_menu_at_1280() -> void:
 		return
 	if not _require(app.content_snapshot.all(&"character").size() == 1, "Niko-only character scope"):
 		return
+	var output_dir := ProjectSettings.globalize_path(OUTPUT_DIR_URI)
+	if not _require(
+		DirAccess.make_dir_recursive_absolute(output_dir) in [OK, ERR_ALREADY_EXISTS],
+		"menu capture directory"
+	):
+		return
 
 	var host := app.get_node("SceneHost") as Node
 	var main_menu := _current_screen(host)
-	if not _require(main_menu != null, "main menu route"):
+	if not _require(_is_actual_route(main_menu, "res://game/ui/main_menu_screen.gd"), "actual main menu route"):
 		return
 	if not _require(_texture_visible(main_menu, "Center/StaticNineSlicePanel/Body/Wordmark"), "wordmark consumer"):
 		return
@@ -34,110 +45,209 @@ func test_capture_actual_menu_at_1280() -> void:
 		return
 	if not _require(main_menu.get_node_or_null("Center/StaticNineSlicePanel") != null, "nine-slice panel consumer"):
 		return
-	if not _require(main_menu.get_node_or_null("Center/StaticNineSlicePanel/Body/StartButton") is Button, "four-state button consumer"):
+	var start_button := main_menu.get_node_or_null(
+		"Center/StaticNineSlicePanel/Body/StartButton"
+	) as Button
+	if not _require(
+		start_button != null and _button_uses_texture_states(start_button),
+		"rendered four-state button consumer"
+	):
 		return
+	var captures: Array[Dictionary] = []
+	var capture := await _capture_route(
+		root_window,
+		main_menu,
+		&"main_menu",
+		MAIN_MENU_OUTPUT_URI,
+		"res://game/ui/main_menu_screen.gd"
+	)
+	if capture.is_empty():
+		return
+	captures.append(capture)
 
 	app.begin_selection()
+	if not _require(app.route(FlowRoute.CHARACTER_SELECT) == OK, "character selection route"):
+		return
+	await get_tree().process_frame
+	var character_screen := _current_screen(host)
+	if not _require(
+		_is_actual_route(character_screen, "res://game/ui/character_select_screen.gd"),
+		"actual character selection instance"
+	):
+		return
+	if not _require(
+		_texture_visible(character_screen, "Center/StaticNineSlicePanel/Body/ZoneThumbnail"),
+		"character route zone thumbnail"
+	):
+		return
+	capture = await _capture_route(
+		root_window,
+		character_screen,
+		&"character_select",
+		CHARACTER_OUTPUT_URI,
+		"res://game/ui/character_select_screen.gd"
+	)
+	if capture.is_empty():
+		return
+	captures.append(capture)
+
 	app.selection_draft["character_id"] = ValidationContentFactory.CHARACTER_ID
 	if not _require(app.route(FlowRoute.WEAPON_SELECT) == OK, "weapon selection route"):
 		return
 	await get_tree().process_frame
 	var weapon_screen := _current_screen(host)
-	var grid := weapon_screen.get_node_or_null("Center/StaticNineSlicePanel/Body/WeaponCardGrid") as GridContainer
+	if not _require(
+		_is_actual_route(weapon_screen, "res://game/ui/weapon_select_screen.gd"),
+		"actual weapon selection instance"
+	):
+		return
+	var grid := weapon_screen.get_node_or_null(
+		"Center/StaticNineSlicePanel/Body/WeaponCardGrid"
+	) as GridContainer
 	if not _require(grid != null and grid.get_child_count() >= 12, "weapon card grid"):
 		return
-	var first_card := grid.get_child(0) as Control
-	if not _require(_texture_visible(first_card, "Frame") and _texture_visible(first_card, "Icon"), "card frame and icon consumers"):
+	var first_card := grid.get_child(0) as Button
+	if not _require(
+		_texture_visible(first_card, "Frame")
+		and _texture_visible(first_card, "Icon")
+		and (first_card.get_node("Icon") as TextureRect).size.x >= 64.0
+		and _button_uses_texture_states(first_card),
+		"rendered card frame, 64px icon, and button states"
+	):
 		return
+	var weapon_body := weapon_screen.get_node(
+		"Center/StaticNineSlicePanel/Body"
+	) as VBoxContainer
+	var return_button := weapon_body.get_child(weapon_body.get_child_count() - 1) as Button
+	if not _require(
+		_control_fits_capture(grid.get_child(grid.get_child_count() - 1) as Control)
+		and _control_fits_capture(return_button),
+		"complete weapon grid and return action fit the real route capture"
+	):
+		return
+	capture = await _capture_route(
+		root_window,
+		weapon_screen,
+		&"weapon_select",
+		WEAPON_OUTPUT_URI,
+		"res://game/ui/weapon_select_screen.gd"
+	)
+	if capture.is_empty():
+		return
+	captures.append(capture)
 
 	app.selection_draft["weapon_id"] = ValidationContentFactory.RANGED_ID
 	if not _require(app.route(FlowRoute.DIFFICULTY_SELECT) == OK, "difficulty selection route"):
 		return
 	await get_tree().process_frame
 	var difficulty_screen := _current_screen(host)
-	if not _require(_texture_visible(difficulty_screen, "Center/StaticNineSlicePanel/Body/ZoneThumbnail"), "zone thumbnail consumer"):
+	if not _require(
+		_is_actual_route(difficulty_screen, "res://game/ui/difficulty_select_screen.gd"),
+		"actual difficulty selection instance"
+	):
+		return
+	if not _require(
+		_texture_visible(difficulty_screen, "Center/StaticNineSlicePanel/Body/ZoneThumbnail"),
+		"difficulty route zone thumbnail"
+	):
 		return
 	var difficulty_button := _first_button(difficulty_screen)
-	if not _require(difficulty_button != null and difficulty_button.icon != null, "difficulty badge consumer"):
+	if not _require(
+		difficulty_button != null
+		and difficulty_button.icon != null
+		and _button_uses_texture_states(difficulty_button),
+		"difficulty badge and rendered button states"
+	):
 		return
+	capture = await _capture_route(
+		root_window,
+		difficulty_screen,
+		&"difficulty_select",
+		DIFFICULTY_OUTPUT_URI,
+		"res://game/ui/difficulty_select_screen.gd"
+	)
+	if capture.is_empty():
+		return
+	captures.append(capture)
 
-	if not _require(app.route(FlowRoute.MAIN_MENU) == OK, "return to main menu"):
+	var manifest_path := ProjectSettings.globalize_path(MANIFEST_URI)
+	var manifest_file := FileAccess.open(manifest_path, FileAccess.WRITE)
+	if not _require(manifest_file != null, "route capture manifest open"):
 		return
-	await get_tree().process_frame
-	main_menu = _current_screen(host)
-	_add_selection_evidence(main_menu, app.content_snapshot, snapshot)
+	manifest_file.store_string(JSON.stringify({
+		"schema_version": "gogobro-real-menu-route-captures-v1",
+		"capture_size": [CAPTURE_SIZE.x, CAPTURE_SIZE.y],
+		"captures": captures,
+	}, "  "))
+	manifest_file.close()
+	print(
+		"FULL_STATIC_ASSETS_MENU_V1_OK captures=%d manifest=%s"
+		% [captures.size(), manifest_path]
+	)
+
+
+func _capture_route(
+	root_window: SubViewport,
+	screen: Control,
+	route_name: StringName,
+	output_uri: String,
+	expected_script_path: String
+) -> Dictionary:
+	if not _require(_is_actual_route(screen, expected_script_path), "%s route identity" % route_name):
+		return {}
+	if not _require(
+		screen.get_node_or_null("SelectionEvidence") == null,
+		"%s contains only real route UI" % route_name
+	):
+		return {}
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
-	var output_path := ProjectSettings.globalize_path(OUTPUT_URI)
-	if DirAccess.make_dir_recursive_absolute(output_path.get_base_dir()) != OK:
-		_fail("could not create menu capture directory")
-		return
 	var image := root_window.get_texture().get_image()
-	if not _require(image != null and image.get_size() == CAPTURE_SIZE, "1280x720 menu capture"):
-		return
-	if image.save_png(output_path) != OK:
-		_fail("could not save menu capture")
-		return
-	print("FULL_STATIC_ASSETS_MENU_V1_OK capture=%s" % output_path)
+	if not _require(
+		image != null and image.get_size() == CAPTURE_SIZE,
+		"%s 1280x720 capture" % route_name
+	):
+		return {}
+	var output_path := ProjectSettings.globalize_path(output_uri)
+	if not _require(image.save_png(output_path) == OK, "%s capture save" % route_name):
+		return {}
+	return {
+		"route": String(route_name),
+		"screen_script": expected_script_path,
+		"user_uri": output_uri,
+		"absolute_path": output_path,
+		"sha256": FileAccess.get_sha256(output_path),
+	}
 
 
-func _add_selection_evidence(
-	menu: Control,
-	content: ContentSnapshot,
-	snapshot: GogoStaticAssetSnapshot
-) -> void:
-	var panel := PanelContainer.new()
-	panel.name = "SelectionEvidence"
-	panel.position = Vector2(964, 104)
-	panel.size = Vector2(300, 500)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color("111722e8")
-	style.border_color = Color("d39b43")
-	style.set_border_width_all(3)
-	style.set_corner_radius_all(6)
-	panel.add_theme_stylebox_override(&"panel", style)
-	menu.add_child(panel)
-	var stack := VBoxContainer.new()
-	stack.add_theme_constant_override(&"separation", 10)
-	panel.add_child(stack)
-	var title := Label.new()
-	title.text = "同风格 · 选择界面预览"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override(&"font_size", 20)
-	title.add_theme_color_override(&"font_color", Color("f0c76b"))
-	stack.add_child(title)
+func _is_actual_route(screen: Control, expected_script_path: String) -> bool:
+	if screen == null or screen.get_script() == null:
+		return false
+	return (screen.get_script() as Script).resource_path == expected_script_path
 
-	var zone := TextureRect.new()
-	zone.custom_minimum_size = Vector2(280, 158)
-	zone.texture = snapshot.resolve_global(&"zone_thumbnail").texture
-	zone.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	zone.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	zone.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	stack.add_child(zone)
 
-	var weapon := content.all(&"weapon")[2] as GogoWeaponDefinition
-	var card := GogoStaticCardPresenter.build_card(weapon, "远程 · 自动开火", snapshot)
-	card.custom_minimum_size = Vector2(286, 76)
-	stack.add_child(card)
+func _button_uses_texture_states(button: Button) -> bool:
+	if button == null:
+		return false
+	for state: StringName in [&"normal", &"hover", &"pressed", &"disabled"]:
+		var style := button.get_theme_stylebox(state)
+		if not style is StyleBoxTexture or (style as StyleBoxTexture).texture == null:
+			return false
+	return true
 
-	var difficulty_row := HBoxContainer.new()
-	difficulty_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	difficulty_row.add_theme_constant_override(&"separation", 10)
-	stack.add_child(difficulty_row)
-	var badge := TextureRect.new()
-	badge.custom_minimum_size = Vector2(64, 64)
-	badge.texture = snapshot.resolve_global(&"difficulty_badge_kit", &"standard").texture
-	badge.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	badge.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	badge.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	difficulty_row.add_child(badge)
-	var label := Label.new()
-	label.text = "标准难度\n社区服训练场"
-	label.add_theme_font_size_override(&"font_size", 16)
-	label.add_theme_color_override(&"font_color", Color("f3edd7"))
-	difficulty_row.add_child(label)
+
+func _control_fits_capture(control: Control) -> bool:
+	if control == null:
+		return false
+	var rect := control.get_global_rect()
+	return (
+		rect.position.x >= 0.0
+		and rect.position.y >= 0.0
+		and rect.end.x <= CAPTURE_SIZE.x
+		and rect.end.y <= CAPTURE_SIZE.y
+	)
 
 
 func _current_screen(host: Node) -> Control:
