@@ -11,20 +11,28 @@ func _ready() -> void:
 
 
 func _show_offers() -> void:
-	for child in get_children(): child.queue_free()
+	for child in get_children():
+		remove_child(child)
+		child.queue_free()
 	build_screen("选择升级", "剩余 %d 次" % _app.current_session.run_state.pending_upgrade_count)
 	_offers.clear()
 	var pool := _app.content_snapshot.all(&"upgrade")
 	var indices := range(pool.size())
 	indices.shuffle()
+	var grid := GridContainer.new()
+	grid.name = "UpgradeCardGrid"
+	grid.columns = 1
+	grid.add_theme_constant_override("h_separation", 12)
+	body.add_child(grid)
 	for index in indices.slice(0, mini(3, indices.size())):
 		var definition := pool[index] as GogoUpgradeDefinition
 		_offers.append(definition)
-		add_action(
-			definition.display_name + "  " + _modifier_text(definition.stat_modifiers),
+		add_static_card(
+			definition,
+			_modifier_text(definition.stat_modifiers),
 			func() -> void: _choose(definition),
 			false,
-			resolve_content_icon(definition)
+			grid
 		)
 
 
@@ -42,5 +50,6 @@ func _choose(definition: GogoUpgradeDefinition) -> void:
 func _modifier_text(modifiers: Dictionary) -> String:
 	var parts: Array[String] = []
 	for key in modifiers:
-		parts.append("%s %+g" % [String(key), float(modifiers[key])])
+		var amount := float(modifiers[key])
+		parts.append("%s %s%.2f" % [String(key), "+" if amount >= 0.0 else "", amount])
 	return ", ".join(parts)

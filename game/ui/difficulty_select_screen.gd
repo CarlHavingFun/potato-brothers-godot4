@@ -3,6 +3,7 @@ extends GogoScreenBase
 
 func _ready() -> void:
 	build_screen("选择难度", "验证内容：5 波 · 单人")
+	add_static_texture(&"zone_thumbnail", "ZoneThumbnail", Vector2(320, 180))
 	var app := AppContext.kernel(self)
 	for raw in app.content_snapshot.all(&"difficulty"):
 		var definition := raw as GogoDifficultyDefinition

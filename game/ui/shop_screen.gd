@@ -12,7 +12,9 @@ func _ready() -> void:
 
 
 func _rebuild() -> void:
-	for child in get_children(): child.queue_free()
+	for child in get_children():
+		remove_child(child)
+		child.queue_free()
 	var player := _app.current_session.run_state.player()
 	build_screen("商店 · 第 %d 波" % _app.current_session.run_state.current_wave, "材料：%d · 武器：%d/6" % [player.materials, player.weapon_ids.size()])
 	_status = add_info("")
@@ -22,19 +24,25 @@ func _rebuild() -> void:
 		var locked := _app.current_session.run_state.locked_shop_offer_ids.has(definition.content_id)
 		var row := HBoxContainer.new()
 		body.add_child(row)
-		var buy := Button.new()
-		configure_action_button(
-			buy,
-			"%s · %d 材料" % [definition.display_name, price],
+		var buy := GogoStaticCardPresenter.build_card(
+			definition,
+			"%d 材料" % price,
+			_static_asset_snapshot()
+		) as Button
+		buy.pressed.connect(
 			func() -> void: _buy(index),
-			false,
-			resolve_content_icon(definition)
 		)
+		var four_state_texture := _global_texture(&"four_state_button")
+		if four_state_texture != null:
+			buy.set_meta(&"static_four_state_texture", four_state_texture)
 		buy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(buy)
 		var lock := Button.new()
-		lock.text = "解锁" if locked else "锁定"
-		lock.pressed.connect(func() -> void: _toggle_lock(index))
+		configure_action_button(
+			lock,
+			"解锁" if locked else "锁定",
+			func() -> void: _toggle_lock(index)
+		)
 		row.add_child(lock)
 	add_action("刷新商店", _reroll)
 	if not player.weapon_ids.is_empty():

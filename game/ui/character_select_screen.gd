@@ -3,6 +3,7 @@ extends GogoScreenBase
 
 func _ready() -> void:
 	build_screen("选择角色", "角色定义来自独立内容包")
+	add_static_texture(&"zone_thumbnail", "ZoneThumbnail", Vector2(320, 180))
 	var app := AppContext.kernel(self)
 	for raw in app.content_snapshot.all(&"character"):
 		var definition := raw as CharacterDefinition
