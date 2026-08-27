@@ -123,18 +123,16 @@ git add tools/assets/gogobro_static_redraw_contract_v1.json tools/assets/validat
 git commit -m "test: lock CS weapon and physical item redraw contract"
 ```
 
-### Task 2: Generate and curate all twelve CS weapon textures
+### Task 2: Curate the full twelve-weapon CS set and generate every missing texture
 
 **Files:**
-- Create: numbered candidates under `E:/01_gobro/GOGOBRO_ASSET_INBOX/02_static_assets/weapons/<asset_id>/candidate-003/`
+- Create: the next available numbered candidate under `E:/01_gobro/GOGOBRO_ASSET_INBOX/02_static_assets/weapons/<asset_id>/candidate-NNN/`
 - Replace: `game/assets/gogobro_static_preview/weapons/*.png`
-- Replace: `game/assets/gogobro_static/weapons/warmup_shiv.png`
-- Replace: `game/assets/gogobro_static/weapons/service_pistol.png`
 - Modify: `game/content/assets/gogobro_static_candidate_preview_v1.json`
 
 **Interfaces:**
 - Consumes: the Task 1 contract and Niko mother-art palette reference.
-- Produces: twelve mechanically valid transparent PNGs plus per-candidate `prompt.txt`, `provenance.json`, `qa/qa-report.json`, pivot, and muzzle/contact anchor metadata.
+- Produces: twelve mechanically valid transparent preview PNGs plus per-candidate `prompt.txt`, `provenance.json`, `qa/qa-report.json`, pivot, and muzzle/contact anchor metadata. Approved shipping bytes remain untouched.
 
 - [ ] **Step 1: Prepare one locked prompt prefix**
 
@@ -144,23 +142,23 @@ Use this exact invariant prefix for every weapon, changing only the contract sub
 Original GOGOBRO crisp pixel-art game weapon, visual hierarchy inspired by Brotato but no copied art. Strictly recognizable as {SUBJECT}. Right-facing gameplay silhouette, strong contrast and intact key features at 96x64 or 64x64, charcoal metal, warm orange accents, muted utility green, off-white highlights, one tiny original CS-community joke sticker. Moderate structural and surface detail is allowed only when it stays clear at final size. Hard pixel edges, no antialiasing, no photorealism, no noisy micro-detail, no text, no logo. Centered with safe margin on a perfectly flat solid #FF00FF background; no shadow, glow, texture, gradient, or magenta spill.
 ```
 
-- [ ] **Step 2: Generate four independently reviewable batches**
+- [ ] **Step 2: Reuse the accepted AK and generate four independently reviewable batches**
 
-Batch A contains Butterfly Knife and Karambit; Batch B contains AK-47, AWP, and M4A1-S; Batch C contains USP-S, Desert Eagle, and Glock-18; Batch D contains MAC-10, MP9, P90, and UMP-45. Preserve the same prompt prefix and palette reference across all calls.
+Revalidate and reuse `wood_stock_assault_rifle/candidate-004` for AK-47 because the user already accepted that candidate; refresh its QA against the current bytes instead of regenerating it. Batch A contains Butterfly Knife and Karambit; Batch B contains AWP and M4A1-S beside the reused AK; Batch C contains USP-S, Desert Eagle, and Glock-18; Batch D contains MAC-10, MP9, P90, and UMP-45. Preserve the same prompt prefix and palette reference across all calls.
 
 - [ ] **Step 3: Chroma-key, downsample, and validate every candidate**
 
-Use nearest-neighbor only, remove exactly the connected `#FF00FF` background, zero RGB where alpha is zero, and run:
+Use nearest-neighbor only. Key out every pixel that is exactly `#FF00FF`, including enclosed negative spaces such as the Karambit finger ring and skeleton-stock holes; do not limit removal to the outside-connected background. Then zero RGB wherever alpha is zero and run:
 
 ```powershell
 python tools/assets/validate_static_redraws.py --contract tools/assets/gogobro_static_redraw_contract_v1.json --assets-root game/assets/gogobro_static_preview --category weapons --json-out reports/weapons-redraw-qc.json
 ```
 
-Expected: twelve passing records; no edge touch, soft alpha, color-count overflow, or thin/undersized firearm.
+Expected: twelve passing records; no edge touch, soft alpha, or thin/undersized firearm. Opaque color count remains a diagnostic metric, not a rejection gate.
 
 - [ ] **Step 4: Perform actual-size silhouette review before installation**
 
-At 100% size, each reviewer must identify the archetype without seeing its filename. Reject a candidate when any required cue in the spec is absent. Generate the next numbered candidate for only the rejected asset; do not hold back already passing assets.
+At 100% size, an independent reviewer must identify each archetype without seeing its filename. Reject a candidate when any required cue in the spec is absent. Generate the next numbered candidate for only the rejected asset; do not hold back already passing assets. Moderate detail is allowed whenever the final-size result stays crisp and immediately recognizable.
 
 - [ ] **Step 5: Install passing files and hash-bind metadata**
 
