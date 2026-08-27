@@ -146,34 +146,52 @@ func test_shared_card_keeps_the_rarity_palette_when_ui_textures_are_missing() ->
 		).is_true()
 
 
-func test_real_selection_shop_and_upgrade_routes_use_zone_badge_and_shared_cards() -> void:
+func test_real_selection_shop_and_upgrade_routes_use_structured_setup_consumers() -> void:
 	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
 	var app := auto_free(AppKernel.new()) as AppKernel
 	app.add_to_group(&"gogobro_app")
 	app.content_snapshot = content
 	add_child(app)
+	app.begin_selection()
 	var static_snapshot := _static_ui_snapshot()
 
 	var character_screen := auto_free(CHARACTER_SELECT.new()) as GogoScreenBase
 	character_screen.static_asset_snapshot_override = static_snapshot
 	add_child(character_screen)
-	assert_object((character_screen.get_node(
-		"ContentRoot/Body/ZoneThumbnail"
-	) as TextureRect).texture).is_not_null()
+	assert_int((character_screen.get_node("RosterStrip") as HBoxContainer).get_child_count()).is_equal(1)
+	assert_str(String(
+		(character_screen.get_node("RosterStrip/NikoCell") as Button).get_meta(&"content_id", &"")
+	)).is_equal(String(NikoContentFactory.CHARACTER_ID))
+	assert_object((character_screen.get_node("NikoDetail/Preview") as TextureRect).texture).is_not_null()
+	assert_int((character_screen.get_node("NikoDetail/Preview") as TextureRect).texture_filter).is_equal(
+		CanvasItem.TEXTURE_FILTER_NEAREST
+	)
+	_assert_flat_setup_back_button(character_screen.get_node("BackButton") as Button)
 
 	var weapon_screen := auto_free(WEAPON_SELECT.new()) as GogoScreenBase
 	weapon_screen.static_asset_snapshot_override = static_snapshot
 	add_child(weapon_screen)
-	assert_int(weapon_screen.get_node(
-		"ContentRoot/Body/WeaponCardGrid"
-	).get_child_count()).is_equal(12)
+	var weapon_strip := weapon_screen.get_node("WeaponStrip") as HBoxContainer
+	assert_int(weapon_strip.get_child_count()).is_equal(12)
+	assert_bool(weapon_screen.has_node("SelectedWeaponDetail/Mode")).is_true()
+	for option in weapon_strip.get_children():
+		var button := option as Button
+		assert_bool(
+			(button.get_node("Icon") as TextureRect).texture != null
+			or (button.get_node("IconFallback") as Control).visible
+		).is_true()
+	_assert_flat_setup_back_button(weapon_screen.get_node("BackButton") as Button)
 
 	var difficulty_screen := auto_free(DIFFICULTY_SELECT.new()) as GogoScreenBase
 	difficulty_screen.static_asset_snapshot_override = static_snapshot
 	add_child(difficulty_screen)
-	var difficulty_buttons := difficulty_screen.find_children("*", "Button", true, false)
-	assert_bool(difficulty_buttons.size() >= 2).is_true()
-	assert_object((difficulty_buttons[0] as Button).icon).is_not_null()
+	var difficulty_strip := difficulty_screen.get_node("DifficultyStrip") as HBoxContainer
+	assert_int(difficulty_strip.get_child_count()).is_equal(1)
+	var difficulty_option := difficulty_strip.get_child(0) as Button
+	assert_object((difficulty_option.get_node("Icon") as TextureRect).texture).is_not_null()
+	assert_bool(difficulty_option.get_meta(&"selected", false) as bool).is_true()
+	assert_bool(difficulty_screen.has_node("SelectedDifficultyDetail/Multipliers")).is_true()
+	_assert_flat_setup_back_button(difficulty_screen.get_node("BackButton") as Button)
 
 	var session := _session(content)
 	app.current_session = session
@@ -240,6 +258,26 @@ func _static_ui_snapshot(include_selectors: bool = true) -> GogoStaticAssetSnaps
 	var snapshot := GogoStaticAssetSnapshot.new()
 	snapshot._configure(1, "fixture", 70, {}, handles, {}, {}, global_bindings, [])
 	return snapshot
+
+
+func _assert_flat_setup_back_button(button: Button) -> void:
+	assert_int(button.z_index).is_equal(10)
+	assert_bool(button.position.x >= 32.0 and button.position.x <= 40.0).is_true()
+	assert_bool(button.get_theme_stylebox(&"normal") is StyleBoxEmpty).is_true()
+	var parent := button.get_parent()
+	assert_bool(parent != null and parent.has_node("BackButtonVisual/Label")).is_true()
+	if parent == null or not parent.has_node("BackButtonVisual/Label"):
+		return
+	var visual := parent.get_node("BackButtonVisual") as Panel
+	assert_str((visual.get_node("Label") as Label).text).is_equal("← 返回")
+	var normal := visual.get_theme_stylebox(&"panel")
+	assert_bool(normal is StyleBoxFlat).is_true()
+	if not normal is StyleBoxFlat:
+		return
+	var flat := normal as StyleBoxFlat
+	assert_int(flat.border_width_left).is_equal(1)
+	assert_int(flat.border_width_top).is_equal(1)
+	assert_bool(flat.anti_aliasing).is_false()
 
 
 func _add_global_handle(

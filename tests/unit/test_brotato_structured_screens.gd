@@ -7,6 +7,7 @@ const STAT_LIST_PRESENTER := preload("res://game/ui/stat_list_presenter.gd")
 const SHOP_SCREEN := preload("res://game/ui/shop_screen.gd")
 const UPGRADE_SCREEN := preload("res://game/ui/upgrade_screen.gd")
 const NATIVE_CAPTURE_RECT := Rect2(0, 0, 1280, 720)
+const NIKO_ID := NikoContentFactory.CHARACTER_ID
 
 
 func test_base_chrome_exposes_native_safe_content_without_a_viewport_frame() -> void:
@@ -387,6 +388,302 @@ func test_loadout_has_six_slots_nearest_icons_fallbacks_and_selected_actions() -
 	assert_bool(
 		(items.get_node("ItemIcon0") as Control).custom_minimum_size.is_equal_approx(Vector2(48, 48))
 	).is_true()
+
+
+func test_character_setup_has_exactly_one_real_niko_cell_and_first_frame_detail() -> void:
+	var fixture := await _setup_route_fixture()
+	var app := fixture.app as AppKernel
+	assert_int(app.route(FlowRoute.CHARACTER_SELECT)).is_equal(OK)
+	await _settle_ui()
+	var screen := fixture.host.get_child(0) as GogoScreenBase
+	var required_paths: Array[NodePath] = [
+		^"BackButton",
+		^"NikoDetail",
+		^"NikoDetail/Preview",
+		^"NikoDetail/Name",
+		^"NikoDetail/Traits",
+		^"RosterStrip",
+		^"RosterStrip/NikoCell",
+	]
+	for path in required_paths:
+		assert_object(screen.get_node_or_null(path)).is_not_null()
+	var roster := screen.get_node_or_null("RosterStrip") as HBoxContainer
+	if roster == null:
+		return
+	assert_int(roster.get_child_count()).is_equal(1)
+	var niko_cell := roster.get_node("NikoCell") as Button
+	assert_str(String(niko_cell.get_meta(&"content_id", &""))).is_equal(String(NIKO_ID))
+	assert_bool(niko_cell.focus_mode == Control.FOCUS_ALL).is_true()
+	var preview := screen.get_node("NikoDetail/Preview") as TextureRect
+	var niko := app.content_snapshot.definition(NIKO_ID, &"character") as CharacterDefinition
+	assert_object(preview.texture).is_same(
+		niko.sprite_frames.get_frame_texture(niko.default_animation, 0)
+	)
+	assert_int(preview.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
+	assert_str((screen.get_node("NikoDetail/Name") as Label).text).is_equal("Niko")
+	assert_bool((screen.get_node("NikoDetail/Traits") as Label).text.is_empty()).is_false()
+	assert_int(screen.find_children("*", "PanelContainer", true, false).size()).is_equal(0)
+	assert_bool(_fits_native_capture(screen.get_node("NikoDetail") as Control)).is_true()
+	assert_bool(_fits_native_capture(roster)).is_true()
+
+
+func test_character_setup_restores_the_canonical_selected_fill_without_an_extra_outline() -> void:
+	var fixture := await _setup_route_fixture()
+	var app := fixture.app as AppKernel
+	app.selection_draft["character_id"] = NIKO_ID
+	assert_int(app.route(FlowRoute.CHARACTER_SELECT)).is_equal(OK)
+	await _settle_ui()
+	var cell := fixture.host.get_child(0).get_node("RosterStrip/NikoCell") as Button
+	assert_bool(cell.get_meta(&"selected", false) as bool).is_true()
+	var normal := cell.get_theme_stylebox(&"normal")
+	assert_bool(normal is StyleBoxFlat).is_true()
+	if normal is StyleBoxFlat:
+		var selected_style := normal as StyleBoxFlat
+		assert_bool(selected_style.bg_color.get_luminance() > 0.45).is_true()
+		assert_int(selected_style.border_width_left).is_less_equal(1)
+		assert_bool(selected_style.anti_aliasing).is_false()
+
+
+func test_setup_preview_fill_is_visible_before_click_without_committing_the_draft() -> void:
+	var fixture := await _setup_route_fixture()
+	var app := fixture.app as AppKernel
+	var host := fixture.host as Node
+	assert_int(app.route(FlowRoute.CHARACTER_SELECT)).is_equal(OK)
+	await _settle_ui()
+	var niko_cell := host.get_child(0).get_node("RosterStrip/NikoCell") as Button
+	assert_bool(niko_cell.get_meta(&"selected", false) as bool).is_true()
+	assert_str(String(app.selection_draft.get("character_id", &""))).is_empty()
+	niko_cell.pressed.emit()
+	await _settle_ui()
+	var strip := host.get_child(0).get_node("WeaponStrip") as HBoxContainer
+	var selected_count := 0
+	for option in strip.get_children():
+		if (option as Button).get_meta(&"selected", false) as bool:
+			selected_count += 1
+	assert_int(selected_count).is_equal(1)
+	assert_str(String(app.selection_draft.get("weapon_id", &""))).is_empty()
+
+
+func test_weapon_setup_uses_all_twelve_canonical_cs_options_and_complete_selected_detail() -> void:
+	var fixture := await _setup_route_fixture()
+	var app := fixture.app as AppKernel
+	app.selection_draft["character_id"] = NIKO_ID
+	app.selection_draft["weapon_id"] = ValidationContentFactory.RANGED_ID
+	assert_int(app.route(FlowRoute.WEAPON_SELECT)).is_equal(OK)
+	await _settle_ui()
+	var screen := fixture.host.get_child(0) as GogoScreenBase
+	for path in [
+		^"BackButton",
+		^"NikoSummary",
+		^"SelectedWeaponDetail",
+		^"SelectedWeaponDetail/Icon",
+		^"SelectedWeaponDetail/Name",
+		^"SelectedWeaponDetail/Mode",
+		^"SelectedWeaponDetail/Damage",
+		^"SelectedWeaponDetail/Cooldown",
+		^"SelectedWeaponDetail/Modifiers",
+		^"WeaponStrip",
+	]:
+		assert_object(screen.get_node_or_null(path)).is_not_null()
+	var strip := screen.get_node_or_null("WeaponStrip") as HBoxContainer
+	if strip == null:
+		return
+	var definitions := app.content_snapshot.all(&"weapon")
+	assert_int(definitions.size()).is_equal(12)
+	assert_int(strip.get_child_count()).is_equal(definitions.size())
+	var expected_names := [
+		"蝴蝶刀", "Glock-18", "爪子刀", "AK-47", "AWP", "M4A1-S",
+		"USP-S", "Desert Eagle", "MAC-10", "MP9", "P90", "UMP-45",
+	]
+	var expected_ids := [
+		"weapon.training_blade:weapon/training_blade",
+		"weapon.training_blaster:weapon/training_blaster",
+		"gogobro.preview:weapon/community_tapper",
+		"gogobro.preview:weapon/wood_stock_assault_rifle",
+		"gogobro.preview:weapon/heavy_bolt_sniper",
+		"gogobro.preview:weapon/suppressed_carbine",
+		"gogobro.preview:weapon/suppressed_tactical_pistol",
+		"gogobro.preview:weapon/heavy_hand_cannon",
+		"gogobro.preview:weapon/box_submachine_gun",
+		"gogobro.preview:weapon/compact_submachine_gun",
+		"gogobro.preview:weapon/bullpup_pdw",
+		"gogobro.preview:weapon/folding_stock_submachine_gun",
+	]
+	var actual_ids: Array[StringName] = []
+	var actual_id_strings: Array[String] = []
+	var actual_names: Array[String] = []
+	var selected_options := 0
+	for option_index in strip.get_child_count():
+		var option := strip.get_child(option_index) as Button
+		var content_id := option.get_meta(&"content_id", &"") as StringName
+		if option.get_meta(&"selected", false) as bool:
+			selected_options += 1
+			assert_str(String(content_id)).is_equal(String(ValidationContentFactory.RANGED_ID))
+			var selected_style := option.get_theme_stylebox(&"normal") as StyleBoxFlat
+			assert_object(selected_style).is_not_null()
+			if selected_style != null:
+				assert_bool(selected_style.bg_color.get_luminance() > 0.45).is_true()
+		actual_ids.append(content_id)
+		actual_id_strings.append(String(content_id))
+		var definition := app.content_snapshot.definition(content_id, &"weapon") as GogoWeaponDefinition
+		assert_object(definition).is_not_null()
+		if definition == null:
+			continue
+		actual_names.append(definition.display_name)
+		assert_str((option.get_node("Name") as Label).text).is_equal(definition.display_name)
+		var icon := option.get_node("Icon") as TextureRect
+		assert_int(icon.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
+		assert_bool(
+			icon.texture != null
+			or (
+				(option.get_node("IconFallback") as Control).visible
+				and not (option.get_node("IconFallback/Label") as Label).text.is_empty()
+			)
+		).is_true()
+		option.grab_focus()
+		await get_tree().process_frame
+		assert_str((screen.get_node("SelectedWeaponDetail/Name") as Label).text).is_equal(
+			definition.display_name
+		)
+		assert_str((screen.get_node("SelectedWeaponDetail/Mode") as Label).text).is_equal(
+			"近战" if definition.mode == GogoWeaponDefinition.Mode.MELEE else "远程"
+		)
+		assert_str((screen.get_node("SelectedWeaponDetail/Damage") as Label).text).contains(
+			_num(definition.damage)
+		)
+		assert_str((screen.get_node("SelectedWeaponDetail/Cooldown") as Label).text).contains(
+			_num(definition.cooldown_seconds)
+		)
+		assert_bool(
+			(screen.get_node("SelectedWeaponDetail/Modifiers") as Label).text.contains(
+				_num(definition.attack_range)
+			)
+		).is_true()
+		var modifiers := (screen.get_node("SelectedWeaponDetail/Modifiers") as Label).text
+		assert_str(modifiers).contains(_localized_damage_kind(definition.damage_kind))
+		assert_str(modifiers).contains(_localized_impact_kind(definition.impact_kind))
+		assert_bool(
+			modifiers.contains("ballistic")
+			or modifiers.contains("melee")
+			or modifiers.contains("normal")
+			or modifiers.contains("pierce_exit")
+			or modifiers.contains("critical")
+		).is_false()
+	assert_int(_unique_count(actual_ids)).is_equal(12)
+	assert_int(selected_options).is_equal(1)
+	actual_id_strings.sort()
+	expected_ids.sort()
+	assert_array(actual_id_strings).is_equal(expected_ids)
+	actual_names.sort()
+	expected_names.sort()
+	assert_array(actual_names).is_equal(expected_names)
+	assert_int(screen.find_children("*", "PanelContainer", true, false).size()).is_equal(0)
+	assert_bool(_fits_native_capture(strip)).is_true()
+
+
+func test_difficulty_setup_uses_only_real_standard_badge_and_canonical_multipliers() -> void:
+	var fixture := await _setup_route_fixture()
+	var app := fixture.app as AppKernel
+	app.selection_draft["character_id"] = NIKO_ID
+	app.selection_draft["weapon_id"] = ValidationContentFactory.RANGED_ID
+	assert_int(app.route(FlowRoute.DIFFICULTY_SELECT)).is_equal(OK)
+	await _settle_ui()
+	var screen := fixture.host.get_child(0) as GogoScreenBase
+	for path in [
+		^"BackButton",
+		^"NikoSummary",
+		^"WeaponSummary",
+		^"SelectedDifficultyDetail",
+		^"SelectedDifficultyDetail/Icon",
+		^"SelectedDifficultyDetail/Name",
+		^"SelectedDifficultyDetail/Multipliers",
+		^"DifficultyStrip",
+		^"DifficultyStrip/DifficultyOption0",
+	]:
+		assert_object(screen.get_node_or_null(path)).is_not_null()
+	var strip := screen.get_node_or_null("DifficultyStrip") as HBoxContainer
+	if strip == null:
+		return
+	assert_int(app.content_snapshot.all(&"difficulty").size()).is_equal(1)
+	assert_int(strip.get_child_count()).is_equal(1)
+	var option := strip.get_child(0) as Button
+	assert_str(String(option.get_meta(&"content_id", &""))).is_equal(
+		String(ValidationContentFactory.DIFFICULTY_ID)
+	)
+	assert_bool(option.get_meta(&"selected", false) as bool).is_true()
+	var selected_style := option.get_theme_stylebox(&"normal") as StyleBoxFlat
+	assert_object(selected_style).is_not_null()
+	if selected_style != null:
+		assert_bool(selected_style.bg_color.get_luminance() > 0.45).is_true()
+	assert_int((option.get_node("Icon") as TextureRect).texture_filter).is_equal(
+		CanvasItem.TEXTURE_FILTER_NEAREST
+	)
+	assert_bool(
+		(option.get_node("Icon") as TextureRect).texture != null
+		or (
+			(option.get_node("IconFallback") as Control).visible
+			and not (option.get_node("IconFallback/Label") as Label).text.is_empty()
+		)
+	).is_true()
+	assert_str((screen.get_node("SelectedDifficultyDetail/Name") as Label).text).is_equal("标准")
+	var multipliers := (screen.get_node("SelectedDifficultyDetail/Multipliers") as Label).text
+	for text in ["生命 100%", "伤害 100%", "速度 100%", "生成 100%"]:
+		assert_str(multipliers).contains(text)
+	assert_int(screen.find_children("*", "PanelContainer", true, false).size()).is_equal(0)
+	assert_bool(_fits_native_capture(strip)).is_true()
+
+
+func test_setup_selection_back_draft_and_session_flow_use_real_buttons() -> void:
+	var fixture := await _setup_route_fixture()
+	var app := fixture.app as AppKernel
+	var host := fixture.host as Node
+	assert_int(app.route(FlowRoute.CHARACTER_SELECT)).is_equal(OK)
+	await _settle_ui()
+	(host.get_child(0).get_node("RosterStrip/NikoCell") as Button).pressed.emit()
+	await _settle_ui()
+	assert_str(String(app.selection_draft.get("character_id", &""))).is_equal(String(NIKO_ID))
+	assert_str(app.scene_flow.current_route()).is_equal(String(FlowRoute.WEAPON_SELECT))
+
+	var weapon_screen := host.get_child(0) as GogoScreenBase
+	var weapon_option := weapon_screen.get_node("WeaponStrip/WeaponOption0") as Button
+	var selected_weapon_id := weapon_option.get_meta(&"content_id", &"") as StringName
+	(weapon_screen.get_node("BackButton") as Button).pressed.emit()
+	await _settle_ui()
+	assert_str(app.scene_flow.current_route()).is_equal(String(FlowRoute.CHARACTER_SELECT))
+	assert_str(String(app.selection_draft.get("character_id", &""))).is_equal(String(NIKO_ID))
+	assert_bool(
+		(host.get_child(0).get_node("RosterStrip/NikoCell") as Button).get_meta(&"selected", false)
+		as bool
+	).is_true()
+
+	assert_int(app.route(FlowRoute.WEAPON_SELECT)).is_equal(OK)
+	await _settle_ui()
+	weapon_screen = host.get_child(0) as GogoScreenBase
+	weapon_option = weapon_screen.get_node("WeaponStrip/WeaponOption0") as Button
+	weapon_option.pressed.emit()
+	await _settle_ui()
+	assert_str(String(app.selection_draft.get("weapon_id", &""))).is_equal(String(selected_weapon_id))
+	assert_str(app.scene_flow.current_route()).is_equal(String(FlowRoute.DIFFICULTY_SELECT))
+
+	var difficulty_screen := host.get_child(0) as GogoScreenBase
+	(difficulty_screen.get_node("BackButton") as Button).pressed.emit()
+	await _settle_ui()
+	assert_str(app.scene_flow.current_route()).is_equal(String(FlowRoute.WEAPON_SELECT))
+	assert_str(String(app.selection_draft.get("character_id", &""))).is_equal(String(NIKO_ID))
+	assert_str(String(app.selection_draft.get("weapon_id", &""))).is_equal(String(selected_weapon_id))
+
+	assert_int(app.route(FlowRoute.DIFFICULTY_SELECT)).is_equal(OK)
+	await _settle_ui()
+	difficulty_screen = host.get_child(0) as GogoScreenBase
+	(difficulty_screen.get_node("DifficultyStrip/DifficultyOption0") as Button).pressed.emit()
+	await _settle_ui()
+	assert_str(String(app.selection_draft.get("difficulty_id", &""))).is_equal(
+		String(ValidationContentFactory.DIFFICULTY_ID)
+	)
+	assert_object(app.current_session).is_not_null()
+	assert_str(app.scene_flow.current_route()).is_equal(String(FlowRoute.COMBAT))
+	assert_str(String(app.current_session.run_state.player().character_id)).is_equal(String(NIKO_ID))
+	assert_array(app.current_session.run_state.player().weapon_ids).contains([selected_weapon_id])
 
 
 func test_shop_has_four_low_border_offers_stats_loadout_and_native_safe_actions() -> void:
@@ -879,6 +1176,43 @@ func _shop_fixture(include_all_stats: bool = false) -> Dictionary:
 	}
 
 
+func _setup_route_fixture() -> Dictionary:
+	var app := auto_free(AppKernel.new()) as AppKernel
+	app.name = "SetupApp"
+	app.add_to_group(&"gogobro_app")
+	app.content_snapshot = GogoContentRegistry.new().build_snapshot(
+		ValidationContentFactory.create_packs(true)
+	)
+	var host := Node.new()
+	host.name = "SetupRouteHost"
+	var flow := SceneFlow.new()
+	flow.name = "SetupSceneFlow"
+	add_child(app)
+	app.add_child(host)
+	app.add_child(flow)
+	flow.configure(host, {
+		FlowRoute.MAIN_MENU: _packed_control_scene("MainMenuStub"),
+		FlowRoute.CHARACTER_SELECT: preload("res://game/ui/character_select_screen.tscn"),
+		FlowRoute.WEAPON_SELECT: preload("res://game/ui/weapon_select_screen.tscn"),
+		FlowRoute.DIFFICULTY_SELECT: preload("res://game/ui/difficulty_select_screen.tscn"),
+		FlowRoute.COMBAT: _packed_control_scene("CombatStub"),
+		FlowRoute.DIAGNOSTIC: preload("res://game/ui/diagnostic_screen.tscn"),
+	})
+	app.configure(flow, null)
+	app.begin_selection()
+	await _settle_ui()
+	return {"app": app, "host": host}
+
+
+func _packed_control_scene(node_name: String) -> PackedScene:
+	var node := Control.new()
+	node.name = node_name
+	var packed := PackedScene.new()
+	assert_int(packed.pack(node)).is_equal(OK)
+	node.free()
+	return packed
+
+
 func _route_upgrade(pending_choices: int = 1, content: ContentSnapshot = null) -> Dictionary:
 	if content == null:
 		content = GogoContentRegistry.new().build_snapshot(
@@ -973,6 +1307,24 @@ func _unique_count(ids: Array[StringName]) -> int:
 	for content_id in ids:
 		unique[content_id] = true
 	return unique.size()
+
+
+func _num(value: float) -> String:
+	if is_equal_approx(value, roundf(value)):
+		return str(int(roundf(value)))
+	return String.num(value, 2).trim_suffix("0")
+
+
+func _localized_damage_kind(kind: StringName) -> String:
+	return "近战" if kind == &"melee" else "弹道"
+
+
+func _localized_impact_kind(kind: StringName) -> String:
+	return {
+		&"critical": "暴击",
+		&"pierce_exit": "穿透",
+		&"normal": "普通",
+	}.get(kind, "普通") as String
 
 
 func _offer_row_contains(shop: Node, content_id: StringName) -> bool:

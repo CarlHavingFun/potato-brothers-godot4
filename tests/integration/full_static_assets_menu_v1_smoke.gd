@@ -78,8 +78,28 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 	):
 		return
 	if not _require(
-		_texture_visible(character_screen, "ContentRoot/Body/ZoneThumbnail"),
-		"character route zone thumbnail"
+		character_screen.get_node_or_null("BackButton") is Button
+		and character_screen.get_node_or_null("NikoDetail/Preview") is TextureRect
+		and _texture_visible(character_screen, "NikoDetail/Preview")
+		and (character_screen.get_node("NikoDetail/Preview") as TextureRect).texture_filter
+			== CanvasItem.TEXTURE_FILTER_NEAREST
+		and character_screen.get_node_or_null("NikoDetail/Name") is Label
+		and not (character_screen.get_node("NikoDetail/Traits") as Label).text.is_empty()
+		and character_screen.get_node_or_null("RosterStrip") is HBoxContainer
+		and (character_screen.get_node("RosterStrip") as HBoxContainer).get_child_count() == 1
+		and character_screen.get_node_or_null("RosterStrip/NikoCell") is Button
+		and (character_screen.get_node("RosterStrip/NikoCell") as Button).get_meta(&"content_id", &"")
+			== NikoContentFactory.CHARACTER_ID,
+		"Niko-only character detail and roster"
+	):
+		return
+	if not _require(
+		_control_fits_capture(character_screen.get_node("NikoDetail") as Control)
+		and _control_fits_capture(character_screen.get_node("RosterStrip") as Control)
+		and _selection_uses_low_border_style(
+			character_screen.get_node("RosterStrip/NikoCell") as Button
+		),
+		"complete character setup hierarchy fits the real route capture"
 	):
 		return
 	capture = await _capture_route(
@@ -93,37 +113,50 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 		return
 	captures.append(capture)
 
-	app.selection_draft["character_id"] = ValidationContentFactory.CHARACTER_ID
-	if not _require(app.route(FlowRoute.WEAPON_SELECT) == OK, "weapon selection route"):
-		return
+	(character_screen.get_node("RosterStrip/NikoCell") as Button).pressed.emit()
 	await get_tree().process_frame
+	await get_tree().process_frame
+	if not _require(
+		app.selection_draft.get("character_id", &"") == NikoContentFactory.CHARACTER_ID
+		and app.scene_flow.current_route() == FlowRoute.WEAPON_SELECT,
+		"real Niko selection advances with canonical draft state"
+	):
+		return
 	var weapon_screen := _current_screen(host)
 	if not _require(
 		_is_actual_route(weapon_screen, "res://game/ui/weapon_select_screen.gd"),
 		"actual weapon selection instance"
 	):
 		return
-	var grid := weapon_screen.get_node_or_null(
-		"ContentRoot/Body/WeaponCardGrid"
-	) as GridContainer
-	if not _require(grid != null and grid.get_child_count() >= 12, "weapon card grid"):
+	var strip := weapon_screen.get_node_or_null("WeaponStrip") as HBoxContainer
+	if not _require(
+		strip != null
+		and strip.get_child_count() == app.content_snapshot.all(&"weapon").size()
+		and strip.get_child_count() == 12
+		and weapon_screen.get_node_or_null("NikoSummary") != null
+		and weapon_screen.get_node_or_null("SelectedWeaponDetail/Mode") is Label
+		and weapon_screen.get_node_or_null("SelectedWeaponDetail/Damage") is Label
+		and weapon_screen.get_node_or_null("SelectedWeaponDetail/Cooldown") is Label
+		and weapon_screen.get_node_or_null("SelectedWeaponDetail/Modifiers") is Label,
+		"canonical weapon setup hierarchy"
+	):
 		return
-	var first_card := grid.get_child(0) as Button
+	var first_card := strip.get_child(0) as Button
 	if not _require(
 		_texture_visible(first_card, "Icon")
 		and (first_card.get_node("Icon") as TextureRect).size.x >= 64.0
-		and _card_uses_low_border_style(first_card),
-		"rendered 64px icon and low-border card"
+		and (first_card.get_node("Icon") as TextureRect).texture_filter
+			== CanvasItem.TEXTURE_FILTER_NEAREST
+		and _selection_uses_low_border_style(first_card),
+		"rendered readable weapon icon and selected low-border cell"
 	):
 		return
-	var weapon_body := weapon_screen.get_node(
-		"ContentRoot/Body"
-	) as VBoxContainer
-	var return_button := weapon_body.get_child(weapon_body.get_child_count() - 1) as Button
 	if not _require(
-		_control_fits_capture(grid.get_child(grid.get_child_count() - 1) as Control)
-		and _control_fits_capture(return_button),
-		"complete weapon grid and return action fit the real route capture"
+		_control_fits_capture(strip.get_child(strip.get_child_count() - 1) as Control)
+		and _control_fits_capture(weapon_screen.get_node("BackButton") as Control)
+		and _control_fits_capture(weapon_screen.get_node("NikoSummary") as Control)
+		and _control_fits_capture(weapon_screen.get_node("SelectedWeaponDetail") as Control),
+		"complete weapon hierarchy fits the real route capture"
 	):
 		return
 	capture = await _capture_route(
@@ -137,10 +170,18 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 		return
 	captures.append(capture)
 
-	app.selection_draft["weapon_id"] = ValidationContentFactory.RANGED_ID
-	if not _require(app.route(FlowRoute.DIFFICULTY_SELECT) == OK, "difficulty selection route"):
+	var selected_weapon := _button_by_content_id(strip, ValidationContentFactory.RANGED_ID)
+	if not _require(selected_weapon != null, "canonical Glock-18 setup option"):
 		return
+	selected_weapon.pressed.emit()
 	await get_tree().process_frame
+	await get_tree().process_frame
+	if not _require(
+		app.selection_draft.get("weapon_id", &"") == ValidationContentFactory.RANGED_ID
+		and app.scene_flow.current_route() == FlowRoute.DIFFICULTY_SELECT,
+		"real weapon selection advances with canonical draft state"
+	):
+		return
 	var difficulty_screen := _current_screen(host)
 	if not _require(
 		_is_actual_route(difficulty_screen, "res://game/ui/difficulty_select_screen.gd"),
@@ -148,16 +189,31 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 	):
 		return
 	if not _require(
-		_texture_visible(difficulty_screen, "ContentRoot/Body/ZoneThumbnail"),
-		"difficulty route zone thumbnail"
+		difficulty_screen.get_node_or_null("BackButton") is Button
+		and difficulty_screen.get_node_or_null("NikoSummary") != null
+		and difficulty_screen.get_node_or_null("WeaponSummary") != null
+		and difficulty_screen.get_node_or_null("SelectedDifficultyDetail/Multipliers") is Label
+		and difficulty_screen.get_node_or_null("DifficultyStrip") is HBoxContainer
+		and (difficulty_screen.get_node("DifficultyStrip") as HBoxContainer).get_child_count() == 1,
+		"canonical single-difficulty setup hierarchy"
 	):
 		return
-	var difficulty_button := _first_button(difficulty_screen)
+	var difficulty_button := difficulty_screen.get_node_or_null(
+		"DifficultyStrip/DifficultyOption0"
+	) as Button
 	if not _require(
 		difficulty_button != null
-		and difficulty_button.icon != null
-		and _button_uses_texture_states(difficulty_button),
-		"difficulty badge and rendered button states"
+		and _texture_visible(difficulty_button, "Icon")
+		and (difficulty_button.get_node("Icon") as TextureRect).texture_filter
+			== CanvasItem.TEXTURE_FILTER_NEAREST
+		and difficulty_button.get_meta(&"content_id", &"")
+			== ValidationContentFactory.DIFFICULTY_ID
+		and _selection_uses_low_border_style(difficulty_button)
+		and _control_fits_capture(difficulty_screen.get_node("NikoSummary") as Control)
+		and _control_fits_capture(difficulty_screen.get_node("WeaponSummary") as Control)
+		and _control_fits_capture(difficulty_screen.get_node("SelectedDifficultyDetail") as Control)
+		and _control_fits_capture(difficulty_screen.get_node("DifficultyStrip") as Control),
+		"difficulty badge, selected state, and complete capture fit"
 	):
 		return
 	capture = await _capture_route(
@@ -171,9 +227,15 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 		return
 	captures.append(capture)
 
-	app.selection_draft["difficulty_id"] = ValidationContentFactory.DIFFICULTY_ID
-	app.selection_draft["zone_id"] = ValidationContentFactory.ZONE_ID
-	if not _require(app.create_session_from_draft() == OK, "shop session creation"):
+	difficulty_button.pressed.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not _require(
+		app.current_session != null
+		and app.selection_draft.get("difficulty_id", &"") == ValidationContentFactory.DIFFICULTY_ID
+		and app.scene_flow.current_route() == FlowRoute.COMBAT,
+		"real difficulty selection creates session and starts combat"
+	):
 		return
 	var player := app.current_session.run_state.player()
 	player.materials = 500
@@ -371,10 +433,10 @@ func _button_uses_texture_states(button: Button) -> bool:
 	return true
 
 
-func _card_uses_low_border_style(card: Button) -> bool:
-	if card == null or card.find_children("RarityAccent", "ColorRect", true, false).size() != 1:
+func _selection_uses_low_border_style(button: Button) -> bool:
+	if button == null:
 		return false
-	var normal := card.get_theme_stylebox(&"normal")
+	var normal := button.get_theme_stylebox(&"normal")
 	return (
 		normal is StyleBoxFlat
 		and (normal as StyleBoxFlat).border_width_left == 1
@@ -416,11 +478,13 @@ func _texture_visible(parent: Node, path: String) -> bool:
 	return texture_rect != null and texture_rect.texture != null and texture_rect.is_visible_in_tree()
 
 
-func _first_button(parent: Node) -> Button:
+func _button_by_content_id(parent: Node, content_id: StringName) -> Button:
 	if parent == null:
 		return null
-	for node in parent.find_children("*", "Button", true, false):
-		return node as Button
+	for child in parent.get_children():
+		var button := child as Button
+		if button != null and button.get_meta(&"content_id", &"") == content_id:
+			return button
 	return null
 
 
