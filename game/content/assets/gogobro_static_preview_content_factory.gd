@@ -3,6 +3,9 @@ extends RefCounted
 
 const CONTENT_PATH := "res://game/content/assets/gogobro_static_preview_content_v1.json"
 const REGISTRY_PATH := "res://game/content/assets/gogobro_static_assets_v1.json"
+const SMOKE_SHELL_HELMET_FACTORY := preload(
+	"res://game/content/packs/items/smoke_shell_helmet/smoke_shell_helmet_factory.gd"
+)
 const SCHEMA_VERSION := "gogobro-static-preview-content-v1"
 const PACK_ID: StringName = &"gogobro.preview"
 const EXISTING_ITEM_ASSET_IDS := {
@@ -95,6 +98,8 @@ static func _item_definition(unit: Dictionary) -> GogoItemDefinition:
 		definition.max_count = maxi(int(max_count_variant), 1)
 	definition.stat_modifiers = _literal_stat_modifiers(unit.get("effects", []))
 	definition.tags = [&"candidate_preview"]
+	if asset_id == "smoke_shell_helmet":
+		SMOKE_SHELL_HELMET_FACTORY.configure_item(definition)
 	return definition
 
 

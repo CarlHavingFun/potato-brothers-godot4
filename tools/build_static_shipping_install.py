@@ -134,6 +134,18 @@ def _approved_units() -> dict[str, dict[str, Any]]:
                 _binding("ballistic_liner", "icon", "", [0, 0, 256, 256], [64, 64], [0.25, 0.25])
             ],
         },
+        "smoke_shell_helmet": {
+            "source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-002/derived/icon-256.png",
+            "resource_path": "res://game/assets/gogobro_static/items/smoke_shell_helmet.png",
+            "sha256": "9D5D9A14D005BE3B08C5CC90F2E11C74EF214BAC8C921452F34DC1DAEF509BEC",
+            "rgba8_sha256": "464024337E477016C80D4D54AB2D959B323F6D8748EEF6D4B5A6FC595A047741",
+            "pixel_size": [256, 256],
+            "scope": "inventory_icon_only",
+            "approval_mode": "candidate_history",
+            "bindings": [
+                _binding("smoke_shell_helmet", "icon", "", [0, 0, 256, 256], [64, 64], [0.25, 0.25])
+            ],
+        },
         "one_more_round": {
             "source": "GOGOBRO_ASSET_INBOX/02_static_assets/batches/wave-032-first-approved-production/one_more_round/final/one_more_round.png",
             "resource_path": "res://game/assets/gogobro_static/upgrades/one_more_round.png",
@@ -244,6 +256,23 @@ def _augment_unit(unit: dict[str, Any], spec: dict[str, Any]) -> dict[str, Any]:
     }
     result["approval_status"] = "approved"
     result["runtime_bindings"] = spec["bindings"]
+    if spec.get("approval_mode") == "candidate_history":
+        active_candidate_id = result["active_candidate_id"]
+        active_candidate = next(
+            candidate
+            for candidate in result["candidate_history"]
+            if candidate["candidate_id"] == active_candidate_id
+        )
+        active_candidate["runtime_bindings_sha256"] = _canonical_sha256(spec["bindings"])
+        icon_artifact = next(
+            artifact
+            for artifact in active_candidate["artifacts"]
+            if artifact["role"] == "icon"
+        )
+        icon_artifact["rgba8_sha256"] = spec["rgba8_sha256"]
+        icon_artifact["pixel_size"] = spec["pixel_size"]
+        result.pop("shipping_approval_evidence", None)
+        return result
     selectors = [binding["selector"] for binding in spec["bindings"]] if spec["scope"] == "selector_set" else []
     width, height = spec["pixel_size"]
     result["shipping_approval_evidence"] = {
@@ -394,7 +423,7 @@ def main() -> int:
     args = parser.parse_args()
 
     project_root = Path(__file__).resolve().parents[1]
-    workspace = project_root.parent
+    workspace = project_root.parents[1] if project_root.parent.name == ".worktrees" else project_root.parent
     registry_path = project_root / "game/content/assets/gogobro_static_assets_v1.json"
     manifest_path = project_root / "game/content/assets/gogobro_static_runtime_bindings_v1.json"
     approved = _approved_units()

@@ -1,7 +1,7 @@
 {
   "schema_version": "gogobro-static-runtime-bindings-v1",
   "kind": "shipping_runtime_bindings",
-  "canonical_registry_sha256": "507996EEE82A3E9B4A41926DCDE22111C81D13D500ABC768BA9B5A7F7A640BF2",
+  "canonical_registry_sha256": "097CA5A9B09A909ECB693D0903590449582F063E10463D8436B2F2C0A1D207B2",
   "expected_noncharacter_units": 70,
   "units": [
     {
@@ -484,8 +484,46 @@
       "asset_id": "smoke_shell_helmet",
       "static_content_id": "static_smoke_shell_helmet",
       "category": "item",
-      "declared_runtime_state": "inactive",
-      "approval_status": "approved"
+      "declared_runtime_state": "requested_active",
+      "approval_status": "approved",
+      "shipping": {
+        "resource_path": "res://game/assets/gogobro_static/items/smoke_shell_helmet.png",
+        "sha256": "9D5D9A14D005BE3B08C5CC90F2E11C74EF214BAC8C921452F34DC1DAEF509BEC",
+        "rgba8_sha256": "464024337E477016C80D4D54AB2D959B323F6D8748EEF6D4B5A6FC595A047741",
+        "pixel_size": [
+          256,
+          256
+        ],
+        "texture_filter": "nearest",
+        "mipmaps": false
+      },
+      "bindings": [
+        {
+          "binding_key": "smoke_shell_helmet|icon|",
+          "role": "icon",
+          "selector": "",
+          "display_size_px": [
+            64,
+            64
+          ],
+          "display_scale": [
+            0.25,
+            0.25
+          ],
+          "pivot_px": [
+            32,
+            32
+          ],
+          "atlas_rect_px": [
+            0,
+            0,
+            256,
+            256
+          ],
+          "anchors_px": {},
+          "consumers": []
+        }
+      ]
     },
     {
       "asset_id": "force_buy_runners",

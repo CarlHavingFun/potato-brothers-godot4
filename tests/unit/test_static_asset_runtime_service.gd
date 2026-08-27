@@ -43,20 +43,21 @@ func test_valid_inactive_manifest_projects_exactly_seventy_noncharacter_units() 
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(manifest_path))
 
 
-func test_canonical_shipping_manifest_activates_only_the_eight_approved_static_units() -> void:
+func test_canonical_shipping_manifest_activates_only_the_nine_approved_static_units() -> void:
 	var service := GogoStaticAssetRuntimeService.new()
 	assert_int(service.stage(_validation_snapshot())).is_equal(OK)
 	assert_int(service.activate_staged(&"", null)).is_equal(OK)
 	var snapshot := service.active_snapshot()
 
-	assert_int(snapshot.ready_count()).is_equal(8)
-	assert_int(snapshot.fallback_count()).is_equal(62)
+	assert_int(snapshot.ready_count()).is_equal(9)
+	assert_int(snapshot.fallback_count()).is_equal(61)
 	assert_int(snapshot.issues().size()).is_zero()
 	for asset_id in [
 		&"warmup_shiv",
 		&"service_pistol",
 		&"projectile_hit_kit",
 		&"ballistic_liner",
+		&"smoke_shell_helmet",
 		&"one_more_round",
 		&"hud_icon_kit",
 		&"control_icon_kit",
@@ -84,6 +85,8 @@ func test_canonical_shipping_manifest_activates_only_the_eight_approved_static_u
 	assert_object(snapshot.resolve_asset(&"warmup_shiv", &"world_sprite")).is_null()
 	assert_object(snapshot.resolve_asset(&"ballistic_liner", &"icon")).is_not_null()
 	assert_object(snapshot.resolve_asset(&"ballistic_liner", &"appearance")).is_null()
+	assert_object(snapshot.resolve_asset(&"smoke_shell_helmet", &"icon")).is_not_null()
+	assert_object(snapshot.resolve_asset(&"smoke_shell_helmet", &"appearance")).is_null()
 	assert_object(snapshot.resolve_global(&"hud_icon_kit", &"health")).is_not_null()
 	assert_object(snapshot.resolve_global(&"control_icon_kit", &"move_keyboard_wasd")).is_not_null()
 	assert_object(snapshot.resolve_global(&"difficulty_badge_kit", &"standard")).is_not_null()

@@ -1,0 +1,133 @@
+{
+  "algorithm": {
+    "feature": "largest four-connected enclosed transparent aperture in exact nearest-resized raster",
+    "offset": "round(face_center - nearest-resized aperture_center)",
+    "resampling": "nearest for QA composite only; source appearance remains unchanged"
+  },
+  "asset_id": "smoke_shell_helmet",
+  "candidate_id": "candidate-002",
+  "flip_behavior": "none",
+  "frame_count": 8,
+  "frames": [
+    {
+      "depth": 40,
+      "frame_index": 0,
+      "frame_name": "walk_down_01",
+      "offset": [
+        26,
+        23
+      ],
+      "scale": 0.625
+    },
+    {
+      "depth": 40,
+      "frame_index": 1,
+      "frame_name": "walk_down_02",
+      "offset": [
+        26,
+        23
+      ],
+      "scale": 0.625
+    },
+    {
+      "depth": 40,
+      "frame_index": 2,
+      "frame_name": "walk_down_03",
+      "offset": [
+        26,
+        23
+      ],
+      "scale": 0.625
+    },
+    {
+      "depth": 40,
+      "frame_index": 3,
+      "frame_name": "walk_down_04",
+      "offset": [
+        26,
+        23
+      ],
+      "scale": 0.625
+    },
+    {
+      "depth": 40,
+      "frame_index": 4,
+      "frame_name": "walk_down_05",
+      "offset": [
+        28,
+        23
+      ],
+      "scale": 0.625
+    },
+    {
+      "depth": 40,
+      "frame_index": 5,
+      "frame_name": "walk_down_06",
+      "offset": [
+        28,
+        23
+      ],
+      "scale": 0.625
+    },
+    {
+      "depth": 40,
+      "frame_index": 6,
+      "frame_name": "walk_down_07",
+      "offset": [
+        26,
+        23
+      ],
+      "scale": 0.625
+    },
+    {
+      "depth": 40,
+      "frame_index": 7,
+      "frame_name": "walk_down_08",
+      "offset": [
+        26,
+        23
+      ],
+      "scale": 0.625
+    }
+  ],
+  "occupied_slots": [],
+  "pixel_contract": {
+    "appearance_grid_scale": 2,
+    "icon_grid_scale": 4,
+    "logical_canvas": [
+      64,
+      64
+    ],
+    "outline_colors_rgb": [
+      [
+        8,
+        5,
+        3
+      ],
+      [
+        9,
+        0,
+        0
+      ],
+      [
+        21,
+        13,
+        6
+      ],
+      [
+        29,
+        27,
+        24
+      ],
+      [
+        34,
+        34,
+        31
+      ]
+    ],
+    "resampling": "nearest"
+  },
+  "schema_version": "gogobro-item-anchors-v1",
+  "shared_scale": 0.625,
+  "slot": "head"
+}
