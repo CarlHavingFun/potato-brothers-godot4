@@ -21,6 +21,7 @@ var materials_label: Label
 var weapon_strip: HBoxContainer
 var item_strip: GridContainer
 var control_hint: PanelContainer
+var backdrop: ColorRect
 var shell: TextureRect
 var global_icons: Dictionary = {}
 
@@ -77,7 +78,7 @@ func _dismiss_control_hint() -> void:
 
 
 func _build_hierarchy() -> void:
-	var backdrop := ColorRect.new()
+	backdrop = ColorRect.new()
 	backdrop.name = "Backdrop"
 	backdrop.color = Color("14181b")
 	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -289,6 +290,7 @@ func _apply_static_textures() -> void:
 	if static_asset_snapshot != null:
 		handle = static_asset_snapshot.resolve_global(&"combat_hud_shell")
 	shell.texture = handle.texture if handle != null else null
+	backdrop.visible = handle == null
 	GogoStaticConsumerRegistry.observe_handle(
 		handle,
 		"res://game/ui/brotato_combat_hud.gd",

@@ -77,6 +77,7 @@ func test_hud_uses_fixed_320_by_180_brotato_hierarchy_and_inventory_caps() -> vo
 	assert_int(hud.get_node("WeaponStrip").get_child_count()).is_equal(6)
 	assert_int(hud.get_node("ItemStrip").get_child_count()).is_equal(8)
 	assert_object((hud.get_node("Shell") as TextureRect).texture).is_not_null()
+	assert_bool((hud.get_node("Backdrop") as ColorRect).visible).is_false()
 	assert_int((hud.get_node("Shell") as TextureRect).texture_filter).is_equal(
 		CanvasItem.TEXTURE_FILTER_NEAREST
 	)
@@ -93,6 +94,7 @@ func test_control_hint_dismissal_is_permanent_after_move_or_four_elapsed_seconds
 	var hud := auto_free(hud_script.new()) as Control
 	hud.call("configure", snapshot_script.create(player, 12.0, 1, 0.0), _content_fixture())
 	add_child(hud)
+	assert_bool((hud.get_node("Backdrop") as ColorRect).visible).is_true()
 	var hint := hud.get_node("ControlHint") as Control
 	assert_bool(hint.visible).is_true()
 	hud.call("note_movement", Vector2.RIGHT)
