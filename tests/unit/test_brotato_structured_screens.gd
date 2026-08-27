@@ -3,6 +3,7 @@ extends GdUnitTestSuite
 
 const STAT_LIST_PATH := "res://game/ui/stat_list_presenter.gd"
 const LOADOUT_STRIP_PATH := "res://game/ui/loadout_strip_presenter.gd"
+const STAT_LIST_PRESENTER := preload("res://game/ui/stat_list_presenter.gd")
 
 
 func test_base_chrome_exposes_native_safe_content_without_a_viewport_frame() -> void:
@@ -291,7 +292,7 @@ func test_stat_list_compares_new_additive_stats_against_zero() -> void:
 		&"ranged_damage": 3.0,
 		&"armor": -2.0,
 	}
-	var rows := auto_free(GogoStatListPresenter.build(
+	var rows := auto_free(STAT_LIST_PRESENTER.build(
 		player,
 		ContentSnapshot.new()
 	)) as VBoxContainer
@@ -315,7 +316,7 @@ func test_stat_list_names_internal_speed_bonus_without_duplicating_the_final_sta
 		&"attack_speed": 1.2,
 		&"attack_speed_multiplier": 0.2,
 	}
-	var rows := auto_free(GogoStatListPresenter.build(
+	var rows := auto_free(STAT_LIST_PRESENTER.build(
 		player,
 		ContentSnapshot.new()
 	)) as VBoxContainer
