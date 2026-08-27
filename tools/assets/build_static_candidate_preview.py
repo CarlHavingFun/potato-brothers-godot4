@@ -228,7 +228,9 @@ def _discover_workspace_root(explicit: str | None) -> Path:
         if not (root / "GOGOBRO_ASSET_INBOX").is_dir():
             raise PreviewValidationError(f"source root has no GOGOBRO_ASSET_INBOX: {root}")
         return root
-    for candidate in [REPO.parent, *REPO.parents]:
+    # A normal checkout may itself be the workspace root, while linked worktrees
+    # usually need one or two ancestors. Check both layouts without requiring a flag.
+    for candidate in [REPO, REPO.parent, *REPO.parents]:
         if (candidate / "GOGOBRO_ASSET_INBOX").is_dir():
             return candidate.resolve()
     raise PreviewValidationError("could not locate workspace root containing GOGOBRO_ASSET_INBOX")

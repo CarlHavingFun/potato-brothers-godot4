@@ -201,6 +201,21 @@ func test_preview_builder_check_is_non_mutating_and_bound_to_fresh_coverage() ->
 	assert_int((evidence.get("rows", []) as Array).size()).is_equal(65)
 
 
+func test_preview_builder_discovers_inbox_beside_a_normal_checkout_root() -> void:
+	var script_path := ProjectSettings.globalize_path(BUILDER_PATH).replace("\\", "/")
+	var code := (
+		"import importlib.util,tempfile;from pathlib import Path;"
+		+ "p=r'%s';s=importlib.util.spec_from_file_location('preview_builder',p);"
+		+ "m=importlib.util.module_from_spec(s);s.loader.exec_module(m);"
+		+ "t=tempfile.TemporaryDirectory();r=Path(t.name);"
+		+ "(r/'GOGOBRO_ASSET_INBOX').mkdir();m.REPO=r;"
+		+ "assert m._discover_workspace_root(None)==r;t.cleanup()"
+	) % script_path
+	var output: Array = []
+	var exit_code := OS.execute(_python_executable(), ["-c", code], output, true, false)
+	assert_int(exit_code).is_equal(0)
+
+
 func _assert_integer_pair_equals(value: Variant, expected_x: int, expected_y: int) -> void:
 	assert_bool(value is Array).is_true()
 	if not value is Array:
