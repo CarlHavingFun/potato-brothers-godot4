@@ -210,8 +210,8 @@ func _load_data(data: Dictionary) -> void:
 	else:
 		character_atlas_path = String((atlas as Dictionary).get("path", ""))
 		character_atlas_sha256 = String((atlas as Dictionary).get("sha256", "")).to_lower()
-		if character_atlas_path.is_empty() or not FileAccess.file_exists(character_atlas_path):
-			_validation_errors.append("atlas.path must reference an existing file")
+		if character_atlas_path.is_empty() or not ResourceLoader.exists(character_atlas_path, "Texture2D"):
+			_validation_errors.append("atlas.path must reference an existing texture resource")
 		if character_atlas_sha256.length() != 64:
 			_validation_errors.append("atlas.sha256 must contain 64 hexadecimal characters")
 		elif not character_atlas_path.is_empty() and FileAccess.file_exists(character_atlas_path):
