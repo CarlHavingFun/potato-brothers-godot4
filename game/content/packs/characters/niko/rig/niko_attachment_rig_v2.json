@@ -6,6 +6,7 @@
   "atlas": {
     "path": "res://game/content/packs/characters/niko/animations/walk_down/sprite-sheet-alpha.png",
     "sha256": "fbc10108d9a665b14dcc376da54bbbf66d89b931ae1189e69fe1c45b31fe579d",
+    "rgba8_sha256": "5e859f78f2bd302c3b2735985f0d2e8efd58c3f57a7e75b8c16473909bad75e7",
     "frame_size": [
       128,
       128

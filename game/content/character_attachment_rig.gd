@@ -9,6 +9,7 @@ const MODE_FRAME_OVERLAY := "FRAME_OVERLAY"
 @export_storage var character_id: StringName = &""
 @export_storage var character_atlas_path := ""
 @export_storage var character_atlas_sha256 := ""
+@export_storage var character_atlas_rgba8_sha256 := ""
 @export_storage var frame_size := Vector2i.ZERO
 @export_storage var atlas_size := Vector2i.ZERO
 
@@ -208,17 +209,21 @@ func _load_data(data: Dictionary) -> void:
 	if not atlas is Dictionary:
 		_validation_errors.append("atlas must be an object")
 	else:
-		character_atlas_path = String((atlas as Dictionary).get("path", ""))
-		character_atlas_sha256 = String((atlas as Dictionary).get("sha256", "")).to_lower()
+		var atlas_data := atlas as Dictionary
+		character_atlas_path = String(atlas_data.get("path", ""))
+		character_atlas_sha256 = String(atlas_data.get("sha256", "")).to_lower()
+		character_atlas_rgba8_sha256 = String(atlas_data.get("rgba8_sha256", "")).to_lower()
 		if character_atlas_path.is_empty() or not ResourceLoader.exists(character_atlas_path, "Texture2D"):
 			_validation_errors.append("atlas.path must reference an existing texture resource")
-		if character_atlas_sha256.length() != 64:
+		if not _is_sha256(character_atlas_sha256):
 			_validation_errors.append("atlas.sha256 must contain 64 hexadecimal characters")
 		elif not character_atlas_path.is_empty() and FileAccess.file_exists(character_atlas_path):
 			if FileAccess.get_sha256(character_atlas_path).to_lower() != character_atlas_sha256:
 				_validation_errors.append("atlas.sha256 does not match atlas.path")
-		frame_size = _read_positive_pair((atlas as Dictionary).get("frame_size"), "atlas.frame_size")
-		atlas_size = _read_positive_pair((atlas as Dictionary).get("atlas_size"), "atlas.atlas_size")
+		if not _is_sha256(character_atlas_rgba8_sha256):
+			_validation_errors.append("atlas.rgba8_sha256 must contain 64 hexadecimal characters")
+		frame_size = _read_positive_pair(atlas_data.get("frame_size"), "atlas.frame_size")
+		atlas_size = _read_positive_pair(atlas_data.get("atlas_size"), "atlas.atlas_size")
 		_validate_atlas_geometry()
 	var raw_catalog: Variant = data.get("socket_catalog")
 	if not raw_catalog is Dictionary or (raw_catalog as Dictionary).is_empty():
@@ -484,6 +489,15 @@ func _validate_atlas_geometry() -> void:
 		return
 	if Vector2i(atlas_texture.get_size()) != atlas_size:
 		_validation_errors.append("atlas.atlas_size does not match atlas.path")
+	var atlas_image := atlas_texture.get_image()
+	if atlas_image == null or atlas_image.is_empty():
+		_validation_errors.append("atlas.path must expose decoded image pixels")
+		return
+	if (
+		_is_sha256(character_atlas_rgba8_sha256)
+		and _rgba8_sha256(atlas_image) != character_atlas_rgba8_sha256
+	):
+		_validation_errors.append("atlas.rgba8_sha256 does not match decoded atlas.path pixels")
 
 
 func _validate_residual_jitter() -> void:
@@ -526,3 +540,23 @@ func _is_integer(value: Variant) -> bool:
 		return false
 	var number := float(value)
 	return number == floor(number)
+
+
+func _is_sha256(value: String) -> bool:
+	if value.length() != 64:
+		return false
+	for index in value.length():
+		if not "0123456789abcdef".contains(value.substr(index, 1).to_lower()):
+			return false
+	return true
+
+
+func _rgba8_sha256(source: Image) -> String:
+	var image := source.duplicate()
+	if image.get_format() != Image.FORMAT_RGBA8:
+		image.convert(Image.FORMAT_RGBA8)
+	var context := HashingContext.new()
+	if context.start(HashingContext.HASH_SHA256) != OK:
+		return ""
+	context.update(image.get_data())
+	return context.finish().hex_encode().to_lower()

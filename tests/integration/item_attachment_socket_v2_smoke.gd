@@ -473,6 +473,21 @@ func _runtime_schema_rejects_malformed_rigs() -> bool:
 	if not _rig_rejects(wrong_hash, "wrong_hash"):
 		return false
 
+	var non_hex_hash := _rig_payload()
+	(non_hex_hash["atlas"] as Dictionary)["sha256"] = "z".repeat(64)
+	if not _rig_rejects(non_hex_hash, "non_hex_hash", "64 hexadecimal"):
+		return false
+
+	var missing_rgba8_hash := _rig_payload()
+	(missing_rgba8_hash["atlas"] as Dictionary).erase("rgba8_sha256")
+	if not _rig_rejects(missing_rgba8_hash, "missing_rgba8_hash", "atlas.rgba8_sha256"):
+		return false
+
+	var wrong_rgba8_hash := _rig_payload()
+	(wrong_rgba8_hash["atlas"] as Dictionary)["rgba8_sha256"] = "0".repeat(64)
+	if not _rig_rejects(wrong_rgba8_hash, "wrong_rgba8_hash", "decoded atlas.path pixels"):
+		return false
+
 	var fractional_socket := _rig_payload()
 	var fractional_frame := ((_walk_down_state(fractional_socket)["frames"] as Array)[0] as Dictionary)
 	(fractional_frame["sockets"] as Dictionary)["head_shell"] = [62.5, 71]

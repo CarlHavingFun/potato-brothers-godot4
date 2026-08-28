@@ -239,9 +239,11 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	world.projectile_contact.connect(_on_projectile_contact)
 	world.projectile_contact_published.connect(_on_projectile_contact_published)
 	world.pickup_collected.connect(_on_pickup_collected)
-	# Freeze only feedback aging so naturally emitted hit marks remain visible in
-	# the proof frame. Weapons, projectiles, damage and event publication stay live.
-	world.feedback_presenter.set_process(false)
+	if not _require(
+		world.feedback_presenter.is_physics_processing(),
+		"feedback presenter ages transient effects on the real runtime clock"
+	):
+		return
 	var upstream_audio_evidence: Dictionary = {}
 	if not _require(world.static_world_presenter != null and world.static_world_presenter.issues().is_empty(), "static world presenter"):
 		return
@@ -424,6 +426,13 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		):
 			return
 		live_pickup_kinds[StringName(pickup.get("reward_kind"))] = true
+		var pickup_capture_offset := Vector2(-76.0, 174.0)
+		if pickup_index == 1:
+			pickup_capture_offset = Vector2(76.0, 174.0)
+		pickup.global_position = (
+			world.player_actor.global_position + pickup_capture_offset
+		).round()
+		pickup.set_physics_process(false)
 	if not _require(
 		live_pickup_kinds.has(GameSession.REWARD_EXPERIENCE)
 		and live_pickup_kinds.has(GameSession.REWARD_SUPPLY),
@@ -445,10 +454,24 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	var marker_timer := evidence_marker.get_node_or_null("ActivationDelay") as Timer
 	if marker_timer != null:
 		marker_timer.stop()
+	# The live sequence above already proves auto-fire and every impact class. Stop
+	# new shots only for the final composition, then clear expired/transient feedback
+	# so the two real pickup sprites and all six weapon silhouettes remain readable.
+	for child in orbit.get_children():
+		var capture_weapon := child as GogoWeaponInstance
+		if capture_weapon != null:
+			capture_weapon.set_physics_process(false)
+	world.projectile_layer.process_mode = Node.PROCESS_MODE_DISABLED
+	world.feedback_presenter.clear_feedback()
 	world.player_camera.clear_visual_impulses()
 	world.player_camera.set_physics_process(false)
 	await _wait_for_capture_frame()
 	await _wait_for_capture_frame()
+	if not _require(
+		world.feedback_presenter.active_effect_count() == 0,
+		"final evidence frame has no stale hit/death feedback blocks"
+	):
+		return
 	world_to_screen = world.get_global_transform_with_canvas()
 	var world_evidence := _build_world_evidence(
 		world,

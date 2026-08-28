@@ -1922,7 +1922,8 @@
       96
     ],
     "path": "res://game/content/packs/characters/niko/animations/walk_left45/sprite-sheet-alpha.png",
-    "sha256": "33e794fcdec898e876214b283d2af9fde109dc3ce07e62f36478a846782ef855"
+    "sha256": "33e794fcdec898e876214b283d2af9fde109dc3ce07e62f36478a846782ef855",
+    "rgba8_sha256": "3b3cd82b0d501d53fb1ba982ebad6a576de7371dfcce8dc39be1f264b2a34c8d"
   },
   "character_id": "character.niko:character/niko",
   "rig_id": "niko_walk_left45_attachment_v2",
