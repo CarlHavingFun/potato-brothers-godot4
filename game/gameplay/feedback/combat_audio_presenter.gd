@@ -21,7 +21,7 @@ const SHOT_SETTINGS := {
 	},
 	&"suppressed": {
 		"stream": preload("res://game/assets/audio/combat/suppressed_shot.wav"),
-		"volume_db": -8.0,
+		"volume_db": 0.0,
 		"pitch_scale": 1.0,
 	},
 }
@@ -153,7 +153,19 @@ func present_player_damage_taken(
 		or remaining_health < 0.0
 	):
 		return false
-	return _play(&"player_damage_taken", &"player_hit", PLAYER_HIT, 0.0, 1.0)
+	return _play(
+		&"player_damage_taken",
+		&"player_hit",
+		PLAYER_HIT,
+		0.0,
+		1.0,
+		{
+			"final_damage": final_damage,
+			"remaining_health": remaining_health,
+			"lethal": _lethal,
+			"sequence": sequence,
+		}
+	)
 
 
 func present_pickup_collected(
@@ -198,16 +210,33 @@ func _present_contact(
 		or contact_normal.is_zero_approx()
 	):
 		return false
-	return _play_settings(event_class, impact_kind, IMPACT_SETTINGS[impact_kind])
+	return _play_settings(
+		event_class,
+		impact_kind,
+		IMPACT_SETTINGS[impact_kind],
+		{
+			"source_instance_id": source_instance_id,
+			"target_instance_id": target_instance_id,
+			"feedback_profile_id": feedback_profile_id,
+			"damage_kind": damage_kind,
+			"sequence": sequence,
+		}
+	)
 
 
-func _play_settings(event_class: StringName, variant: StringName, settings: Dictionary) -> bool:
+func _play_settings(
+	event_class: StringName,
+	variant: StringName,
+	settings: Dictionary,
+	metadata: Dictionary = {}
+) -> bool:
 	return _play(
 		event_class,
 		variant,
 		settings.stream as AudioStream,
 		float(settings.volume_db),
-		float(settings.pitch_scale)
+		float(settings.pitch_scale),
+		metadata
 	)
 
 
@@ -216,7 +245,8 @@ func _play(
 	variant: StringName,
 	stream: AudioStream,
 	volume_db: float,
-	pitch_scale: float
+	pitch_scale: float,
+	metadata: Dictionary = {}
 ) -> bool:
 	if audio_service == null:
 		return false
@@ -224,7 +254,7 @@ func _play(
 	if voice == null:
 		return false
 	_serial += 1
-	_ledger.append({
+	var entry := {
 		"serial": _serial,
 		"event_class": event_class,
 		"variant": variant,
@@ -232,5 +262,7 @@ func _play(
 		"volume_db": voice.volume_db,
 		"pitch_scale": voice.pitch_scale,
 		"voice_index": audio_service.sfx_players.find(voice),
-	})
+	}
+	entry.merge(metadata, true)
+	_ledger.append(entry)
 	return true

@@ -36,9 +36,12 @@ func test_maps_four_shot_profiles_and_keeps_same_tick_voices_separate() -> void:
 	var rifle_voice := audio.sfx_players[int(ledger[1].voice_index)]
 	var suppressed_voice := audio.sfx_players[int(ledger[3].voice_index)]
 	assert_float(rifle_voice.volume_db).is_equal_approx(linear_to_db(0.5), 0.001)
-	assert_float(suppressed_voice.volume_db).is_less_equal(rifle_voice.volume_db - 8.0)
+	assert_float(suppressed_voice.volume_db).is_equal_approx(rifle_voice.volume_db, 0.001)
 	for index in 4:
 		assert_bool(audio.sfx_players[index].playing).is_true()
+	var relative_rms_db := _relative_output_rms_db(rifle_voice, suppressed_voice)
+	assert_float(relative_rms_db).is_less_equal(-8.0)
+	assert_float(relative_rms_db).is_greater_equal(-14.0)
 
 
 func test_maps_all_contacts_and_terminal_events_to_original_wavs() -> void:
@@ -101,6 +104,11 @@ func test_maps_all_contacts_and_terminal_events_to_original_wavs() -> void:
 		"res://game/assets/audio/combat/pickup.wav",
 		"res://game/assets/audio/combat/pickup.wav",
 	])
+	assert_int(int(ledger[0].get("source_instance_id", -1))).is_equal(1)
+	assert_int(int(ledger[0].get("target_instance_id", -1))).is_equal(100)
+	assert_int(int(ledger[0].get("sequence", -1))).is_equal(1)
+	assert_int(int(ledger[6].get("sequence", -1))).is_equal(1)
+	assert_float(float(ledger[6].get("remaining_health", -1.0))).is_equal(17.0)
 
 
 func test_invalid_payloads_never_play_or_enter_debug_ledger() -> void:
@@ -164,6 +172,11 @@ func test_combat_screen_routes_each_canonical_signal_once_when_wired_twice() -> 
 	assert_array(ledger.map(func(event: Dictionary) -> int: return int(event.serial))).is_equal([
 		1, 2, 3, 4, 5, 6,
 	])
+	assert_int(int(ledger[2].get("source_instance_id", -1))).is_equal(4)
+	assert_int(int(ledger[2].get("target_instance_id", -1))).is_equal(5)
+	assert_int(int(ledger[2].get("sequence", -1))).is_equal(1)
+	assert_int(int(ledger[5].get("sequence", -1))).is_equal(1)
+	assert_float(float(ledger[5].get("remaining_health", -1.0))).is_equal(19.0)
 
 
 func test_scene_teardown_automatically_disconnects_audio_receivers() -> void:
@@ -202,3 +215,33 @@ func _new_presenter(audio: GogoAudioService) -> Node:
 	var presenter := auto_free(script.new()) as Node
 	presenter.call(&"configure", audio)
 	return presenter
+
+
+func _relative_output_rms_db(
+	rifle_voice: AudioStreamPlayer,
+	suppressed_voice: AudioStreamPlayer
+) -> float:
+	var rifle_rms := _source_wav_rms(rifle_voice.stream.resource_path)
+	var suppressed_rms := _source_wav_rms(suppressed_voice.stream.resource_path)
+	return linear_to_db(
+		(suppressed_rms * db_to_linear(suppressed_voice.volume_db))
+		/ (rifle_rms * db_to_linear(rifle_voice.volume_db))
+	)
+
+
+func _source_wav_rms(path: String) -> float:
+	var file := FileAccess.open(path, FileAccess.READ)
+	assert_object(file).is_not_null()
+	if file == null:
+		return 0.0
+	file.big_endian = false
+	file.seek(44)
+	var sum_squares := 0.0
+	var sample_count := 0
+	while file.get_position() + 1 < file.get_length():
+		var raw_sample := file.get_16()
+		var signed_sample := raw_sample - 65536 if raw_sample >= 32768 else raw_sample
+		var sample := float(signed_sample) / 32768.0
+		sum_squares += sample * sample
+		sample_count += 1
+	return sqrt(sum_squares / float(sample_count)) if sample_count > 0 else 0.0

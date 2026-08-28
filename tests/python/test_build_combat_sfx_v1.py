@@ -51,6 +51,13 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _rms(path: Path) -> float:
+    with wave.open(str(path), "rb") as reader:
+        frame_count = reader.getnframes()
+        samples = struct.unpack(f"<{frame_count}h", reader.readframes(frame_count))
+    return math.sqrt(sum(sample * sample for sample in samples) / len(samples))
+
+
 class CombatSfxBuilderTest(unittest.TestCase):
     def test_builder_writes_deterministic_original_pcm16_combat_set(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -115,14 +122,21 @@ class CombatSfxBuilderTest(unittest.TestCase):
     def test_suppressed_shot_is_shorter_and_at_least_eight_db_quieter_than_rifle(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             tmp_path = Path(temporary_directory)
-            report = _run_builder(tmp_path / "audio", tmp_path / "report.json")
+            output_dir = tmp_path / "audio"
+            report = _run_builder(output_dir, tmp_path / "report.json")
             clips = {clip["file"]: clip for clip in report["clips"]}
             suppressed = clips["suppressed_shot.wav"]
             rifle = clips["rifle_shot.wav"]
 
             self.assertLess(suppressed["duration_ms"], rifle["duration_ms"])
-            relative_db = 20.0 * math.log10(suppressed["peak"] / rifle["peak"])
-            self.assertLessEqual(relative_db, -8.0)
+            relative_peak_db = 20.0 * math.log10(suppressed["peak"] / rifle["peak"])
+            self.assertLessEqual(relative_peak_db, -8.0)
+            relative_rms_db = 20.0 * math.log10(
+                _rms(output_dir / "suppressed_shot.wav")
+                / _rms(output_dir / "rifle_shot.wav")
+            )
+            self.assertLessEqual(relative_rms_db, -8.0)
+            self.assertGreaterEqual(relative_rms_db, -14.0)
 
 
 if __name__ == "__main__":

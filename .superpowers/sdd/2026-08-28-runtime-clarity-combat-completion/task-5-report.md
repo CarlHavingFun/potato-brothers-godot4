@@ -31,7 +31,7 @@
 | player `damage_taken` | `player_hit` | `player_hit.wav` |
 | `pickup_collected` | experience/supply | `pickup.wav` |
 
-The source `suppressed_shot.wav` peak is `-8.587 dB` relative to `rifle_shot.wav`. The presenter adds another `-8 dB` relative offset. `GogoAudioService` applies the same effects-setting gain to both, so the complete source → mapper → service chain preserves approximately `-16.587 dB`, exceeding the required 8 dB distinction.
+The source `suppressed_shot.wav` peak is `-8.587 dB` and its RMS is `-10.327 dB` relative to `rifle_shot.wav`. The presenter applies equal per-event gain to the two profiles, and `GogoAudioService` applies the same effects-setting gain to both. The complete source → mapper → service chain therefore preserves the authored `-10.327 dB` RMS distinction: at least 8 dB quieter while remaining above the `-14 dB` clarity floor.
 
 ## TDD evidence
 

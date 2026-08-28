@@ -91,6 +91,8 @@ var _impact_kinds_observed: Dictionary = {}
 var _impact_sources: Dictionary = {}
 var _pickup_collection_count := 0
 var _pickup_kinds_observed: Dictionary = {}
+var _real_melee_events: Array[Dictionary] = []
+var _real_player_damage_events: Array[Dictionary] = []
 
 
 func before_test() -> void:
@@ -100,6 +102,8 @@ func before_test() -> void:
 	_impact_sources.clear()
 	_pickup_collection_count = 0
 	_pickup_kinds_observed.clear()
+	_real_melee_events.clear()
+	_real_player_damage_events.clear()
 
 
 func test_capture_enemy_geometry_gate_rejects_rings_and_radial_jitter() -> void:
@@ -238,25 +242,7 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	# Freeze only feedback aging so naturally emitted hit marks remain visible in
 	# the proof frame. Weapons, projectiles, damage and event publication stay live.
 	world.feedback_presenter.set_process(false)
-	# Exercise event classes that this ranged capture route cannot naturally emit,
-	# while still traversing CombatScreen's canonical signal wiring.
-	world.melee_contact.emit(
-		900001,
-		900002,
-		&"heavy",
-		Vector2i(world.player_actor.global_position.round()),
-		Vector2.RIGHT,
-		&"melee",
-		&"normal",
-		1
-	)
-	world.player_actor.damage_taken.emit(
-		Vector2i(world.player_actor.global_position.round()),
-		1.0,
-		maxf(world.player_actor.player_state.current_health - 1.0, 0.0),
-		false,
-		1
-	)
+	var upstream_audio_evidence: Dictionary = {}
 	if not _require(world.static_world_presenter != null and world.static_world_presenter.issues().is_empty(), "static world presenter"):
 		return
 	var world_to_screen := world.get_global_transform_with_canvas()
@@ -372,6 +358,17 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	if not _require(asymmetric_radii, "capture enemies use varied distances instead of a ring"):
 		return
 	if not _require(asymmetric_angles, "capture enemies use unequal angular spacing instead of a ring"):
+		return
+	upstream_audio_evidence = await _exercise_real_audio_upstream_events(world, session)
+	if not _require(
+		String(upstream_audio_evidence.get("error", "")).is_empty(),
+		"real melee/player audio upstream exercise (%s)" % [upstream_audio_evidence]
+	):
+		return
+	if not _require(
+		orbit.get_child_count() == 6,
+		"temporary melee probe leaves the six-weapon capture layout unchanged"
+	):
 		return
 
 	if not await _wait_for_combat(12, 4, 600):
@@ -516,6 +513,11 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		% [_audio_ledger_summary(audio_ledger)]
 	):
 		return
+	if not _require(
+		_audio_ledger_matches_real_upstream(audio_ledger, upstream_audio_evidence),
+		"combat audio ledger entries originate from real melee and player damage paths"
+	):
+		return
 	var pause_state_before := _pause_state_signature(app.current_session)
 	combat_screen.call("_open_pause")
 	var pause_overlay := combat_screen.get("pause_overlay") as Control
@@ -615,6 +617,7 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 			func(kind: Variant) -> String: return String(kind)
 		),
 		"audio_ledger": _audio_ledger_summary(audio_ledger),
+		"audio_upstream_evidence": upstream_audio_evidence,
 	}
 	report["world_evidence"] = {
 		"arena_size": [CAPTURE_ARENA_SIZE.x, CAPTURE_ARENA_SIZE.y],
@@ -1009,6 +1012,147 @@ func _wait_for_capture_frame() -> void:
 		await RenderingServer.frame_post_draw
 
 
+func _exercise_real_audio_upstream_events(
+	world: CombatWorld,
+	session: GameSession
+) -> Dictionary:
+	var target := _first_safe_melee_target(world)
+	if target == null:
+		return {"error": "no nonlethal active enemy for melee probe"}
+	var orbit := world.player_actor.get_node_or_null("WeaponOrbit") as Node2D
+	if orbit == null or world.projectile_layer == null:
+		return {"error": "missing real weapon orbit or projectile layer"}
+	var capture_weapons: Array[GogoWeaponInstance] = []
+	var capture_weapon_process_states: Array[bool] = []
+	for child in orbit.get_children():
+		var capture_weapon := child as GogoWeaponInstance
+		if capture_weapon == null:
+			continue
+		capture_weapons.append(capture_weapon)
+		capture_weapon_process_states.append(capture_weapon.is_physics_processing())
+		capture_weapon.set_physics_process(false)
+	var projectile_process_mode := world.projectile_layer.process_mode
+	world.projectile_layer.process_mode = Node.PROCESS_MODE_DISABLED
+	var initial_hitstop_cleared := await _wait_for_local_hitstop_clear(world, 30)
+
+	_real_melee_events.clear()
+	var melee_weapon := GogoWeaponInstance.new()
+	melee_weapon.name = "AudioSmokeMeleeProbe"
+	world.add_child(melee_weapon)
+	melee_weapon.set_physics_process(false)
+	melee_weapon.configure(_audio_smoke_melee_stats(), world.player_actor)
+	melee_weapon.global_position = target.global_position - Vector2(12.0, 0.0)
+	melee_weapon.melee_contact.connect(_on_real_melee_contact)
+	var target_health_before := target.current_health
+	melee_weapon._physics_process(0.0)
+	var target_health_after := target.current_health
+	var melee_hitstop_observed := world.debug_local_hitstop_remaining() > 0.0
+	var melee_hitstop_cleared := await _wait_for_local_hitstop_clear(world, 30)
+	var melee_event: Dictionary = _real_melee_events.back() if not _real_melee_events.is_empty() else {}
+	var melee_evidence := {
+		"weapon_instance_id": melee_weapon.runtime_instance_id,
+		"target_instance_id": target.runtime_instance_id,
+		"sequence": melee_weapon.melee_sequence,
+		"signal_sequence": int(melee_event.get("sequence", 0)),
+		"was_active_target": world.is_active_enemy(target),
+		"health_before": target_health_before,
+		"health_after": target_health_after,
+		"hitstop_observed": melee_hitstop_observed,
+		"hitstop_cleared": melee_hitstop_cleared,
+	}
+	melee_weapon.free()
+
+	_real_player_damage_events.clear()
+	var player_state := world.player_actor.player_state
+	var player_health_floor := minf(player_state.max_health, 20.0)
+	player_state.current_health = maxf(player_state.current_health, player_health_floor)
+	var player_health_before := player_state.current_health
+	var had_dodge := player_state.final_stats.has(&"dodge")
+	var original_dodge: Variant = player_state.final_stats.get(&"dodge", 0.0)
+	var original_damage_cooldown := world.player_actor.damage_cooldown
+	var original_rng_state := session.rng.state
+	player_state.final_stats[&"dodge"] = 0.0
+	world.player_actor.damage_cooldown = 0.0
+	world.player_actor.damage_taken.connect(_on_real_player_damage_taken)
+	world.player_actor.take_damage(1.0)
+	if world.player_actor.damage_taken.is_connected(_on_real_player_damage_taken):
+		world.player_actor.damage_taken.disconnect(_on_real_player_damage_taken)
+	session.rng.state = original_rng_state
+	if had_dodge:
+		player_state.final_stats[&"dodge"] = original_dodge
+	else:
+		player_state.final_stats.erase(&"dodge")
+	world.player_actor.damage_cooldown = original_damage_cooldown
+	var player_health_after := player_state.current_health
+	var player_hitstop_observed := world.debug_local_hitstop_remaining() > 0.0
+	var player_hitstop_cleared := await _wait_for_local_hitstop_clear(world, 30)
+	var player_event: Dictionary = (
+		_real_player_damage_events.back() if not _real_player_damage_events.is_empty() else {}
+	)
+	var player_evidence := {
+		"sequence": int(player_event.get("sequence", 0)),
+		"health_before": player_health_before,
+		"health_after": player_health_after,
+		"hitstop_observed": player_hitstop_observed,
+		"hitstop_cleared": player_hitstop_cleared,
+	}
+
+	world.projectile_layer.process_mode = projectile_process_mode
+	for index in capture_weapons.size():
+		capture_weapons[index].set_physics_process(capture_weapon_process_states[index])
+	var error := ""
+	if not initial_hitstop_cleared:
+		error = "pre-existing local hitstop did not clear"
+	elif _real_melee_events.size() != 1:
+		error = "real melee weapon did not emit exactly one contact"
+	elif not is_equal_approx(target_health_before - target_health_after, 1.0):
+		error = "real melee reservation/commit did not apply exactly one damage"
+	elif int(melee_event.get("weapon_instance_id", 0)) != int(melee_evidence.weapon_instance_id):
+		error = "melee signal weapon id did not match the real weapon"
+	elif int(melee_event.get("target_instance_id", 0)) != int(melee_evidence.target_instance_id):
+		error = "melee signal target id did not match the active enemy"
+	elif int(melee_event.get("sequence", 0)) != int(melee_evidence.sequence):
+		error = "melee signal sequence did not match the real weapon sequence"
+	elif _real_player_damage_events.size() != 1:
+		error = "real player take_damage did not emit exactly once"
+	elif not player_health_after < player_health_before:
+		error = "real player take_damage did not reduce health"
+	return {
+		"error": error,
+		"melee": melee_evidence,
+		"player_hit": player_evidence,
+	}
+
+
+func _first_safe_melee_target(world: CombatWorld) -> GogoEnemyActor:
+	for index in world.active_enemy_count():
+		var enemy := world.active_enemy_at(index)
+		if enemy != null and world.is_active_enemy(enemy) and enemy.current_health > 2.0:
+			return enemy
+	return null
+
+
+func _audio_smoke_melee_stats() -> GogoWeaponRuntimeStats:
+	var stats := GogoWeaponRuntimeStats.new()
+	stats.mode = GogoWeaponDefinition.Mode.MELEE
+	stats.attack_range = 28.0
+	stats.cooldown_seconds = 0.55
+	stats.damage = 1.0
+	stats.knockback = 0.0
+	stats.feedback_profile_id = &"heavy"
+	stats.damage_kind = &"melee"
+	stats.impact_kind = &"normal"
+	return stats
+
+
+func _wait_for_local_hitstop_clear(world: CombatWorld, maximum_frames: int) -> bool:
+	for _frame in maximum_frames:
+		if not world.is_combat_simulation_frozen():
+			return true
+		await get_tree().physics_frame
+	return not world.is_combat_simulation_frozen()
+
+
 func _audio_ledger_has_complete_combat_coverage(ledger: Array[Dictionary]) -> bool:
 	var summary := _audio_ledger_summary(ledger)
 	var event_classes := summary.event_classes_observed as Array
@@ -1044,6 +1188,45 @@ func _audio_ledger_summary(ledger: Array[Dictionary]) -> Dictionary:
 		"shot_variants_observed": shot_variants.keys(),
 		"contact_variants_observed": contact_variants.keys(),
 	}
+
+
+func _audio_ledger_matches_real_upstream(
+	ledger: Array[Dictionary],
+	evidence: Dictionary
+) -> bool:
+	if evidence.is_empty():
+		return false
+	var melee := evidence.get("melee", {}) as Dictionary
+	var player_hit := evidence.get("player_hit", {}) as Dictionary
+	for event in ledger:
+		var event_class := StringName(event.get("event_class", &""))
+		if (
+			event_class == &"melee_contact"
+			and int(event.get("source_instance_id", 0)) == int(melee.get("weapon_instance_id", -1))
+			and int(event.get("target_instance_id", 0)) == int(melee.get("target_instance_id", -1))
+			and int(event.get("sequence", 0)) == int(melee.get("sequence", -1))
+			and float(melee.get("health_before", 0.0)) > float(melee.get("health_after", 0.0))
+		):
+			melee["ledger_matched"] = true
+		elif (
+			event_class == &"player_damage_taken"
+			and int(event.get("sequence", 0)) == int(player_hit.get("sequence", -1))
+			and is_equal_approx(
+				float(event.get("remaining_health", -1.0)),
+				float(player_hit.get("health_after", -2.0))
+			)
+			and float(player_hit.get("health_before", 0.0)) > float(player_hit.get("health_after", 0.0))
+		):
+			player_hit["ledger_matched"] = true
+	return (
+		bool(melee.get("ledger_matched", false))
+		and bool(melee.get("was_active_target", false))
+		and bool(melee.get("hitstop_observed", false))
+		and bool(melee.get("hitstop_cleared", false))
+		and bool(player_hit.get("ledger_matched", false))
+		and bool(player_hit.get("hitstop_observed", false))
+		and bool(player_hit.get("hitstop_cleared", false))
+	)
 
 
 func _pause_state_signature(session: GameSession) -> Dictionary:
@@ -1130,6 +1313,38 @@ func _on_pickup_collected(
 ) -> void:
 	_pickup_collection_count += 1
 	_pickup_kinds_observed[kind] = true
+
+
+func _on_real_melee_contact(
+	weapon_instance_id: int,
+	target_instance_id: int,
+	_feedback_profile_id: StringName,
+	_integer_contact_global_position: Vector2i,
+	_contact_normal: Vector2,
+	_damage_kind: StringName,
+	_impact_kind: StringName,
+	sequence: int
+) -> void:
+	_real_melee_events.append({
+		"weapon_instance_id": weapon_instance_id,
+		"target_instance_id": target_instance_id,
+		"sequence": sequence,
+	})
+
+
+func _on_real_player_damage_taken(
+	_integer_global_position: Vector2i,
+	final_damage: float,
+	remaining_health: float,
+	lethal: bool,
+	sequence: int
+) -> void:
+	_real_player_damage_events.append({
+		"final_damage": final_damage,
+		"remaining_health": remaining_health,
+		"lethal": lethal,
+		"sequence": sequence,
+	})
 
 
 func _string_dictionary(source: Dictionary) -> Dictionary:
