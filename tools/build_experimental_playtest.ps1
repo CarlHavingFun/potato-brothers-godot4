@@ -412,6 +412,14 @@ function Assert-SourceInventory([object[]]$Expected, [string]$Phase) {
     $null=Assert-ProjectEntrypoints
     return $actual
 }
+function Get-PinnedSourceHead([string]$Phase) {
+    $value = (& git -C $SourceRoot rev-parse --verify HEAD 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $value -cnotmatch '^[a-f0-9]{40}$') {
+        throw "Cannot pin the source HEAD $Phase."
+    }
+    return $value
+}
+$headPre = Get-PinnedSourceHead 'before source inventory'
 $records = @(Get-SourceInventory)
 Assert-ProjectSectionSyntax (Get-Content -LiteralPath $project -Raw)
 foreach($record in $records|Where-Object {$_.path.EndsWith('.gd')}){
@@ -553,10 +561,11 @@ no new ownership or public-release approval claim. Unapproved Top20 assets are e
 Development-only GdUnit4 and MCP addons are not included. This snapshot does not ship the
 legacy assets/font/ directory and makes no claim that the old font stack is used.
 '@
-$head = (& git -C $SourceRoot rev-parse HEAD 2>$null | Out-String).Trim()
+$headPost = Get-PinnedSourceHead 'before manifest publication'
+if ($headPost -cne $headPre) { throw 'Source HEAD changed during package construction.' }
 $manifest = [ordered]@{
     kind='experimental-twenty-wave-debug-snapshot'; created_utc=[DateTime]::UtcNow.ToString('o'); engine=$version
-    engine_sha256=$engineCommandHash; source_head=$head; source_fingerprint=$fingerprint
+    engine_sha256=$engineCommandHash; source_head=$headPre; source_fingerprint=$fingerprint
     engine_command=$engineCommand; engine_runtime=$engineExecutable; engine_runtime_sha256=$engineHash
     engine_consistency=[ordered]@{verified=$true;window='Captured command and runtime before staging; both rehashed before every phase, after export, and immediately before launcher publication.';command_pre_sha256=$engineCommandHash;command_post_sha256=$engineCommandHash;runtime_pre_sha256=$engineHash;runtime_post_sha256=$engineHash}
     source_files=$records

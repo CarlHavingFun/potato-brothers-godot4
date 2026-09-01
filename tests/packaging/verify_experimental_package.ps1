@@ -16,6 +16,127 @@ function Assert-NoReparse([string]$Path){
     }
 }
 function Canonical([string]$Path){return [IO.Path]::GetFullPath($Path).TrimEnd('\','/').Replace('\','/')}
+function Assert-SourceBinding([string]$SourceRoot,$Manifest){
+    $sourceFields=@('path','bytes','sha256','source_pre_sha256','stage_sha256','source_post_sha256')
+    if($Manifest.source_head -isnot [string] -or $Manifest.source_head -cnotmatch '^[a-f0-9]{40}$'){
+        throw 'Package source_head is missing or malformed.'
+    }
+    if($Manifest.source_fingerprint -isnot [string] -or $Manifest.source_fingerprint -cnotmatch '^[A-F0-9]{64}$'){
+        throw 'Package source_fingerprint is missing or malformed.'
+    }
+    if($Manifest.source_consistency_verified -isnot [bool] -or $Manifest.source_consistency_verified -ne $true){
+        throw 'Package source_consistency_verified must be the boolean true.'
+    }
+    $consistency=$Manifest.source_consistency
+    $consistencyFields=@('window','source_pre_fingerprint','source_post_fingerprint')
+    if($consistency -isnot [pscustomobject] -or
+        @($consistency.PSObject.Properties.Name).Count -ne $consistencyFields.Count -or
+        @($consistency.PSObject.Properties.Name|Where-Object {$_ -cnotin $consistencyFields}).Count -or
+        $consistency.window -isnot [string] -or
+        $consistency.source_pre_fingerprint -isnot [string] -or $consistency.source_pre_fingerprint -cnotmatch '^[A-F0-9]{64}$' -or
+        $consistency.source_post_fingerprint -isnot [string] -or $consistency.source_post_fingerprint -cnotmatch '^[A-F0-9]{64}$'){
+        throw 'Package source_consistency schema is malformed.'
+    }
+    $manifestSource=@($Manifest.source_files)
+    if(-not $manifestSource.Count){throw 'Package source inventory is empty.'}
+
+    # Validate every manifest path and all six field types before using any
+    # source path for filesystem access. A case-sensitive set preserves the
+    # exact path identity used by the independently ordered inventory below.
+    $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach($entry in $manifestSource){
+        if($entry -isnot [pscustomobject] -or
+            @($entry.PSObject.Properties.Name).Count -ne $sourceFields.Count -or
+            @($entry.PSObject.Properties.Name|Where-Object {$_ -cnotin $sourceFields}).Count){
+            throw 'Package source inventory entry must contain exactly six fields.'
+        }
+        if($entry.path -isnot [string] -or $entry.bytes -isnot [int] -and $entry.bytes -isnot [long] -or
+            $entry.sha256 -isnot [string] -or $entry.source_pre_sha256 -isnot [string] -or
+            $entry.stage_sha256 -isnot [string] -or $entry.source_post_sha256 -isnot [string]){
+            throw 'Package source inventory field type mismatch.'
+        }
+        if([string]::IsNullOrEmpty($entry.path) -or [IO.Path]::IsPathRooted($entry.path) -or
+            $entry.path.Contains('\') -or $entry.path.Contains(':') -or
+            $entry.path -match '(?:^|/)\.{1,2}(?:/|$)' -or $entry.path -match '[\x00-\x1F\x7F]' -or
+            $entry.path -notmatch '^(?:project\.godot|export_presets\.cfg|default_bus_layout\.tres|icon\.svg(?:\.import)?|game/.+)$' -or
+            -not $seen.Add($entry.path)){
+            throw 'Package source inventory contains an unsafe, out-of-scope, or duplicate path.'
+        }
+        if($entry.bytes -lt 0 -or
+            $entry.sha256 -cnotmatch '^[A-F0-9]{64}$' -or
+            $entry.source_pre_sha256 -cnotmatch '^[A-F0-9]{64}$' -or
+            $entry.stage_sha256 -cnotmatch '^[A-F0-9]{64}$' -or
+            $entry.source_post_sha256 -cnotmatch '^[A-F0-9]{64}$'){
+            throw 'Package source inventory byte/hash value is malformed.'
+        }
+    }
+
+    $root=[IO.Path]::GetFullPath($SourceRoot).TrimEnd('\','/')
+    $rootPrefix=$root+[IO.Path]::DirectorySeparatorChar
+    $resolved=[Collections.Generic.List[string]]::new()
+    foreach($entry in $manifestSource){
+        $full=[IO.Path]::GetFullPath([IO.Path]::Combine($root,$entry.path.Replace('/',[IO.Path]::DirectorySeparatorChar)))
+        if(-not $full.StartsWith($rootPrefix,[StringComparison]::OrdinalIgnoreCase)){
+            throw 'Package source inventory path escapes the verifier source root.'
+        }
+        $relative=$full.Substring($rootPrefix.Length).Replace('\','/')
+        if($relative -cne $entry.path){throw 'Package source inventory path is not canonical.'}
+        $resolved.Add($full)
+    }
+
+    Assert-NoReparse $root
+    $head=(& git -C $root rev-parse --verify HEAD 2>$null|Out-String).Trim()
+    if($LASTEXITCODE -ne 0 -or $head -cnotmatch '^[a-f0-9]{40}$' -or $Manifest.source_head -cne $head){
+        throw 'Package source_head is not pinned to the verifier source checkout.'
+    }
+
+    for($index=0;$index -lt $manifestSource.Count;$index++){
+        $entry=$manifestSource[$index]
+        $path=$resolved[$index]
+        Assert-NoReparse $path
+        if(-not(Test-Path -LiteralPath $path -PathType Leaf)){throw "Verifier source file is missing: $($entry.path)"}
+        $item=Get-Item -LiteralPath $path -Force
+        $hash=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+        if($entry.bytes -ne $item.Length -or $entry.sha256 -cne $hash -or
+            $entry.source_pre_sha256 -cne $hash -or $entry.stage_sha256 -cne $hash -or
+            $entry.source_post_sha256 -cne $hash){
+            throw "Package source inventory differs from verifier source: $($entry.path)"
+        }
+    }
+
+    $actualItems=@()
+    foreach($relative in @('project.godot','export_presets.cfg','default_bus_layout.tres','icon.svg','icon.svg.import')){
+        $path=Join-Path $root $relative
+        if(Test-Path -LiteralPath $path -PathType Leaf){$actualItems+=Get-Item -LiteralPath $path -Force}
+    }
+    $actualItems+=@(Get-ChildItem -LiteralPath (Join-Path $root 'game') -File -Recurse -Force|Where-Object {
+        $relative=$_.FullName.Substring($rootPrefix.Length).Replace('\','/')
+        $relative -notmatch '^game/(assets/top20/|content/packs/items/top20/)' -and
+        $_.Extension -in @('.gd','.uid','.tscn','.tres','.png','.import','.wav','.json','.txt','.gdshader')
+    })
+    $actualItems=@($actualItems|Sort-Object FullName)
+    if($actualItems.Count -ne $manifestSource.Count){throw 'Verifier source inventory membership differs from the packaged source inventory.'}
+    $fingerprintLines=[Collections.Generic.List[string]]::new()
+    for($index=0;$index -lt $actualItems.Count;$index++){
+        if($actualItems[$index].Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Verifier source inventory contains a reparse point.'}
+        $actualPath=[IO.Path]::GetFullPath($actualItems[$index].FullName)
+        if(-not $actualPath.StartsWith($rootPrefix,[StringComparison]::OrdinalIgnoreCase)){throw 'Verifier source inventory escaped its source root.'}
+        $actualRelative=$actualPath.Substring($rootPrefix.Length).Replace('\','/')
+        if($actualRelative -cne $manifestSource[$index].path){throw 'Verifier source inventory member order differs from the packaged source inventory.'}
+        $actualHash=(Get-FileHash -LiteralPath $actualPath -Algorithm SHA256).Hash
+        if($actualHash -cne $manifestSource[$index].sha256){throw 'Verifier source inventory changed during independent fingerprinting.'}
+        $fingerprintLines.Add($actualRelative+"`t"+$actualHash)
+    }
+
+    $manifestUtf8=[Text.UTF8Encoding]::new($false)
+    $fingerprint=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($manifestUtf8.GetBytes(($fingerprintLines.ToArray()-join "`n"))))
+    if($Manifest.source_fingerprint -cne $fingerprint -or
+        $consistency.source_pre_fingerprint -cne $fingerprint -or
+        $consistency.source_post_fingerprint -cne $fingerprint){
+        throw 'Package source fingerprint does not match the independently hashed source inventory.'
+    }
+    return [pscustomobject]@{head=$head;fingerprint=$fingerprint;count=$manifestSource.Count}
+}
 function Get-PckArguments([string]$Package,[string]$Fixture,[bool]$Rendered){
     $display=if($Rendered){@('--windowed','--resolution','1280x720')}else{@('--headless')}
     return @($display)+@('--verbose','--max-fps','60','--quit-after','1200','--main-pack',($Package.TrimEnd('/','\')+'/GOGOBRO.pck'),'--script',$Fixture,'--',$Package)
@@ -69,6 +190,10 @@ function Package-Inventory {
 }
 $before=@(Package-Inventory)
 $manifest=Get-Content -LiteralPath (Join-Path $PackageDirectory 'SNAPSHOT.json') -Raw|ConvertFrom-Json
+$sourceRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..')).TrimEnd('\','/')
+$sourceBinding=Assert-SourceBinding $sourceRoot $manifest
+$sourceHead=$sourceBinding.head
+$sourceFingerprint=$sourceBinding.fingerprint
 foreach($name in @('GOGOBRO.exe','GOGOBRO.pck','Launch-Experimental.cmd')){
     $record=@($manifest.files|Where-Object {$_.path -ceq $name})
     if($record.Count -ne 1){throw "Missing/duplicate manifest artifact: $name"}
@@ -129,7 +254,7 @@ if([IO.Path]::GetExtension($engineExecutable) -in @('.cmd','.bat')){
 }else{foreach($argument in $arguments){$psi.ArgumentList.Add($argument)}}
 $parentEnv=[ordered]@{}
 foreach($key in $child.Keys){$parentEnv[$key]=@{present=(Test-Path "Env:$key");value=[Environment]::GetEnvironmentVariable($key,'Process')};$psi.Environment[$key]=$child[$key]}
-$result=[ordered]@{acceptance_mode=$AcceptanceMode;exported_exe_startup='not_run';pck_smoke_passed=$false;static_pe_x64=$true;package=$PackageDirectory;
+$result=[ordered]@{acceptance_mode=$AcceptanceMode;exported_exe_startup='not_run';pck_smoke_passed=$false;static_pe_x64=$true;package=$PackageDirectory;source_head=$sourceHead;source_fingerprint=$sourceFingerprint;source_tree_verified=$false;
     execution_mode=$(if($RenderedPck){'rendered-pck'}else{'headless-pck'});viewport_directory=(Join-Path $child.TEMP 'package-viewports');viewports=@();viewport_artifacts=@();viewport_kind='native-rendered-viewport-not-desktop';os_input='not_run';
     executable=$engineExecutable;engine_sha256=$engineHash;arguments=$arguments;working_directory=$working;environment=$child;parent_environment=$parentEnv;
     fixture_source=$smokeSource;fixture=$fixture;fixture_sha256=$fixtureHash;fixture_at_run=$fixtureAtRun;verifier_at_run=$verifierAtRun;verifier_sha256=$verifierHash;
@@ -267,7 +392,12 @@ try{
     $result.inputs_unchanged=$result.cleanup_errors.Count -eq $pinErrors
     Invoke-OwnedFinalizer $result 'parent-environment' {$result.parent_environment_unchanged=Test-OwnedParentEnvironment $parentEnv;if(-not $result.parent_environment_unchanged){throw 'Parent environment changed.'}}
     Invoke-OwnedFinalizer $result 'package-after-receipt' {[IO.File]::WriteAllText((Join-Path $validation 'package-after.json'),($after|ConvertTo-Json -Depth 4),$utf8)}
-    if($result.exception -or $result.cleanup_errors.Count -or -not $result.package_unchanged -or -not $result.inputs_unchanged -or -not $result.parent_environment_unchanged){$result.pck_smoke_passed=$false}
+    Invoke-OwnedFinalizer $result 'source-binding' {
+        $binding=Assert-SourceBinding $sourceRoot $manifest
+        if($binding.head -cne $sourceHead -or $binding.fingerprint -cne $sourceFingerprint){throw 'Verifier source binding changed during PCK verification.'}
+        $result.source_tree_verified=$true
+    }
+    if($result.exception -or $result.cleanup_errors.Count -or -not $result.package_unchanged -or -not $result.inputs_unchanged -or -not $result.parent_environment_unchanged -or -not $result.source_tree_verified){$result.pck_smoke_passed=$false}
     Write-OwnedCompletion $result (Join-Path $validation 'completion.json')
 }
 if($result.exception -or $result.cleanup_errors.Count){throw "PCK failed: $($result.exception) Cleanup: $($result.cleanup_errors|ConvertTo-Json -Compress)"}
