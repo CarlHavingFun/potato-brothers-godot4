@@ -21,16 +21,24 @@ static func move_toward_velocity(
 	counter_strafe_brake_percent: float
 ) -> Vector2:
 	var safe_delta := maxf(delta, 0.0)
-	var desired_velocity := direction.limit_length(1.0) * maxf(maximum_speed, 0.0)
+	var safe_maximum_speed := maximum_speed if is_finite(maximum_speed) else 0.0
+	safe_maximum_speed = maxf(safe_maximum_speed, 0.0)
+	var desired_velocity := direction.limit_length(1.0) * safe_maximum_speed
 	var brake_multiplier := 1.0 + clampf(
 		counter_strafe_brake_percent,
 		0.0,
 		MAX_COUNTER_STRAFE_BRAKE_PERCENT
 	) / 100.0
+	# Braking was approved at the original 235 px/s reference. Scaling only the
+	# braking acceleration keeps those release/reverse time windows intact when
+	# a character or build has a higher movement cap; it does not increase forward
+	# acceleration. The 1.0 floor preserves safe braking for slowed/zero-speed
+	# states instead of letting a zero cap strand carried velocity.
+	var brake_speed_scale := maxf(safe_maximum_speed / SPEED_REFERENCE, 1.0)
 	if direction.is_zero_approx():
 		return current_velocity.move_toward(
 			Vector2.ZERO,
-			RELEASE_BRAKE_ACCELERATION * brake_multiplier * safe_delta
+			RELEASE_BRAKE_ACCELERATION * brake_multiplier * brake_speed_scale * safe_delta
 		)
 	var acceleration := MOVE_ACCELERATION
 	if current_velocity.dot(direction) < 0.0:
@@ -39,7 +47,7 @@ static func move_toward_velocity(
 		# update. The next update can accelerate toward the newly held direction.
 		return current_velocity.move_toward(
 			Vector2.ZERO,
-			REVERSE_BRAKE_ACCELERATION * brake_multiplier * safe_delta
+			REVERSE_BRAKE_ACCELERATION * brake_multiplier * brake_speed_scale * safe_delta
 		)
 	return current_velocity.move_toward(desired_velocity, acceleration * safe_delta)
 

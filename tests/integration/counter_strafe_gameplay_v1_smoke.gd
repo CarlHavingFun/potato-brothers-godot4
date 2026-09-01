@@ -132,19 +132,16 @@ func test_live_reverse_braking_reaches_zero_before_direction_changes_at_large_st
 	Input.action_press("move_left")
 	player._physics_process(0.05)
 	var braking := player.velocity.x
-	# At the new 300px/s base, 5400px/s² for 50ms removes 270px/s.
-	# A remaining 30px/s must still cause shot instability, not snap to rest.
-	assert_float(braking).is_equal_approx(30.0, 0.001)
+	# Braking scales with maximum speed so the approved stop time remains
+	# unchanged. The large step reaches exactly zero and discards its remaining
+	# time instead of crossing into the opposite direction in the same tick.
+	assert_float(braking).is_equal_approx(0.0, 0.001)
 	var braking_shot := _shoot(fixture)
-	assert_float(float(braking_shot.angle)).is_greater(0.0)
-	player._physics_process(STEP)
-	assert_float(player.velocity.x).is_equal_approx(0.0, 0.001)
-	var stopped_shot := _shoot(fixture)
-	assert_float(float(stopped_shot.angle)).is_equal_approx(0.0, 0.00001)
+	assert_float(float(braking_shot.angle)).is_equal_approx(0.0, 0.00001)
 	player._physics_process(STEP)
 	assert_float(player.velocity.x).is_less(0.0)
-	print("COUNTER_STRAFE_REVERSE high_brake_pct=200 before=%.2f after_50ms=%.2f zero_next_tick_then_negative=%.2f stopped_angle_deg=%.5f" % [
-		before, braking, player.velocity.x, rad_to_deg(float(stopped_shot.angle))
+	print("COUNTER_STRAFE_REVERSE high_brake_pct=200 before=%.2f after_50ms=%.2f next_tick_negative=%.2f stopped_angle_deg=%.5f" % [
+		before, braking, player.velocity.x, rad_to_deg(float(braking_shot.angle))
 	])
 	_release_movement()
 
@@ -175,9 +172,8 @@ func _fixture() -> Dictionary:
 	assert_int(session.start(config, content)).is_equal(OK)
 	var world := CombatWorld.new()
 	viewport.add_child(world)
-	var wave := GogoWaveDefinition.new()
-	wave.content_id = &"test.counter_strafe:wave/isolated"
-	wave.duration_seconds = 120.0
+	var wave := GogoWaveResolver.resolve(session)
+	assert_object(wave).is_not_null()
 	assert_int(world.start_wave(session, wave)).is_equal(OK)
 	world.set_physics_process(false)
 	var player := world.player_actor
