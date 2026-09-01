@@ -141,13 +141,78 @@ func test_task_option_does_not_observe_first_icon_before_restoring_a_later_draft
 	assert_object(app.current_session).is_null()
 
 
+func test_selecting_a_valid_task_unlocks_difficulty_after_character_and_weapon_are_ready() -> void:
+	var fixture := await _fixture(_second_zone_pack())
+	var app := fixture.app as AppKernel
+	var screen := fixture.screen as Control
+	var option := screen.get_node("TaskOptionButton") as OptionButton
+	app.selection_draft["zone_id"] = &""
+	screen.call("_sync_selection")
+	(screen.get_node("RosterStrip/NikoCell") as Button).pressed.emit()
+	await _settle()
+	var weapon_candidates := screen.find_children("WeaponOption*", "Button", true, false).filter(
+		func(button: Button) -> bool: return button.visible and not button.disabled
+	)
+	assert_int(weapon_candidates.size()).is_greater(0)
+	if weapon_candidates.is_empty():
+		return
+	(weapon_candidates.front() as Button).pressed.emit()
+	await _settle()
+	assert_bool((screen.get_node("DifficultyStage") as Control).visible).is_false()
+	var second_index := _item_index(option, SECOND_ZONE_ID)
+	assert_int(second_index).is_greater_equal(0)
+	if second_index < 0:
+		return
+	option.item_selected.emit(second_index)
+	await _settle()
+	assert_str(String(app.selection_draft.get("zone_id", &""))).is_equal(String(SECOND_ZONE_ID))
+	assert_bool((screen.get_node("DifficultyStage") as Control).visible).is_true()
+	assert_bool(screen.find_children("DifficultyOption*", "Button", true, false).any(
+		func(button: Button) -> bool: return button.visible and not button.disabled
+	)).is_true()
+	assert_object(app.current_session).is_null()
+
+
+func test_snapshot_without_zones_never_exposes_a_dead_start_action() -> void:
+	var fixture := await _fixture(null, &"", false)
+	var app := fixture.app as AppKernel
+	var screen := fixture.screen as Control
+	var option := screen.get_node("TaskOptionButton") as OptionButton
+	assert_int(option.item_count).is_equal(0)
+	assert_bool(option.disabled).is_true()
+	assert_int(option.focus_mode).is_equal(Control.FOCUS_NONE)
+	assert_str(option.text).is_equal("任务 · 无可用任务")
+	(screen.get_node("RosterStrip/NikoCell") as Button).pressed.emit()
+	await _settle()
+	var weapon_candidates := screen.find_children("WeaponOption*", "Button", true, false).filter(
+		func(button: Button) -> bool: return button.visible and not button.disabled
+	)
+	assert_int(weapon_candidates.size()).is_greater(0)
+	if weapon_candidates.is_empty():
+		return
+	var first_weapon := weapon_candidates.front() as Button
+	first_weapon.pressed.emit()
+	await _settle()
+	assert_bool((screen.get_node("DifficultyStage") as Control).visible).is_false()
+	assert_bool(screen.find_children("DifficultyOption*", "Button", true, false).all(
+		func(button: Button) -> bool: return button.disabled or not button.visible
+	)).is_true()
+	assert_object(app.current_session).is_null()
+
+
 func _fixture(
 	extra_pack: GogoContentPackDefinition = null,
-	initial_zone_id: StringName = &""
+	initial_zone_id: StringName = &"",
+	include_zones: bool = true
 ) -> Dictionary:
 	var app := auto_free(AppKernel.new()) as AppKernel
 	app.add_to_group(&"gogobro_app")
 	var packs := ValidationContentFactory.create_packs(true)
+	if not include_zones:
+		for pack: GogoContentPackDefinition in packs:
+			for definition_index in range(pack.definitions.size() - 1, -1, -1):
+				if pack.definitions[definition_index].kind == &"zone":
+					pack.definitions.remove_at(definition_index)
 	if extra_pack != null:
 		packs.append(extra_pack)
 	app.content_snapshot = GogoContentRegistry.new().build_snapshot(packs)

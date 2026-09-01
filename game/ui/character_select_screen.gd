@@ -104,6 +104,10 @@ func _select_zone(content_id: StringName) -> void:
 		return
 	app.selection_draft["zone_id"] = definition.content_id
 	_zones.apply_selection(definition.content_id)
+	_difficulty_stage_open = not _character_picker_open and _configuration_is_valid()
+	_sync_selection()
+	if _difficulty_stage_open and not _difficulties.buttons.is_empty():
+		_difficulties.buttons[0].call_deferred(&"grab_focus")
 
 
 func _build_niko_detail(niko: CharacterDefinition) -> void:
@@ -288,9 +292,12 @@ func _select_weapon(content_id: StringName) -> void:
 			var weapon := app.content_snapshot.definition(content_id, &"weapon") as GogoWeaponDefinition
 			if weapon != null and character.allows_weapon(weapon):
 				app.selection_draft["weapon_id"] = content_id
-				_difficulty_stage_open = true
+				# A weapon alone is not a launchable configuration. Keep the final
+				# action hidden when a content snapshot has no real task/zone instead
+				# of presenting a Start button that can only reject the click.
+				_difficulty_stage_open = _configuration_is_valid()
 				_sync_selection()
-				if not _difficulties.buttons.is_empty():
+				if _difficulty_stage_open and not _difficulties.buttons.is_empty():
 					_difficulties.buttons[0].call_deferred(&"grab_focus")
 			return
 
@@ -341,7 +348,12 @@ func _sync_selection() -> void:
 	change.focus_mode = Control.FOCUS_ALL if change.visible else Control.FOCUS_NONE
 	var weapon_stage_ready := character != null and not _character_picker_open
 	weapon_stage.visible = weapon_stage_ready
-	difficulty_stage.visible = weapon_stage_ready and weapon != null and _difficulty_stage_open
+	difficulty_stage.visible = (
+		weapon_stage_ready
+		and weapon != null
+		and _difficulty_stage_open
+		and _configuration_is_valid()
+	)
 	for button in _weapons.buttons:
 		var option := button.get_meta(&"definition") as GogoWeaponDefinition
 		button.visible = weapon_stage_ready and option != null and character.allows_weapon(option)

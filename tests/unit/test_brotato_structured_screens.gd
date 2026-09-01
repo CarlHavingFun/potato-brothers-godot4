@@ -700,11 +700,11 @@ func test_character_setup_has_exactly_one_real_niko_cell_and_first_frame_detail(
 		^"RosterStrip/NikoCell/Name",
 		^"RosterStrip/NikoCell/SlotIndex",
 		^"RosterStrip/NikoCell/RoleTag",
-		^"RosterStrip/UnavailableCharacterSlot01",
-		^"RosterStrip/UnavailableCharacterSlot01/SlotIndex",
-		^"RosterStrip/UnavailableCharacterSlot01/Glyph",
-		^"RosterStrip/UnavailableCharacterSlot01/Status",
-		^"RosterStrip/UnavailableCharacterSlot23",
+		^"RosterStrip/UnavailableCharacterSlot02",
+		^"RosterStrip/UnavailableCharacterSlot02/SlotIndex",
+		^"RosterStrip/UnavailableCharacterSlot02/Glyph",
+		^"RosterStrip/UnavailableCharacterSlot02/Status",
+		^"RosterStrip/UnavailableCharacterSlot24",
 		^"ChangeCharacterButton",
 	]
 	for path in required_paths:
@@ -763,7 +763,7 @@ func test_character_setup_has_exactly_one_real_niko_cell_and_first_frame_detail(
 		or traits_text.contains("balanced")
 		or traits_text.contains("均衡型")
 	).is_false()
-	assert_int(screen.find_children("*", "PanelContainer", true, false).size()).is_equal(0)
+	assert_int(_authored_panel_container_count(screen)).is_equal(0)
 	assert_bool(
 		(screen.get_node("RosterStrip") as Control).get_rect().is_equal_approx(
 			Rect2(348, 140, 900, 488)
@@ -975,7 +975,7 @@ func test_weapon_setup_uses_all_twelve_canonical_cs_options_and_complete_selecte
 	actual_names.sort()
 	expected_names.sort()
 	assert_array(actual_names).is_equal(expected_names)
-	assert_int(screen.find_children("*", "PanelContainer", true, false).size()).is_equal(0)
+	assert_int(_authored_panel_container_count(screen)).is_equal(0)
 	assert_bool(_fits_native_capture(strip)).is_true()
 
 
@@ -1036,7 +1036,7 @@ func test_difficulty_setup_uses_only_real_standard_badge_and_canonical_multiplie
 	assert_float(definition.enemy_damage_multiplier).is_equal(1.0)
 	assert_float(definition.enemy_speed_multiplier).is_equal(1.0)
 	assert_float(definition.spawn_multiplier).is_equal(1.0)
-	assert_int(screen.find_children("*", "PanelContainer", true, false).size()).is_equal(0)
+	assert_int(_authored_panel_container_count(screen)).is_equal(0)
 	assert_bool(_fits_native_capture(strip)).is_true()
 
 
@@ -1987,6 +1987,21 @@ func _fits_native_capture(control: Control) -> bool:
 		return false
 	var rect := control.get_global_rect()
 	return NATIVE_CAPTURE_RECT.encloses(rect)
+
+
+func _authored_panel_container_count(root: Node) -> int:
+	var authored_count := 0
+	for node: Node in root.find_children("*", "PanelContainer", true, false):
+		var ancestor := node.get_parent()
+		var belongs_to_popup_menu := false
+		while ancestor != null and ancestor != root:
+			if ancestor is PopupMenu:
+				belongs_to_popup_menu = true
+				break
+			ancestor = ancestor.get_parent()
+		if not belongs_to_popup_menu:
+			authored_count += 1
+	return authored_count
 
 
 func _assert_authored_button_states(button: Button) -> void:

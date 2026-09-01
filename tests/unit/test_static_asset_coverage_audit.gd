@@ -31,7 +31,7 @@ func test_actual_consumers_cover_every_canonical_unit() -> void:
 	assert_int(report.source_unit_counts.development_preview).is_equal(63)
 	var expected_routes := {
 		&"zone_thumbnail": [
-			"res://game/ui/difficulty_select_screen.gd",
+			"res://game/ui/character_select_screen.gd",
 			"TaskOptionButton",
 		],
 	}
@@ -124,7 +124,7 @@ func test_visible_option_icon_observer_requires_exact_live_texture_and_provenanc
 	add_child(app)
 	app.begin_selection()
 	var screen := auto_free(load(
-		"res://game/ui/difficulty_select_screen.gd"
+		"res://game/ui/character_select_screen.gd"
 	).new()) as GogoScreenBase
 	screen.static_asset_snapshot_override = snapshot
 	add_child(screen)
@@ -134,14 +134,14 @@ func test_visible_option_icon_observer_requires_exact_live_texture_and_provenanc
 	task_option.visible = false
 	assert_bool(registry_script.call(
 		"observe_visible_option_icon", handle, task_option,
-		"res://game/ui/difficulty_select_screen.gd",
+		"res://game/ui/character_select_screen.gd",
 		"TaskOptionButton"
 	)).is_false()
 	task_option.visible = true
 	task_option.set_item_icon(0, _texture(Vector2i(512, 288)))
 	assert_bool(registry_script.call(
 		"observe_visible_option_icon", handle, task_option,
-		"res://game/ui/difficulty_select_screen.gd",
+		"res://game/ui/character_select_screen.gd",
 		"TaskOptionButton"
 	)).is_false()
 	task_option.set_item_icon(0, handle.texture)
@@ -157,20 +157,20 @@ func test_visible_option_icon_observer_requires_exact_live_texture_and_provenanc
 	)).is_false()
 	assert_bool(registry_script.call(
 		"observe_visible_option_icon", handle, task_option,
-		"res://game/ui/difficulty_select_screen.gd",
+		"res://game/ui/character_select_screen.gd",
 		"FakeTaskOptionButton"
 	)).is_false()
 	assert_array(GogoStaticConsumerRegistry.current().records()).is_empty()
 	assert_bool(registry_script.call(
 		"observe_visible_option_icon", handle, task_option,
-		"res://game/ui/difficulty_select_screen.gd",
+		"res://game/ui/character_select_screen.gd",
 		"TaskOptionButton",
 		Vector2i(2, 1)
 	)).is_false()
 	assert_array(GogoStaticConsumerRegistry.current().records()).is_empty()
 	assert_bool(registry_script.call(
 		"observe_visible_option_icon", handle, task_option,
-		"res://game/ui/difficulty_select_screen.gd",
+		"res://game/ui/character_select_screen.gd",
 		"TaskOptionButton"
 	)).is_true()
 	var record := GogoStaticConsumerRegistry.current().records()[0]
@@ -275,11 +275,11 @@ func _exercise_real_consumers(
 	var main_menu := auto_free(load("res://game/ui/main_menu_screen.gd").new()) as GogoScreenBase
 	main_menu.static_asset_snapshot_override = snapshot
 	add_child(main_menu)
-	var difficulty := auto_free(load(
-		"res://game/ui/difficulty_select_screen.gd"
+	var staged_selection := auto_free(load(
+		"res://game/ui/character_select_screen.gd"
 	).new()) as GogoScreenBase
-	difficulty.static_asset_snapshot_override = snapshot
-	add_child(difficulty)
+	staged_selection.static_asset_snapshot_override = snapshot
+	add_child(staged_selection)
 	var diagnostic := auto_free(load("res://game/ui/diagnostic_screen.gd").new()) as GogoScreenBase
 	diagnostic.static_asset_snapshot_override = snapshot
 	diagnostic.call("receive_route_payload", {"message": "审计", "details": ["真实诊断路由"]})
