@@ -1,6 +1,7 @@
 extends GogoScreenBase
 
 const NIKO_ID := NikoContentFactory.CHARACTER_ID
+const ZONE_PRESENTER := preload("res://game/ui/selection_zone_presenter.gd")
 const WEAPON_PRESENTER := preload("res://game/ui/selection_weapon_presenter.gd")
 const DIFFICULTY_PRESENTER := preload("res://game/ui/selection_difficulty_presenter.gd")
 const ROSTER_CAPTION_RECT := Rect2(348, 104, 900, 28)
@@ -8,16 +9,20 @@ const ROSTER_RECT := Rect2(348, 140, 900, 488)
 const ROSTER_CELL_SIZE := Vector2(143, 116)
 const CHANGE_CHARACTER_RECT := Rect2(32, 648, 300, 56)
 const DETAIL_RECT := Rect2(32, 104, 300, 510)
+const TASK_BUTTON_RECT := Rect2(1010, 24, 238, 56)
+var _zones := ZONE_PRESENTER.new()
 var _weapons := WEAPON_PRESENTER.new()
 var _difficulties := DIFFICULTY_PRESENTER.new()
 var _starting := false
 var _character_picker_open := true
 var _difficulty_stage_open := false
+var _zone_picker_open := false
+var _zone_return_focus: Control
 
 
 func _ready() -> void:
 	use_menu_background_v2 = true
-	build_screen_chrome("出战配置", "依次选择人物、武器与难度")
+	build_screen_chrome("出战配置", "依次选择任务、人物、武器与难度")
 	selection_title()
 	var app := AppContext.kernel(self)
 	if app == null or app.content_snapshot == null:
@@ -30,9 +35,14 @@ func _ready() -> void:
 		})
 		return
 	_build_progressive_back()
+	_build_task_button(app)
 	_build_niko_detail(niko)
 	_build_roster(niko)
 	_character_picker_open = _selected_character(app) == null
+	var zone_stage := Control.new()
+	zone_stage.name = "ZoneStage"
+	zone_stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(zone_stage)
 	var weapon_stage := Control.new()
 	weapon_stage.name = "WeaponStage"
 	weapon_stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -41,6 +51,7 @@ func _ready() -> void:
 	difficulty_stage.name = "DifficultyStage"
 	difficulty_stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(difficulty_stage)
+	_zones.build(self, app, zone_stage, _select_zone)
 	_weapons.build(self, app, _select_weapon, weapon_stage)
 	_difficulties.build(self, app, difficulty_stage, _select_difficulty_and_start)
 	_difficulty_stage_open = not _character_picker_open and _configuration_is_valid()
@@ -59,6 +70,18 @@ func _build_progressive_back() -> void:
 	button.z_index = 10
 
 
+func _build_task_button(app: AppKernel) -> void:
+	var button := ui_button(
+		self,
+		"TaskButton",
+		"任务",
+		TASK_BUTTON_RECT,
+		_open_zone_picker
+	)
+	button.z_index = 10
+	_sync_task_button(app)
+
+
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"ui_cancel"):
 		get_viewport().set_input_as_handled()
@@ -67,6 +90,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 func _go_back_one_stage() -> void:
 	if _starting:
+		return
+	if _zone_picker_open:
+		_close_zone_picker()
 		return
 	if _character_picker_open:
 		var app := AppContext.kernel(self)
@@ -81,13 +107,59 @@ func _go_back_one_stage() -> void:
 	_open_character_picker()
 
 
+func _open_zone_picker() -> void:
+	if _starting or _zone_picker_open:
+		return
+	var app := AppContext.kernel(self)
+	if app == null or app.content_snapshot == null:
+		return
+	var focused := get_viewport().gui_get_focus_owner() as Control
+	_zone_return_focus = focused if focused != null and is_ancestor_of(focused) else null
+	_zone_picker_open = true
+	_sync_selection()
+	var selected := _zones.selected_button(app.selection_draft.get("zone_id", &""))
+	if selected != null:
+		selected.call_deferred(&"grab_focus")
+
+
+func _close_zone_picker() -> void:
+	if not _zone_picker_open:
+		return
+	_zone_picker_open = false
+	_sync_selection()
+	if (
+		is_instance_valid(_zone_return_focus)
+		and _zone_return_focus.visible
+		and not _zone_return_focus.is_queued_for_deletion()
+	):
+		_zone_return_focus.call_deferred(&"grab_focus")
+	else:
+		_focus_initial_control()
+	_zone_return_focus = null
+
+
+func _select_zone(content_id: StringName) -> void:
+	if not _zone_picker_open:
+		return
+	var app := AppContext.kernel(self)
+	if app == null or app.content_snapshot == null:
+		return
+	var definition := app.content_snapshot.definition(content_id, &"zone") as GogoZoneDefinition
+	if definition == null:
+		return
+	app.selection_draft["zone_id"] = definition.content_id
+	_zones.apply_selection(definition.content_id)
+	_sync_task_button(app)
+	_close_zone_picker()
+
+
 func _build_niko_detail(niko: CharacterDefinition) -> void:
 	var detail := ui_panel(self, "NikoDetail", DETAIL_RECT)
 	var name_label := _detail_label(detail, "Name", Vector2(20, 8), Vector2(260, 36), 28)
 	name_label.text = niko.display_name
 	name_label.add_theme_color_override(&"font_color", Color("fff0bf"))
 	var role := _detail_label(detail, "Role", Vector2(20, 44), Vector2(260, 26), 18)
-	role.text = "唯一可用角色 · 均衡型"
+	role.text = "已解锁 · 均衡型"
 	role.add_theme_color_override(&"font_color", Color("f2a14a"))
 	var preview := TextureRect.new()
 	preview.name = "Preview"
@@ -113,7 +185,7 @@ func _build_roster(niko: CharacterDefinition) -> void:
 		ROSTER_CAPTION_RECT.position,
 		ROSTER_CAPTION_RECT.size,
 		20
-	).text = "选择角色 · 1 个可用"
+	).text = "角色档案 · 已解锁 1 / 24"
 	var roster := GridContainer.new()
 	roster.name = "RosterStrip"
 	roster.position = ROSTER_RECT.position
@@ -141,10 +213,19 @@ func _build_roster(niko: CharacterDefinition) -> void:
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cell.add_child(portrait)
 	icon_fallback(cell, "Fallback", portrait.position, portrait.size, niko.display_name).visible = portrait.texture == null
-	var cell_name := _detail_label(cell, "Name", Vector2(76, 18), Vector2(58, 80), 18)
+	var slot_index := _detail_label(cell, "SlotIndex", Vector2(9, 4), Vector2(34, 18), 14)
+	slot_index.text = "01"
+	var availability := _detail_label(cell, "Availability", Vector2(99, 5), Vector2(36, 18), 12)
+	availability.text = "可用"
+	availability.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var cell_name := _detail_label(cell, "Name", Vector2(76, 29), Vector2(58, 30), 18)
 	cell_name.text = niko.display_name
 	cell_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cell_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	var role_tag := _detail_label(cell, "RoleTag", Vector2(76, 65), Vector2(58, 22), 14)
+	role_tag.text = "均衡"
+	role_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	role_tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	cell.focus_entered.connect(_sync_character_label)
 	cell.focus_exited.connect(_sync_character_label)
 	cell.mouse_entered.connect(_sync_character_label)
@@ -152,20 +233,43 @@ func _build_roster(niko: CharacterDefinition) -> void:
 	for index in range(1, 24):
 		var placeholder := Button.new()
 		placeholder.name = "UnavailableCharacterSlot%02d" % index
-		placeholder.text = "未开放"
-		placeholder.tooltip_text = "未开放"
+		placeholder.text = ""
+		placeholder.tooltip_text = "角色槽位 %02d · 尚未开放" % (index + 1)
 		placeholder.custom_minimum_size = ROSTER_CELL_SIZE
 		placeholder.size = ROSTER_CELL_SIZE
 		placeholder.disabled = true
 		placeholder.focus_mode = Control.FOCUS_NONE
 		placeholder.mouse_default_cursor_shape = Control.CURSOR_FORBIDDEN
-		placeholder.alignment = HORIZONTAL_ALIGNMENT_CENTER
-		placeholder.clip_text = true
-		placeholder.add_theme_font_size_override(&"font_size", 18)
-		placeholder.add_theme_color_override(&"font_disabled_color", HUD_SKIN.COLOR_TEXT_MUTED)
-		HUD_SKIN.apply_card(placeholder, false)
-		placeholder.add_theme_color_override(&"font_disabled_color", HUD_SKIN.COLOR_TEXT_MUTED)
+		placeholder.set_meta(&"roster_slot", index + 1)
+		_apply_placeholder_fill(placeholder, index)
 		roster.add_child(placeholder)
+		var placeholder_index := _detail_label(
+			placeholder, "SlotIndex", Vector2(9, 6), Vector2(38, 18), 14
+		)
+		placeholder_index.text = "%02d" % (index + 1)
+		placeholder_index.add_theme_color_override(&"font_color", Color("89949c"))
+		var lock := _detail_label(placeholder, "Lock", Vector2(93, 7), Vector2(42, 16), 11)
+		lock.text = "LOCK"
+		lock.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		lock.add_theme_color_override(&"font_color", Color("a78355"))
+		var glyph := _detail_label(placeholder, "Glyph", Vector2(0, 20), Vector2(143, 54), 38)
+		glyph.text = "?"
+		glyph.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		glyph.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		glyph.add_theme_color_override(&"font_color", Color("66737c"))
+		glyph.add_theme_constant_override(&"outline_size", 0)
+		var divider := ColorRect.new()
+		divider.name = "Divider"
+		divider.position = Vector2(12, 77)
+		divider.size = Vector2(119, 1)
+		divider.color = Color(0.42, 0.48, 0.52, 0.42)
+		divider.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		placeholder.add_child(divider)
+		var status := _detail_label(placeholder, "Status", Vector2(0, 82), Vector2(143, 24), 15)
+		status.text = "未开放"
+		status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		status.add_theme_color_override(&"font_color", HUD_SKIN.COLOR_TEXT_MUTED)
 	ui_button(
 		self,
 		"ChangeCharacterButton",
@@ -197,6 +301,7 @@ func _select_character(content_id: StringName) -> void:
 	var app := AppContext.kernel(self)
 	if (
 		not _character_picker_open
+		or _zone_picker_open
 		or app == null
 		or app.content_snapshot == null
 		or content_id != NIKO_ID
@@ -215,7 +320,7 @@ func _select_character(content_id: StringName) -> void:
 
 
 func _select_weapon(content_id: StringName) -> void:
-	if _character_picker_open:
+	if _character_picker_open or _zone_picker_open:
 		return
 	var app := AppContext.kernel(self)
 	if app == null or app.content_snapshot == null:
@@ -243,13 +348,43 @@ func _configuration_is_valid() -> bool:
 		return false
 	var character := _selected_character(app)
 	var weapon := app.content_snapshot.definition(app.selection_draft.get("weapon_id", &""), &"weapon") as GogoWeaponDefinition
-	return character != null and weapon != null and character.allows_weapon(weapon)
+	var zone := app.content_snapshot.definition(app.selection_draft.get("zone_id", &""), &"zone") as GogoZoneDefinition
+	return character != null and weapon != null and zone != null and character.allows_weapon(weapon)
 
 
 func _sync_selection() -> void:
 	var app := AppContext.kernel(self)
 	if app == null or app.content_snapshot == null:
 		return
+	var zone_stage := get_node("ZoneStage") as Control
+	var task_button := get_node("TaskButton") as Button
+	var niko_detail := get_node("NikoDetail") as Control
+	var weapon_stage := get_node("WeaponStage") as Control
+	var difficulty_stage := get_node("DifficultyStage") as Control
+	var change := get_node("ChangeCharacterButton") as Button
+	var selected_zone_id := app.selection_draft.get("zone_id", &"") as StringName
+	_zones.apply_selection(selected_zone_id)
+	_sync_task_button(app)
+	zone_stage.visible = _zone_picker_open
+	_zones.set_enabled(_zone_picker_open)
+	task_button.disabled = _zone_picker_open
+	task_button.focus_mode = Control.FOCUS_NONE if _zone_picker_open else Control.FOCUS_ALL
+	if _zone_picker_open:
+		niko_detail.visible = false
+		_set_character_picker_visible(false)
+		change.visible = false
+		change.disabled = true
+		change.focus_mode = Control.FOCUS_NONE
+		weapon_stage.visible = false
+		difficulty_stage.visible = false
+		for button in _weapons.buttons:
+			button.visible = false
+			button.disabled = true
+			button.focus_mode = Control.FOCUS_NONE
+		_difficulties.set_enabled(false)
+		_rebuild_focus()
+		return
+	niko_detail.visible = true
 	var cell := get_node("RosterStrip/NikoCell") as Button
 	var character := _selected_character(app)
 	if character == null:
@@ -268,9 +403,6 @@ func _sync_selection() -> void:
 		app.selection_draft["weapon_id"] = &""
 		weapon = null
 		_difficulty_stage_open = false
-	var weapon_stage := get_node("WeaponStage") as Control
-	var difficulty_stage := get_node("DifficultyStage") as Control
-	var change := get_node("ChangeCharacterButton") as Button
 	_set_character_picker_visible(_character_picker_open)
 	change.visible = character != null and not _character_picker_open
 	change.disabled = not change.visible
@@ -304,21 +436,25 @@ func _set_character_picker_visible(visible_value: bool) -> void:
 func _sync_character_label() -> void:
 	var cell := get_node("RosterStrip/NikoCell") as Button
 	var highlighted := bool(cell.get_meta(&"selected", false)) or cell.has_focus() or cell.is_hovered()
-	var label := cell.get_node("Name") as Label
-	label.add_theme_color_override(&"font_color", HUD_SKIN.COLOR_TEXT_FOCUS if highlighted else HUD_SKIN.COLOR_TEXT)
-	label.add_theme_constant_override(&"outline_size", 0 if highlighted else 1)
+	for node_name in [&"Name", &"SlotIndex", &"Availability", &"RoleTag"]:
+		var label := cell.get_node(NodePath(node_name)) as Label
+		label.add_theme_color_override(&"font_color", HUD_SKIN.COLOR_TEXT_FOCUS if highlighted else HUD_SKIN.COLOR_TEXT)
+		label.add_theme_constant_override(&"outline_size", 0 if highlighted else 1)
 
 
 func _rebuild_focus() -> void:
 	var roster := get_node("RosterStrip") as GridContainer
 	var niko := get_node("RosterStrip/NikoCell") as Button
 	var change := get_node("ChangeCharacterButton") as Button
-	var reset: Array[Control] = [change]
+	var task := get_node("TaskButton") as Button
+	var reset: Array[Control] = [change, task]
 	for child in roster.get_children():
 		if child is Control:
 			reset.append(child as Control)
 	reset.append_array(_weapons.buttons)
 	reset.append_array(_difficulties.buttons)
+	reset.append_array(_zones.buttons)
+	reset.append_array(_zones.placeholders)
 	for control in reset:
 		control.focus_neighbor_left = NodePath()
 		control.focus_neighbor_right = NodePath()
@@ -327,6 +463,13 @@ func _rebuild_focus() -> void:
 		control.focus_next = NodePath()
 		control.focus_previous = NodePath()
 	var controls: Array[Control] = [get_node("BackButton") as Control]
+	if _zone_picker_open:
+		for zone_button in _zones.buttons:
+			if zone_button.visible and not zone_button.disabled:
+				controls.append(zone_button)
+		link_focus_cycle(controls)
+		return
+	controls.append(task)
 	if _character_picker_open:
 		controls.append(niko)
 	else:
@@ -397,6 +540,7 @@ func _select_difficulty_and_start(content_id: StringName) -> void:
 	if (
 		_starting
 		or _character_picker_open
+		or _zone_picker_open
 		or not (get_node("DifficultyStage") as Control).visible
 		or not _configuration_is_valid()
 	):
@@ -414,6 +558,25 @@ func _select_difficulty_and_start(content_id: StringName) -> void:
 		app.route(FlowRoute.DIAGNOSTIC, {"message": "无法创建游戏会话", "details": [error_string(error)]})
 		return
 	app.route(FlowRoute.COMBAT)
+
+
+func _sync_task_button(app: AppKernel) -> void:
+	var button := get_node_or_null("TaskButton") as Button
+	if button == null or app == null or app.content_snapshot == null:
+		return
+	var zone := app.content_snapshot.definition(
+		app.selection_draft.get("zone_id", &""),
+		&"zone"
+	) as GogoZoneDefinition
+	if zone == null:
+		button.text = "任务 · 未选择"
+		button.tooltip_text = "打开任务选择"
+		return
+	button.text = "任务 · %s" % zone.display_name
+	button.tooltip_text = "%s · %d 波 · 从第 1 波开始" % [
+		zone.display_name,
+		zone.wave_ids.size(),
+	]
 
 
 func _first_frame(niko: CharacterDefinition) -> Texture2D:
@@ -493,6 +656,16 @@ func _apply_selected_fill(button: Button) -> void:
 		&"font_pressed_color",
 	]:
 		button.add_theme_color_override(color_name, GogoHudSkin.COLOR_TEXT_FOCUS)
+
+
+func _apply_placeholder_fill(button: Button, index: int) -> void:
+	var background := Color("141b20") if index % 2 == 0 else Color("182127")
+	var style := _selection_style(background, Color("4e5c66"), 1)
+	button.add_theme_stylebox_override(&"normal", style)
+	button.add_theme_stylebox_override(&"hover", style)
+	button.add_theme_stylebox_override(&"focus", style)
+	button.add_theme_stylebox_override(&"pressed", style)
+	button.add_theme_stylebox_override(&"disabled", style)
 
 
 func _apply_selected_label_style(label: Label) -> void:

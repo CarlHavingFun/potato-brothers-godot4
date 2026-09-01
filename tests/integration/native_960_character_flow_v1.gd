@@ -324,7 +324,11 @@ func _unavailable_character_count(roster: GridContainer) -> int:
 		if (
 			slot == null
 			or not String(slot.name).begins_with("UnavailableCharacterSlot")
-			or slot.text != "未开放"
+			or not slot.text.is_empty()
+			or not slot.has_node("SlotIndex")
+			or not slot.has_node("Glyph")
+			or not slot.has_node("Status")
+			or (slot.get_node("Status") as Label).text != "未开放"
 			or not slot.disabled
 			or slot.focus_mode != Control.FOCUS_NONE
 			or slot.has_meta(&"content_id")

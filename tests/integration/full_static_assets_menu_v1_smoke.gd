@@ -186,7 +186,11 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 				unavailable_contract
 				and cell != null
 				and String(cell.name).begins_with("UnavailableCharacterSlot")
-				and cell.text == "未开放"
+				and cell.text.is_empty()
+				and cell.has_node("SlotIndex")
+				and cell.has_node("Glyph")
+				and cell.has_node("Status")
+				and (cell.get_node("Status") as Label).text == "未开放"
 				and cell.disabled
 				and cell.focus_mode == Control.FOCUS_NONE
 				and not cell.has_meta(&"content_id")

@@ -32,6 +32,15 @@ const PROP_MINIMUM_SEPARATION := 128.0
 const FLOOR_MODULATE := Color.WHITE
 const BOUNDARY_MODULATE := Color(1.0, 1.0, 1.0, 0.0)
 const PERMANENT_PROP_MODULATE := Color(0.90, 0.92, 0.88, 0.76)
+# The opening camera is centered on the 2048x1536 arena and shows 1280x720.
+# Keep the first six purely visual props inside that view, outside the player
+# clear radius and away from the left/top HUD. Later sockets remain seed-shuffled.
+const OPENING_PROP_ANCHOR_FACTORS: Array[Vector2] = [
+	Vector2(0.31, 0.52), Vector2(0.69, 0.52),
+	Vector2(0.70, 0.32),
+	Vector2(0.31, 0.70), Vector2(0.69, 0.70),
+	Vector2(0.50, 0.68),
+]
 const PROP_ANCHOR_FACTORS: Array[Vector2] = [
 	Vector2(0.08, 0.13), Vector2(0.22, 0.09), Vector2(0.38, 0.14),
 	Vector2(0.55, 0.08), Vector2(0.72, 0.15), Vector2(0.88, 0.10),
@@ -326,12 +335,14 @@ func _prop_sockets(run_seed: int) -> Array[Vector2]:
 	var center := _arena_rect.get_center()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = run_seed
-	var factors: Array[Vector2] = PROP_ANCHOR_FACTORS.duplicate()
-	for index in range(factors.size() - 1, 0, -1):
+	var shuffled_factors: Array[Vector2] = PROP_ANCHOR_FACTORS.duplicate()
+	for index in range(shuffled_factors.size() - 1, 0, -1):
 		var swap_index := rng.randi_range(0, index)
-		var held: Vector2 = factors[index]
-		factors[index] = factors[swap_index]
-		factors[swap_index] = held
+		var held: Vector2 = shuffled_factors[index]
+		shuffled_factors[index] = shuffled_factors[swap_index]
+		shuffled_factors[swap_index] = held
+	var factors: Array[Vector2] = OPENING_PROP_ANCHOR_FACTORS.duplicate()
+	factors.append_array(shuffled_factors)
 	for factor in factors:
 		var socket := _arena_rect.position + Vector2(
 			factor.x * _arena_rect.size.x,

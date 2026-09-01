@@ -75,7 +75,9 @@ func test_capture_real_main_character_shop_and_combat_pause_at_1280() -> void:
 			continue
 		unavailable_count += 1
 		assert_str(String(cell.name)).starts_with("UnavailableCharacterSlot")
-		assert_str(cell.text).is_equal("未开放")
+		assert_str(cell.text).is_empty()
+		assert_str((cell.get_node("Status") as Label).text).is_equal("未开放")
+		assert_str((cell.get_node("Glyph") as Label).text).is_equal("?")
 		assert_bool(cell.disabled).is_true()
 		assert_int(cell.focus_mode).is_equal(Control.FOCUS_NONE)
 		assert_bool(cell.has_meta(&"content_id")).is_false()
