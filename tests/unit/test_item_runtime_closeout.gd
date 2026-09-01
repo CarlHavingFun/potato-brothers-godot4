@@ -27,13 +27,19 @@ func test_fractional_regen_is_effective_without_changing_integer_cadence() -> vo
 			)
 		assert_int(apply_error).is_equal(OK)
 		assert_float(float(player.final_stats.get(&"health_regen", 0.0))).is_equal_approx(0.6, 0.0001)
+		assert_array(player.item_ids).is_equal(
+			[TRAINING_6_ID] if source_kind == &"item" else []
+		)
+		assert_array(player.upgrade_ids).is_equal(
+			[TRAINING_6_UPGRADE_ID] if source_kind == &"upgrade" else []
+		)
 
 		var actor: GogoPlayerActor = auto_free(GogoPlayerActor.new())
 		actor.player_state = player
 		player.current_health = player.max_health - 2.0
-		actor.tick_health_regeneration(8.32)
+		assert_float(actor.tick_health_regeneration(8.32)).is_equal_approx(0.0, 0.0001)
 		assert_float(player.current_health).is_equal_approx(player.max_health - 2.0, 0.0001)
-		actor.tick_health_regeneration(0.02)
+		assert_float(actor.tick_health_regeneration(0.02)).is_equal_approx(1.0, 0.0001)
 		assert_float(player.current_health).is_equal_approx(player.max_health - 1.0, 0.0001)
 
 
@@ -70,6 +76,11 @@ func test_force_buy_runners_remains_offerable_and_reaches_live_consumers() -> vo
 	assert_int(PlayerBuildService.new().apply_item(session, player, FORCE_BUY_RUNNERS_ID)).is_equal(OK)
 	assert_float(float(player.final_stats.get(&"movement_speed", 0.0))).is_equal_approx(318.0, 0.0001)
 	assert_float(float(player.final_stats.get(&"armor", 0.0))).is_equal_approx(-1.0, 0.0001)
+	var actor: GogoPlayerActor = auto_free(GogoPlayerActor.new())
+	actor.player_state = player
+	actor.session = session
+	actor.take_damage(16.0)
+	assert_float(player.current_health).is_equal_approx(3.0, 0.0001)
 
 
 func test_post_match_desk_is_excluded_from_generated_item_pool() -> void:
@@ -104,11 +115,13 @@ func test_post_match_desk_cache_is_normalized_but_old_ownership_survives() -> vo
 	state.locked_shop_offer_ids = [POST_MATCH_DESK_ID]
 	state.shop_offer_wave = state.current_wave
 	state.shop_offer_initialized = true
+	state.shop_offer_initialization_id = 7
 
 	var restored := GogoRunState.from_dictionary(state.to_dictionary(), content)
 	assert_object(restored).is_not_null()
 	assert_int(restored.players[0].item_ids.count(POST_MATCH_DESK_ID)).is_equal(1)
 	session.run_state = restored
+	var rng_before := session.rng.state
 
 	var offers := ShopRuntimeService.new().open_shop(session)
 	assert_array(offers).has_size(4)
@@ -116,6 +129,8 @@ func test_post_match_desk_cache_is_normalized_but_old_ownership_survives() -> vo
 	assert_str(String(session.run_state.shop_offer_ids[0])).is_empty()
 	assert_bool(session.run_state.locked_shop_offer_ids.has(POST_MATCH_DESK_ID)).is_false()
 	assert_int(session.run_state.players[0].item_ids.count(POST_MATCH_DESK_ID)).is_equal(1)
+	assert_int(session.run_state.shop_offer_initialization_id).is_equal(7)
+	assert_int(session.rng.state).is_equal(rng_before)
 
 
 func test_post_match_desk_direct_buy_is_transactionally_rejected() -> void:
@@ -136,6 +151,23 @@ func test_post_match_desk_direct_buy_is_transactionally_rejected() -> void:
 	assert_str(shop.last_failure_reason).is_equal("unavailable_content")
 	assert_dict(session.run_state.to_dictionary()).is_equal(state_before)
 	assert_int(session.rng.state).is_equal(rng_before)
+
+
+func test_balance_standard_matches_runtime_movement_and_fractional_regen() -> void:
+	var path := "res://game/content/balance/item_value_standard_v1.json"
+	var standard_variant: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	assert_bool(standard_variant is Dictionary).is_true()
+	if not standard_variant is Dictionary:
+		return
+	var standard := standard_variant as Dictionary
+	var character := standard.runtime_reference.character as Dictionary
+	var stat_rules := standard.item_formula.stat_rules as Dictionary
+	var movement_rule := stat_rules.movement_speed as Dictionary
+	var regen_rule := stat_rules.health_regen as Dictionary
+	assert_float(float(character.movement_speed)).is_equal_approx(300.0, 0.0001)
+	assert_float(float(movement_rule.points_per_unit)).is_equal_approx(0.15, 0.0001)
+	assert_str(String(regen_rule.method)).is_equal("fractional_regen")
+	assert_float(float(regen_rule.minimum_effective_total)).is_equal_approx(0.0, 0.0001)
 
 
 func _snapshot() -> ContentSnapshot:
