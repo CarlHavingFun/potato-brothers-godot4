@@ -77,7 +77,7 @@ func test_pickup_magnetizes_inside_live_range_and_accelerates_smoothly() -> void
 	assert_float(pickup.global_position.x).is_less(first_position.x)
 
 
-func test_fixed_contact_radius_collects_independently_of_pickup_range() -> void:
+func test_visible_body_contact_collects_at_50px_and_exact_boundary_without_magnet_range() -> void:
 	var session := _session_with_player()
 	var player := session.run_state.player()
 	player.final_stats[&"pickup_range"] = 0.0
@@ -86,22 +86,40 @@ func test_fixed_contact_radius_collects_independently_of_pickup_range() -> void:
 	world.session = session
 	world.player_actor = _player_actor(player)
 	world.add_child(world.player_actor)
-	var reservations := world._reserve_enemy_reward_snapshot(16, 1, 1, 1, 0)
-	assert_int(world.spawn_reserved_enemy_pickups(16, Vector2i.ZERO, reservations)).is_equal(2)
-	var touching_pickup := world.active_pickup_at(0)
-	var outside_pickup := world.active_pickup_at(1)
-	touching_pickup.global_position = world.player_actor.global_position + Vector2(18.0, 0.0)
-	outside_pickup.global_position = world.player_actor.global_position + Vector2(18.01, 0.0)
+	assert_bool(world.player_actor.has_method(&"pickup_interaction_radius")).is_true()
+	if not world.player_actor.has_method(&"pickup_interaction_radius"):
+		return
+	var contact_radius := float(world.player_actor.call(&"pickup_interaction_radius"))
+	assert_float(contact_radius).is_equal(60.0)
+	var distances := [50.0, contact_radius, contact_radius + 0.01, 300.0]
+	var pickups: Array[GogoCombatPickup] = []
+	for index in distances.size():
+		var enemy_id := 16 + index
+		var reservations := world._reserve_enemy_reward_snapshot(enemy_id, 1, 1, 1, 0)
+		assert_int(world.spawn_reserved_enemy_pickups(
+			enemy_id, Vector2i.ZERO, reservations
+		)).is_equal(1)
+		var pickup := world.active_pickup_at(index) as GogoCombatPickup
+		pickup.global_position = world.player_actor.global_position + Vector2(distances[index], 0.0)
+		pickups.append(pickup)
 
-	touching_pickup._physics_process(0.0)
-	outside_pickup._physics_process(0.0)
+	for pickup in pickups:
+		pickup._physics_process(0.0)
 
 	var pickup_script := load(PICKUP_PATH) as GDScript
-	assert_int(int(touching_pickup.state)).is_equal(int(pickup_script.get(&"COLLECTED")))
-	assert_int(int(outside_pickup.state)).is_equal(int(pickup_script.get(&"DROPPED")))
-	assert_int(world.active_pickup_count()).is_equal(1)
-	assert_int(player.xp).is_equal(1)
-	assert_int(player.materials).is_equal(35)
+	assert_int(int(pickups[0].state)).is_equal(int(pickup_script.get(&"COLLECTED")))
+	assert_int(int(pickups[1].state)).is_equal(int(pickup_script.get(&"COLLECTED")))
+	assert_int(int(pickups[2].state)).is_equal(int(pickup_script.get(&"DROPPED")))
+	assert_int(int(pickups[3].state)).is_equal(int(pickup_script.get(&"DROPPED")))
+	assert_int(world.active_pickup_count()).is_equal(2)
+	assert_int(player.xp).is_equal(2)
+	assert_int(player.materials).is_equal(SessionPlayerState.INITIAL_MATERIALS + 2)
+
+	player.final_stats[&"pickup_range"] = contact_radius + 1.0
+	pickups[2]._physics_process(0.0)
+	pickups[3]._physics_process(0.0)
+	assert_int(int(pickups[2].state)).is_equal(int(pickup_script.get(&"MAGNETIZING")))
+	assert_int(int(pickups[3].state)).is_equal(int(pickup_script.get(&"DROPPED")))
 
 
 func test_reserved_enemy_rewards_spawn_one_pickup_per_nonzero_kind_without_applying() -> void:
