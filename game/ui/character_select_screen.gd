@@ -7,6 +7,9 @@ const DIFFICULTY_PRESENTER := preload("res://game/ui/selection_difficulty_presen
 const ROSTER_CAPTION_RECT := Rect2(348, 104, 900, 28)
 const ROSTER_RECT := Rect2(348, 140, 900, 488)
 const ROSTER_CELL_SIZE := Vector2(143, 116)
+const ROSTER_CAPACITY := 24
+const ROSTER_COLUMNS := 6
+const PLACEHOLDER_STATUS := "未开放"
 const CHANGE_CHARACTER_RECT := Rect2(32, 648, 300, 56)
 const DETAIL_RECT := Rect2(32, 104, 300, 510)
 const TASK_BUTTON_RECT := Rect2(1010, 24, 238, 56)
@@ -185,12 +188,12 @@ func _build_roster(niko: CharacterDefinition) -> void:
 		ROSTER_CAPTION_RECT.position,
 		ROSTER_CAPTION_RECT.size,
 		20
-	).text = "角色档案 · 已解锁 1 / 24"
+	).text = "角色档案 · 已解锁 1 / %d" % ROSTER_CAPACITY
 	var roster := GridContainer.new()
 	roster.name = "RosterStrip"
 	roster.position = ROSTER_RECT.position
 	roster.size = ROSTER_RECT.size
-	roster.columns = 6
+	roster.columns = ROSTER_COLUMNS
 	roster.add_theme_constant_override(&"h_separation", 8)
 	roster.add_theme_constant_override(&"v_separation", 8)
 	add_child(roster)
@@ -230,33 +233,34 @@ func _build_roster(niko: CharacterDefinition) -> void:
 	cell.focus_exited.connect(_sync_character_label)
 	cell.mouse_entered.connect(_sync_character_label)
 	cell.mouse_exited.connect(_sync_character_label)
-	for index in range(1, 24):
+	for slot_number in range(2, ROSTER_CAPACITY + 1):
 		var placeholder := Button.new()
-		placeholder.name = "UnavailableCharacterSlot%02d" % index
+		placeholder.name = "UnavailableCharacterSlot%02d" % slot_number
 		placeholder.text = ""
-		placeholder.tooltip_text = "角色槽位 %02d · 尚未开放" % (index + 1)
+		placeholder.tooltip_text = "角色槽位 %02d · %s" % [slot_number, PLACEHOLDER_STATUS]
 		placeholder.custom_minimum_size = ROSTER_CELL_SIZE
 		placeholder.size = ROSTER_CELL_SIZE
 		placeholder.disabled = true
 		placeholder.focus_mode = Control.FOCUS_NONE
 		placeholder.mouse_default_cursor_shape = Control.CURSOR_FORBIDDEN
-		placeholder.set_meta(&"roster_slot", index + 1)
-		_apply_placeholder_fill(placeholder, index)
+		placeholder.set_meta(&"roster_slot", slot_number)
+		placeholder.set_meta(&"availability", &"unavailable")
+		_apply_placeholder_fill(placeholder, slot_number)
 		roster.add_child(placeholder)
 		var placeholder_index := _detail_label(
 			placeholder, "SlotIndex", Vector2(9, 6), Vector2(38, 18), 14
 		)
-		placeholder_index.text = "%02d" % (index + 1)
-		placeholder_index.add_theme_color_override(&"font_color", Color("89949c"))
+		placeholder_index.text = "%02d" % slot_number
+		placeholder_index.add_theme_color_override(&"font_color", Color("b4c0c8"))
 		var lock := _detail_label(placeholder, "Lock", Vector2(93, 7), Vector2(42, 16), 11)
 		lock.text = "LOCK"
 		lock.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		lock.add_theme_color_override(&"font_color", Color("a78355"))
+		lock.add_theme_color_override(&"font_color", Color("d5aa72"))
 		var glyph := _detail_label(placeholder, "Glyph", Vector2(0, 20), Vector2(143, 54), 38)
 		glyph.text = "?"
 		glyph.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		glyph.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		glyph.add_theme_color_override(&"font_color", Color("66737c"))
+		glyph.add_theme_color_override(&"font_color", Color("9aa8b2"))
 		glyph.add_theme_constant_override(&"outline_size", 0)
 		var divider := ColorRect.new()
 		divider.name = "Divider"
@@ -266,10 +270,10 @@ func _build_roster(niko: CharacterDefinition) -> void:
 		divider.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		placeholder.add_child(divider)
 		var status := _detail_label(placeholder, "Status", Vector2(0, 82), Vector2(143, 24), 15)
-		status.text = "未开放"
+		status.text = PLACEHOLDER_STATUS
 		status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		status.add_theme_color_override(&"font_color", HUD_SKIN.COLOR_TEXT_MUTED)
+		status.add_theme_color_override(&"font_color", Color("c2cbd1"))
 	ui_button(
 		self,
 		"ChangeCharacterButton",
@@ -659,8 +663,8 @@ func _apply_selected_fill(button: Button) -> void:
 
 
 func _apply_placeholder_fill(button: Button, index: int) -> void:
-	var background := Color("141b20") if index % 2 == 0 else Color("182127")
-	var style := _selection_style(background, Color("4e5c66"), 1)
+	var background := Color("1b252c") if index % 2 == 0 else Color("202c34")
+	var style := _selection_style(background, Color("71818c"), 2)
 	button.add_theme_stylebox_override(&"normal", style)
 	button.add_theme_stylebox_override(&"hover", style)
 	button.add_theme_stylebox_override(&"focus", style)

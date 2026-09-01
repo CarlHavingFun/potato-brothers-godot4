@@ -196,18 +196,24 @@ func test_initial_picker_is_six_by_four_with_one_real_niko_and_twenty_three_unav
 		return
 	assert_int(roster.columns).is_equal(6)
 	assert_int(roster.get_child_count()).is_equal(24)
+	assert_int(int(ProjectSettings.get_setting("display/window/size/viewport_width"))).is_equal(1280)
+	assert_int(int(ProjectSettings.get_setting("display/window/size/viewport_height"))).is_equal(720)
+	assert_str(String(ProjectSettings.get_setting("display/window/stretch/mode"))).is_equal("canvas_items")
+	assert_str((screen.get_node("RosterCaption") as Label).text).contains("已解锁 1 / 24")
 	assert_bool(roster.visible).is_true()
 	assert_bool(change.visible).is_false()
 	assert_bool((screen.get_node("WeaponStage") as Control).visible).is_false()
 	assert_bool((screen.get_node("DifficultyStage") as Control).visible).is_false()
 	assert_object(get_viewport().gui_get_focus_owner()).is_same(niko)
 	_assert_inside_host(host, screen.get_node("RosterCaption") as Control)
+	var unavailable_slots: Array[int] = []
 	for child in roster.get_children():
 		var cell := child as Button
 		assert_object(cell).is_not_null()
 		if cell == null:
 			continue
 		_assert_inside_host(host, cell)
+		assert_bool(roster.get_global_rect().encloses(cell.get_global_rect())).is_true()
 		if cell == niko:
 			assert_bool(cell.disabled).is_false()
 			assert_bool(cell.focus_mode != Control.FOCUS_NONE).is_true()
@@ -218,11 +224,24 @@ func test_initial_picker_is_six_by_four_with_one_real_niko_and_twenty_three_unav
 		assert_bool(cell.has_meta(&"content_id")).is_false()
 		assert_bool(cell.has_meta(&"definition")).is_false()
 		assert_bool(cell.has_meta(&"character_definition")).is_false()
+		assert_str(String(cell.get_meta(&"availability", &""))).is_equal("unavailable")
+		var slot_number := int(cell.get_meta(&"roster_slot", 0))
+		unavailable_slots.append(slot_number)
+		assert_str(String(cell.name)).is_equal("UnavailableCharacterSlot%02d" % slot_number)
+		assert_str(cell.tooltip_text).contains("角色槽位 %02d" % slot_number)
 		assert_str(cell.text).is_empty()
 		assert_str((cell.get_node("Glyph") as Label).text).is_equal("?")
 		assert_str((cell.get_node("Status") as Label).text).is_equal("未开放")
-		assert_str(String(cell.name)).starts_with("UnavailableCharacterSlot")
 		assert_int(cell.get_signal_connection_list(&"pressed").size()).is_equal(0)
+		for neighbor_path in [
+			cell.focus_neighbor_left,
+			cell.focus_neighbor_right,
+			cell.focus_neighbor_top,
+			cell.focus_neighbor_bottom,
+			cell.focus_next,
+			cell.focus_previous,
+		]:
+			assert_str(String(neighbor_path)).is_empty()
 		cell.grab_focus()
 		cell.pressed.emit()
 		assert_str(String(app.selection_draft.get("character_id", &""))).is_empty()
@@ -230,6 +249,9 @@ func test_initial_picker_is_six_by_four_with_one_real_niko_and_twenty_three_unav
 		assert_bool((screen.get_node("DifficultyStage") as Control).visible).is_false()
 		assert_object(app.current_session).is_null()
 		assert_bool(get_viewport().gui_get_focus_owner() != cell).is_true()
+	assert_array(unavailable_slots).is_equal(range(2, 25))
+	for output_size in [Vector2(1280, 720), Vector2(960, 540)]:
+		_assert_scaled_inside_output(roster, Vector2(1280, 720), output_size)
 
 
 func test_change_character_reconfirm_preserves_legal_draft_without_session() -> void:
@@ -442,3 +464,17 @@ func _assert_inside_host(host: Control, control: Control) -> void:
 	assert_object(control).is_not_null()
 	if control != null:
 		assert_bool(host.get_global_rect().encloses(control.get_global_rect())).is_true()
+
+
+func _assert_scaled_inside_output(
+	control: Control,
+	logical_size: Vector2,
+	output_size: Vector2
+) -> void:
+	var logical_rect := control.get_global_rect()
+	var output_scale := output_size / logical_size
+	var scaled_rect := Rect2(
+		logical_rect.position * output_scale,
+		logical_rect.size * output_scale
+	)
+	assert_bool(Rect2(Vector2.ZERO, output_size).encloses(scaled_rect)).is_true()

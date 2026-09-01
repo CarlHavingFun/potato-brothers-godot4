@@ -290,7 +290,8 @@ func test_real_selection_shop_and_upgrade_routes_use_structured_setup_consumers(
 		if cell.name == &"NikoCell":
 			continue
 		unavailable_count += 1
-		assert_str(cell.text).is_equal("未开放")
+		assert_str(cell.text).is_empty()
+		assert_str((cell.get_node("Status") as Label).text).is_equal("未开放")
 		assert_bool(cell.disabled).is_true()
 		assert_int(cell.focus_mode).is_equal(Control.FOCUS_NONE)
 		assert_bool(cell.has_meta(&"content_id")).is_false()
