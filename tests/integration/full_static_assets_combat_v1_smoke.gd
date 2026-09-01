@@ -54,7 +54,6 @@ const HUD_SCREEN_EXCLUSION_RECTS: Array[Rect2] = [
 ]
 const EXPECTED_WORLD_EVIDENCE_COUNTS := {
 	"community_server_floor": 1,
-	"arena_boundary_border": 1,
 	"community_server_decor_pack": 6,
 	"hazard_beacon": 1,
 	"supply_crate": 1,
@@ -151,23 +150,24 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	app.begin_selection()
 	app.selection_draft["character_id"] = ValidationContentFactory.CHARACTER_ID
 	app.selection_draft["weapon_id"] = ValidationContentFactory.RANGED_ID
-	if not _require(app.route(FlowRoute.DIFFICULTY_SELECT) == OK, "actual difficulty coverage route"):
+	if not _require(app.route(FlowRoute.CHARACTER_SELECT) == OK, "actual staged configuration coverage route"):
 		return
 	await get_tree().process_frame
 	var coverage_host := app.get_node("SceneHost") as Node
-	var difficulty_route := coverage_host.get_child(0) as Control
-	var task_option := difficulty_route.get_node_or_null("TaskOptionButton") as OptionButton
+	var staged_route := coverage_host.get_child(0) as Control
+	var task_option := staged_route.get_node_or_null("TaskOptionButton") as OptionButton
 	if not _require(
-		difficulty_route.get_script() != null
-		and (difficulty_route.get_script() as Script).resource_path
-			== "res://game/ui/difficulty_select_screen.gd"
+		app.scene_flow.current_route() == FlowRoute.CHARACTER_SELECT
+		and staged_route.get_script() != null
+		and (staged_route.get_script() as Script).resource_path
+			== "res://game/ui/character_select_screen.gd"
 		and task_option != null
 		and task_option.is_visible_in_tree()
 		and task_option.item_count == content.all(&"zone").size()
 		and task_option.selected >= 0
 		and task_option.get_item_metadata(task_option.selected) == ValidationContentFactory.ZONE_ID
 		and task_option.get_item_icon(task_option.selected) != null
-		and (difficulty_route.get_node("DifficultyStage") as Control).visible,
+		and (staged_route.get_node("DifficultyStage") as Control).visible,
 		"real visible inline task-option zone coverage"
 	):
 		return
@@ -182,8 +182,8 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		diagnostic_route.get_script() != null
 		and (diagnostic_route.get_script() as Script).resource_path
 			== "res://game/ui/diagnostic_screen.gd"
-		and diagnostic_route.get_node_or_null("PrincipalSurface") is NinePatchRect
-		and (diagnostic_route.get_node("PrincipalSurface") as NinePatchRect).is_visible_in_tree(),
+		and diagnostic_route.get_node_or_null("PrincipalSurface") is Panel
+		and (diagnostic_route.get_node("PrincipalSurface") as Panel).is_visible_in_tree(),
 		"real visible diagnostic-panel coverage"
 	):
 		return
@@ -202,9 +202,14 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	if not _require(session.start(config, content) == OK, "combat session start"):
 		return
 	var player := session.run_state.player()
-	player.weapon_ids.clear()
+	player.weapon_inventory = GogoWeaponInventory.new()
 	for index in 6:
-		player.weapon_ids.append((ranged[index] as GogoWeaponDefinition).content_id)
+		var allocation := player.weapon_inventory.add_weapon(
+			(ranged[index] as GogoWeaponDefinition).content_id,
+			content
+		)
+		if not _require(allocation.get("error", ERR_INVALID_DATA) == OK, "six-weapon inventory allocation"):
+			return
 	player.item_ids = _capture_item_ids(content)
 	player.materials = 87
 	player.xp = 14
@@ -227,12 +232,14 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	var hud_shell := hud.get_node_or_null("Shell") as TextureRect
 	if not _require(
 		hud_shell != null
-		and hud_shell.texture != null
-		and hud_shell.visible
-		and hud_shell.is_visible_in_tree()
+		and hud_shell.texture == null
+		and not hud_shell.visible
+		and not hud_shell.is_visible_in_tree()
 		and hud_shell.size == Vector2(CAPTURE_SIZE)
-		and hud_shell.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST,
-		"visible 1280x720 low-border HUD shell"
+		and hud_shell.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST
+		and (hud.get_node("TopLeft/Health") as Panel).is_visible_in_tree()
+		and (hud.get_node("TopCenter/Timer") as Label).is_visible_in_tree(),
+		"disabled ghost shell with visible compact combat metrics"
 	):
 		return
 	hud.call("_dismiss_control_hint")
@@ -261,7 +268,7 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	# Gameplay intentionally starts with no ambiguous noninteractive crates,
 	# racks, beacons or devices. Asset-coverage silhouettes are mounted only by
 	# this explicit validation hook and never by the ordinary combat route.
-	world.static_world_presenter.mount_validation_props(CONFIG.seed, true)
+	world.static_world_presenter.mount_validation_props(config.seed, true)
 	var presenter_evidence: Array = world.static_world_presenter.apply_capture_safe_layout(
 		world.arena_rect,
 		world_hud_exclusions
@@ -422,20 +429,76 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		64.0
 	).round()
 	pickup_enemy.take_damage(99999.0)
-	if not _require(world.active_pickup_count() == 2, "one dynamic pickup per non-zero reward"):
+	if not _require(world.active_pickup_count() == 1, "one bundled pickup per defeated enemy"):
 		return
-	var live_pickup_kinds: Dictionary = {}
+	var bundled_reward_kinds: Dictionary = {}
+	var bundled_pickup := world.active_pickup_at(0)
+	for entry_value in bundled_pickup.get("reward_entries") as Array:
+		var entry := entry_value as Dictionary
+		bundled_reward_kinds[StringName(entry.get(&"kind", &""))] = true
+	if not _require(
+		bundled_reward_kinds.has(GameSession.REWARD_EXPERIENCE)
+		and bundled_reward_kinds.has(GameSession.REWARD_SUPPLY),
+		"defeated enemy bundles experience and supply rewards"
+	):
+		return
+	# The runtime contract is one bundle per enemy. For the visual evidence frame,
+	# replace that bundle with two deterministic single-kind reservations so both
+	# approved pickup silhouettes are guaranteed to be visible regardless of the
+	# defeated enemy's material denomination.
+	world.collect_all_live_pickups()
+	_pickup_collection_count = 0
+	_pickup_kinds_observed.clear()
+	var experience_only_source_id := 900001
+	var experience_only_reservations := world._reserve_enemy_reward_snapshot(
+		experience_only_source_id,
+		1,
+		1,
+		0,
+		0
+	)
+	if not _require(
+		world.spawn_reserved_enemy_pickups(
+			experience_only_source_id,
+			Vector2i(world.player_actor.global_position + Vector2(76.0, 174.0)),
+			experience_only_reservations
+		) == 1,
+		"experience-only pickup evidence spawned"
+	):
+		return
+	var supply_only_source_id := 900002
+	var supply_only_reservations := world._reserve_enemy_reward_snapshot(
+		supply_only_source_id,
+		1,
+		0,
+		2,
+		0
+	)
+	if not _require(
+		world.spawn_reserved_enemy_pickups(
+			supply_only_source_id,
+			Vector2i(world.player_actor.global_position + Vector2(-76.0, 174.0)),
+			supply_only_reservations
+		) == 1,
+		"supply-only pickup evidence spawned"
+	):
+		return
+	if not _require(world.active_pickup_count() == 2, "two single-kind pickup visuals are live"):
+		return
+	var live_pickup_assets: Dictionary = {}
 	for pickup_index in world.active_pickup_count():
 		var pickup := world.active_pickup_at(pickup_index)
 		var pickup_sprite := pickup.get_node_or_null("StaticVisual") as Sprite2D
+		var pickup_handle := pickup.get("visual_handle") as GogoStaticAssetHandle
 		if not _require(
 			pickup_sprite != null
 			and pickup_sprite.texture != null
-			and pickup_sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST,
+			and pickup_sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST
+			and pickup_handle != null,
 			"dynamic pickup uses active static texture"
 		):
 			return
-		live_pickup_kinds[StringName(pickup.get("reward_kind"))] = true
+		live_pickup_assets[pickup_handle.asset_id] = true
 		var pickup_capture_offset := Vector2(-76.0, 174.0)
 		if pickup_index == 1:
 			pickup_capture_offset = Vector2(76.0, 174.0)
@@ -444,9 +507,9 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		).round()
 		pickup.set_physics_process(false)
 	if not _require(
-		live_pickup_kinds.has(GameSession.REWARD_EXPERIENCE)
-		and live_pickup_kinds.has(GameSession.REWARD_SUPPLY),
-		"experience and supply pickups are both live"
+		live_pickup_assets.has(&"experience_pickup")
+		and live_pickup_assets.has(&"supply_pickup"),
+		"experience and supply pickup visuals are both live"
 	):
 		return
 	world.call("_spawn_enemy", TARGET_ENEMY_ID)
@@ -490,7 +553,7 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		snapshot,
 		world_to_screen
 	)
-	if not _require(world_evidence.size() == 14, "fourteen real static world evidence instances"):
+	if not _require(world_evidence.size() == 13, "thirteen visible static world evidence instances"):
 		print(
 			"WORLD_EVIDENCE_DIAGNOSTIC arena=%s player=%s camera=%s viewport=%s transform=%s"
 			% [
@@ -605,12 +668,12 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 		GogoStaticConsumerRegistry.current().records()
 	)
 	if not _require(
-		int(report.expected_units) == 70
-		and int(report.covered_units) == 70
+		int(report.expected_units) == 68
+		and int(report.covered_units) == 68
 		and report.unresolved_asset_ids.is_empty()
 		and report.required_visual_failures.is_empty()
 		and bool(report.complete),
-		"complete 70/70 real-consumer coverage (covered=%d unresolved=%s required=%s)" % [
+		"complete 68/68 real-consumer coverage (covered=%d unresolved=%s required=%s)" % [
 			int(report.covered_units),
 			str(report.unresolved_asset_ids),
 			str(report.required_visual_failures),
@@ -740,6 +803,13 @@ func _build_world_evidence(
 			if not _require(world.static_world_presenter.has_node(node_path), "world evidence node %s" % node_path):
 				return []
 			node = world.static_world_presenter.get_node(node_path) as CanvasItem
+		if asset_id == &"arena_boundary_border":
+			if not _require(
+				node != null and not node.is_visible_in_tree() and _node_has_static_texture(node),
+				"clean gameplay keeps the legacy arena boundary texture mounted but invisible"
+			):
+				return []
+			continue
 		if not _require(
 			node != null and node.is_visible_in_tree() and _node_has_static_texture(node),
 			"visible textured world node %s" % node_path
@@ -1074,13 +1144,19 @@ func _exercise_real_audio_upstream_events(
 	world.add_child(melee_weapon)
 	melee_weapon.set_physics_process(false)
 	melee_weapon.configure(_audio_smoke_melee_stats(), world.player_actor)
+	var target_position_before := target.global_position
+	target.global_position = world.player_actor.global_position + Vector2(24.0, 0.0)
 	melee_weapon.global_position = target.global_position - Vector2(12.0, 0.0)
 	melee_weapon.melee_contact.connect(_on_real_melee_contact)
 	var target_health_before := target.current_health
 	melee_weapon._physics_process(0.0)
+	melee_weapon._physics_process(melee_weapon.debug_melee_seconds_until_contact() + 0.001)
 	var target_health_after := target.current_health
-	var melee_hitstop_observed := world.debug_local_hitstop_remaining() > 0.0
-	var melee_hitstop_cleared := await _wait_for_local_hitstop_clear(world, 30)
+	var melee_hitstop_observed := target.is_target_locally_frozen()
+	# Capture enemies are intentionally process-disabled for a stable evidence
+	# composition, so advance only this target's local hitstop clock explicitly.
+	target._physics_process(target.debug_target_local_hitstop_remaining() + 0.001)
+	var melee_hitstop_cleared := not target.is_target_locally_frozen()
 	var melee_event: Dictionary = _real_melee_events.back() if not _real_melee_events.is_empty() else {}
 	var melee_evidence := {
 		"weapon_instance_id": melee_weapon.runtime_instance_id,
@@ -1093,6 +1169,7 @@ func _exercise_real_audio_upstream_events(
 		"hitstop_observed": melee_hitstop_observed,
 		"hitstop_cleared": melee_hitstop_cleared,
 	}
+	target.global_position = target_position_before
 	melee_weapon.free()
 
 	_real_player_damage_events.clear()

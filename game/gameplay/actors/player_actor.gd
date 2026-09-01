@@ -16,36 +16,8 @@ const DEFAULT_WEAPON_DISPLAY_BOUNDS := Vector2i(96, 64)
 const DEFAULT_WEAPON_PIVOT := Vector2i(38, 40)
 const WEAPON_CONTAINER_OFFSET := Vector2.ZERO
 const WEAPON_VISUAL_SCALE := 1.0
+const SINGLE_WEAPON_OFFSET := Vector2(0.0, 48.0)
 const MAX_WEAPON_SLOTS := 6
-const WEAPON_ATTACHMENT_LAYOUTS := {
-	# These are grip positions in player-local space. Keeping the container at the
-	# player origin avoids the old hidden -24px lift that put single melee weapons
-	# across Niko's mouth instead of around his lower body.
-	1: [Vector2(0.0, 48.0)],
-	2: [Vector2(48.0, 38.0), Vector2(-48.0, 38.0)],
-	3: [Vector2(58.0, 34.0), Vector2(-58.0, 34.0), Vector2(0.0, 66.0)],
-	4: [
-		Vector2(68.0, 18.0),
-		Vector2(-68.0, 18.0),
-		Vector2(-34.0, 66.0),
-		Vector2(34.0, 66.0),
-	],
-	5: [
-		Vector2(74.0, 6.0),
-		Vector2(-74.0, 6.0),
-		Vector2(-52.0, 56.0),
-		Vector2(52.0, 56.0),
-		Vector2(0.0, 78.0),
-	],
-	6: [
-		Vector2(78.0, 0.0),
-		Vector2(-78.0, 0.0),
-		Vector2(-62.0, 50.0),
-		Vector2(62.0, 50.0),
-		Vector2(-24.0, 78.0),
-		Vector2(24.0, 78.0),
-	],
-}
 
 signal died
 signal health_changed(current: float, maximum: float)
@@ -230,6 +202,8 @@ func _build_weapons() -> void:
 	if player_state == null or session == null:
 		return
 	var instances: Array[GogoWeaponInstance] = []
+	var display_bounds: Array[Vector2i] = []
+	var pivots: Array[Vector2i] = []
 	var records := player_state.weapon_inventory.records()
 	var requested_count := mini(records.size(), MAX_WEAPON_SLOTS)
 	for index in requested_count:
@@ -245,20 +219,28 @@ func _build_weapons() -> void:
 		weapon_orbit.add_child(instance)
 		instance.configure(runtime_stats, self)
 		instances.append(instance)
+		if instance.weapon_visual_handle != null:
+			display_bounds.append(instance.weapon_visual_handle.display_size_px)
+			pivots.append(instance.weapon_visual_handle.pivot_px)
+		else:
+			display_bounds.append(DEFAULT_WEAPON_DISPLAY_BOUNDS)
+			pivots.append(DEFAULT_WEAPON_PIVOT)
 	var count := instances.size()
+	var visual_scale := weapon_visual_scale(count)
 	for instance in instances:
-		instance.scale = Vector2.ONE
-	_weapon_orbit_extent = NIKO_VISUAL_RADIUS
-	for index in count:
-		var extent := instances[index].visual_boundary_extent
-		if extent <= 0.0:
-			extent = weapon_visual_footprint_radius(DEFAULT_WEAPON_DISPLAY_BOUNDS, DEFAULT_WEAPON_PIVOT)
-		_weapon_orbit_extent = maxf(_weapon_orbit_extent, (WEAPON_CONTAINER_OFFSET + weapon_orbit_offset(index,count)).length() + extent)
+		instance.scale = Vector2.ONE * visual_scale
+	var radius := weapon_orbit_radius(count, display_bounds, pivots)
+	cache_weapon_orbit_extent(radius, display_bounds, pivots, visual_scale)
 	for index in count:
 		instances[index].set_initial_fire_phase(index, count)
-		var orbit_offset := weapon_orbit_offset(index, count)
+		var orbit_offset := weapon_orbit_offset(index, count, radius)
 		instances[index].position = orbit_offset
 		instances[index].z_index = weapon_visual_z_index(orbit_offset)
+		_weapon_orbit_extent = maxf(
+			_weapon_orbit_extent,
+			(WEAPON_CONTAINER_OFFSET + orbit_offset).length()
+			+ instances[index].visual_boundary_extent * visual_scale
+		)
 
 
 func _cache_weapon_reference_height() -> void:
@@ -302,10 +284,36 @@ func weapon_orbit_radius(
 ) -> float:
 	if count <= 0 or count > MAX_WEAPON_SLOTS:
 		return 0.0
-	var maximum_attachment_distance := 0.0
-	for offset: Vector2 in WEAPON_ATTACHMENT_LAYOUTS.get(count, []):
-		maximum_attachment_distance = maxf(maximum_attachment_distance, offset.length())
-	return maximum_attachment_distance
+	if count == 1:
+		return SINGLE_WEAPON_OFFSET.length()
+	var footprint_radius := 0.0
+	for index in weapon_display_bounds.size():
+		var bounds := weapon_display_bounds[index]
+		if bounds.x <= 0 or bounds.y <= 0:
+			continue
+		var pivot := Vector2i(bounds / 2)
+		if index < weapon_pivots.size():
+			pivot = weapon_pivots[index]
+		footprint_radius = maxf(
+			footprint_radius,
+			weapon_visual_footprint_radius(bounds, pivot, weapon_visual_scale(count))
+		)
+	if footprint_radius <= 0.0:
+		footprint_radius = weapon_visual_footprint_radius(
+			DEFAULT_WEAPON_DISPLAY_BOUNDS,
+			DEFAULT_WEAPON_PIVOT,
+			weapon_visual_scale(count)
+		)
+	var half_socket_angle := PI / float(count)
+	var socket_sine := sin(half_socket_angle)
+	if socket_sine <= 0.0 or not is_finite(socket_sine):
+		return 0.0
+	var player_clear_radius := NIKO_CLEAR_RADIUS + footprint_radius
+	var neighbor_clear_radius := (
+		(footprint_radius * 2.0 + WEAPON_SLOT_GAP)
+		/ (2.0 * socket_sine)
+	)
+	return maxf(player_clear_radius, neighbor_clear_radius)
 
 
 func cache_weapon_orbit_extent(
@@ -331,13 +339,22 @@ func weapon_arena_clamp_margin() -> float:
 	return maxf(NIKO_VISUAL_RADIUS, _weapon_orbit_extent)
 
 
-func weapon_orbit_offset(index: int, count: int, _radius: float = -1.0) -> Vector2:
+func weapon_orbit_offset(index: int, count: int, radius: float = -1.0) -> Vector2:
 	if count <= 0 or count > MAX_WEAPON_SLOTS or index < 0 or index >= count:
 		return Vector2.ZERO
-	var layout: Array = WEAPON_ATTACHMENT_LAYOUTS.get(count, [])
-	if index >= layout.size():
+	if count == 1:
+		return SINGLE_WEAPON_OFFSET
+	var resolved_radius := radius
+	if not is_finite(resolved_radius) or resolved_radius <= 0.0:
+		resolved_radius = weapon_orbit_radius(
+			count,
+			[DEFAULT_WEAPON_DISPLAY_BOUNDS],
+			[DEFAULT_WEAPON_PIVOT]
+		)
+	if resolved_radius <= 0.0:
 		return Vector2.ZERO
-	return layout[index] as Vector2
+	var angle := TAU * float(index) / float(count)
+	return Vector2.RIGHT.rotated(angle) * resolved_radius
 
 
 func weapon_visual_z_index(orbit_offset: Vector2) -> int:

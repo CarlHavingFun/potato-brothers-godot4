@@ -189,7 +189,7 @@ func test_shipping_service_requires_explicit_development_authorization_before_pr
 func test_brotato_weapon_layout_keeps_one_and_six_weapons_close_and_evenly_spaced() -> void:
 	var actor := auto_free(GogoPlayerActor.new()) as GogoPlayerActor
 	var single := actor.call("weapon_orbit_offset", 0, 1) as Vector2
-	assert_float(single.length()).is_between(28.0, 32.0)
+	assert_vector(single).is_equal(Vector2(0.0, 48.0))
 	var offsets: Array[Vector2] = []
 	for index in 6:
 		offsets.append(actor.call("weapon_orbit_offset", index, 6) as Vector2)
@@ -214,7 +214,7 @@ func test_weapon_orbit_radius_derives_from_body_bounds_and_rejects_invalid_slots
 	var standard_bounds: Array[Vector2i] = [Vector2i(96, 64)]
 	var taller_bounds: Array[Vector2i] = [Vector2i(96, 96)]
 	var standard_pivots: Array[Vector2i] = [Vector2i(38, 40)]
-	assert_float(float(actor.call("weapon_orbit_radius", 1, standard_bounds))).is_equal_approx(30.0, 0.001)
+	assert_float(float(actor.call("weapon_orbit_radius", 1, standard_bounds))).is_equal_approx(48.0, 0.001)
 	assert_float(float(actor.call("weapon_orbit_radius", 6, standard_bounds, standard_pivots))).is_between(152.0, 154.0)
 	assert_float(float(actor.call("weapon_orbit_radius", 6, taller_bounds, standard_pivots))).is_greater_equal(170.0)
 	assert_vector(actor.call("weapon_orbit_offset", -1, 6)).is_equal(Vector2.ZERO)

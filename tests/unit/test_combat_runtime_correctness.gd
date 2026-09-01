@@ -102,8 +102,8 @@ func test_weapon_world_sprite_uses_approved_pivot_muzzle_and_left_facing_flip() 
 	weapon.rotation = 0.0
 	weapon.attack_flash = 1.0
 	weapon.call("_update_visual_feedback")
-	assert_bool((weapon.get_node("WeaponVisualRoot") as Node2D).position == Vector2(-4.0, 0.0)).is_true()
-	assert_vector(weapon.integer_muzzle_global_position()).is_equal(Vector2(176.0, 84.0))
+	assert_bool((weapon.get_node("WeaponVisualRoot") as Node2D).position == Vector2(-25.0, 0.0)).is_true()
+	assert_vector(weapon.integer_muzzle_global_position()).is_equal(Vector2(155.0, 84.0))
 
 
 func test_weapon_world_sprite_uses_service_resized_texture_without_double_scaling() -> void:
@@ -135,7 +135,7 @@ func test_weapon_world_sprite_uses_service_resized_texture_without_double_scalin
 	assert_vector(weapon.integer_muzzle_global_position()).is_equal(Vector2(140.0, 92.0))
 
 
-func test_projectile_sprite_uses_feedback_selector_pivot_rotation_and_nearest_filter() -> void:
+func test_projectile_simple_shape_keeps_aim_rotation_without_atlas_consumption() -> void:
 	var world := auto_free(CombatWorld.new()) as CombatWorld
 	add_child(world)
 	var projectile := GogoProjectile.new()
@@ -144,13 +144,8 @@ func test_projectile_sprite_uses_feedback_selector_pivot_rotation_and_nearest_fi
 	projectile.activate(world, 1, 1, 1, 1, &"rifle", &"ballistic", &"normal")
 	world.projectile_layer.add_child(projectile)
 
-	var sprite := projectile.get_node("ProjectileSprite") as Sprite2D
-	assert_object(sprite).is_not_null()
-	assert_str(String(projectile.projectile_visual_handle.selector)).is_equal("rifle_round")
-	assert_vector(sprite.position).is_equal(Vector2(-8.0, -4.0))
-	assert_int(sprite.texture.get_width()).is_equal(16)
-	assert_int(sprite.texture.get_height()).is_equal(8)
-	assert_int(sprite.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
+	assert_object(projectile.projectile_sprite).is_null()
+	assert_object(projectile.projectile_visual_handle).is_null()
 	assert_float(projectile.rotation).is_equal_approx(-PI * 0.5, 0.0001)
 	projectile.retire()
 
@@ -244,12 +239,12 @@ func test_enemy_xp_reward_preserves_pending_upgrade_count() -> void:
 	assert_str(String((reservations[GameSession.REWARD_SUPPLY] as Dictionary).status)).is_equal(String(GameSession.REWARD_RESERVED))
 	assert_int(player.level).is_equal(1)
 	assert_int(run_state.pending_upgrade_count).is_zero()
-	assert_int(player.materials).is_equal(35)
-	assert_int(world.spawn_reserved_enemy_pickups(1, Vector2i(100, 100), reservations)).is_equal(2)
+	assert_int(player.materials).is_equal(SessionPlayerState.INITIAL_MATERIALS)
+	assert_int(world.spawn_reserved_enemy_pickups(1, Vector2i(100, 100), reservations)).is_equal(1)
 	world.collect_all_live_pickups()
 	assert_int(player.level).is_equal(2)
 	assert_int(run_state.pending_upgrade_count).is_equal(1)
-	assert_int(player.materials).is_equal(38)
+	assert_int(player.materials).is_equal(SessionPlayerState.INITIAL_MATERIALS + 3)
 
 
 func test_combat_hud_snapshot_reports_only_materials_gained_in_the_current_wave() -> void:
@@ -428,25 +423,30 @@ func test_local_hitstop_freezes_four_actor_types_while_wave_hud_and_feedback_adv
 	assert_float(float(world.feedback_presenter.debug_effects()[0].age)).is_equal_approx(0.010, 0.0001)
 
 
-func test_contact_events_request_the_exact_hitstop_duration_matrix() -> void:
+func test_contact_events_only_freeze_the_heavy_target_without_stalling_the_world() -> void:
 	var cases := [
-		{&"profile": &"rapid", &"impact": &"normal", &"expected": 0.025},
-		{&"profile": &"suppressed", &"impact": &"normal", &"expected": 0.025},
-		{&"profile": &"rifle", &"impact": &"normal", &"expected": 0.035},
+		{&"profile": &"rapid", &"impact": &"normal", &"expected": 0.0},
+		{&"profile": &"suppressed", &"impact": &"normal", &"expected": 0.0},
+		{&"profile": &"rifle", &"impact": &"normal", &"expected": 0.0},
 		{&"profile": &"heavy", &"impact": &"pierce_exit", &"expected": 0.035},
-		{&"profile": &"rapid", &"impact": &"critical", &"expected": 0.045},
-		{&"profile": &"rifle", &"impact": &"explosion", &"expected": 0.060},
+		{&"profile": &"rapid", &"impact": &"critical", &"expected": 0.0},
+		{&"profile": &"rifle", &"impact": &"explosion", &"expected": 0.0},
 	]
 	for index in cases.size():
 		var world := auto_free(CombatWorld.new()) as CombatWorld
-		assert_bool(world.has_method(&"debug_local_hitstop_remaining")).is_true()
-		if not world.has_method(&"debug_local_hitstop_remaining"):
-			return
+		add_child(world)
 		var current := cases[index] as Dictionary
+		var target_id := index + 101
+		var definition := GogoEnemyDefinition.new()
+		definition.max_health = 10.0
+		var target := GogoEnemyActor.new()
+		target.configure(definition, null, GogoDifficultyDefinition.new(), world, target_id)
+		world.enemy_layer.add_child(target)
+		assert_bool(world.register_active_enemy(target)).is_true()
 		world.call(
 			&"_on_projectile_contact",
 			index + 1,
-			index + 101,
+			target_id,
 			current.profile,
 			Vector2i(10, 20),
 			Vector2.LEFT,
@@ -454,8 +454,11 @@ func test_contact_events_request_the_exact_hitstop_duration_matrix() -> void:
 			current.impact,
 			1
 		)
-		assert_float(float(world.call(&"debug_local_hitstop_remaining"))).override_failure_message(
-			"Unexpected hitstop for %s/%s" % [String(current.profile), String(current.impact)]
+		assert_float(world.debug_local_hitstop_remaining()).override_failure_message(
+			"Contact hitstop must never freeze the whole combat world"
+		).is_equal(0.0)
+		assert_float(target.debug_target_local_hitstop_remaining()).override_failure_message(
+			"Unexpected target-local hitstop for %s/%s" % [String(current.profile), String(current.impact)]
 		).is_equal_approx(float(current.expected), 0.0001)
 
 
@@ -729,9 +732,13 @@ func test_real_physics_clamp_keeps_rotated_weapon_footprints_inside_arena(
 	var session := _combat_session(content)
 	session.static_asset_snapshot = _orbit_weapon_visual_snapshot()
 	var player_state := session.run_state.player()
-	player_state.weapon_ids.clear()
+	player_state.weapon_inventory = GogoWeaponInventory.new()
 	for _index in weapon_count:
-		player_state.weapon_ids.append(ValidationContentFactory.RANGED_ID)
+		var allocation := player_state.weapon_inventory.add_weapon(
+			ValidationContentFactory.RANGED_ID,
+			content
+		)
+		assert_int(int(allocation.get("error", FAILED))).is_equal(OK)
 	var wave := content.definition(&"gogobro.core:wave/training_1", &"wave") as GogoWaveDefinition
 	var world := auto_free(CombatWorld.new()) as CombatWorld
 	add_child(world)
@@ -761,10 +768,8 @@ func test_real_physics_clamp_keeps_rotated_weapon_footprints_inside_arena(
 			assert_object(handle).is_not_null()
 			if handle == null:
 				continue
-			var footprint := player.weapon_visual_footprint_radius(
-				handle.display_size_px,
-				handle.pivot_px
-			)
+			var footprint := weapon.visual_boundary_extent * absf(weapon.scale.x)
+			assert_float(footprint).is_greater(0.0)
 			var context := "count=%d edge=%s weapon=%d" % [
 				weapon_count,
 				edge_names[edge_index],
