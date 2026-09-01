@@ -22,16 +22,14 @@ func test_actual_consumers_cover_every_canonical_unit() -> void:
 
 	var records := GogoStaticConsumerRegistry.current().records()
 	var report := GogoStaticCoverageAudit.build(REGISTRY_PATH, snapshot, records)
-	assert_int(report.expected_units).is_equal(70)
-	assert_int(report.covered_units).is_equal(70)
+	assert_int(report.expected_units).is_equal(68)
+	assert_int(report.covered_units).is_equal(68)
 	assert_array(report.unresolved_asset_ids).is_empty()
 	assert_array(report.required_visual_failures).is_empty()
 	assert_bool(report.complete).is_true()
 	assert_int(report.source_unit_counts.approved_shipping).is_equal(5)
-	assert_int(report.source_unit_counts.development_preview).is_equal(65)
+	assert_int(report.source_unit_counts.development_preview).is_equal(63)
 	var expected_routes := {
-		&"nine_slice_panel": ["res://game/ui/diagnostic_screen.gd", "Diagnostic/PrincipalSurface"],
-		&"combat_hud_shell": ["res://game/ui/brotato_combat_hud.gd", "BrotatoHUD/Shell"],
 		&"zone_thumbnail": [
 			"res://game/ui/difficulty_select_screen.gd",
 			"TaskOptionButton",
@@ -74,16 +72,12 @@ func test_gallery_observation_cannot_satisfy_or_break_real_coverage() -> void:
 	assert_int(report.rejected_observations.size()).is_equal(1)
 
 
-func test_required_ui_textures_reject_non_visible_observations() -> void:
+func test_required_visible_zone_texture_rejects_a_non_visible_observation() -> void:
 	GogoStaticConsumerRegistry.reset_current()
 	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
 	var snapshot := _debug_snapshot(content)
 	_exercise_real_consumers(content, snapshot)
-	var route_nodes := {
-		&"nine_slice_panel": "Diagnostic/PrincipalSurface",
-		&"combat_hud_shell": "BrotatoHUD/Shell",
-		&"zone_thumbnail": "TaskOptionButton",
-	}
+	var route_nodes := {&"zone_thumbnail": "TaskOptionButton"}
 	for asset_id: StringName in route_nodes:
 		var records: Array[Dictionary] = []
 		for record: Dictionary in GogoStaticConsumerRegistry.current().records():
@@ -195,7 +189,7 @@ func test_missing_required_floor_is_a_hard_failure_even_with_other_sixty_nine_un
 		if record.asset_id != &"community_server_floor":
 			records.append(record)
 	var report := GogoStaticCoverageAudit.build(REGISTRY_PATH, snapshot, records)
-	assert_int(report.covered_units).is_equal(69)
+	assert_int(report.covered_units).is_equal(67)
 	assert_array(report.unresolved_asset_ids).contains_exactly([&"community_server_floor"])
 	assert_array(report.required_visual_failures).contains_exactly([&"community_server_floor"])
 	assert_bool(report.complete).is_false()
@@ -244,6 +238,10 @@ func _exercise_real_consumers(
 	var static_world := auto_free(GogoStaticWorldPresenter.new()) as GogoStaticWorldPresenter
 	add_child(static_world)
 	static_world.configure(snapshot, Rect2(Vector2.ZERO, Vector2(2048, 1536)), 9137, true)
+	# Ordinary runs intentionally omit ambiguous noninteractive props. Coverage
+	# fixtures opt in explicitly so those approved handles stay auditable without
+	# leaking crates, racks or beacons back into the player's map.
+	static_world.mount_validation_props(9137, true)
 	var pickup_session := GameSession.new()
 	var pickup_run := GogoRunState.new()
 	pickup_run.phase = &"combat"
@@ -260,7 +258,11 @@ func _exercise_real_consumers(
 	var pickup_reservations := combat_world._reserve_enemy_reward_snapshot(1, 1, 1, 1, 0)
 	assert_int(combat_world.spawn_reserved_enemy_pickups(
 		1, Vector2i(1024, 768), pickup_reservations
-	)).is_equal(2)
+	)).is_equal(1)
+	var supply_reservations := combat_world._reserve_enemy_reward_snapshot(2, 1, 0, 2, 0)
+	assert_int(combat_world.spawn_reserved_enemy_pickups(
+		2, Vector2i(1088, 768), supply_reservations
+	)).is_equal(1)
 	var marker := auto_free(GogoStaticSpawnMarker.new()) as GogoStaticSpawnMarker
 	add_child(marker)
 	marker.configure_visual(snapshot.resolve_asset(&"spawn_marker", &"world_sprite"))
@@ -286,9 +288,15 @@ func _exercise_real_consumers(
 	var hud := auto_free(GogoBrotatoCombatHud.new()) as GogoBrotatoCombatHud
 	add_child(hud)
 	hud.configure(null, content, snapshot)
-	var projectile := auto_free(GogoProjectile.new()) as GogoProjectile
-	projectile.static_asset_snapshot_override = snapshot
-	projectile.activate(null, 1, 1, 1, 1, &"rifle", &"ballistic", &"normal")
+	# Ordinary projectile bodies are intentionally draw-native. The approved hit
+	# atlas is consumed by the real impact-feedback presenter instead.
+	var feedback := auto_free(GogoCombatFeedbackPresenter.new()) as GogoCombatFeedbackPresenter
+	add_child(feedback)
+	feedback.configure(null, snapshot)
+	assert_bool(feedback.present_projectile_contact(
+		1, 2, &"rifle", Vector2i(1024, 768), Vector2.LEFT,
+		&"ballistic", &"normal", 1
+	)).is_true()
 
 
 func _debug_snapshot(content: ContentSnapshot) -> GogoStaticAssetSnapshot:
