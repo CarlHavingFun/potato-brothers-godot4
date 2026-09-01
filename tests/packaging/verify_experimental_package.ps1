@@ -130,7 +130,7 @@ if([IO.Path]::GetExtension($engineExecutable) -in @('.cmd','.bat')){
 $parentEnv=[ordered]@{}
 foreach($key in $child.Keys){$parentEnv[$key]=@{present=(Test-Path "Env:$key");value=[Environment]::GetEnvironmentVariable($key,'Process')};$psi.Environment[$key]=$child[$key]}
 $result=[ordered]@{acceptance_mode=$AcceptanceMode;exported_exe_startup='not_run';pck_smoke_passed=$false;static_pe_x64=$true;package=$PackageDirectory;
-    execution_mode=$(if($RenderedPck){'rendered-pck'}else{'headless-pck'});viewport_directory=(Join-Path $child.TEMP 'package-viewports');viewports=@();viewport_kind='native-rendered-viewport-not-desktop';os_input='not_run';
+    execution_mode=$(if($RenderedPck){'rendered-pck'}else{'headless-pck'});viewport_directory=(Join-Path $child.TEMP 'package-viewports');viewports=@();viewport_artifacts=@();viewport_kind='native-rendered-viewport-not-desktop';os_input='not_run';
     executable=$engineExecutable;engine_sha256=$engineHash;arguments=$arguments;working_directory=$working;environment=$child;parent_environment=$parentEnv;
     fixture_source=$smokeSource;fixture=$fixture;fixture_sha256=$fixtureHash;fixture_at_run=$fixtureAtRun;verifier_at_run=$verifierAtRun;verifier_sha256=$verifierHash;
     started=$false;owned=$false;pid=$null;start_time_utc=$null;start_receipt=$null;end_pid=$null;has_exited=$null;exit_code=$null;timed_out=$false;disposed=$false;streams_disposed=$false;
@@ -227,6 +227,26 @@ try{
     }
     $result.progression=[ordered]@{task_zone=$lines[$progressIndexes.PACKAGE_TASK_ZONE_OK];character_grid=$lines[$progressIndexes.PACKAGE_CHARACTER_GRID_OK];waves=$progress;endless=$endless;profile_readback=$readback}
     $result.viewports=@(Assert-ViewportReceipts $lines $result.viewport_directory $RenderedPck.IsPresent)
+    if($RenderedPck){
+        $viewportEvidence=Join-Path $validation 'viewports'
+        Assert-NoReparse $viewportEvidence
+        if(Test-Path -LiteralPath $viewportEvidence){throw 'Persistent viewport evidence directory already exists.'}
+        $null=New-Item -ItemType Directory -Path $viewportEvidence
+        foreach($record in $result.viewports){
+            $destination=Join-Path $viewportEvidence ($record.name+'.png')
+            Assert-NoReparse $record.path
+            Assert-NoReparse $destination
+            Copy-Item -LiteralPath $record.path -Destination $destination
+            Assert-NoReparse $destination
+            if(-not(Test-Path -LiteralPath $destination -PathType Leaf) -or
+                (Get-Item -LiteralPath $destination).Length -ne $record.bytes -or
+                (Get-FileHash -LiteralPath $destination).Hash -cne $record.sha256){
+                throw 'Persistent viewport evidence copy mismatch.'
+            }
+            $result.viewport_artifacts+=@([ordered]@{name=$record.name;path=$destination;source_path=$record.path;
+                sha256=$record.sha256;bytes=$record.bytes;width=$record.width;height=$record.height})
+        }
+    }
     $result.pck_smoke_passed=$true
 }catch{if(-not $result.exception){$result.exception=$_.Exception.Message};$result.pck_smoke_passed=$false}finally{
     Invoke-OwnedFinalizer $result 'synthetic-profile' {if($null -eq $result.profile_presence){Preserve-SyntheticProfile}}
