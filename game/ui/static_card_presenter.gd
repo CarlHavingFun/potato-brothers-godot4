@@ -1,12 +1,16 @@
 class_name GogoStaticCardPresenter
 extends RefCounted
 
+const HUD_SKIN := preload("res://game/ui/hud_skin.gd")
+const GogoWeaponQualityRules := preload("res://game/gameplay/weapons/weapon_quality_rules.gd")
 
+const STAT_ICON_PRESENTER := preload("res://game/ui/stat_icon_presenter.gd")
 const CARD_SIZE := Vector2(294, 76)
 const CARD_MINIMUM_SIZE := Vector2(216, 76)
 const CARD_BACKGROUND_COLOR := Color("171b1e")
+const CARD_FOCUS_BORDER_COLOR := Color("f4e6b0")
 const MINIMUM_RARITY_CONTRAST := 3.0
-const TIER_NAMES := ["", "普通", "精良", "稀有", "传说"]
+const TIER_NAMES := ["", "普通", "稀有", "史诗", "传说"]
 const TIER_FRAME_SELECTORS: Array[StringName] = [
 	&"",
 	&"common",
@@ -20,6 +24,8 @@ const MODIFIER_ORDER: Array[StringName] = [
 	&"health_regen",
 	&"movement_speed",
 	&"movement_speed_multiplier",
+	&"counter_strafe_brake",
+	&"moving_recoil_control",
 	&"damage_multiplier",
 	&"melee_damage",
 	&"ranged_damage",
@@ -38,6 +44,8 @@ const MODIFIER_NAMES := {
 	&"health_regen": "生命恢复",
 	&"movement_speed": "移动速度",
 	&"movement_speed_multiplier": "移动速度",
+	&"counter_strafe_brake": "急停制动",
+	&"moving_recoil_control": "跑打控枪",
 	&"damage_multiplier": "伤害",
 	&"melee_damage": "近战伤害",
 	&"ranged_damage": "远程伤害",
@@ -59,6 +67,10 @@ const PERCENT_DELTA_KEYS: Array[StringName] = [
 	&"dodge",
 	&"explosion_damage_multiplier",
 ]
+const PERCENT_POINT_KEYS: Array[StringName] = [
+	&"counter_strafe_brake",
+	&"moving_recoil_control",
+]
 
 static var _tier_palette_cache: Dictionary = {}
 
@@ -67,7 +79,9 @@ static func build_card(
 	definition: GogoContentDefinition,
 	price_text: String,
 	snapshot: GogoStaticAssetSnapshot,
-	layout_variant: StringName = &"compact"
+	layout_variant: StringName = &"compact",
+	price_color: Color = Color("f1ca52"),
+	weapon_quality: int = 1
 ) -> Control:
 	var card := Button.new()
 	card.name = "StaticCard"
@@ -78,8 +92,13 @@ static func build_card(
 	card.focus_mode = Control.FOCUS_ALL
 	card.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	card.set_meta(&"content_id", definition.content_id if definition != null else &"")
-	var tier := _tier(definition)
-	_apply_card_styles(card, tier)
+	card.set_meta(&"content_kind", definition.kind if definition != null else &"")
+	var is_weapon := definition is GogoWeaponDefinition
+	if is_weapon: card.set_meta(&"quality", weapon_quality)
+	if definition != null:
+		card.tooltip_text = _card_tooltip_text(definition, weapon_quality)
+	var tier := weapon_quality if is_weapon else _tier(definition)
+	_apply_card_styles(card, tier, layout_variant)
 
 	var accent := ColorRect.new()
 	accent.name = "RarityAccent"
@@ -88,7 +107,7 @@ static func build_card(
 	card.add_child(accent)
 	accent.anchor_bottom = 1.0
 	accent.offset_bottom = 0.0
-	accent.color = _authored_tier_color(snapshot, tier, definition)
+	accent.color = GogoWeaponQualityRules.color(weapon_quality) if is_weapon else _authored_tier_color(snapshot, tier, definition)
 	accent.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var icon_fallback := ColorRect.new()
@@ -105,8 +124,14 @@ static func build_card(
 	icon_fallback.add_child(fallback_label)
 
 	var icon := _texture_rect("Icon", Vector2(6, 6), Vector2(64, 64))
-	var icon_handle := _icon_handle(definition, snapshot)
-	icon.texture = icon_handle.texture if icon_handle != null else null
+	var icon_handle: GogoStaticAssetHandle
+	if definition == null or definition.direct_icon_texture == null:
+		icon_handle = _icon_handle(definition, snapshot)
+	icon.texture = (
+		definition.direct_icon_texture
+		if definition != null and definition.direct_icon_texture != null
+		else (icon_handle.texture if icon_handle != null else null)
+	)
 	icon_fallback.visible = icon.texture == null
 	GogoStaticConsumerRegistry.observe_handle(
 		icon_handle,
@@ -116,11 +141,27 @@ static func build_card(
 	card.add_child(icon)
 
 	var name_label := _label("Name", Vector2(78, 1), Vector2(156, 24), 18)
-	name_label.text = definition.display_name if definition != null else "未知道具"
+	name_label.text = (
+		definition.display_name
+		if definition != null
+		else "未知道具"
+	)
+	if is_weapon: name_label.text += " " + GogoWeaponQualityRules.label(weapon_quality)
 	name_label.clip_text = true
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	card.add_child(name_label)
 	_pin_between_left_and_price(name_label)
+
+	var type_badge := _label("TypeBadge", Vector2.ZERO, Vector2.ZERO, 13)
+	type_badge.text = _content_type_label(definition)
+	type_badge.visible = false
+	type_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	type_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	type_badge.add_theme_color_override(
+		&"font_color",
+		HUD_SKIN.COLOR_TYPE
+	)
+	card.add_child(type_badge)
 
 	var stat_rows := VBoxContainer.new()
 	stat_rows.name = "StatRows"
@@ -132,21 +173,34 @@ static func build_card(
 	_pin_between_left_and_price(stat_rows)
 	var rows := localized_stat_rows(definition)
 	for index in 2:
-		var row := _label("Stat%d" % (index + 1), Vector2.ZERO, Vector2(156, 17), 11)
-		var payload: Dictionary = rows[index] if index < rows.size() else {"text": "", "amount": 0.0}
-		row.text = String(payload.get("text", ""))
-		row.clip_text = true
-		row.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		var row := HBoxContainer.new()
+		row.name = "Stat%d" % (index + 1)
+		row.custom_minimum_size = Vector2(156, 17)
+		row.add_theme_constant_override(&"separation", 3)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var payload: Dictionary = (
+			rows[index]
+			if index < rows.size()
+			else {"text": "", "amount": 0.0, "stat_key": &""}
+		)
+		var stat_key := payload.get("stat_key", &"") as StringName
+		row.add_child(STAT_ICON_PRESENTER.build_icon(stat_key, Vector2(14, 14)))
+		var row_text := _label("Text", Vector2.ZERO, Vector2(139, 17), 11)
+		row_text.text = String(payload.get("text", ""))
+		row_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row_text.clip_text = true
+		row_text.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		var amount := float(payload.get("amount", 0.0))
 		if amount > 0.0:
-			row.add_theme_color_override(&"font_color", Color("72d572"))
+			row_text.add_theme_color_override(&"font_color", Color("72d572"))
 		elif amount < 0.0:
-			row.add_theme_color_override(&"font_color", Color("ef6a67"))
+			row_text.add_theme_color_override(&"font_color", Color("ef6a67"))
+		row.add_child(row_text)
 		stat_rows.add_child(row)
 
 	var rarity_label := _label("RarityLabel", Vector2(78, 59), Vector2(156, 15), 10)
-	rarity_label.text = TIER_NAMES[clampi(tier, 1, 4)]
-	rarity_label.add_theme_color_override(&"font_color", _tier_color(tier))
+	rarity_label.text = GogoWeaponQualityRules.label(weapon_quality) if is_weapon else TIER_NAMES[clampi(tier, 1, 4)]
+	rarity_label.add_theme_color_override(&"font_color", GogoWeaponQualityRules.color(weapon_quality) if is_weapon else _tier_color(tier))
 	card.add_child(rarity_label)
 	_pin_between_left_and_price(rarity_label)
 
@@ -156,7 +210,7 @@ static func build_card(
 	price_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	price_label.clip_text = true
 	price_label.text = price_text
-	price_label.add_theme_color_override(&"font_color", Color("f1ca52"))
+	price_label.add_theme_color_override(&"font_color", price_color)
 	card.add_child(price_label)
 	_pin_price_to_right(price_label)
 	if layout_variant == &"shop_offer":
@@ -166,11 +220,41 @@ static func build_card(
 
 
 static func localized_stat_rows(definition: GogoContentDefinition) -> Array[Dictionary]:
+	var all_rows := _all_localized_stat_rows(definition)
+	if all_rows.size() <= 2:
+		return all_rows
+
+	var primary_positive: Dictionary = {}
+	var primary_negative: Dictionary = {}
+	for payload in all_rows:
+		var amount := float(payload.get("amount", 0.0))
+		if amount > 0.0 and primary_positive.is_empty():
+			primary_positive = payload
+		elif amount < 0.0 and primary_negative.is_empty():
+			primary_negative = payload
+	if not primary_positive.is_empty() and not primary_negative.is_empty():
+		return [primary_positive, primary_negative]
+
+	var first_two: Array[Dictionary] = []
+	first_two.append(all_rows[0])
+	first_two.append(all_rows[1])
+	return first_two
+
+
+static func _all_localized_stat_rows(definition: GogoContentDefinition) -> Array[Dictionary]:
 	if definition is GogoWeaponDefinition:
 		var weapon := definition as GogoWeaponDefinition
 		return [
-			{"text": "伤害 %s" % _unsigned_number(weapon.damage), "amount": 0.0},
-			{"text": "攻击间隔 %.2fs" % weapon.cooldown_seconds, "amount": 0.0},
+			{
+				"text": "伤害 %s" % _unsigned_number(weapon.damage),
+				"amount": 0.0,
+				"stat_key": &"melee_damage" if weapon.mode == GogoWeaponDefinition.Mode.MELEE else &"ranged_damage",
+			},
+			{
+				"text": "攻击间隔 %.2fs" % weapon.cooldown_seconds,
+				"amount": 0.0,
+				"stat_key": &"attack_speed",
+			},
 		]
 	var modifiers: Dictionary = {}
 	if definition is GogoItemDefinition:
@@ -185,12 +269,27 @@ static func localized_stat_rows(definition: GogoContentDefinition) -> Array[Dict
 		result.append({
 			"text": "%s %s" % [String(MODIFIER_NAMES[key]), _signed_modifier(key, amount)],
 			"amount": amount,
+			"stat_key": key,
 		})
-		if result.size() == 2:
-			break
 	if result.is_empty():
-		result.append({"text": "无额外属性", "amount": 0.0})
+		result.append({"text": "无额外属性", "amount": 0.0, "stat_key": &""})
 	return result
+
+
+static func _card_tooltip_text(definition: GogoContentDefinition, weapon_quality: int = 1) -> String:
+	if definition == null:
+		return ""
+	var lines := PackedStringArray([definition.display_name])
+	if definition is GogoWeaponDefinition: lines[0] += " " + GogoWeaponQualityRules.label(weapon_quality)
+	for metadata_key: StringName in [&"description", &"flavor"]:
+		var copy := String(definition.get_meta(metadata_key, "")).strip_edges()
+		if not copy.is_empty():
+			lines.append(copy)
+	for payload in _all_localized_stat_rows(definition):
+		var stat_text := String(payload.get("text", "")).strip_edges()
+		if not stat_text.is_empty():
+			lines.append(stat_text)
+	return "\n".join(lines)
 
 
 static func apply_button_state_textures(
@@ -232,20 +331,19 @@ static func _icon_handle(
 	return handle
 
 
-static func _apply_card_styles(card: Button, tier: int) -> void:
-	var rarity := _tier_color(tier)
-	card.add_theme_stylebox_override(&"normal", _card_style(Color("171b1e"), Color("394044")))
-	card.add_theme_stylebox_override(&"hover", _card_style(Color("20262a"), rarity))
-	card.add_theme_stylebox_override(&"focus", _card_style(Color("20262a"), rarity))
-	card.add_theme_stylebox_override(&"pressed", _card_style(Color("29231a"), Color("f1a34a")))
-	card.add_theme_stylebox_override(&"disabled", _card_style(Color("121518"), Color("303537")))
+static func _apply_card_styles(
+	card: Button,
+	_tier: int,
+	layout_variant: StringName
+) -> void:
+	HUD_SKIN.apply_card(card, false, layout_variant == &"shop_offer")
 
 
-static func _card_style(background: Color, border: Color) -> StyleBoxFlat:
+static func _card_style(background: Color, border: Color, border_width: int = 1) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = background
 	style.border_color = border
-	style.set_border_width_all(1)
+	style.set_border_width_all(border_width)
 	style.set_corner_radius_all(0)
 	style.anti_aliasing = false
 	style.border_blend = false
@@ -255,12 +353,18 @@ static func _card_style(background: Color, border: Color) -> StyleBoxFlat:
 static func _button_texture_style(texture: Texture2D) -> StyleBoxTexture:
 	var style := StyleBoxTexture.new()
 	style.texture = texture
-	for side: int in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
-		style.set_texture_margin(side, 12.0)
+	# The approved 64px state cells contain 13-14px of transparent padding above
+	# and below the visible button. Crop that authored canvas padding at draw time;
+	# otherwise a 44px control renders as a thin 16px strip behind Chinese text.
+	style.region_rect = Rect2(4.0, 13.0, 55.0, 38.0)
+	style.set_texture_margin(SIDE_LEFT, 12.0)
+	style.set_texture_margin(SIDE_TOP, 10.0)
+	style.set_texture_margin(SIDE_RIGHT, 12.0)
+	style.set_texture_margin(SIDE_BOTTOM, 10.0)
 	style.set_content_margin(SIDE_LEFT, 24.0)
-	style.set_content_margin(SIDE_TOP, 6.0)
+	style.set_content_margin(SIDE_TOP, 8.0)
 	style.set_content_margin(SIDE_RIGHT, 24.0)
-	style.set_content_margin(SIDE_BOTTOM, 6.0)
+	style.set_content_margin(SIDE_BOTTOM, 8.0)
 	return style
 
 
@@ -318,27 +422,38 @@ static func _apply_shop_offer_layout(card: Button) -> void:
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
+	var type_badge := card.get_node("TypeBadge") as Label
+	type_badge.visible = not type_badge.text.is_empty()
+	type_badge.anchor_left = 0.0
+	type_badge.anchor_right = 1.0
+	type_badge.position = Vector2.ZERO
+	type_badge.offset_left = 14.0
+	type_badge.offset_top = 170.0
+	type_badge.offset_right = -14.0
+	type_badge.offset_bottom = 192.0
+
 	var stat_rows := card.get_node("StatRows") as VBoxContainer
 	stat_rows.anchor_left = 0.0
 	stat_rows.anchor_right = 1.0
 	stat_rows.position = Vector2.ZERO
 	stat_rows.offset_left = 14.0
-	stat_rows.offset_top = 176.0
+	stat_rows.offset_top = 196.0
 	stat_rows.offset_right = -14.0
-	stat_rows.offset_bottom = 228.0
+	stat_rows.offset_bottom = 248.0
 	stat_rows.add_theme_constant_override(&"separation", 4)
 	for child in stat_rows.get_children():
-		(child as Label).custom_minimum_size.y = 24.0
-		(child as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var stat_row := child as HBoxContainer
+		stat_row.custom_minimum_size.y = 24.0
+		stat_row.alignment = BoxContainer.ALIGNMENT_CENTER
 
 	var rarity_label := card.get_node("RarityLabel") as Label
 	rarity_label.anchor_left = 0.0
 	rarity_label.anchor_right = 1.0
 	rarity_label.position = Vector2.ZERO
 	rarity_label.offset_left = 12.0
-	rarity_label.offset_top = 234.0
+	rarity_label.offset_top = 250.0
 	rarity_label.offset_right = -12.0
-	rarity_label.offset_bottom = 254.0
+	rarity_label.offset_bottom = 268.0
 	rarity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 	var price_label := card.get_node("PriceOrState") as Label
@@ -370,6 +485,10 @@ static func _label(
 	label.add_theme_constant_override(&"outline_size", 1)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
+
+
+static func _content_type_label(definition: GogoContentDefinition) -> String:
+	return HUD_SKIN.type_label(definition)
 
 
 static func _tier(definition: GogoContentDefinition) -> int:
@@ -468,8 +587,9 @@ static func _linear_channel(channel: float) -> float:
 
 
 static func _signed_modifier(key: StringName, amount: float) -> String:
-	var display_amount := amount * 100.0 if PERCENT_DELTA_KEYS.has(key) else amount
-	var suffix := "%" if PERCENT_DELTA_KEYS.has(key) else ""
+	var is_fraction_percent := PERCENT_DELTA_KEYS.has(key)
+	var display_amount := amount * 100.0 if is_fraction_percent else amount
+	var suffix := "%" if is_fraction_percent or PERCENT_POINT_KEYS.has(key) else ""
 	return "%s%s%s" % ["+" if display_amount > 0.0 else "", _unsigned_number(display_amount), suffix]
 
 

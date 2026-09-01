@@ -2,25 +2,26 @@ class_name GogoStatListPresenter
 extends RefCounted
 
 
+const STAT_ICON_PRESENTER := preload("res://game/ui/stat_icon_presenter.gd")
 const POSITIVE_COLOR := Color("72d572")
 const NEGATIVE_COLOR := Color("ef6a67")
 const NEUTRAL_COLOR := Color("f3edd7")
 const STAT_SPECS := [
 	[&"max_health", "MaxHealth", "最大生命", &"number"],
 	[&"health_regen", "HealthRegen", "生命恢复", &"number"],
-	[&"damage_multiplier", "DamageMultiplier", "伤害", &"ratio_percent"],
+	[&"damage_multiplier", "DamageMultiplier", "伤害", &"relative_percent"],
 	[&"melee_damage", "MeleeDamage", "近战伤害", &"number"],
 	[&"ranged_damage", "RangedDamage", "远程伤害", &"number"],
-	[&"attack_speed", "AttackSpeed", "攻击速度", &"multiplier"],
-	[&"attack_speed_multiplier", "AttackSpeedMultiplier", "攻击速度加成", &"delta_percent"],
+	[&"attack_speed", "AttackSpeed", "攻击速度", &"relative_percent"],
 	[&"critical_chance", "CriticalChance", "暴击率", &"ratio_percent"],
 	[&"attack_range_bonus", "AttackRange", "射程", &"number"],
 	[&"armor", "Armor", "护甲", &"number"],
 	[&"dodge", "Dodge", "闪避", &"ratio_percent"],
-	[&"movement_speed", "MovementSpeed", "移动速度", &"number"],
-	[&"movement_speed_multiplier", "MovementSpeedMultiplier", "移动速度加成", &"delta_percent"],
+	[&"movement_speed", "MovementSpeed", "移动速度", &"relative_percent"],
+	[&"counter_strafe_brake", "CounterStrafeBrake", "急停制动", &"points_percent"],
+	[&"moving_recoil_control", "MovingRecoilControl", "跑打控枪", &"points_percent"],
 	[&"pickup_range", "PickupRange", "拾取范围", &"number"],
-	[&"economy", "Economy", "经济", &"number"],
+	[&"economy", "Economy", "经济", &"points_percent"],
 	[&"explosion_damage_multiplier", "ExplosionDamage", "爆炸伤害", &"delta_percent"],
 ]
 
@@ -50,7 +51,12 @@ static func build(
 		var row := HBoxContainer.new()
 		row.name = String(spec[1])
 		row.custom_minimum_size = Vector2(220, 20 if compact else 24)
-		row.add_theme_constant_override(&"separation", 8 if compact else 12)
+		row.add_theme_constant_override(&"separation", 5 if compact else 7)
+		var icon := STAT_ICON_PRESENTER.build_icon(
+			key,
+			Vector2(16, 16) if compact else Vector2(18, 18)
+		)
+		row.add_child(icon)
 		var name_label := Label.new()
 		name_label.name = "Name"
 		name_label.text = String(spec[2])
@@ -60,11 +66,15 @@ static func build(
 		row.add_child(name_label)
 		var value_label := Label.new()
 		value_label.name = "Value"
-		value_label.text = _format_value(float(values[key]), spec[3] as StringName)
+		var base_value := _baseline_value(key, player.base_stats)
+		value_label.text = _format_value(
+			float(values[key]),
+			spec[3] as StringName,
+			base_value
+		)
 		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		value_label.custom_minimum_size.x = 68 if compact else 76
 		value_label.add_theme_font_size_override(&"font_size", 14 if compact else 17)
-		var base_value := _baseline_value(key, player.base_stats)
 		value_label.add_theme_color_override(
 			&"font_color",
 			_delta_color(float(values[key]), base_value)
@@ -74,14 +84,25 @@ static func build(
 	return list
 
 
-static func _format_value(value: float, format_kind: StringName) -> String:
+static func _format_value(
+	value: float,
+	format_kind: StringName,
+	base_value: float = 0.0
+) -> String:
 	match format_kind:
 		&"ratio_percent":
 			return "%s%%" % _number(value * 100.0)
+		&"relative_percent":
+			var delta := 0.0
+			if absf(base_value) > 0.0001:
+				delta = value / base_value - 1.0
+			else:
+				delta = value
+			return "%s%s%%" % ["+" if delta > 0.0 else "", _number(delta * 100.0)]
+		&"points_percent":
+			return "%s%s%%" % ["+" if value > 0.0 else "", _number(value)]
 		&"delta_percent":
 			return "%s%s%%" % ["+" if value > 0.0 else "", _number(value * 100.0)]
-		&"multiplier":
-			return "%.2f×" % value
 		_:
 			return _number(value)
 

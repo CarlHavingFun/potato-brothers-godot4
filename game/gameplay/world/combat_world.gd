@@ -4,9 +4,15 @@ extends Node2D
 const STATIC_WORLD_PRESENTER := preload("res://game/gameplay/world/static_world_presenter.gd")
 const STATIC_SPAWN_MARKER := preload("res://game/gameplay/world/static_spawn_marker.gd")
 const COMBAT_PICKUP := preload("res://game/gameplay/world/combat_pickup.gd")
+const HOSTILE_PROJECTILE := preload("res://game/gameplay/world/hostile_projectile.gd")
 const LOCAL_HITSTOP_MIN_SECONDS := 0.025
 const LOCAL_HITSTOP_MAX_SECONDS := 0.060
 const PLAYER_DAMAGE_HITSTOP_SECONDS := 0.040
+const SPAWN_MIN_PLAYER_DISTANCE := 180.0
+const SPAWN_RING_MIN := 320.0
+const SPAWN_RING_MAX := 460.0
+const SPAWN_ARENA_INSET := 40.0
+const MAX_SIMULTANEOUS_ENEMIES := 160
 
 signal wave_completed
 signal run_failed
@@ -82,6 +88,7 @@ var _local_hitstop_remaining := 0.0
 var _local_hitstop_actor_phase_latched := false
 var _run_failure_pending := false
 var _pickup_collection_sequence := 0
+var _wave_difficulty: GogoDifficultyDefinition
 
 
 func _ready() -> void:
@@ -124,17 +131,32 @@ func start_wave(next_session: GameSession, wave_definition: GogoWaveDefinition) 
 		or next_session.run_state.ended
 		or next_session.run_state.phase != &"combat"
 		or next_session.run_state.player() == null
+		or not is_finite(next_session.run_state.player().current_health)
+		or next_session.run_state.player().current_health <= 0.0
 	):
 		return ERR_INVALID_PARAMETER
 	var zone := next_session.content_snapshot.definition(next_session.run_state.zone_id, &"zone") as GogoZoneDefinition
 	var difficulty := next_session.content_snapshot.definition(next_session.run_state.difficulty_id, &"difficulty") as GogoDifficultyDefinition
 	if zone == null or difficulty == null:
 		return ERR_INVALID_DATA
+	if GogoWaveResolver.resolve(next_session) == null:
+		return ERR_INVALID_DATA
+	if GogoWaveResolver.validate_wave(wave_definition, next_session.content_snapshot, next_session.run_state.current_wave, difficulty.spawn_multiplier) != OK:
+		return ERR_INVALID_DATA
+	if next_session.run_state.current_wave > next_session.run_state.total_waves and not next_session.run_state.endless:
+		return ERR_INVALID_DATA
+	for multiplier in [difficulty.enemy_health_multiplier, difficulty.enemy_damage_multiplier, difficulty.enemy_speed_multiplier, difficulty.spawn_multiplier]:
+		if not is_finite(multiplier) or multiplier < 0.0 or multiplier > 16.0:
+			return ERR_INVALID_DATA
 	var next_zone_runtime := ZoneRuntime.new()
 	if next_zone_runtime.configure(zone) != OK:
 		return ERR_INVALID_DATA
 	_clear_active_combat_actors()
 	session = next_session
+	_wave_difficulty = difficulty.duplicate(true) as GogoDifficultyDefinition
+	_wave_difficulty.enemy_health_multiplier *= wave_definition.enemy_health_multiplier
+	_wave_difficulty.enemy_damage_multiplier *= wave_definition.enemy_damage_multiplier
+	_wave_difficulty.enemy_speed_multiplier *= wave_definition.enemy_speed_multiplier
 	_wave_start_materials = session.run_state.player().materials
 	zone_runtime = next_zone_runtime
 	_wave_transition_committed = false
@@ -157,6 +179,7 @@ func start_wave(next_session: GameSession, wave_definition: GogoWaveDefinition) 
 		player_actor.configure(session, self)
 		player_actor.position = arena_rect.get_center()
 		player_actor.rebuild_weapons()
+	player_actor.reset_health_regeneration_cycle()
 	if not player_actor.damage_taken.is_connected(_on_player_damage_taken):
 		player_actor.damage_taken.connect(_on_player_damage_taken)
 	if player_camera == null:
@@ -208,6 +231,37 @@ func bind_enemy_feedback(enemy: GogoEnemyActor) -> void:
 		enemy.enemy_defeated.connect(_on_enemy_defeated)
 
 
+func spawn_hostile_pulse(
+	source_enemy: GogoEnemyActor,
+	target_actor: GogoPlayerActor,
+	shot_direction: Vector2,
+	shot_damage: float
+) -> GogoHostileProjectile:
+	if (
+		source_enemy == null
+		or not is_instance_valid(source_enemy)
+		or target_actor == null
+		or not is_instance_valid(target_actor)
+		or projectile_layer == null
+		or session == null
+	):
+		return null
+	var projectile := HOSTILE_PROJECTILE.new() as GogoHostileProjectile
+	projectile.name = "HostilePulse_%d" % source_enemy.runtime_instance_id
+	projectile.z_index = 24
+	projectile_layer.add_child(projectile)
+	if not projectile.activate(
+		self,
+		target_actor,
+		source_enemy.runtime_instance_id,
+		source_enemy.global_position.round(),
+		shot_direction,
+		shot_damage
+	):
+		return null
+	return projectile
+
+
 func _physics_process(delta: float) -> void:
 	_local_hitstop_actor_phase_latched = _local_hitstop_remaining > 0.0
 	_local_hitstop_remaining = maxf(_local_hitstop_remaining - maxf(delta, 0.0), 0.0)
@@ -217,6 +271,8 @@ func _physics_process(delta: float) -> void:
 	if not running or session == null:
 		return
 	session.run_state.elapsed_seconds += delta
+	if player_actor != null and is_instance_valid(player_actor):
+		player_actor.tick_health_regeneration(delta)
 	for enemy_id in wave_runtime.tick(delta):
 		_spawn_enemy(enemy_id)
 	var remaining := maxf(wave_runtime.wave.duration_seconds - wave_runtime.elapsed, 0.0)
@@ -363,21 +419,58 @@ func collect_pickup(pickup: Node2D) -> StringName:
 	if _active_pickups_by_runtime_id.get(runtime_instance_id) != pickup:
 		return GameSession.REWARD_DUPLICATE
 	unregister_active_pickup(runtime_instance_id, pickup)
-	var result := session.apply_reserved_reward(
-		StringName(pickup.get("reward_token")),
-		int(pickup.get("reward_reservation_id"))
-	)
-	if result == GameSession.REWARD_APPLIED:
-		_pickup_collection_sequence += 1
-		pickup_collected.emit(
-			runtime_instance_id,
-			StringName(pickup.get("reward_kind")),
-			int(pickup.get("reward_amount")),
-			Vector2i(pickup.global_position.round()),
-			_pickup_collection_sequence
-		)
+	var reward_entries: Array = pickup.get("reward_entries") as Array
+	if reward_entries.is_empty():
+		reward_entries = [{
+			&"kind": StringName(pickup.get("reward_kind")),
+			&"amount": int(pickup.get("reward_amount")),
+			&"token": StringName(pickup.get("reward_token")),
+			&"reservation_id": int(pickup.get("reward_reservation_id")),
+		}]
+	var collection_position := Vector2i(pickup.global_position.round())
+	var overall_result: StringName = GameSession.REWARD_APPLIED
+	var applied_entry_count := 0
+	var applied_visual_amount := 0
+	for kind in [GameSession.REWARD_EXPERIENCE, GameSession.REWARD_SUPPLY]:
+		for entry_value in reward_entries:
+			if not entry_value is Dictionary:
+				if overall_result == GameSession.REWARD_APPLIED:
+					overall_result = GameSession.REWARD_INVALID
+				continue
+			var entry := entry_value as Dictionary
+			if StringName(entry.get(&"kind", &"")) != kind:
+				continue
+			var result := session.apply_reserved_reward(
+				StringName(entry.get(&"token", &"")),
+				int(entry.get(&"reservation_id", 0))
+			)
+			if result != GameSession.REWARD_APPLIED:
+				if overall_result == GameSession.REWARD_APPLIED:
+					overall_result = result
+				continue
+			applied_entry_count += 1
+			applied_visual_amount += maxi(int(entry.get(&"amount", 0)), 0)
+			_pickup_collection_sequence += 1
+			pickup_collected.emit(
+				runtime_instance_id,
+				kind,
+				int(entry.get(&"amount", 0)),
+				collection_position,
+				_pickup_collection_sequence
+			)
+	if applied_entry_count > 0:
+		overall_result = GameSession.REWARD_APPLIED
+		if feedback_presenter != null:
+			feedback_presenter.present_pickup_collected(
+				runtime_instance_id,
+				collection_position,
+				maxi(applied_visual_amount, 1),
+				_pickup_collection_sequence
+			)
+	elif overall_result == GameSession.REWARD_APPLIED:
+		overall_result = GameSession.REWARD_INVALID
 	pickup.queue_free()
-	return result
+	return overall_result
 
 
 func collect_all_live_pickups() -> void:
@@ -472,43 +565,54 @@ func spawn_reserved_enemy_pickups(
 		or enemy_runtime_instance_id <= 0
 	):
 		return 0
-	var spawned := 0
+	var reward_entries: Array[Dictionary] = []
+	var material_amount := 0
 	for kind in [GameSession.REWARD_EXPERIENCE, GameSession.REWARD_SUPPLY]:
 		if not reservations.has(kind):
 			continue
 		var reservation := reservations[kind] as Dictionary
 		if StringName(reservation.get("status", GameSession.REWARD_INVALID)) != GameSession.REWARD_RESERVED:
 			continue
-		var runtime_instance_id := allocate_runtime_instance_id(&"pickup")
-		if runtime_instance_id <= 0:
+		var amount := int(reservation.get("amount", 0))
+		if amount <= 0:
 			continue
-		var visual_handle: GogoStaticAssetHandle
-		if session.static_asset_snapshot != null:
-			var asset_id := &"experience_pickup" if kind == GameSession.REWARD_EXPERIENCE else &"supply_pickup"
-			visual_handle = session.static_asset_snapshot.resolve_asset(asset_id, &"world_sprite")
-		var pickup := COMBAT_PICKUP.new() as Node2D
-		pickup.name = "Pickup_%d_%s" % [runtime_instance_id, String(kind)]
-		pickup_layer.add_child(pickup)
-		if not bool(pickup.call(
-			&"configure",
-			self,
-			player_actor,
-			runtime_instance_id,
-			enemy_runtime_instance_id,
-			kind,
-			int(reservation.get("amount", 0)),
-			StringName(reservation.token),
-			int(reservation.reservation_id),
-			visual_handle,
-			Vector2(integer_death_global_position)
-		)):
-			pickup.queue_free()
-			continue
-		if not register_active_pickup(pickup):
-			pickup.queue_free()
-			continue
-		spawned += 1
-	return spawned
+		reward_entries.append({
+			&"kind": kind,
+			&"amount": amount,
+			&"token": StringName(reservation.get("token", &"")),
+			&"reservation_id": int(reservation.get("reservation_id", 0)),
+		})
+		if kind == GameSession.REWARD_SUPPLY:
+			material_amount = amount
+	if reward_entries.is_empty():
+		return 0
+	var runtime_instance_id := allocate_runtime_instance_id(&"pickup")
+	if runtime_instance_id <= 0:
+		return 0
+	var visual_denomination := clampi(material_amount, 1, 2) if material_amount > 0 else 1
+	var visual_handle: GogoStaticAssetHandle
+	if session.static_asset_snapshot != null:
+		var asset_id := &"supply_pickup" if visual_denomination >= 2 else &"experience_pickup"
+		visual_handle = session.static_asset_snapshot.resolve_asset(asset_id, &"world_sprite")
+	var pickup := COMBAT_PICKUP.new() as Node2D
+	pickup.name = "Pickup_%d_bundle" % runtime_instance_id
+	pickup_layer.add_child(pickup)
+	if not bool(pickup.call(
+		&"configure_bundle",
+		self,
+		player_actor,
+		runtime_instance_id,
+		enemy_runtime_instance_id,
+		reward_entries,
+		visual_handle,
+		Vector2(integer_death_global_position)
+	)):
+		pickup.queue_free()
+		return 0
+	if not register_active_pickup(pickup):
+		pickup.queue_free()
+		return 0
+	return 1
 
 
 static func enemy_reward_token(enemy_instance_id: int, death_sequence: int, kind: StringName) -> StringName:
@@ -518,23 +622,33 @@ static func enemy_reward_token(enemy_instance_id: int, death_sequence: int, kind
 
 
 func _spawn_enemy(enemy_id: StringName) -> void:
+	if not running or _active_enemies.size() + _pending_spawn_enemies.size() >= MAX_SIMULTANEOUS_ENEMIES:
+		return
 	var definition := session.content_snapshot.definition(enemy_id, &"enemy") as GogoEnemyDefinition
-	var difficulty := session.content_snapshot.definition(session.run_state.difficulty_id, &"difficulty") as GogoDifficultyDefinition
+	var difficulty := _wave_difficulty
 	if definition == null or difficulty == null:
 		return
+	# definition() returns a copy: actor speed/damage are local, health composes
+	# through configure(). The catalog and shared difficulty remain immutable.
+	definition.movement_speed *= difficulty.enemy_speed_multiplier
+	definition.touch_damage *= difficulty.enemy_damage_multiplier
 	var runtime_instance_id := allocate_runtime_instance_id(&"enemy")
 	if runtime_instance_id <= 0:
 		return
 	var enemy := GogoEnemyActor.new()
 	enemy.configure(definition, player_actor, difficulty, self, runtime_instance_id)
 	var spawn_position := _random_edge_position().round()
-	var marker := STATIC_SPAWN_MARKER.new() as GogoStaticSpawnMarker
-	marker.name = "SpawnMarker_%d" % runtime_instance_id
 	_pending_spawn_enemies[runtime_instance_id] = enemy
+	_queue_spawn_marker(enemy, spawn_position)
+
+
+func _queue_spawn_marker(enemy: GogoEnemyActor, spawn_position: Vector2) -> void:
+	var marker := STATIC_SPAWN_MARKER.new() as GogoStaticSpawnMarker
+	marker.name = "SpawnMarker_%d" % enemy.runtime_instance_id
 	var marker_handle: GogoStaticAssetHandle
 	if session.static_asset_snapshot != null:
 		marker_handle = session.static_asset_snapshot.resolve_asset(&"spawn_marker", &"world_sprite")
-	marker.configure_visual(marker_handle)
+	marker.configure_visual(marker_handle, enemy.definition.is_boss)
 	effect_layer.add_child(marker)
 	marker.play(
 		spawn_position,
@@ -545,11 +659,17 @@ func _spawn_enemy(enemy_id: StringName) -> void:
 func _activate_spawned_enemy(enemy: GogoEnemyActor, spawn_position: Vector2) -> void:
 	if enemy == null or not is_instance_valid(enemy):
 		return
-	_pending_spawn_enemies.erase(enemy.runtime_instance_id)
 	if not running or enemy.is_inside_tree():
+		_pending_spawn_enemies.erase(enemy.runtime_instance_id)
 		if not enemy.is_inside_tree():
 			enemy.free()
 		return
+	# A fast build may reach the warning before activation. Relocate and warn
+	# again, never silently materialize a body underneath the moving player.
+	if spawn_position.distance_to(player_actor.global_position) < SPAWN_MIN_PLAYER_DISTANCE:
+		_queue_spawn_marker(enemy, _random_edge_position().round())
+		return
+	_pending_spawn_enemies.erase(enemy.runtime_instance_id)
 	enemy.position = spawn_position
 	enemy_layer.add_child(enemy)
 	if not register_active_enemy(enemy):
@@ -557,12 +677,26 @@ func _activate_spawned_enemy(enemy: GogoEnemyActor, spawn_position: Vector2) -> 
 
 
 func _random_edge_position() -> Vector2:
-	var side := session.rng.randi_range(0, 3)
-	match side:
-		0: return Vector2(session.rng.randf_range(20.0, arena_rect.size.x - 20.0), 20.0)
-		1: return Vector2(arena_rect.size.x - 20.0, session.rng.randf_range(20.0, arena_rect.size.y - 20.0))
-		2: return Vector2(session.rng.randf_range(20.0, arena_rect.size.x - 20.0), arena_rect.size.y - 20.0)
-		_: return Vector2(20.0, session.rng.randf_range(20.0, arena_rect.size.y - 20.0))
+	# Edge means the player's engagement ring, not the distant 2048x1536 map.
+	# Use the camera's actual zoom/viewport so warnings remain readable at edges.
+	var visible_size := player_camera.get_viewport_rect().size / player_camera.zoom
+	var visible := Rect2(player_camera.global_position - visible_size * 0.5, visible_size)
+	var safe_rect := visible.grow(-40.0).intersection(arena_rect.grow(-SPAWN_ARENA_INSET))
+	var origin := player_actor.global_position
+	for attempt in 64:
+		var direction := Vector2.RIGHT.rotated(session.rng.randf_range(0.0, TAU))
+		var candidate := origin + direction * session.rng.randf_range(SPAWN_RING_MIN, SPAWN_RING_MAX)
+		if safe_rect.has_point(candidate):
+			return candidate
+	# Deterministic bounded fallback for camera/arena corners. Clip the ring, not
+	# the player safety radius; the farthest candidate avoids rejection starvation.
+	var best := safe_rect.get_center()
+	for index in 16:
+		var candidate := origin + Vector2.RIGHT.rotated(TAU * float(index) / 16.0) * SPAWN_RING_MIN
+		candidate = Vector2(clampf(candidate.x, safe_rect.position.x, safe_rect.end.x), clampf(candidate.y, safe_rect.position.y, safe_rect.end.y))
+		if candidate.distance_squared_to(origin) > best.distance_squared_to(origin):
+			best = candidate
+	return best
 
 
 func _on_player_health_changed(_current: float, _maximum: float) -> void:
@@ -601,7 +735,9 @@ func _emit_hud_snapshot(remaining: float) -> void:
 		remaining,
 		session.run_state.current_wave,
 		wave_runtime.elapsed,
-		maxi(player.materials - _wave_start_materials, 0)
+		maxi(player.materials - _wave_start_materials, 0),
+		session.run_state.endless,
+		session.run_state.total_waves
 	)
 	hud_snapshot_changed.emit(snapshot)
 	hud_changed.emit(snapshot.health, snapshot.maximum_health, snapshot.seconds, snapshot.wave)
@@ -662,7 +798,10 @@ func _on_projectile_contact(
 	impact_kind: StringName,
 	contact_sequence: int
 ) -> void:
-	request_local_hitstop(_contact_hitstop_duration(feedback_profile_id, impact_kind))
+	_request_target_local_hitstop(
+		target_instance_id,
+		_contact_hitstop_duration(feedback_profile_id, impact_kind)
+	)
 	if feedback_presenter != null:
 		feedback_presenter.present_projectile_contact(
 			projectile_instance_id,
@@ -707,7 +846,10 @@ func _on_melee_contact(
 	impact_kind: StringName,
 	melee_sequence: int
 ) -> void:
-	request_local_hitstop(_contact_hitstop_duration(feedback_profile_id, impact_kind))
+	_request_target_local_hitstop(
+		target_instance_id,
+		_contact_hitstop_duration(feedback_profile_id, impact_kind)
+	)
 	if feedback_presenter != null:
 		feedback_presenter.present_melee_contact(
 			weapon_instance_id,
@@ -733,15 +875,18 @@ func _on_melee_contact(
 
 static func _contact_hitstop_duration(
 	feedback_profile_id: StringName,
-	impact_kind: StringName
+	_impact_kind: StringName
 ) -> float:
-	if impact_kind == &"explosion":
-		return 0.060
-	if impact_kind == &"critical":
-		return 0.045
-	if feedback_profile_id == &"rifle" or feedback_profile_id == &"heavy":
-		return 0.035
-	return 0.025
+	return 0.035 if feedback_profile_id == &"heavy" else 0.0
+
+
+func _request_target_local_hitstop(target_instance_id: int, seconds: float) -> void:
+	if target_instance_id <= 0 or seconds <= 0.0:
+		return
+	var target_enemy := _active_enemies_by_runtime_id.get(target_instance_id) as GogoEnemyActor
+	if target_enemy == null or not is_instance_valid(target_enemy) or target_enemy.defeated_once:
+		return
+	target_enemy.request_target_local_hitstop(seconds)
 
 
 func _on_enemy_defeated(
@@ -795,6 +940,8 @@ func _clear_active_combat_actors(preserve_terminal_hit_feedback := false) -> voi
 		for projectile in projectile_layer.get_children():
 			if projectile is GogoProjectile:
 				(projectile as GogoProjectile).retire()
+			elif projectile is GogoHostileProjectile:
+				(projectile as GogoHostileProjectile).retire()
 			else:
 				projectile.queue_free()
 	if pickup_layer != null:
@@ -816,7 +963,7 @@ func _clear_active_combat_actors(preserve_terminal_hit_feedback := false) -> voi
 
 
 func _draw() -> void:
-	draw_rect(arena_rect, Color("20252e"), true)
+	draw_rect(arena_rect, Color(0.48, 0.52, 0.48), true)
 	for x in range(0, int(arena_rect.size.x), 64):
 		draw_line(Vector2(x, 0), Vector2(x, arena_rect.size.y), Color(1, 1, 1, 0.025), 1.0)
 	for y in range(0, int(arena_rect.size.y), 64):

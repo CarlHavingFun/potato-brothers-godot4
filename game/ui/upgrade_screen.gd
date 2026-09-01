@@ -1,7 +1,9 @@
 extends GogoScreenBase
 
 const STAT_LIST_PRESENTER := preload("res://game/ui/stat_list_presenter.gd")
-const CHOICE_ROW_RECT := Rect2(32, 150, 927, 215)
+const UPGRADE_TITLE_POSITION := Vector2(32, 108)
+const REWARD_STATUS_RECT := Rect2(32, 170, 927, 38)
+const CHOICE_ROW_RECT := Rect2(32, 216, 927, 215)
 const STATS_COLUMN_RECT := Rect2(983, 100, 265, 496)
 
 var _app: AppKernel
@@ -26,6 +28,7 @@ func _show_offers(focus_index: int = 0, status_text: String = "") -> void:
 		remove_child(child)
 		child.queue_free()
 	build_screen_chrome("升级奖励", "战斗结束后选择一项强化")
+	(get_node("TitleBand") as Control).position = UPGRADE_TITLE_POSITION
 	_build_battlefield_backdrop()
 	var player := _app.current_session.run_state.player()
 	_offers = _build_service.upgrade_reward_offers(_app.current_session)
@@ -72,9 +75,9 @@ func _build_battlefield_backdrop() -> void:
 func _build_reward_status(player: SessionPlayerState, status_text: String) -> void:
 	var status := Label.new()
 	status.name = "RewardStatus"
-	status.position = Vector2(32, 100)
-	status.size = Vector2(927, 42)
-	var canonical_status := "选择一项升级 · 剩余 %d 次 · 材料 %d" % [
+	status.position = REWARD_STATUS_RECT.position
+	status.size = REWARD_STATUS_RECT.size
+	var canonical_status := "选择一项升级 · 剩余 %d 次 · 金币 %d" % [
 		_app.current_session.run_state.pending_upgrade_count,
 		player.materials,
 	]
@@ -131,8 +134,9 @@ func _configure_choice_card(card: Button) -> void:
 	stat_rows.size = Vector2(200, 38)
 	stat_rows.add_theme_constant_override(&"separation", 2)
 	for row in stat_rows.get_children():
-		(row as Label).custom_minimum_size.y = 18
-		(row as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var stat_row := row as HBoxContainer
+		stat_row.custom_minimum_size.y = 18
+		stat_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	var rarity := card.get_node("RarityLabel") as Label
 	rarity.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	rarity.position = Vector2(12, 166)
@@ -178,9 +182,12 @@ func _build_reroll_button() -> void:
 		"刷新 %d" % _build_service.upgrade_reroll_price(_app.current_session),
 		_reroll
 	)
-	reroll.position = Vector2(CHOICE_ROW_RECT.position.x, CHOICE_ROW_RECT.end.y + 16.0)
-	reroll.size = Vector2(240, 48)
+	reroll.size = Vector2(240, 52)
 	reroll.custom_minimum_size = reroll.size
+	reroll.position = Vector2(
+		CHOICE_ROW_RECT.position.x + (CHOICE_ROW_RECT.size.x - reroll.size.x) * 0.5,
+		CHOICE_ROW_RECT.end.y + 16.0
+	)
 	reroll.add_theme_font_size_override(&"font_size", 20)
 	reroll.set_meta(&"focus_role", &"upgrade_reroll")
 	add_child(reroll)
@@ -190,7 +197,7 @@ func _reroll() -> void:
 	var error := _build_service.reroll_upgrade_rewards(_app.current_session)
 	_show_offers(
 		-1,
-		"刷新完成" if error == OK else "材料不足"
+		"刷新完成" if error == OK else "金币不足"
 	)
 
 
@@ -204,7 +211,7 @@ func _choose(definition: GogoUpgradeDefinition, previous_index: int) -> void:
 		_show_offers(previous_index)
 		return
 	session.transition(&"shop")
-	_app.route(FlowRoute.SHOP)
+	_app.route(FlowRoute.SHOP, {"battlefield_backdrop": _battlefield_backdrop})
 
 
 func _restore_choice_focus(index: int) -> void:

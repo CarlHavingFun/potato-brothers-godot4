@@ -110,21 +110,35 @@ func build_overlay(
 		if image.load_png_from_buffer(FileAccess.get_file_as_bytes(path)) != OK or image.is_empty():
 			_issue(&"candidate_preview_texture_invalid", "Candidate preview texture is not a readable PNG.", asset_id)
 			continue
-		var pixel_size := _pair_i(unit.get("pixel_size"))
-		var display_size := _pair_i(unit.get("display_size_px"))
-		var pivot := _pair_i(unit.get("pivot_px"))
-		if pixel_size != image.get_size() or display_size != pixel_size:
-			_issue(&"candidate_preview_size_mismatch", "Candidate preview dimensions do not match the PNG.", asset_id)
+		var mapping := _display_mapping(unit, image, asset_id, false)
+		if mapping.is_empty():
 			continue
+		var display_size: Vector2i = mapping.get("display_size_px", Vector2i(-1, -1))
+		var display_scale: Vector2 = mapping.get("display_scale", Vector2(-1.0, -1.0))
+		var atlas_rect: Rect2i = mapping.get("atlas_rect_px", Rect2i(0, 0, -1, -1))
+		var pivot := _pair_i(unit.get("pivot_px"))
 		if pivot.x < 0 or pivot.y < 0 or pivot.x >= display_size.x or pivot.y >= display_size.y:
 			_issue(&"candidate_preview_pivot_invalid", "Candidate preview pivot is outside its texture.", asset_id)
 			continue
 		var anchors := _anchors(unit.get("anchors_px"), display_size, asset_id)
 		if not last_errors.is_empty():
 			continue
-		var texture := ImageTexture.create_from_image(image)
+		var texture := mapping.get("texture") as Texture2D
+		if texture == null:
+			_issue(&"candidate_preview_texture_invalid", "Candidate preview display texture could not be created.", asset_id)
+			continue
 		var key := _asset_key(asset_id, expected_role)
-		handles[key] = _handle(asset_id, expected_role, texture, display_size, pivot, anchors)
+		handles[key] = _handle(
+			asset_id,
+			expected_role,
+			texture,
+			display_size,
+			pivot,
+			anchors,
+			&"",
+			display_scale,
+			atlas_rect
+		)
 		states[asset_id] = &"preview_ready"
 		var aliases_variant: Variant = unit.get("preview_alias_asset_ids", [])
 		if not aliases_variant is Array or not (aliases_variant as Array).is_empty():
@@ -135,7 +149,17 @@ func build_overlay(
 			continue
 		if category == "weapon":
 			var icon_key := _asset_key(asset_id, &"icon")
-			handles[icon_key] = _handle(asset_id, &"icon", texture, display_size, Vector2i(display_size / 2), {})
+			handles[icon_key] = _handle(
+				asset_id,
+				&"icon",
+				texture,
+				display_size,
+				Vector2i(display_size / 2),
+				{},
+				&"",
+				display_scale,
+				atlas_rect
+			)
 			_bind_content_icons(content_bindings, content, asset_id, icon_key, [&"weapon"])
 		elif category in ["item", "upgrade"]:
 			_bind_content_icons(content_bindings, content, asset_id, key, [StringName(category)])
@@ -177,10 +201,14 @@ func _handle(
 	pivot: Vector2i,
 	anchors: Dictionary,
 	selector: StringName = &"",
-	display_scale: Vector2 = Vector2.ONE
+	display_scale: Vector2 = Vector2.ONE,
+	atlas_rect: Rect2i = Rect2i()
 ) -> GogoStaticAssetHandle:
 	var handle := GogoStaticAssetHandle.new()
 	var key := _asset_key(asset_id, role, selector)
+	var source_rect := atlas_rect
+	if source_rect.size.x <= 0 or source_rect.size.y <= 0:
+		source_rect = Rect2i(Vector2i.ZERO, Vector2i(texture.get_size()))
 	handle._configure({
 		"binding_key": StringName(key),
 		"asset_id": asset_id,
@@ -190,7 +218,7 @@ func _handle(
 		"display_scale": display_scale,
 		"pivot_px": pivot,
 		"anchors_px": anchors,
-		"atlas_rect_px": Rect2i(Vector2i.ZERO, Vector2i(texture.get_size())),
+		"atlas_rect_px": source_rect,
 		"source_kind": &"development_preview",
 	}, texture)
 	return handle
@@ -236,23 +264,106 @@ func _install_variants(
 		if image.load_png_from_buffer(FileAccess.get_file_as_bytes(path)) != OK or image.is_empty():
 			_issue(&"candidate_preview_variant_texture_invalid", "Candidate variant is not a readable PNG.", asset_id)
 			return
-		var pixel_size := _pair_i(variant.get("pixel_size"))
-		var display_size := _pair_i(variant.get("display_size_px"))
-		var pivot := _pair_i(variant.get("pivot_px"))
-		if pixel_size != image.get_size() or display_size != pixel_size:
-			_issue(&"candidate_preview_variant_size_mismatch", "Candidate variant dimensions do not match the PNG.", asset_id)
+		var mapping := _display_mapping(variant, image, asset_id, true)
+		if mapping.is_empty():
 			return
+		var display_size: Vector2i = mapping.get("display_size_px", Vector2i(-1, -1))
+		var display_scale: Vector2 = mapping.get("display_scale", Vector2(-1.0, -1.0))
+		var atlas_rect: Rect2i = mapping.get("atlas_rect_px", Rect2i(0, 0, -1, -1))
+		var pivot := _pair_i(variant.get("pivot_px"))
 		if pivot.x < 0 or pivot.y < 0 or pivot.x >= display_size.x or pivot.y >= display_size.y:
 			_issue(&"candidate_preview_variant_pivot_invalid", "Candidate variant pivot is outside its texture.", asset_id)
 			return
 		var anchors := _anchors(variant.get("anchors_px", {}), display_size, asset_id)
 		if not last_errors.is_empty():
 			return
-		var texture := ImageTexture.create_from_image(image)
+		var texture := mapping.get("texture") as Texture2D
+		if texture == null:
+			_issue(&"candidate_preview_variant_texture_invalid", "Candidate variant display texture could not be created.", asset_id)
+			return
 		var key := _asset_key(asset_id, role, selector)
-		handles[key] = _handle(asset_id, role, texture, display_size, pivot, anchors, selector)
+		handles[key] = _handle(
+			asset_id,
+			role,
+			texture,
+			display_size,
+			pivot,
+			anchors,
+			selector,
+			display_scale,
+			atlas_rect
+		)
 		if category == "ui_brand":
 			global_bindings[_binding_key(&"global", &"", asset_id, selector)] = key
+
+
+func _display_mapping(
+	entry: Dictionary,
+	image: Image,
+	asset_id: StringName,
+	is_variant: bool
+) -> Dictionary:
+	var pixel_size := _pair_i(entry.get("pixel_size"))
+	if pixel_size != image.get_size():
+		_issue(
+			&"candidate_preview_variant_size_mismatch" if is_variant else &"candidate_preview_size_mismatch",
+			"Candidate variant dimensions do not match the PNG." if is_variant else "Candidate preview dimensions do not match the PNG.",
+			asset_id
+		)
+		return {}
+	var atlas_rect := Rect2i(Vector2i.ZERO, pixel_size)
+	if entry.has("atlas_rect_px"):
+		atlas_rect = _rect_i(entry.get("atlas_rect_px"))
+	var display_size := _pair_i(entry.get("display_size_px"))
+	var has_explicit_scale := entry.has("display_scale")
+	var display_scale := _pair_f(entry.get("display_scale")) if has_explicit_scale else Vector2.ONE
+	var expected_display_scale := Vector2.ZERO
+	if atlas_rect.size.x > 0 and atlas_rect.size.y > 0:
+		expected_display_scale = Vector2(
+			float(display_size.x) / float(atlas_rect.size.x),
+			float(display_size.y) / float(atlas_rect.size.y)
+		)
+	if (
+		display_size.x <= 0
+		or display_size.y <= 0
+		or not _rect_fits(atlas_rect, pixel_size)
+		or not display_scale.is_finite()
+		or display_scale.x <= 0.0
+		or display_scale.y <= 0.0
+		or not _has_exact_integer_ratio(atlas_rect.size, display_size)
+		or (display_size != atlas_rect.size and not has_explicit_scale)
+		or display_scale != expected_display_scale
+	):
+		_issue(
+			&"candidate_preview_variant_display_mapping_invalid" if is_variant else &"candidate_preview_display_mapping_invalid",
+			"Candidate display mapping must use an in-bounds atlas rectangle, an exact integer up/down ratio, and a matching scale.",
+			asset_id
+		)
+		return {}
+	var slice := image.get_region(atlas_rect)
+	if slice == null or slice.is_empty():
+		_issue(
+			&"candidate_preview_variant_texture_invalid" if is_variant else &"candidate_preview_texture_invalid",
+			"Candidate display slice could not be read.",
+			asset_id
+		)
+		return {}
+	slice.convert(Image.FORMAT_RGBA8)
+	if slice.get_size() != display_size:
+		slice.resize(display_size.x, display_size.y, Image.INTERPOLATE_NEAREST)
+	if slice.get_size() != display_size:
+		_issue(
+			&"candidate_preview_variant_texture_invalid" if is_variant else &"candidate_preview_texture_invalid",
+			"Candidate display texture could not be resized.",
+			asset_id
+		)
+		return {}
+	return {
+		"texture": ImageTexture.create_from_image(slice),
+		"display_size_px": display_size,
+		"display_scale": display_scale,
+		"atlas_rect_px": atlas_rect,
+	}
 
 
 func _anchors(value: Variant, size: Vector2i, asset_id: StringName) -> Dictionary:
@@ -277,6 +388,57 @@ static func _pair_i(value: Variant) -> Vector2i:
 		if typeof(component) not in [TYPE_INT, TYPE_FLOAT] or float(component) != floorf(float(component)):
 			return Vector2i(-1, -1)
 	return Vector2i(int(pair[0]), int(pair[1]))
+
+
+static func _pair_f(value: Variant) -> Vector2:
+	if not value is Array or (value as Array).size() != 2:
+		return Vector2(-1.0, -1.0)
+	var pair := value as Array
+	for component: Variant in pair:
+		if typeof(component) not in [TYPE_INT, TYPE_FLOAT] or not is_finite(float(component)):
+			return Vector2(-1.0, -1.0)
+	return Vector2(float(pair[0]), float(pair[1]))
+
+
+static func _rect_i(value: Variant) -> Rect2i:
+	if not value is Array or (value as Array).size() != 4:
+		return Rect2i(0, 0, -1, -1)
+	var components := value as Array
+	for component: Variant in components:
+		if (
+			typeof(component) not in [TYPE_INT, TYPE_FLOAT]
+			or not is_finite(float(component))
+			or float(component) != floorf(float(component))
+		):
+			return Rect2i(0, 0, -1, -1)
+	return Rect2i(
+		int(components[0]),
+		int(components[1]),
+		int(components[2]),
+		int(components[3])
+	)
+
+
+static func _rect_fits(rect: Rect2i, source_size: Vector2i) -> bool:
+	return (
+		rect.position.x >= 0
+		and rect.position.y >= 0
+		and rect.size.x > 0
+		and rect.size.y > 0
+		and rect.size.x <= source_size.x
+		and rect.size.y <= source_size.y
+		and rect.position.x <= source_size.x - rect.size.x
+		and rect.position.y <= source_size.y - rect.size.y
+	)
+
+
+static func _has_exact_integer_ratio(source_size: Vector2i, display_size: Vector2i) -> bool:
+	if source_size.x <= 0 or source_size.y <= 0 or display_size.x <= 0 or display_size.y <= 0:
+		return false
+	return (
+		(source_size.x % display_size.x == 0 or display_size.x % source_size.x == 0)
+		and (source_size.y % display_size.y == 0 or display_size.y % source_size.y == 0)
+	)
 
 
 static func _normalized_path(path: String) -> String:

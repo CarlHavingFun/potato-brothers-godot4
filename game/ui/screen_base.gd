@@ -2,6 +2,7 @@ class_name GogoScreenBase
 extends Control
 
 const STATIC_CARD_PRESENTER := preload("res://game/ui/static_card_presenter.gd")
+const HUD_SKIN := preload("res://game/ui/hud_skin.gd")
 const NATIVE_SIZE := Vector2(1280, 720)
 const TITLE_BAND_RECT := Rect2(32, 20, 1216, 64)
 const CONTENT_RECT := Rect2(32, 100, 1216, 588)
@@ -11,6 +12,108 @@ static var _stable_ui_theme: Theme
 var body: VBoxContainer
 var content_root: Control
 var static_asset_snapshot_override: GogoStaticAssetSnapshot
+var _selection_back_route: StringName = &""
+var use_menu_background_v2 := false
+
+
+func ui_label(parent: Node, node_name: String, at: Vector2, extent: Vector2, font_size: int = 22) -> Label:
+	var label := Label.new()
+	label.name = node_name
+	label.position = at
+	label.size = extent
+	label.add_theme_font_size_override(&"font_size", font_size)
+	label.add_theme_color_override(&"font_color", HUD_SKIN.COLOR_TEXT)
+	label.add_theme_color_override(&"font_outline_color", Color("111416"))
+	label.add_theme_constant_override(&"outline_size", 1)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(label)
+	return label
+
+
+func ui_panel(parent: Node, node_name: String, rect: Rect2) -> Panel:
+	var panel := Panel.new()
+	panel.name = node_name
+	panel.position = rect.position
+	panel.size = rect.size
+	HUD_SKIN.apply_panel(panel, &"surface")
+	parent.add_child(panel)
+	return panel
+
+
+func ui_button(parent: Node, node_name: String, text: String, rect: Rect2, callback: Callable) -> Button:
+	var button := Button.new()
+	button.name = node_name
+	configure_action_button(button, text, callback)
+	HUD_SKIN.apply_action_button(button, &"primary", false, true)
+	button.custom_minimum_size = rect.size
+	button.position = rect.position
+	button.size = rect.size
+	parent.add_child(button)
+	return button
+
+
+func link_focus_cycle(controls: Array[Control]) -> void:
+	for index in controls.size():
+		var current := controls[index]
+		var previous := controls[posmod(index - 1, controls.size())]
+		var next := controls[(index + 1) % controls.size()]
+		current.focus_previous = current.get_path_to(previous)
+		current.focus_next = current.get_path_to(next)
+		current.focus_neighbor_top = current.get_path_to(previous)
+		current.focus_neighbor_bottom = current.get_path_to(next)
+
+
+func selection_back(route_id: StringName) -> Button:
+	_selection_back_route = route_id
+	var button := ui_button(self, "BackButton", "← 返回", Rect2(32, 24, 168, 56),
+		func() -> void: AppContext.kernel(self).route(route_id))
+	button.z_index = 10
+	return button
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not _selection_back_route.is_empty() and event.is_action_pressed("ui_cancel"):
+		get_viewport().set_input_as_handled()
+		AppContext.kernel(self).route(_selection_back_route)
+
+
+func selection_title() -> void:
+	for node_name in ["Title", "Subtitle"]:
+		var label := get_node("TitleBand/%s" % node_name) as Label
+		label.size.x = TITLE_BAND_RECT.size.x - label.position.x
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+
+func character_frame(character: CharacterDefinition) -> Texture2D:
+	if character == null or character.sprite_frames == null or not character.sprite_frames.has_animation(character.default_animation):
+		return null
+	if character.sprite_frames.get_frame_count(character.default_animation) == 0:
+		return null
+	return character.sprite_frames.get_frame_texture(character.default_animation, 0)
+
+
+func selection_character(app: AppKernel) -> CharacterDefinition:
+	var id := app.selection_draft.get("character_id", NikoContentFactory.CHARACTER_ID) as StringName
+	var character := app.content_snapshot.definition(id, &"character") as CharacterDefinition
+	if character == null:
+		character = app.content_snapshot.definition(NikoContentFactory.CHARACTER_ID, &"character") as CharacterDefinition
+	return character
+
+
+func icon_fallback(parent: Node, node_name: String, at: Vector2, extent: Vector2, text: String) -> Control:
+	var fallback := ColorRect.new()
+	fallback.name = node_name
+	fallback.position = at
+	fallback.size = extent
+	fallback.color = Color(0.12, 0.13, 0.15, 0.94)
+	fallback.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(fallback)
+	var label := ui_label(fallback, "Label", Vector2(4, 4), extent - Vector2(8, 8), 14)
+	label.text = text
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	return fallback
 
 
 func build_screen(title: String, subtitle: String = "") -> VBoxContainer:
@@ -27,7 +130,6 @@ func build_screen(title: String, subtitle: String = "") -> VBoxContainer:
 func build_screen_chrome(title: String, subtitle: String = "") -> Control:
 	theme = _shared_stable_ui_theme()
 	custom_minimum_size = NATIVE_SIZE
-	size = NATIVE_SIZE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_add_screen_background()
 
@@ -73,28 +175,13 @@ func build_screen_chrome(title: String, subtitle: String = "") -> Control:
 
 func add_principal_surface(
 	rect: Rect2,
-	consumer_scene_path := "res://game/ui/screen_base.gd",
-	consumer_node_path := "PrincipalSurface"
+	_consumer_scene_path := "res://game/ui/screen_base.gd",
+	_consumer_node_path := "PrincipalSurface"
 ) -> Control:
 	if content_root == null:
 		build_screen_chrome("", "")
-	var panel_handle := resolve_global_handle(&"nine_slice_panel")
-	var panel_texture := panel_handle.texture if panel_handle != null else null
-	var surface: Control
-	if panel_texture != null:
-		var nine_patch := NinePatchRect.new()
-		nine_patch.texture = panel_texture
-		nine_patch.patch_margin_left = 16
-		nine_patch.patch_margin_top = 16
-		nine_patch.patch_margin_right = 16
-		nine_patch.patch_margin_bottom = 16
-		nine_patch.axis_stretch_horizontal = NinePatchRect.AXIS_STRETCH_MODE_TILE
-		nine_patch.axis_stretch_vertical = NinePatchRect.AXIS_STRETCH_MODE_TILE
-		surface = nine_patch
-	else:
-		var fallback := PanelContainer.new()
-		fallback.add_theme_stylebox_override(&"panel", _principal_surface_style())
-		surface = fallback
+	var surface := Panel.new()
+	HUD_SKIN.apply_panel(surface, &"surface")
 	surface.name = "PrincipalSurface"
 	surface.position = rect.position
 	surface.size = rect.size
@@ -102,20 +189,13 @@ func add_principal_surface(
 	surface.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(surface)
 	move_child(surface, content_root.get_index())
-	if panel_texture != null:
-		GogoStaticConsumerRegistry.observe_visible_texture(
-			panel_handle,
-			surface,
-			consumer_scene_path,
-			consumer_node_path
-		)
 	return surface
 
 
 func _add_screen_background() -> void:
 	var background := ColorRect.new()
 	background.name = "FlatMenuFallback"
-	background.color = Color("151922")
+	background.color = HUD_SKIN.COLOR_BACKGROUND
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(background)
 	var static_background := TextureRect.new()
@@ -125,11 +205,11 @@ func _add_screen_background() -> void:
 	static_background.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	static_background.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	static_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	static_background.texture = _global_texture(&"menu_background")
+	static_background.texture = load("res://game/assets/ui/hud_v2/menu_background_v2.png") as Texture2D if use_menu_background_v2 else _global_texture(&"menu_background")
 	add_child(static_background)
 	var veil := ColorRect.new()
 	veil.name = "ReadabilityVeil"
-	veil.color = Color(0.02, 0.025, 0.03, 0.54)
+	veil.color = Color(0.0, 0.0, 0.0, 0.16 if use_menu_background_v2 else 0.42)
 	veil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(veil)
@@ -194,24 +274,26 @@ func configure_action_button(
 	icon: Texture2D = null
 ) -> Button:
 	button.text = text
-	button.custom_minimum_size.y = 48.0
+	button.custom_minimum_size.y = 52.0
+	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.clip_text = true
+	button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	button.disabled = disabled
 	button.icon = icon
 	button.expand_icon = icon != null
-	button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	button.add_theme_constant_override(&"icon_max_width", 64)
-	STATIC_CARD_PRESENTER.apply_button_state_textures(
-		button,
-		_static_asset_snapshot(),
-		"ActionButton/%s" % (button.name if not button.name.is_empty() else text)
-	)
+	HUD_SKIN.apply_action_button(button)
 	if callback.is_valid() and not button.pressed.is_connected(callback):
 		button.pressed.connect(callback)
 	return button
 
 
 func resolve_content_icon(definition: GogoContentDefinition) -> Texture2D:
-	if definition == null or definition.icon_asset_id.is_empty():
+	if definition == null:
+		return null
+	if definition.direct_icon_texture != null:
+		return definition.direct_icon_texture
+	if definition.icon_asset_id.is_empty():
 		return null
 	var snapshot := _static_asset_snapshot()
 	if snapshot == null:
@@ -275,6 +357,9 @@ static func selector_from_content_id(content_id: StringName) -> StringName:
 func add_info(text: String) -> Label:
 	var label := Label.new()
 	label.text = text
+	# Empty compatibility copy should not reserve a full text row in compact
+	# native layouts now that action buttons use their authored 52 px height.
+	label.visible = not text.is_empty()
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(label)
@@ -285,14 +370,14 @@ static func _shared_stable_ui_theme() -> Theme:
 	if _stable_ui_theme != null:
 		return _stable_ui_theme
 	var result := Theme.new()
-	var normal := _button_style(Color(0.025, 0.025, 0.025, 0.96), Color(0.18, 0.18, 0.18, 0.96))
-	var hover := _button_style(Color(0.085, 0.085, 0.085, 0.98), Color(0.46, 0.46, 0.46, 1.0))
-	var pressed := _button_style(Color(0.12, 0.08, 0.035, 0.98), Color(1.0, 0.63, 0.22, 1.0))
-	result.set_color(&"font_color", &"Button", Color(0.93, 0.90, 0.77, 1.0))
-	result.set_color(&"font_disabled_color", &"Button", Color(0.42, 0.43, 0.38, 0.75))
-	result.set_color(&"font_hover_color", &"Button", Color(1.0, 0.88, 0.48, 1.0))
-	result.set_color(&"font_focus_color", &"Button", Color(1.0, 0.88, 0.48, 1.0))
-	result.set_font_size(&"font_size", &"Button", 24)
+	var normal := _button_style(Color(0.0, 0.0, 0.0, 0.78), Color(0.03, 0.03, 0.03, 0.96))
+	var hover := _button_style(Color(0.96, 0.95, 0.93, 0.90), Color(0.12, 0.12, 0.12, 0.98))
+	var pressed := _button_style(Color(0.68, 0.68, 0.66, 0.92), Color(0.10, 0.10, 0.10, 1.0))
+	result.set_color(&"font_color", &"Button", HUD_SKIN.COLOR_TEXT)
+	result.set_color(&"font_disabled_color", &"Button", Color(HUD_SKIN.COLOR_TEXT, 0.20))
+	result.set_color(&"font_hover_color", &"Button", HUD_SKIN.COLOR_TEXT_FOCUS)
+	result.set_color(&"font_focus_color", &"Button", HUD_SKIN.COLOR_TEXT_FOCUS)
+	result.set_font_size(&"font_size", &"Button", 22)
 	result.set_stylebox(&"normal", &"Button", normal)
 	result.set_stylebox(&"hover", &"Button", hover)
 	result.set_stylebox(&"focus", &"Button", hover)
@@ -307,14 +392,14 @@ static func _button_style(background: Color, border: Color) -> StyleBoxFlat:
 	style.bg_color = background
 	style.border_color = border
 	style.set_border_width_all(1)
-	style.set_corner_radius_all(0)
+	style.set_corner_radius_all(12)
 	style.anti_aliasing = false
 	style.border_blend = false
 	style.corner_detail = 1
 	style.content_margin_left = 24.0
-	style.content_margin_top = 6.0
+	style.content_margin_top = 14.0
 	style.content_margin_right = 24.0
-	style.content_margin_bottom = 6.0
+	style.content_margin_bottom = 14.0
 	return style
 
 

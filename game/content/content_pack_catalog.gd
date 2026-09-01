@@ -31,19 +31,34 @@ func has_pending_changes() -> bool:
 
 
 func apply_at_main_menu(registry: GogoContentRegistry, current_route: StringName) -> ContentSnapshot:
+	var prepared := prepare_at_main_menu(registry, current_route)
+	if prepared.is_empty() or commit_prepared(prepared) != OK: return null
+	return prepared.snapshot
+
+
+# Builds the captured selection without publishing active state or commit signals.
+func prepare_at_main_menu(registry: GogoContentRegistry, current_route: StringName) -> Dictionary:
 	if current_route != FlowRoute.MAIN_MENU and not current_route.is_empty():
-		return null
+		return {}
+	var enabled := _pending_enabled.duplicate()
 	var packs: Array[GogoContentPackDefinition] = []
 	for pack_id: StringName in _installed:
-		if bool(_pending_enabled.get(pack_id, false)):
+		if bool(enabled.get(pack_id, false)):
 			packs.append(_installed[pack_id] as GogoContentPackDefinition)
 	var snapshot := registry.build_snapshot(packs)
 	if snapshot == null:
-		return null
-	_enabled = _pending_enabled.duplicate()
+		return {}
+	return {"snapshot": snapshot, "enabled": enabled}
+
+
+func commit_prepared(prepared: Dictionary) -> Error:
+	if not prepared.get("snapshot") is ContentSnapshot or not prepared.get("enabled") is Dictionary:
+		return ERR_INVALID_DATA
+	_enabled = prepared.enabled.duplicate()
 	active_packs_changed.emit(active_pack_ids())
-	pending_changes_changed.emit(false)
-	return snapshot
+	# A synchronous observer can stage a newer selection. Do not erase or hide it.
+	pending_changes_changed.emit(has_pending_changes())
+	return OK
 
 
 func active_pack_ids() -> Array[StringName]:

@@ -17,12 +17,6 @@ const DIRECTIONS_8: Array[Vector2i] = [
 	Vector2i.UP,
 	Vector2i(1, -1),
 ]
-const DEATH_PALETTE: Array[Color] = [
-	Color("fff1b0"),
-	Color("ffb347"),
-	Color("ff7657"),
-	Color("e84a5f"),
-]
 const PROFILE_SETTINGS := {
 	&"rapid": {"duration": 0.050, "muzzle_size": 16.0, "hit_size": 18.0, "shot_impulse": 1.0, "hit_impulse": 1.0, "color": Color("ffd166")},
 	&"rifle": {"duration": 0.070, "muzzle_size": 24.0, "hit_size": 24.0, "shot_impulse": 2.0, "hit_impulse": 1.5, "color": Color("ffe082")},
@@ -35,6 +29,7 @@ const IMPACT_SETTINGS := {
 	&"pierce_exit": {"duration": 0.09, "scale": 0.90, "impulse_scale": 0.65, "color": Color("8bd3dd")},
 	&"explosion": {"duration": 0.20, "scale": 1.75, "impulse_scale": 2.10, "color": Color("ff714b")},
 }
+const MELEE_CONTACT_VISUAL_SCALE := 0.45
 const STATIC_IMPACT_SELECTORS := {
 	&"normal": &"static_hit_mark",
 	&"critical": &"static_critical_mark",
@@ -43,6 +38,28 @@ const STATIC_IMPACT_SELECTORS := {
 }
 const STATIC_IMPACT_ASSET_ID: StringName = &"projectile_hit_kit"
 const STATIC_IMPACT_ROLE: StringName = &"impact_sprite"
+const STATIC_MUZZLE_ASSET_ID: StringName = &"projectile_hit_kit"
+const STATIC_MUZZLE_ROLE: StringName = &"muzzle_flash"
+const STATIC_MUZZLE_SELECTORS := {
+	&"rapid": &"rapid_muzzle_flash",
+	&"rifle": &"rifle_muzzle_flash",
+	&"heavy": &"heavy_muzzle_flash",
+	&"suppressed": &"rapid_muzzle_flash",
+}
+const STATIC_FEEDBACK_ASSET_ID: StringName = &"projectile_hit_kit"
+const STATIC_FEEDBACK_ROLE: StringName = &"feedback_sprite"
+const STATIC_FEEDBACK_SELECTORS := {
+	# The old beige puff read as a white smoke cloud at gameplay scale and hid
+	# short melee weapons. Reuse the compact red starburst already shipped in
+	# this atlas; it matches Brotato's small red/black defeat punctuation.
+	&"death": &"player_damage_burst",
+	&"player_hit": &"player_damage_burst",
+	&"pickup": &"gold_pickup_flash",
+}
+const STATIC_ONLY_KINDS: Array[StringName] = [&"muzzle", &"death", &"player_hit", &"pickup"]
+const DEATH_BASE_SIZE_PX := 24.0
+const DEATH_REWARD_SIZE_PER_POINT_PX := 0.5
+const DEATH_REWARD_SIZE_CAP_PX := 8.0
 
 
 class FeedbackSlot:
@@ -58,6 +75,8 @@ class FeedbackSlot:
 	var texture: Texture2D
 	var texture_size := Vector2i.ZERO
 	var texture_pivot := Vector2i.ZERO
+	var texture_rotation_radians := 0.0
+	var texture_mirror_x := false
 	var position := Vector2i.ZERO
 	var direction := Vector2i.RIGHT
 	var age := 0.0
@@ -87,6 +106,7 @@ var _contact_highest_sequence: Dictionary = {}
 var _contact_target_by_sequence: Dictionary = {}
 var _death_highest_sequence: Dictionary = {}
 var _player_hit_highest_sequence := 0
+var _pickup_highest_sequence: Dictionary = {}
 
 
 func _init() -> void:
@@ -114,6 +134,7 @@ func clear_feedback() -> void:
 	_contact_target_by_sequence.clear()
 	_death_highest_sequence.clear()
 	_player_hit_highest_sequence = 0
+	_pickup_highest_sequence.clear()
 	if combat_camera != null:
 		combat_camera.clear_visual_impulses()
 	queue_redraw()
@@ -190,8 +211,12 @@ func present_melee_contact(
 		damage_kind,
 		integer_contact_global_position,
 		_quantize_direction_8(contact_normal),
-		maxf(float(impact.duration), 0.11),
-		_even_px(float(settings.hit_size) * float(impact.scale) * 1.25),
+		float(impact.duration),
+		_even_px(
+			float(settings.hit_size)
+			* float(impact.scale)
+			* MELEE_CONTACT_VISUAL_SCALE
+		),
 		impact.color as Color
 	)
 	if combat_camera != null:
@@ -272,7 +297,13 @@ func present_enemy_defeated(
 		integer_death_global_position,
 		Vector2i.RIGHT,
 		0.20,
-		_even_px(40.0 + minf(float(xp + materials), 16.0)),
+		_even_px(
+			DEATH_BASE_SIZE_PX
+			+ minf(
+				float(xp + materials) * DEATH_REWARD_SIZE_PER_POINT_PX,
+				DEATH_REWARD_SIZE_CAP_PX
+			)
+		),
 		Color("ff7657")
 	)
 	if combat_camera != null:
@@ -318,6 +349,40 @@ func present_player_damage_taken(
 	return true
 
 
+func present_pickup_collected(
+	pickup_instance_id: int,
+	integer_collection_global_position: Vector2i,
+	visual_amount: int,
+	collection_sequence: int
+) -> bool:
+	if (
+		pickup_instance_id <= 0
+		or visual_amount <= 0
+		or collection_sequence <= 0
+		or not _accept_monotonic(
+			_pickup_highest_sequence,
+			pickup_instance_id,
+			collection_sequence
+		)
+	):
+		return false
+	var event_key := StringName("pickup/%d/%d" % [pickup_instance_id, collection_sequence])
+	_activate_slot(
+		event_key,
+		&"pickup",
+		&"",
+		&"",
+		&"reward",
+		integer_collection_global_position,
+		Vector2i.UP,
+		0.11,
+		_even_px(18.0 + minf(float(visual_amount) * 2.0, 8.0)),
+		Color("ffd34d")
+	)
+	feedback_spawned.emit(&"pickup", integer_collection_global_position, event_key)
+	return true
+
+
 func active_effect_count(kind: StringName = &"") -> int:
 	if kind.is_empty():
 		return _active_count
@@ -350,6 +415,8 @@ func debug_effects() -> Array[Dictionary]:
 			"visual_selector": slot.visual_selector,
 			"texture_size": slot.texture_size,
 			"texture_pivot": slot.texture_pivot,
+			"texture_rotation_radians": slot.texture_rotation_radians,
+			"texture_mirror_x": slot.texture_mirror_x,
 			"position": slot.position,
 			"direction": slot.direction,
 			"age": slot.age,
@@ -384,12 +451,31 @@ func _draw() -> void:
 			continue
 		if slot.texture != null:
 			var center := Vector2i(to_local(Vector2(slot.position)).round())
-			var texture_rect := Rect2(
-				Vector2(center - slot.texture_pivot),
-				Vector2(slot.texture_size)
-			)
 			var phase_alpha := [1.0, 0.72, 0.38][_phase(slot)] as float
-			draw_texture_rect(slot.texture, texture_rect, false, Color(1.0, 1.0, 1.0, phase_alpha))
+			if slot.kind == &"muzzle":
+				draw_set_transform(
+					Vector2(center),
+					slot.texture_rotation_radians,
+					Vector2(-1.0 if slot.texture_mirror_x else 1.0, 1.0)
+				)
+				draw_texture_rect(
+					slot.texture,
+					Rect2(Vector2(-slot.texture_pivot), Vector2(slot.texture_size)),
+					false,
+					Color(1.0, 1.0, 1.0, phase_alpha)
+				)
+				draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+			else:
+				var texture_rect := Rect2(
+					Vector2(center - slot.texture_pivot),
+					Vector2(slot.texture_size)
+				)
+				draw_texture_rect(
+					slot.texture,
+					texture_rect,
+					false,
+					Color(1.0, 1.0, 1.0, phase_alpha)
+				)
 			continue
 		for index in slot.primitive_count:
 			var rect := slot.primitive_rects[index]
@@ -417,25 +503,7 @@ func _refresh_slot_primitives(slot: FeedbackSlot) -> void:
 	if slot.texture != null:
 		return
 	match slot.kind:
-		&"muzzle": _append_muzzle_primitives(slot)
 		&"contact": _append_contact_primitives(slot)
-		&"death": _append_death_primitives(slot)
-		&"player_hit": _append_player_hit_primitives(slot)
-
-
-func _append_muzzle_primitives(slot: FeedbackSlot) -> void:
-	var phase := _phase(slot)
-	var center := Vector2i(to_local(Vector2(slot.position)).round())
-	var direction := slot.direction
-	var perpendicular := Vector2i(-direction.y, direction.x)
-	var base_size := maxi(slot.size_px - phase * 2, 4)
-	var color := Color("fff4b8") if phase == 0 else (slot.color if phase == 1 else slot.color.darkened(0.28))
-	_append_block(slot, center + direction * maxi(base_size / 4, 2), _even_px(float(base_size) * 0.55), Color("fff8d6"))
-	_append_block(slot, center + direction * maxi(base_size * 3 / 4, 4), _even_px(float(base_size) * 0.42), color)
-	_append_block(slot, center + direction * maxi(base_size * 5 / 4, 6), _even_px(float(base_size) * 0.28), color)
-	if phase == 0:
-		_append_block(slot, center + direction * maxi(base_size / 2, 3) + perpendicular * 3, 4, slot.color)
-		_append_block(slot, center + direction * maxi(base_size / 2, 3) - perpendicular * 3, 4, slot.color)
 
 
 func _append_contact_primitives(slot: FeedbackSlot) -> void:
@@ -449,37 +517,6 @@ func _append_contact_primitives(slot: FeedbackSlot) -> void:
 		var ray := DIRECTIONS_8[posmod(normal_index + offset_index, DIRECTIONS_8.size())]
 		var distance := maxi(core_size * (2 + phase) / 3, 4)
 		_append_block(slot, center + ray * distance, _even_px(float(core_size) * 0.30), slot.color)
-
-
-func _append_death_primitives(slot: FeedbackSlot) -> void:
-	var phase := _phase(slot)
-	var center := Vector2i(to_local(Vector2(slot.position)).round())
-	var progress_step := phase + 1
-	for index in DIRECTIONS_8.size():
-		var direction := DIRECTIONS_8[index]
-		var distance := maxi(slot.size_px * progress_step * (3 + index % 3) / 6, 4)
-		var block_size := _even_px(float(slot.size_px) * (0.56 - float(phase) * 0.12))
-		var color := DEATH_PALETTE[index % DEATH_PALETTE.size()]
-		if phase == 2:
-			color = color.darkened(0.32)
-		_append_block(slot, center + direction * distance, block_size, color)
-	if phase == 0:
-		_append_block(slot, center, _even_px(float(slot.size_px) * 0.65), Color("fff7c2"))
-
-
-func _append_player_hit_primitives(slot: FeedbackSlot) -> void:
-	var phase := _phase(slot)
-	var center := Vector2i(to_local(Vector2(slot.position)).round())
-	var core_size := maxi(slot.size_px - phase * 8, 12)
-	var arm_distance := maxi(slot.size_px / 2 + phase * 4, 12)
-	_append_block(slot, center, _even_px(float(core_size) * 0.55), Color("fff4f2"))
-	for direction in [Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT, Vector2i.UP]:
-		_append_block(
-			slot,
-			center + direction * arm_distance,
-			_even_px(float(core_size) * 0.34),
-			Color("ef3340")
-		)
 
 
 func _activate_slot(
@@ -505,11 +542,15 @@ func _activate_slot(
 	slot.profile = profile
 	slot.impact = impact
 	slot.damage_kind = damage_kind
-	slot.visual_source = &"procedural_fallback"
+	slot.visual_source = (
+		&"static_asset_required" if STATIC_ONLY_KINDS.has(kind) else &"procedural_fallback"
+	)
 	slot.visual_selector = &""
 	slot.texture = null
 	slot.texture_size = Vector2i.ZERO
 	slot.texture_pivot = Vector2i.ZERO
+	slot.texture_rotation_radians = 0.0
+	slot.texture_mirror_x = false
 	slot.position = position
 	slot.direction = direction
 	slot.age = 0.0
@@ -517,10 +558,61 @@ func _activate_slot(
 	slot.size_px = maxi(size_px, 4)
 	slot.color = color
 	slot.render_phase = -1
+	_resolve_static_muzzle(slot)
 	_resolve_static_impact(slot)
+	_resolve_static_feedback(slot)
 	_refresh_slot_primitives(slot)
 	_next_slot = (_next_slot + 1) % _slots.size()
 	queue_redraw()
+
+
+func _resolve_static_muzzle(slot: FeedbackSlot) -> void:
+	if slot.kind != &"muzzle" or _static_asset_snapshot == null:
+		return
+	var selector := STATIC_MUZZLE_SELECTORS.get(slot.profile, &"") as StringName
+	if selector.is_empty():
+		return
+	var handle := _static_asset_snapshot.resolve_asset(
+		STATIC_MUZZLE_ASSET_ID,
+		STATIC_MUZZLE_ROLE,
+		selector
+	)
+	if (
+		handle == null
+		or handle.texture == null
+		or handle.display_size_px.x <= 0
+		or handle.display_size_px.y <= 0
+	):
+		return
+	var content_min := handle.anchors_px.get(&"content_min", Vector2i.ZERO) as Vector2i
+	var content_max := handle.anchors_px.get(&"content_max", Vector2i.ZERO) as Vector2i
+	var content_size := content_max - content_min + Vector2i.ONE
+	if content_size.x <= 0 or content_size.y <= 0:
+		return
+	var render_scale := float(slot.size_px) / float(maxi(content_size.x, content_size.y))
+	slot.visual_source = &"static_asset"
+	slot.visual_selector = selector
+	slot.texture = handle.texture
+	slot.texture_size = Vector2i(
+		maxi(int(round(float(handle.display_size_px.x) * render_scale)), 1),
+		maxi(int(round(float(handle.display_size_px.y) * render_scale)), 1)
+	)
+	slot.texture_pivot = Vector2i(
+		int(round(float(handle.pivot_px.x) * render_scale)),
+		int(round(float(handle.pivot_px.y) * render_scale))
+	)
+	var direction_angle := Vector2(slot.direction).angle()
+	slot.texture_mirror_x = slot.direction.x < 0
+	slot.texture_rotation_radians = (
+		wrapf(direction_angle - PI, -PI, PI)
+		if slot.texture_mirror_x
+		else direction_angle
+	)
+	GogoStaticConsumerRegistry.observe_handle(
+		handle,
+		"res://game/gameplay/feedback/combat_feedback_presenter.gd",
+		"CombatFeedback/%s" % String(selector)
+	)
 
 
 func _resolve_static_impact(slot: FeedbackSlot) -> void:
@@ -544,8 +636,56 @@ func _resolve_static_impact(slot: FeedbackSlot) -> void:
 	slot.visual_source = &"static_asset"
 	slot.visual_selector = selector
 	slot.texture = handle.texture
-	slot.texture_size = handle.display_size_px
-	slot.texture_pivot = handle.pivot_px
+	var source_size := handle.display_size_px
+	var render_scale := float(slot.size_px) / float(maxi(source_size.x, source_size.y))
+	slot.texture_size = Vector2i(
+		maxi(int(round(float(source_size.x) * render_scale)), 1),
+		maxi(int(round(float(source_size.y) * render_scale)), 1)
+	)
+	slot.texture_pivot = Vector2i(
+		int(round(float(handle.pivot_px.x) * render_scale)),
+		int(round(float(handle.pivot_px.y) * render_scale))
+	)
+	GogoStaticConsumerRegistry.observe_handle(
+		handle,
+		"res://game/gameplay/feedback/combat_feedback_presenter.gd",
+		"CombatFeedback/%s" % String(selector)
+	)
+
+
+func _resolve_static_feedback(slot: FeedbackSlot) -> void:
+	if not STATIC_FEEDBACK_SELECTORS.has(slot.kind) or _static_asset_snapshot == null:
+		return
+	var selector := STATIC_FEEDBACK_SELECTORS.get(slot.kind, &"") as StringName
+	var handle := _static_asset_snapshot.resolve_asset(
+		STATIC_FEEDBACK_ASSET_ID,
+		STATIC_FEEDBACK_ROLE,
+		selector
+	)
+	if (
+		handle == null
+		or handle.texture == null
+		or handle.display_size_px.x <= 0
+		or handle.display_size_px.y <= 0
+	):
+		return
+	var content_min := handle.anchors_px.get(&"content_min", Vector2i.ZERO) as Vector2i
+	var content_max := handle.anchors_px.get(&"content_max", Vector2i.ZERO) as Vector2i
+	var content_size := content_max - content_min + Vector2i.ONE
+	if content_size.x <= 0 or content_size.y <= 0:
+		content_size = handle.display_size_px
+	var render_scale := float(slot.size_px) / float(maxi(content_size.x, content_size.y))
+	slot.visual_source = &"static_asset"
+	slot.visual_selector = selector
+	slot.texture = handle.texture
+	slot.texture_size = Vector2i(
+		maxi(int(round(float(handle.display_size_px.x) * render_scale)), 1),
+		maxi(int(round(float(handle.display_size_px.y) * render_scale)), 1)
+	)
+	slot.texture_pivot = Vector2i(
+		int(round(float(handle.pivot_px.x) * render_scale)),
+		int(round(float(handle.pivot_px.y) * render_scale))
+	)
 	GogoStaticConsumerRegistry.observe_handle(
 		handle,
 		"res://game/gameplay/feedback/combat_feedback_presenter.gd",

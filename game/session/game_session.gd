@@ -15,6 +15,11 @@ const REWARD_EXPERIENCE: StringName = &"experience"
 const REWARD_SUPPLY: StringName = &"supply"
 const REWARD_ENTRY_RESERVED: StringName = &"reserved"
 const REWARD_ENTRY_APPLIED: StringName = &"applied"
+const WAVE_COMPLETION_XP_BASE := 8
+const WAVE_COMPLETION_XP_PER_WAVE := 2
+const WAVE_COMPLETION_MATERIAL_BASE := 6
+const WAVE_COMPLETION_MATERIAL_PER_WAVE := 2
+const MAX_REWARD_WAVE := 220
 const RUNTIME_INSTANCE_KINDS: Array[StringName] = [
 	&"weapon",
 	&"projectile",
@@ -30,6 +35,7 @@ var _started_once := false
 var _next_runtime_instance_id := 1
 var _next_reward_reservation_id := 1
 var _reward_fingerprints: Dictionary = {}
+var _transition_busy := false
 
 
 func start(config: SessionConfig, snapshot: ContentSnapshot) -> Error:
@@ -37,29 +43,54 @@ func start(config: SessionConfig, snapshot: ContentSnapshot) -> Error:
 		return ERR_ALREADY_IN_USE
 	if config == null or not config.is_valid() or snapshot == null:
 		return ERR_INVALID_PARAMETER
-	if not snapshot.has_definition(config.character_id, &"character"):
+	var character := snapshot.definition(
+		config.character_id, &"character"
+	) as CharacterDefinition
+	if character == null:
 		return ERR_DOES_NOT_EXIST
-	if not snapshot.has_definition(config.starting_weapon_id, &"weapon"):
+	var starting_weapon := snapshot.definition(
+		config.starting_weapon_id, &"weapon"
+	) as GogoWeaponDefinition
+	if starting_weapon == null:
 		return ERR_DOES_NOT_EXIST
-	if not snapshot.has_definition(config.difficulty_id, &"difficulty"):
+	var difficulty := snapshot.definition(config.difficulty_id, &"difficulty") as GogoDifficultyDefinition
+	if difficulty == null:
 		return ERR_DOES_NOT_EXIST
-	if not snapshot.has_definition(config.zone_id, &"zone"):
+	var zone := snapshot.definition(config.zone_id, &"zone") as GogoZoneDefinition
+	if zone == null:
 		return ERR_DOES_NOT_EXIST
-	run_state = GogoRunState.new()
-	run_state.run_seed = config.seed
-	run_state.zone_id = config.zone_id
-	run_state.difficulty_id = config.difficulty_id
-	run_state.phase = &"combat"
+	if GogoWaveResolver.validate_zone(snapshot, zone, difficulty.spawn_multiplier) != OK:
+		return ERR_INVALID_DATA
+	if not character.allows_weapon(starting_weapon):
+		return ERR_INVALID_DATA
+	var starting_items: Array[GogoItemDefinition] = []
+	for item_id: StringName in character.starting_item_ids:
+		var item := snapshot.definition(item_id, &"item") as GogoItemDefinition
+		if item == null:
+			return ERR_DOES_NOT_EXIST
+		if not item.is_available_to(config.character_id):
+			return ERR_INVALID_DATA
+		starting_items.append(item)
+	var next_run_state := GogoRunState.new()
+	next_run_state.run_seed = config.seed
+	next_run_state.zone_id = config.zone_id
+	next_run_state.difficulty_id = config.difficulty_id
+	next_run_state.phase = &"combat"
+	next_run_state.total_waves = zone.wave_ids.size()
 	var player := SessionPlayerState.new()
 	player.player_index = 0
 	player.character_id = config.character_id
-	player.weapon_ids.append(config.starting_weapon_id)
-	var character: CharacterDefinition = snapshot.definition(config.character_id, &"character")
+	var weapon_result := player.weapon_inventory.add_weapon(config.starting_weapon_id, snapshot)
+	if weapon_result.error != OK:
+		return weapon_result.error
 	player.base_stats = character.base_stats.duplicate(true)
-	player.final_stats = player.base_stats.duplicate(true)
-	player.max_health = float(player.final_stats.get(&"max_health", 10.0))
-	player.current_health = player.max_health
-	run_state.players.append(player)
+	for item: GogoItemDefinition in starting_items:
+		player.item_ids.append(item.content_id)
+	var build_error := PlayerBuildService.new().rebuild_from_snapshot(snapshot, player)
+	if build_error != OK:
+		return build_error
+	next_run_state.players.append(player)
+	run_state = next_run_state
 	content_snapshot = snapshot
 	rng.seed = config.seed
 	_started_once = true
@@ -167,7 +198,7 @@ func _apply_reward(player: SessionPlayerState, kind: StringName, amount: int) ->
 	if kind == REWARD_EXPERIENCE:
 		run_state.pending_upgrade_count += player.add_xp(amount)
 	else:
-		player.add_materials(amount)
+		player.add_reward_materials(amount)
 
 
 func _reward_player_by_index(player_index: int) -> SessionPlayerState:
@@ -183,7 +214,7 @@ func _reward_player_by_index(player_index: int) -> SessionPlayerState:
 
 
 func transition(next_phase: StringName) -> Error:
-	if run_state == null or run_state.ended:
+	if run_state == null or run_state.ended or _transition_busy:
 		return ERR_UNAVAILABLE
 	var allowed: Dictionary = {
 		&"combat": [&"upgrade", &"shop", &"settlement"],
@@ -197,38 +228,91 @@ func transition(next_phase: StringName) -> Error:
 	run_state.phase = next_phase
 	if next_phase == &"upgrade" and previous != &"upgrade":
 		run_state.upgrade_reroll_count = 0
-	phase_changed.emit(previous, next_phase)
-	state_changed.emit()
+	_publish_transition(previous)
 	return OK
 
 
 func finish_wave() -> void:
-	if run_state == null or run_state.phase != &"combat":
+	if run_state == null or run_state.ended or _transition_busy or run_state.phase != &"combat":
 		return
 	var player := run_state.player()
-	if player != null:
-		run_state.pending_upgrade_count += player.add_xp(20 + run_state.current_wave * 3)
-		player.add_materials(12 + run_state.current_wave * 4)
-	transition(&"upgrade" if run_state.pending_upgrade_count > 0 else &"shop")
+	if player == null or player.current_health <= 0.0 or run_state.current_wave < 1:
+		return
+	_transition_busy = true
+	# Both the guard and phase commit precede synchronous reward publication.
+	run_state.phase = &"upgrade"
+	var wave := run_state.current_wave
+	commit_reward_once(StringName("wave/%d/xp" % wave), REWARD_EXPERIENCE, fixed_wave_xp_reward(wave), player.player_index)
+	commit_reward_once(StringName("wave/%d/materials" % wave), REWARD_SUPPLY, fixed_wave_material_reward(wave), player.player_index)
+	run_state.phase = &"upgrade" if run_state.pending_upgrade_count > 0 else &"shop"
+	run_state.upgrade_reroll_count = 0
+	_publish_transition(&"combat")
+
+
+static func fixed_wave_xp_reward(wave: int) -> int:
+	return WAVE_COMPLETION_XP_BASE + clampi(wave, 1, MAX_REWARD_WAVE) * WAVE_COMPLETION_XP_PER_WAVE
+
+
+static func fixed_wave_material_reward(wave: int) -> int:
+	return (
+		WAVE_COMPLETION_MATERIAL_BASE
+		+ clampi(wave, 1, MAX_REWARD_WAVE) * WAVE_COMPLETION_MATERIAL_PER_WAVE
+	)
 
 
 func continue_after_shop() -> bool:
-	if run_state == null:
+	if run_state == null or _transition_busy or not _living_player():
 		return false
 	var previous := run_state.phase
-	var continues := run_state.advance_wave()
+	if not run_state.advance_wave():
+		return false
+	_publish_transition(previous)
+	return true
+
+
+func is_final_shop() -> bool:
+	return run_state != null and not run_state.ended and not run_state.endless \
+		and run_state.phase == &"shop" and run_state.pending_upgrade_count == 0 \
+		and run_state.total_waves > 0 and run_state.current_wave == run_state.total_waves \
+		and _living_player()
+
+
+func finish_normal_run() -> bool:
+	if _transition_busy or not is_final_shop():
+		return false
+	_end_run(true)
+	return true
+
+
+func continue_endless() -> bool:
+	if _transition_busy or not is_final_shop() or run_state.current_wave == 9223372036854775807:
+		return false
+	run_state.endless = true
+	return continue_after_shop()
+
+
+func _living_player() -> bool:
+	return run_state != null and run_state.player() != null and run_state.player().current_health > 0.0
+
+
+func _publish_transition(previous: StringName, terminal: bool = false) -> void:
+	_transition_busy = true
 	phase_changed.emit(previous, run_state.phase)
 	state_changed.emit()
-	if not continues:
-		run_ended.emit(true)
-	return continues
+	if terminal:
+		run_ended.emit(run_state.won)
+	_transition_busy = false
+
+
+func _end_run(victory: bool) -> void:
+	var previous := run_state.phase
+	run_state.ended = true
+	run_state.won = victory
+	run_state.phase = &"settlement"
+	_publish_transition(previous, true)
 
 
 func fail_run() -> void:
-	if run_state == null:
+	if run_state == null or run_state.ended or _transition_busy:
 		return
-	run_state.ended = true
-	run_state.won = false
-	run_state.phase = &"settlement"
-	state_changed.emit()
-	run_ended.emit(false)
+	_end_run(false)

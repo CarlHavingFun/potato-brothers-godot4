@@ -7,9 +7,14 @@ const REQUIRED_VISUAL_ASSET_IDS: Array[StringName] = [
 	&"combat_hud_shell",
 ]
 const REQUIRED_VISIBLE_TEXTURE_ASSET_IDS: Array[StringName] = [
-	&"nine_slice_panel",
-	&"combat_hud_shell",
 	&"zone_thumbnail",
+]
+const SUPERSEDED_ASSET_IDS: Array[StringName] = [
+	# HUD v2 owns these roles through res://game/assets/ui/hud_v2 and hud_skin.gd.
+	# Keep the legacy registry rows loadable for old saves/tools, but do not claim
+	# that an obsolete texture is visibly consumed by the redesigned interface.
+	&"nine_slice_panel",
+	&"four_state_button",
 ]
 const VALID_SOURCE_KINDS: Array[StringName] = [
 	&"approved_shipping",
@@ -33,7 +38,11 @@ static func build(
 			if String(unit.get("category", "")) == "character_creature":
 				continue
 			var asset_id := StringName(String(unit.get("asset_id", "")))
-			if asset_id.is_empty() or expected_ids.has(asset_id):
+			if (
+				asset_id.is_empty()
+				or expected_ids.has(asset_id)
+				or SUPERSEDED_ASSET_IDS.has(asset_id)
+			):
 				continue
 			expected_ids.append(asset_id)
 			categories[asset_id] = StringName(String(unit.get("category", "")))
@@ -85,6 +94,7 @@ static func build(
 			required_failures.append(asset_id)
 	return {
 		"schema_version": "gogobro-static-coverage-v1",
+		"superseded_asset_ids": SUPERSEDED_ASSET_IDS.duplicate(),
 		"expected_units": expected_ids.size(),
 		"covered_units": expected_ids.size() - unresolved.size(),
 		"unresolved_asset_ids": unresolved,
@@ -94,7 +104,10 @@ static func build(
 		"rejected_observations": rejected,
 		"asset_rows": rows,
 		"complete": (
-			expected_ids.size() == GogoStaticAssetSnapshot.DEFAULT_EXPECTED_NONCHARACTER_UNITS
+			expected_ids.size() == (
+				GogoStaticAssetSnapshot.DEFAULT_EXPECTED_NONCHARACTER_UNITS
+				- SUPERSEDED_ASSET_IDS.size()
+			)
 			and unresolved.is_empty()
 			and required_failures.is_empty()
 		),

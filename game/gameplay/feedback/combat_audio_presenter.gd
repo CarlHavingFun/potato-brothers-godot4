@@ -50,16 +50,19 @@ const IMPACT_SETTINGS := {
 const ENEMY_DOWN := preload("res://game/assets/audio/combat/enemy_down.wav")
 const PLAYER_HIT := preload("res://game/assets/audio/combat/player_hit.wav")
 const PICKUP := preload("res://game/assets/audio/combat/pickup.wav")
+const PICKUP_SOUND_DEDUPE_WINDOW_MSEC := 80
 
 var audio_service: GogoAudioService
 var _ledger: Array[Dictionary] = []
 var _serial := 0
+var _recent_pickup_sound_msec: Dictionary = {}
 
 
 func configure(next_audio_service: GogoAudioService) -> void:
 	audio_service = next_audio_service
 	_ledger.clear()
 	_serial = 0
+	_recent_pickup_sound_msec.clear()
 
 
 func present_weapon_fired(
@@ -182,7 +185,21 @@ func present_pickup_collected(
 		or not [GameSession.REWARD_EXPERIENCE, GameSession.REWARD_SUPPLY].has(reward_kind)
 	):
 		return false
-	return _play(&"pickup_collected", reward_kind, PICKUP, -4.0, 1.08)
+	var now_msec := Time.get_ticks_msec()
+	_prune_recent_pickup_sounds(now_msec)
+	if _recent_pickup_sound_msec.has(pickup_instance_id):
+		return false
+	var played := _play(&"pickup_collected", reward_kind, PICKUP, -4.0, 1.08)
+	if played:
+		_recent_pickup_sound_msec[pickup_instance_id] = now_msec
+	return played
+
+
+func _prune_recent_pickup_sounds(now_msec: int) -> void:
+	for pickup_id: int in _recent_pickup_sound_msec.keys():
+		var played_at_msec := int(_recent_pickup_sound_msec[pickup_id])
+		if now_msec - played_at_msec > PICKUP_SOUND_DEDUPE_WINDOW_MSEC:
+			_recent_pickup_sound_msec.erase(pickup_id)
 
 
 func debug_ledger() -> Array[Dictionary]:

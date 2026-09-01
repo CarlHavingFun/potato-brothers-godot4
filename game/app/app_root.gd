@@ -3,7 +3,7 @@ extends AppKernel
 const ROUTES := {
 	FlowRoute.MAIN_MENU: preload("res://game/ui/main_menu_screen.tscn"),
 	FlowRoute.CHARACTER_SELECT: preload("res://game/ui/character_select_screen.tscn"),
-	FlowRoute.WEAPON_SELECT: preload("res://game/ui/weapon_select_screen.tscn"),
+	FlowRoute.WEAPON_SELECT: preload("res://game/ui/character_select_screen.tscn"),
 	FlowRoute.DIFFICULTY_SELECT: preload("res://game/ui/difficulty_select_screen.tscn"),
 	FlowRoute.COMBAT: preload("res://game/ui/combat_screen.tscn"),
 	FlowRoute.UPGRADE: preload("res://game/ui/upgrade_screen.tscn"),

@@ -15,7 +15,6 @@ signal projectile_contact(
 const PROJECTILE_RADIUS := 5.0
 const ENEMY_HURT_RADIUS := 14.0
 const CONTACT_TIE_EPSILON := 0.000001
-const CRITICAL_DAMAGE_MULTIPLIER := 2.0
 const PIERCE_MAX_CONTACTS := 2
 const EXPLOSION_RADIUS := 80.0
 const SWEEP_CONTINUE_EPSILON := 0.01
@@ -26,11 +25,18 @@ const PROJECTILE_ROLE: StringName = &"projectile_sprite"
 const SKYLINE_GRENADE_SOURCE_ITEM_ID: StringName = &"gogobro.preview:item/skyline_grenade"
 const SKYLINE_GRENADE_ASSET_ID: StringName = &"skyline_grenade"
 const TRIGGERED_ITEM_PROJECTILE_SCALE := Vector2(0.5, 0.5)
+const FALLBACK_PROJECTILE_VISUAL_RADIUS := 3.0
 const PROJECTILE_SELECTORS := {
 	&"rapid": &"pistol_smg_round",
 	&"rifle": &"rifle_round",
 	&"heavy": &"sniper_round",
 	&"suppressed": &"pistol_smg_round",
+}
+const PROJECTILE_VISUAL_SCALES := {
+	&"rapid": Vector2(0.1875, 0.1875),
+	&"rifle": Vector2(0.25, 0.25),
+	&"heavy": Vector2(0.25, 0.25),
+	&"suppressed": Vector2(0.1875, 0.1875),
 }
 
 var direction := Vector2.RIGHT
@@ -47,6 +53,8 @@ var feedback_profile_id: StringName = &"rifle"
 var damage_kind: StringName = &"ballistic"
 var impact_kind: StringName = &"normal"
 var source_item_id: StringName = &""
+var critical_hit := false
+var explosion_damage_multiplier := 1.0
 var contact_sequence := 0
 var contact_committed := false
 var active := true
@@ -65,7 +73,9 @@ func activate(
 	next_feedback_profile_id: StringName,
 	next_damage_kind: StringName,
 	next_impact_kind: StringName,
-	next_source_item_id: StringName = &""
+	next_source_item_id: StringName = &"",
+	next_critical_hit: bool = false,
+	next_explosion_damage_multiplier: float = 1.0
 ) -> void:
 	combat_world = next_world
 	runtime_instance_id = next_runtime_instance_id
@@ -76,6 +86,8 @@ func activate(
 	damage_kind = next_damage_kind
 	impact_kind = next_impact_kind if VALID_IMPACT_KINDS.has(next_impact_kind) else &"normal"
 	source_item_id = next_source_item_id
+	critical_hit = next_critical_hit
+	explosion_damage_multiplier = maxf(next_explosion_damage_multiplier, 0.0)
 	contact_sequence = 0
 	contact_committed = false
 	active = true
@@ -104,6 +116,11 @@ func _build_static_visual() -> void:
 		selector = &""
 	elif selector.is_empty():
 		return
+	else:
+		# Ordinary rounds are draw-native even when the old atlas is available.
+		# Keep selector helpers only for compatibility; no texture consumer here.
+		queue_redraw()
+		return
 	var snapshot := static_asset_snapshot_override
 	if snapshot == null and combat_world != null and combat_world.session != null:
 		snapshot = combat_world.session.static_asset_snapshot
@@ -120,6 +137,8 @@ func _build_static_visual() -> void:
 	projectile_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	if triggered_item_visual:
 		projectile_sprite.scale = TRIGGERED_ITEM_PROJECTILE_SCALE
+	else:
+		projectile_sprite.scale = visual_scale_for_feedback_profile(feedback_profile_id)
 	projectile_sprite.position = (
 		-Vector2(projectile_visual_handle.pivot_px) * projectile_sprite.scale
 	)
@@ -134,6 +153,10 @@ func _build_static_visual() -> void:
 
 static func selector_for_feedback_profile(profile_id: StringName) -> StringName:
 	return PROJECTILE_SELECTORS.get(profile_id, &"") as StringName
+
+
+static func visual_scale_for_feedback_profile(profile_id: StringName) -> Vector2:
+	return PROJECTILE_VISUAL_SCALES.get(profile_id, Vector2.ONE) as Vector2
 
 
 func _physics_process(delta: float) -> void:
@@ -265,9 +288,12 @@ func _first_swept_contact(
 
 
 func _contact_damage() -> float:
-	if impact_kind == &"critical":
-		return damage * CRITICAL_DAMAGE_MULTIPLIER
-	return damage
+	return GogoCombatStatRuntime.damage_after_combat_stats(
+		damage,
+		critical_hit or impact_kind == &"critical",
+		impact_kind == &"explosion",
+		explosion_damage_multiplier
+	)
 
 
 func _apply_explosion_damage(epicenter: Vector2, direct_enemy: GogoEnemyActor) -> void:
@@ -289,7 +315,7 @@ func _apply_explosion_damage(epicenter: Vector2, direct_enemy: GogoEnemyActor) -
 		var impulse_direction := (enemy.global_position - epicenter).normalized()
 		if not impulse_direction.is_finite() or impulse_direction.is_zero_approx():
 			impulse_direction = direction.normalized()
-		enemy.take_damage(damage, impulse_direction * knockback)
+		enemy.take_damage(_contact_damage(), impulse_direction * knockback)
 
 
 func _has_valid_canonical_activation(enemy: GogoEnemyActor) -> bool:
@@ -347,5 +373,5 @@ func _draw() -> void:
 		draw_circle(Vector2.ZERO, 5.0, Color("64735b"))
 		draw_line(Vector2(-2.0, -7.0), Vector2(4.0, -11.0), Color("f2a23a"), 3.0, false)
 		return
-	draw_circle(Vector2.ZERO, PROJECTILE_RADIUS, Color("f5d76e"))
-	draw_circle(Vector2.ZERO, 2.0, Color.WHITE)
+	draw_rect(Rect2(-7.0, -3.0, 14.0, 6.0), Color("242a28"), true)
+	draw_rect(Rect2(-6.0, -2.0, 12.0, 4.0), Color("fff1ca"), true)

@@ -13,6 +13,7 @@ const MUTED_COLOR := Color("b8b29f")
 const DANGER_COLOR := Color("ef6a67")
 const LOADOUT_PRESENTER := preload("res://game/ui/loadout_strip_presenter.gd")
 const STAT_LIST_PRESENTER := preload("res://game/ui/stat_list_presenter.gd")
+const HUD_SKIN := preload("res://game/ui/hud_skin.gd")
 
 var _pending_confirmation: StringName = &""
 var _confirmation_source: Button
@@ -39,7 +40,8 @@ func configure(
 	static_assets: GogoStaticAssetSnapshot,
 	current_wave: int,
 	total_waves: int,
-	seconds_remaining: float
+	seconds_remaining: float,
+	endless: bool = false
 ) -> void:
 	_build_loadout(player, content, static_assets)
 	_build_stats(player, content)
@@ -48,10 +50,13 @@ func configure(
 		maxi(current_wave, 0),
 		maxi(total_waves, 1),
 	]
+	if endless:
+		(wave_progress.get_node("Wave") as Label).text = "无尽 · 第 %d 波" % current_wave
 	(wave_progress.get_node("Time") as Label).text = "剩余 %d 秒" % ceili(
 		maxf(seconds_remaining, 0.0)
 	)
 	var progress := wave_progress.get_node("Progress") as ProgressBar
+	progress.visible = not endless
 	progress.max_value = maxi(total_waves, 1)
 	progress.value = clampi(current_wave, 0, maxi(total_waves, 1))
 
@@ -82,7 +87,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _build_static_hierarchy() -> void:
 	var dim := ColorRect.new()
 	dim.name = "DimVeil"
-	dim.color = Color(0.025, 0.029, 0.032, 0.82)
+	dim.color = Color(0.0, 0.0, 0.0, 0.74)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(dim)
@@ -105,7 +110,7 @@ func _build_static_hierarchy() -> void:
 			String(spec[0]),
 			String(spec[1]),
 			Vector2(20, 78 + index * 68),
-			Vector2(220, 50),
+			Vector2(220, 56),
 			bool(spec[3])
 		)
 		button.pressed.connect(spec[2] as Callable)
@@ -164,7 +169,7 @@ func _build_static_hierarchy() -> void:
 	)
 	settings_info.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	_settings_panel.add_child(settings_info)
-	var settings_close := _button("CloseButton", "返回暂停菜单", Vector2(100, 188), Vector2(240, 48), false)
+	var settings_close := _button("CloseButton", "返回暂停菜单", Vector2(100, 184), Vector2(240, 56), false)
 	settings_close.pressed.connect(_close_settings)
 	_settings_panel.add_child(settings_close)
 
@@ -183,10 +188,10 @@ func _build_static_hierarchy() -> void:
 	_confirmation_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_confirmation_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_confirmation.add_child(_confirmation_label)
-	var cancel := _button("CancelButton", "取消", Vector2(28, 142), Vector2(180, 50), false)
+	var cancel := _button("CancelButton", "取消", Vector2(28, 138), Vector2(180, 56), false)
 	cancel.pressed.connect(_cancel_confirmation)
 	_confirmation.add_child(cancel)
-	var confirm := _button("ConfirmButton", "确认", Vector2(232, 142), Vector2(180, 50), true)
+	var confirm := _button("ConfirmButton", "确认", Vector2(232, 138), Vector2(180, 56), true)
 	confirm.pressed.connect(_confirm_danger_action)
 	_confirmation.add_child(confirm)
 
@@ -201,34 +206,38 @@ func _build_loadout(
 	if previous != null:
 		remove_child(previous)
 		previous.free()
-	var loadout := LOADOUT_PRESENTER.build(player, content, static_assets, {}) as Control
+	var loadout := LOADOUT_PRESENTER.build(
+		player,
+		content,
+		static_assets,
+		{"expanded": true}
+	) as Control
 	loadout.name = "Loadout"
 	loadout.position = Vector2(316, 88)
-	loadout.custom_minimum_size = Vector2.ZERO
+	loadout.custom_minimum_size = Vector2(620, 480)
 	loadout.size = Vector2(620, 480)
-	var backing := Panel.new()
-	backing.name = "Backing"
-	backing.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	backing.add_theme_stylebox_override(
-		"panel",
-		_flat_style(Color(0.055, 0.063, 0.067, 0.9), Color("4d5149"), 1)
-	)
-	backing.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	loadout.add_child(backing)
-	loadout.move_child(backing, 0)
-	var items := loadout.get_node("Items") as HBoxContainer
-	items.position = Vector2(20, 62)
-	items.size = Vector2(580, 56)
+	loadout.clip_contents = true
+	var items_scroll := loadout.get_node("ItemsScroll") as ScrollContainer
+	items_scroll.position = Vector2(20, 202)
+	items_scroll.size = Vector2(580, 258)
 	var weapons := loadout.get_node("Weapons") as HBoxContainer
-	weapons.position = Vector2(20, 164)
+	weapons.position = Vector2(20, 54)
 	weapons.size = Vector2(452, 72)
 	for button: Button in loadout.find_children("*", "Button", true, false):
 		button.focus_mode = Control.FOCUS_NONE
 		button.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var items_title := _label("ItemsTitle", "物品", Vector2(20, 18), Vector2(580, 34), 22)
-	loadout.add_child(items_title)
-	var weapons_title := _label("WeaponsTitle", "武器", Vector2(20, 124), Vector2(580, 34), 22)
+	var weapons_title := _label(
+		"WeaponsTitle",
+		"武器 %d/6" % player.weapon_ids.size(),
+		Vector2(20, 8),
+		Vector2(580, 34),
+		22
+	)
 	loadout.add_child(weapons_title)
+	loadout.add_child(_section_divider("WeaponsDivider", Vector2(20, 42)))
+	var items_title := _label("ItemsTitle", "道具", Vector2(20, 154), Vector2(580, 34), 22)
+	loadout.add_child(items_title)
+	loadout.add_child(_section_divider("ItemsDivider", Vector2(20, 188)))
 	add_child(loadout)
 	move_child(loadout, insertion_index)
 
@@ -314,10 +323,12 @@ func _panel(node_name: String, at: Vector2, rect_size: Vector2) -> Panel:
 	panel.name = node_name
 	panel.position = at
 	panel.size = rect_size
-	panel.add_theme_stylebox_override(
-		"panel",
-		_flat_style(Color(0.055, 0.063, 0.067, 0.94), Color("4d5149"), 1)
-	)
+	var variant: StringName = &"soft"
+	if node_name == "StatsColumn":
+		variant = &"stats"
+	elif node_name in ["SettingsPanel", "ExitConfirmation"]:
+		variant = &"dialog"
+	HUD_SKIN.apply_panel(panel, variant)
 	return panel
 
 
@@ -354,13 +365,19 @@ func _button(
 	button.position = at
 	button.size = rect_size
 	button.focus_mode = Control.FOCUS_ALL
-	button.add_theme_font_size_override("font_size", 19)
-	var accent := DANGER_COLOR if danger else Color("808777")
-	button.add_theme_stylebox_override("normal", _flat_style(Color("171b1e"), accent, 1))
-	button.add_theme_stylebox_override("hover", _flat_style(Color("242a2d"), Color("f1a34a"), 1))
-	button.add_theme_stylebox_override("focus", _flat_style(Color("242a2d"), Color("f1a34a"), 1))
-	button.add_theme_stylebox_override("pressed", _flat_style(Color("30271d"), Color("f1a34a"), 1))
+	HUD_SKIN.apply_action_button(button, &"standard", danger, true)
+	button.custom_minimum_size = rect_size
 	return button
+
+
+func _section_divider(node_name: String, at: Vector2) -> ColorRect:
+	var divider := ColorRect.new()
+	divider.name = node_name
+	divider.position = at
+	divider.size = Vector2(580, 2)
+	divider.color = Color(0.74, 0.71, 0.64, 0.42)
+	divider.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return divider
 
 
 static func _flat_style(background: Color, border: Color, width: int) -> StyleBoxFlat:

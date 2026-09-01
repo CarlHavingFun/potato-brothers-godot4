@@ -6,6 +6,7 @@ extends Resource
 @export var kind: StringName = &""
 @export var tags: Array[StringName] = []
 @export var icon_asset_id: StringName = &""
+@export var direct_icon_texture: Texture2D
 
 
 func is_valid() -> bool:

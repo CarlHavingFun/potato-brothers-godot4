@@ -42,18 +42,24 @@ func reroll_upgrade_rewards(session: GameSession) -> Error:
 
 
 func rebuild(session: GameSession, player: SessionPlayerState) -> Error:
-	if session == null or player == null:
+	if session == null:
 		return ERR_INVALID_PARAMETER
-	var character := session.content_snapshot.definition(player.character_id, &"character") as CharacterDefinition
+	return rebuild_from_snapshot(session.content_snapshot, player)
+
+
+func rebuild_from_snapshot(snapshot: ContentSnapshot, player: SessionPlayerState) -> Error:
+	if snapshot == null or player == null:
+		return ERR_INVALID_PARAMETER
+	var character := snapshot.definition(player.character_id, &"character") as CharacterDefinition
 	if character == null:
 		return ERR_DOES_NOT_EXIST
 	var equipment_modifiers: Array[Dictionary] = []
 	for item_id in player.item_ids:
-		var item := session.content_snapshot.definition(item_id, &"item") as GogoItemDefinition
+		var item := snapshot.definition(item_id, &"item") as GogoItemDefinition
 		if item != null:
 			equipment_modifiers.append(item.stat_modifiers)
 	for upgrade_id in player.upgrade_ids:
-		var upgrade := session.content_snapshot.definition(upgrade_id, &"upgrade") as GogoUpgradeDefinition
+		var upgrade := snapshot.definition(upgrade_id, &"upgrade") as GogoUpgradeDefinition
 		if upgrade != null:
 			equipment_modifiers.append(upgrade.stat_modifiers)
 	var previous_max := player.max_health

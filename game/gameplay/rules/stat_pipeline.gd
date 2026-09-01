@@ -34,3 +34,8 @@ func _clamp_final(stats: Dictionary) -> void:
 	stats[&"attack_speed"] = maxf(float(stats.get(&"attack_speed", 1.0)), 0.1)
 	stats[&"dodge"] = clampf(float(stats.get(&"dodge", 0.0)), 0.0, 0.6)
 	stats[&"armor"] = maxf(float(stats.get(&"armor", 0.0)), -20.0)
+	stats[&"critical_chance"] = clampf(float(stats.get(&"critical_chance", 0.0)), 0.0, 1.0)
+	stats[&"explosion_damage_multiplier"] = maxf(
+		float(stats.get(&"explosion_damage_multiplier", 0.0)),
+		-1.0
+	)

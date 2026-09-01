@@ -30,6 +30,7 @@ func _ready() -> void:
 func apply_settings(settings: GogoSettingsService) -> void:
 	if settings == null:
 		return
+	AudioServer.set_bus_volume_db(0, linear_to_db(clampf(float(settings.values.get("master_volume", 1.0)), 0.0, 1.0)))
 	music_player.volume_db = linear_to_db(clampf(float(settings.values.get("music_volume", 0.8)), 0.0, 1.0))
 	_effects_volume_db = linear_to_db(clampf(float(settings.values.get("effects_volume", 0.9)), 0.0, 1.0))
 	for voice in sfx_players:

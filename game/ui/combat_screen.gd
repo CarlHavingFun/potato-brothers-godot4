@@ -23,12 +23,11 @@ func _ready() -> void:
 	world.wave_completed.connect(_on_wave_completed)
 	world.run_failed.connect(_on_run_failed)
 	var session := app.current_session
-	var zone := session.content_snapshot.definition(session.run_state.zone_id, &"zone") as GogoZoneDefinition
-	var wave_id := zone.wave_ids[session.run_state.current_wave - 1]
-	var wave := session.content_snapshot.definition(wave_id, &"wave") as GogoWaveDefinition
+	var wave := GogoWaveResolver.resolve(session)
 	var error := world.start_wave(session, wave)
 	if error != OK:
-		app.route(FlowRoute.DIAGNOSTIC, {"message": "战斗启动失败", "details": [error_string(error)]})
+		# Routing inside _ready would race SceneFlow's current-scene commitment.
+		app.call_deferred("route", FlowRoute.DIAGNOSTIC, {"message": "战斗启动失败", "details": [error_string(error)]})
 		return
 	_build_combat_audio(app.audio_service)
 
@@ -127,8 +126,7 @@ func _open_pause() -> void:
 		return
 	var session := app.current_session
 	var player := session.run_state.player()
-	var zone := session.content_snapshot.definition(session.run_state.zone_id, &"zone") as GogoZoneDefinition
-	var total_waves := zone.wave_ids.size() if zone != null else session.run_state.current_wave
+	var total_waves := session.run_state.total_waves
 	var seconds_remaining := latest_hud_snapshot.seconds if latest_hud_snapshot != null else 0.0
 	pause_overlay.call(
 		"configure",
@@ -137,7 +135,8 @@ func _open_pause() -> void:
 		_static_asset_snapshot(),
 		session.run_state.current_wave,
 		total_waves,
-		seconds_remaining
+		seconds_remaining,
+		session.run_state.endless
 	)
 	pause_overlay.call("open")
 	get_tree().paused = true
@@ -184,7 +183,7 @@ func _on_wave_completed() -> void:
 		app.route(FlowRoute.DIAGNOSTIC, {"message": "波次存档失败", "details": [app.profile_service.last_error]})
 		return
 	var route_id := FlowRoute.UPGRADE if app.current_session.run_state.phase == &"upgrade" else FlowRoute.SHOP
-	app.route(route_id, {"battlefield_backdrop": battlefield_backdrop} if route_id == FlowRoute.UPGRADE else {})
+	app.route(route_id, {"battlefield_backdrop": battlefield_backdrop})
 
 
 func _capture_battlefield_backdrop() -> Texture2D:

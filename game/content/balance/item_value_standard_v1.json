@@ -1,0 +1,181 @@
+{
+  "schema_version": "gogobro-item-value-standard-v1",
+  "status": "authoring_and_read_only_audit",
+  "value_basis": {
+    "unit": "value_point",
+    "meaning": "One point approximates one percent of useful combat, survival, or economy output around the current Niko/start-weapon baseline.",
+    "notes": [
+      "This file does not mutate content definitions.",
+      "Tier bands are shared by items and weapons; weapon points are normalized to the current starting weapon of the same mode.",
+      "Negative modifiers offset only 75% of their absolute utility so a painful downside cannot buy unrestricted upside one-for-one."
+    ]
+  },
+  "runtime_reference": {
+    "character": {
+      "max_health": 20.0,
+      "movement_speed": 235.0,
+      "attack_speed": 1.0,
+      "armor": 0.0,
+      "dodge": 0.0,
+      "pickup_range": 115.0,
+      "health_regen": 0.0,
+      "critical_chance": 0.0,
+      "wave_duration_seconds": 20.0,
+      "expected_wounded_fraction": 0.55
+    },
+    "weapon_by_mode": {
+      "melee": {
+        "damage": 7.0,
+        "cooldown_seconds": 0.55,
+        "attack_range": 92.0,
+        "projectile_speed": 620.0,
+        "knockback": 46.0
+      },
+      "ranged": {
+        "damage": 4.0,
+        "cooldown_seconds": 0.42,
+        "attack_range": 520.0,
+        "projectile_speed": 620.0,
+        "knockback": 22.0
+      }
+    },
+    "default_mode_mix": {"melee": 0.30, "ranged": 0.70},
+    "mode_specific_availability_factor": 0.75,
+    "explosive_build_availability_factor": 0.25
+  },
+  "item_formula": {
+    "negative_credit_factor": 0.75,
+    "unknown_stat_value": 0.0,
+    "positive_line_soft_cap": 3,
+    "extra_positive_line_factors": [0.90, 0.80, 0.70],
+    "stat_rules": {
+      "damage_multiplier": {"method": "linear", "points_per_unit": 100.0},
+      "attack_speed_multiplier": {"method": "linear", "points_per_unit": 90.0},
+      "critical_chance": {"method": "linear_capped", "points_per_unit": 100.0, "minimum": 0.0, "maximum": 1.0, "inactive_floor_negative_nominal_points_per_unit": 100.0},
+      "dodge": {"method": "dodge_ehp", "minimum": 0.0, "maximum": 0.60, "inactive_floor_negative_nominal_points_per_unit": 100.0},
+      "movement_speed_multiplier": {"method": "linear", "points_per_unit": 45.0},
+      "movement_speed": {"method": "linear", "points_per_unit": 0.1914893617},
+      "max_health": {"method": "health_ratio", "reference_key": "max_health"},
+      "armor": {"method": "armor_ehp", "minimum": -20.0},
+      "health_regen": {"method": "discrete_regen", "minimum_effective_total": 1.0},
+      "pickup_range": {"method": "linear", "points_per_unit": 0.10},
+      "economy": {"method": "linear", "points_per_unit": 0.65},
+      "melee_damage": {"method": "flat_weapon_damage", "mode": "melee", "availability_factor": 0.75},
+      "ranged_damage": {"method": "flat_weapon_damage", "mode": "ranged", "availability_factor": 0.75},
+      "attack_range_bonus": {"method": "weapon_range_bonus", "mode_elasticity": {"melee": 0.35, "ranged": 0.12}},
+      "explosion_damage_multiplier": {"method": "linear", "points_per_unit": 25.0, "minimum": -1.0},
+      "attack_speed": {"method": "linear", "points_per_unit": 90.0}
+    },
+    "synergy_rules": [
+      {"all_of": ["damage_multiplier", "attack_speed_multiplier"], "bonus_fraction_of_smaller_positive": 0.08},
+      {"all_of": ["critical_chance", "attack_speed_multiplier"], "bonus_fraction_of_smaller_positive": 0.05},
+      {"all_of": ["max_health", "armor"], "bonus_fraction_of_smaller_positive": 0.08},
+      {"all_of": ["max_health", "health_regen"], "bonus_fraction_of_smaller_positive": 0.06},
+      {"all_of": ["attack_range_bonus", "ranged_damage"], "bonus_fraction_of_smaller_positive": 0.04}
+    ],
+    "conditional_uptime_factors": {
+      "always": 1.0,
+      "health_lte_pct": 0.35,
+      "wave_progress_gte_pct": 0.25,
+      "wave_progress_lte_pct": 0.20,
+      "while_moving_ranged_attack": 0.55,
+      "enemy_count_lte": 0.25,
+      "first_projectile_per_wave": 0.06,
+      "first_damage_taken_per_wave": 0.10
+    },
+    "trigger_rules": {
+      "every_nth_ranged_attack": {"method": "inverse_n"},
+      "first_projectile_per_wave": {"fixed_uptime": 0.06},
+      "first_damage_taken_per_wave": {"fixed_uptime": 0.10}
+    }
+  },
+  "weapon_formula": {
+    "base_chassis_points": 12.0,
+    "dps_log_coefficient": 20.0,
+    "range_log_coefficient": 8.0,
+    "projectile_speed_log_coefficient": 3.0,
+    "knockback_log_coefficient": 2.0,
+    "minimum_cooldown_seconds": 0.05,
+    "minimum_attack_range": 12.0,
+    "minimum_projectile_speed": 1.0,
+    "spread": {
+      "minimum_retention": 0.55,
+      "loss_per_total_cone_degree": 0.01,
+      "maximum_counted_cone_degrees": 45.0
+    },
+    "impact_expected_target_multipliers": {
+      "normal": 1.0,
+      "critical": 2.0,
+      "pierce_exit": 1.35,
+      "explosion": 1.60
+    },
+    "impact_runtime_facts": {
+      "critical": "forces the current 2.0 critical multiplier",
+      "pierce_exit": "can contact at most two distinct enemies",
+      "explosion": "repeats full contact damage to every other enemy inside 80 px"
+    }
+  },
+  "rarity_bands": {
+    "1": {"name_zh": "普通", "code_aliases": ["common"], "value_min": 8.0, "value_max": 20.0, "price_min": 8, "price_max": 15, "positive_lines_min": 1, "positive_lines_max": 2, "negative_lines_min": 0, "negative_lines_max": 1, "total_lines_min": 1, "total_lines_max": 3},
+    "2": {"name_zh": "稀有", "code_aliases": ["uncommon"], "value_min": 21.0, "value_max": 35.0, "price_min": 16, "price_max": 24, "positive_lines_min": 1, "positive_lines_max": 3, "negative_lines_min": 0, "negative_lines_max": 1, "total_lines_min": 2, "total_lines_max": 4},
+    "3": {"name_zh": "史诗", "code_aliases": ["rare", "epic"], "value_min": 36.0, "value_max": 55.0, "price_min": 26, "price_max": 36, "positive_lines_min": 2, "positive_lines_max": 3, "negative_lines_min": 0, "negative_lines_max": 2, "total_lines_min": 2, "total_lines_max": 5},
+    "4": {"name_zh": "传说", "code_aliases": ["legendary"], "value_min": 56.0, "value_max": 85.0, "price_min": 40, "price_max": 55, "positive_lines_min": 2, "positive_lines_max": 4, "negative_lines_min": 0, "negative_lines_max": 2, "total_lines_min": 3, "total_lines_max": 6}
+  },
+  "price_curve": {
+    "anchors": [[0.0, 4], [8.0, 8], [20.0, 15], [35.0, 24], [55.0, 36], [85.0, 55], [110.0, 70]],
+    "wave_multiplier": "1 + 0.08 * max(wave - 1, 0)",
+    "weapon_sell_fraction": 0.35,
+    "reroll_price": "max(1, 1 + floor(wave * 0.5) + reroll_count)"
+  },
+  "runtime_limits": {
+    "movement_speed_min": 40.0,
+    "attack_speed_min": 0.10,
+    "dodge_min": 0.0,
+    "dodge_max": 0.60,
+    "armor_min": -20.0,
+    "critical_chance_min": 0.0,
+    "critical_chance_max": 1.0,
+    "explosion_damage_multiplier_min": -1.0,
+    "weapon_slots_max": 6
+  },
+  "shop": {
+    "tier_weights_by_wave": {
+      "1": {"1": 100.0, "2": 0.0, "3": 0.0, "4": 0.0},
+      "2": {"1": 80.0, "2": 20.0, "3": 0.0, "4": 0.0},
+      "3": {"1": 65.0, "2": 30.0, "3": 5.0, "4": 0.0},
+      "4": {"1": 55.0, "2": 32.0, "3": 13.0, "4": 0.0},
+      "5+": {"1": 45.0, "2": 33.0, "3": 18.0, "4": 4.0}
+    }
+  },
+  "content_audit_contract": {
+    "expected_current_counts": {"items": 80, "weapons": 12},
+    "core_item_count": 6,
+    "preview_item_count": 24,
+    "falcons_item_count": 50,
+    "core_weapon_count": 2,
+    "preview_weapon_count": 10,
+    "preview_existing_item_asset_ids": ["ballistic_liner", "silent_step_insoles", "crosshair_shim", "supply_radar", "trade_guard", "tactical_med_patch"],
+    "preview_effect_operation_map": {
+      "max_health": ["max_health", 1.0],
+      "move_speed_pct": ["movement_speed_multiplier", 0.01],
+      "damage_pct": ["damage_multiplier", 0.01],
+      "economy": ["economy", 1.0],
+      "armor": ["armor", 1.0],
+      "regeneration": ["health_regen", 1.0],
+      "explosion_damage_pct": ["explosion_damage_multiplier", 0.01],
+      "melee_damage": ["melee_damage", 1.0],
+      "ranged_damage": ["ranged_damage", 1.0],
+      "critical_chance": ["critical_chance", 0.01],
+      "dodge": ["dodge", 0.01],
+      "range": ["attack_range_bonus", 1.0],
+      "attack_speed_pct": ["attack_speed_multiplier", 0.01]
+    },
+    "known_special_runtime_effects": {
+      "gogobro.preview:item/skyline_grenade": "Every seventh ranged attack per weapon emits one full-damage explosion projectile.",
+      "gogobro.preview:item/post_match_analysis_desk": "Authored progressive effect is not wired by the current preview factory/runtime.",
+      "gogobro.preview:item/one_missed_shot": "Authored trigger is not wired by the current preview factory/runtime.",
+      "gogobro.preview:item/falling_sniper_charm": "Authored condition is not wired by the current preview factory/runtime."
+    },
+    "preview_nested_effect_runtime_policy": "Only top-level numeric operation/value entries are converted by _literal_stat_modifiers. Nested condition/trigger/progressive trees are inert unless a separate runtime names the exact content ID; skyline_grenade is the only current exception."
+  }
+}

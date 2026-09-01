@@ -85,13 +85,30 @@ static func _weapon_definition(raw: Dictionary, mark_candidate_preview: bool) ->
 	definition.projectile_speed = float(raw.get("projectile_speed", 520.0))
 	definition.knockback = float(raw.get("knockback", 0.0))
 	definition.price = int(raw.get("price", 12))
+	definition.tier = clampi(
+		int(raw.get("tier", _weapon_tier_for_price(definition.price))),
+		1,
+		4
+	)
 	definition.feedback_profile_id = StringName(String(raw.get("profile", "rifle")))
 	definition.damage_kind = &"melee" if definition.mode == GogoWeaponDefinition.Mode.MELEE else &"ballistic"
 	definition.impact_kind = StringName(String(raw.get("impact_kind", "normal")))
 	definition.tags = [&"melee" if definition.mode == GogoWeaponDefinition.Mode.MELEE else &"ranged"]
+	definition.set_meta(&"description", String(raw.get("description", "")))
+	definition.set_meta(&"flavor", String(raw.get("flavor", "")))
 	if mark_candidate_preview:
 		definition.tags.append(&"candidate_preview")
 	return definition
+
+
+static func _weapon_tier_for_price(price: int) -> int:
+	if price >= 30:
+		return 4
+	if price >= 26:
+		return 3
+	if price >= 20:
+		return 2
+	return 1
 
 
 static func _item_definition(unit: Dictionary, mark_candidate_preview: bool) -> GogoItemDefinition:
@@ -104,6 +121,8 @@ static func _item_definition(unit: Dictionary, mark_candidate_preview: bool) -> 
 	definition.icon_asset_id = StringName(asset_id)
 	definition.tier = int(RARITY_TIER.get(String(unit.get("rarity", "common")), 1))
 	definition.price = [0, 12, 20, 30, 45][definition.tier]
+	definition.set_meta(&"description", String(chinese.get("description", "")))
+	definition.set_meta(&"flavor", String(chinese.get("flavor", "")))
 	var max_count_variant: Variant = unit.get("max_count")
 	if max_count_variant is int or max_count_variant is float:
 		definition.max_count = maxi(int(max_count_variant), 1)

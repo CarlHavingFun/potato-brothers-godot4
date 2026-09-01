@@ -32,6 +32,7 @@ var audio_service: GogoAudioService
 var current_session: GameSession
 var selection_draft: Dictionary = {}
 var boot_result: BootResult
+var _settlement_recorded := false
 
 
 func configure(flow: SceneFlow, audio: GogoAudioService) -> void:
@@ -69,7 +70,7 @@ func boot() -> BootResult:
 		) as GogoStaticAssetSnapshot
 		if preview_snapshot != null:
 			static_asset_service.activate_development_preview(preview_snapshot, &"", null)
-	var profile_error := profile_service.load_profile()
+	var profile_error := profile_service.load_profile(content_snapshot)
 	if profile_error != OK:
 		boot_result = BootResult.failure(BootResult.Status.SAVE_ERROR, "存档加载失败", [profile_service.last_error])
 		boot_completed.emit(boot_result)
@@ -94,6 +95,9 @@ func begin_selection() -> void:
 
 
 func create_session_from_draft() -> Error:
+	if profile_service.is_write_blocked():
+		_publish_save_error("存档校验失败")
+		return ERR_FILE_CORRUPT
 	var config := SessionConfig.new()
 	config.seed = int(selection_draft.get("seed", 1))
 	config.character_id = selection_draft.get("character_id", &"")
@@ -106,36 +110,74 @@ func create_session_from_draft() -> Error:
 	if error != OK:
 		return error
 	current_session = candidate
+	_settlement_recorded = false
+	candidate.run_ended.connect(_on_session_run_ended)
 	session_created.emit(candidate)
 	return OK
 
 
 func close_session(record_result: bool = true) -> void:
-	if current_session != null and record_result and current_session.run_state != null:
-		profile_service.record_settlement(current_session.run_state)
+	if current_session == null:
+		return
+	if record_result:
+		_record_settlement_once()
 	current_session = null
 	selection_draft.clear()
 	session_closed.emit()
 
 
+func _on_session_run_ended(_victory: bool) -> void:
+	_record_settlement_once()
+
+
+func _record_settlement_once() -> void:
+	if _settlement_recorded or current_session == null or current_session.run_state == null or not current_session.run_state.ended:
+		return
+	# Commit before any persistence/route publication. Closing settlement is not
+	# a second terminal event, nor is a nonterminal disposal a completed run.
+	_settlement_recorded = true
+	var error := profile_service.record_settlement(current_session.run_state)
+	if error != OK:
+		_publish_save_error("结算存档失败")
+		call_deferred("route", FlowRoute.DIAGNOSTIC, {"message": "结算存档失败", "details": [profile_service.last_error]})
+
+
 func save_checkpoint() -> Error:
 	if current_session == null or current_session.run_state == null:
 		return ERR_UNAVAILABLE
-	return profile_service.save_checkpoint(current_session.run_state)
+	var error := profile_service.save_checkpoint(current_session.run_state)
+	if error != OK:
+		_publish_save_error("存档保存失败")
+	return error
+
+
+func _publish_save_error(message: String) -> void:
+	boot_result = BootResult.failure(BootResult.Status.SAVE_ERROR, message, [profile_service.last_error])
 
 
 func route(route_id: StringName, payload: Dictionary = {}) -> Error:
+	if route_id != FlowRoute.DIAGNOSTIC and profile_service.is_write_blocked():
+		_publish_save_error("存档校验失败")
+		return ERR_FILE_CORRUPT
 	if scene_flow == null:
 		return ERR_UNCONFIGURED
-	return scene_flow.open(route_id, payload)
+	var canonical := FlowRoute.CHARACTER_SELECT if route_id in [FlowRoute.WEAPON_SELECT, FlowRoute.DIFFICULTY_SELECT] else route_id
+	return scene_flow.open(canonical, payload)
 
 
 func apply_pending_content_packs() -> Error:
 	if current_session != null or scene_flow == null or scene_flow.current_route() != FlowRoute.MAIN_MENU:
 		return ERR_BUSY
-	var next_snapshot := content_catalog.apply_at_main_menu(content_registry, scene_flow.current_route())
-	if next_snapshot == null:
+	var current_error := profile_service.validate_content_context(content_snapshot)
+	if current_error != OK:
+		_publish_save_error("存档校验失败")
+		return current_error
+	var prepared := content_catalog.prepare_at_main_menu(content_registry, scene_flow.current_route())
+	if prepared.is_empty():
 		return ERR_INVALID_DATA
+	var next_snapshot: ContentSnapshot = prepared.snapshot
+	var context_error := profile_service.validate_content_context(next_snapshot)
+	if context_error != OK: return context_error
 	var stage_error := static_asset_service.stage(next_snapshot)
 	if stage_error != OK:
 		return stage_error
@@ -144,4 +186,7 @@ func apply_pending_content_packs() -> Error:
 		static_asset_service.discard_staged()
 		return activate_error
 	content_snapshot = next_snapshot
-	return OK
+	profile_service.publish_content_context(next_snapshot)
+	# Catalog observers see matching app/profile context. Static activation's own earlier
+	# events retain their existing timing and are not claimed to be globally atomic.
+	return content_catalog.commit_prepared(prepared)

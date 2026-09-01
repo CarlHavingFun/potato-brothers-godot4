@@ -1,12 +1,24 @@
 extends GogoScreenBase
 
-
 const NIKO_ID := NikoContentFactory.CHARACTER_ID
+const WEAPON_PRESENTER := preload("res://game/ui/selection_weapon_presenter.gd")
+const DIFFICULTY_PRESENTER := preload("res://game/ui/selection_difficulty_presenter.gd")
+const ROSTER_CAPTION_RECT := Rect2(348, 104, 900, 28)
+const ROSTER_RECT := Rect2(348, 140, 900, 488)
+const ROSTER_CELL_SIZE := Vector2(143, 116)
+const CHANGE_CHARACTER_RECT := Rect2(32, 648, 300, 56)
+const DETAIL_RECT := Rect2(32, 104, 300, 510)
+var _weapons := WEAPON_PRESENTER.new()
+var _difficulties := DIFFICULTY_PRESENTER.new()
+var _starting := false
+var _character_picker_open := true
+var _difficulty_stage_open := false
 
 
 func _ready() -> void:
-	build_screen_chrome("角色选择", "选择后立即进入起始武器")
-	_center_title()
+	use_menu_background_v2 = true
+	build_screen_chrome("出战配置", "依次选择人物、武器与难度")
+	selection_title()
 	var app := AppContext.kernel(self)
 	if app == null or app.content_snapshot == null:
 		return
@@ -17,132 +29,391 @@ func _ready() -> void:
 			"details": [String(NIKO_ID)],
 		})
 		return
-	_build_back_button(app)
+	_build_progressive_back()
 	_build_niko_detail(niko)
-	_build_roster(app, niko)
+	_build_roster(niko)
+	_character_picker_open = _selected_character(app) == null
+	var weapon_stage := Control.new()
+	weapon_stage.name = "WeaponStage"
+	weapon_stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(weapon_stage)
+	var difficulty_stage := Control.new()
+	difficulty_stage.name = "DifficultyStage"
+	difficulty_stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(difficulty_stage)
+	_weapons.build(self, app, _select_weapon, weapon_stage)
+	_difficulties.build(self, app, difficulty_stage, _select_difficulty_and_start)
+	_difficulty_stage_open = not _character_picker_open and _configuration_is_valid()
+	_sync_selection()
+	_focus_initial_control()
 
 
-func _build_back_button(app: AppKernel) -> void:
-	var button := Button.new()
-	button.name = "BackButton"
-	button.position = Vector2(40, 28)
-	button.size = Vector2(154, 48)
-	button.z_index = 10
-	configure_action_button(
-		button,
+func _build_progressive_back() -> void:
+	var button := ui_button(
+		self,
+		"BackButton",
 		"← 返回",
-		func() -> void: app.route(FlowRoute.MAIN_MENU)
+		Rect2(32, 24, 168, 56),
+		_go_back_one_stage
 	)
-	_apply_back_style(button)
-	add_child(button)
+	button.z_index = 10
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"ui_cancel"):
+		get_viewport().set_input_as_handled()
+		_go_back_one_stage()
+
+
+func _go_back_one_stage() -> void:
+	if _starting:
+		return
+	if _character_picker_open:
+		var app := AppContext.kernel(self)
+		if app != null:
+			app.route(FlowRoute.MAIN_MENU)
+		return
+	if _difficulty_stage_open:
+		_difficulty_stage_open = false
+		_sync_selection()
+		_focus_weapon_or_change()
+		return
+	_open_character_picker()
 
 
 func _build_niko_detail(niko: CharacterDefinition) -> void:
-	var detail := Control.new()
-	detail.name = "NikoDetail"
-	detail.position = Vector2(270, 116)
-	detail.size = Vector2(740, 416)
-	add_child(detail)
-
-	var backing := ColorRect.new()
-	backing.name = "Backing"
-	backing.color = Color(0.035, 0.04, 0.05, 0.88)
-	backing.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	backing.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	detail.add_child(backing)
-
+	var detail := ui_panel(self, "NikoDetail", DETAIL_RECT)
+	var name_label := _detail_label(detail, "Name", Vector2(20, 8), Vector2(260, 36), 28)
+	name_label.text = niko.display_name
+	name_label.add_theme_color_override(&"font_color", Color("fff0bf"))
+	var role := _detail_label(detail, "Role", Vector2(20, 44), Vector2(260, 26), 18)
+	role.text = "唯一可用角色 · 均衡型"
+	role.add_theme_color_override(&"font_color", Color("f2a14a"))
 	var preview := TextureRect.new()
 	preview.name = "Preview"
-	preview.position = Vector2(28, 28)
-	preview.size = Vector2(310, 344)
-	preview.texture = _first_frame(niko)
+	preview.position = Vector2(70, 72)
+	preview.size = Vector2(160, 210)
+	preview.texture = _cropped_detail_frame(niko)
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	detail.add_child(preview)
-
-	var name_label := _detail_label(detail, "Name", Vector2(374, 42), Vector2(320, 54), 38)
-	name_label.text = niko.display_name
-	name_label.add_theme_color_override(&"font_color", Color("fff0bf"))
-
-	var role := _detail_label(detail, "Role", Vector2(376, 98), Vector2(318, 30), 20)
-	role.text = "唯一可用角色 · 均衡型"
-	role.add_theme_color_override(&"font_color", Color("f2a14a"))
-
-	var traits := _detail_label(detail, "Traits", Vector2(376, 144), Vector2(318, 204), 20)
+	_detail_label(detail, "SectionTitle", Vector2(20, 286), Vector2(260, 30), 22).text = "基础属性"
+	var traits := _detail_label(detail, "Traits", Vector2(20, 320), Vector2(260, 174), 19)
 	traits.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	traits.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	traits.text = _niko_summary(niko)
 
-	var prompt := _detail_label(detail, "Prompt", Vector2(376, 368), Vector2(318, 30), 16)
-	prompt.text = "从下方角色格选择并继续"
-	prompt.add_theme_color_override(&"font_color", Color("c9c3b1"))
 
-
-func _build_roster(app: AppKernel, niko: CharacterDefinition) -> void:
-	var roster_caption := _detail_label(self, "RosterCaption", Vector2(32, 570), Vector2(1216, 26), 18)
-	roster_caption.text = "角色名单  1 / 1"
-	roster_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-
-	var roster := HBoxContainer.new()
+func _build_roster(niko: CharacterDefinition) -> void:
+	_detail_label(
+		self,
+		"RosterCaption",
+		ROSTER_CAPTION_RECT.position,
+		ROSTER_CAPTION_RECT.size,
+		20
+	).text = "选择角色 · 1 个可用"
+	var roster := GridContainer.new()
 	roster.name = "RosterStrip"
-	roster.position = Vector2(604, 604)
-	roster.size = Vector2(72, 72)
-	roster.add_theme_constant_override(&"separation", 6)
+	roster.position = ROSTER_RECT.position
+	roster.size = ROSTER_RECT.size
+	roster.columns = 6
+	roster.add_theme_constant_override(&"h_separation", 8)
+	roster.add_theme_constant_override(&"v_separation", 8)
 	add_child(roster)
-
 	var cell := Button.new()
 	cell.name = "NikoCell"
-	cell.custom_minimum_size = Vector2(72, 72)
-	cell.size = Vector2(72, 72)
 	cell.tooltip_text = niko.display_name
 	cell.set_meta(&"content_id", niko.content_id)
-	var committed: bool = (
-		app.selection_draft.get("character_id", &"") as StringName
-	) == niko.content_id
-	cell.set_meta(&"selected", true)
-	cell.set_meta(&"committed", committed)
-	configure_action_button(
-		cell,
-		"",
-		func() -> void: _select(niko.content_id)
-	)
-	cell.custom_minimum_size = Vector2(72, 72)
-	_apply_selected_fill(cell)
+	configure_action_button(cell, "", _select_character.bind(niko.content_id))
+	cell.custom_minimum_size = ROSTER_CELL_SIZE
+	cell.size = ROSTER_CELL_SIZE
 	roster.add_child(cell)
-
 	var portrait := TextureRect.new()
 	portrait.name = "Preview"
-	portrait.position = Vector2(4, 4)
-	portrait.size = Vector2(64, 64)
+	portrait.position = Vector2(10, 18)
+	portrait.size = Vector2(60, 80)
 	portrait.texture = _first_frame(niko)
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cell.add_child(portrait)
-	if portrait.texture == null:
-		var fallback := _detail_label(cell, "Fallback", Vector2(4, 4), Vector2(64, 64), 16)
-		fallback.text = niko.display_name
-		fallback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		fallback.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	cell.call_deferred(&"grab_focus")
+	icon_fallback(cell, "Fallback", portrait.position, portrait.size, niko.display_name).visible = portrait.texture == null
+	var cell_name := _detail_label(cell, "Name", Vector2(76, 18), Vector2(58, 80), 18)
+	cell_name.text = niko.display_name
+	cell_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cell_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	cell.focus_entered.connect(_sync_character_label)
+	cell.focus_exited.connect(_sync_character_label)
+	cell.mouse_entered.connect(_sync_character_label)
+	cell.mouse_exited.connect(_sync_character_label)
+	for index in range(1, 24):
+		var placeholder := Button.new()
+		placeholder.name = "UnavailableCharacterSlot%02d" % index
+		placeholder.text = "未开放"
+		placeholder.tooltip_text = "未开放"
+		placeholder.custom_minimum_size = ROSTER_CELL_SIZE
+		placeholder.size = ROSTER_CELL_SIZE
+		placeholder.disabled = true
+		placeholder.focus_mode = Control.FOCUS_NONE
+		placeholder.mouse_default_cursor_shape = Control.CURSOR_FORBIDDEN
+		placeholder.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		placeholder.clip_text = true
+		placeholder.add_theme_font_size_override(&"font_size", 18)
+		placeholder.add_theme_color_override(&"font_disabled_color", HUD_SKIN.COLOR_TEXT_MUTED)
+		HUD_SKIN.apply_card(placeholder, false)
+		placeholder.add_theme_color_override(&"font_disabled_color", HUD_SKIN.COLOR_TEXT_MUTED)
+		roster.add_child(placeholder)
+	ui_button(
+		self,
+		"ChangeCharacterButton",
+		"%s · 更换角色" % niko.display_name,
+		CHANGE_CHARACTER_RECT,
+		_open_character_picker
+	)
 
 
-func _select(content_id: StringName) -> void:
+func _selected_character(app: AppKernel) -> CharacterDefinition:
+	if app == null or app.content_snapshot == null:
+		return null
+	if app.selection_draft.get("character_id", &"") != NIKO_ID:
+		return null
+	return app.content_snapshot.definition(NIKO_ID, &"character") as CharacterDefinition
+
+
+func _open_character_picker() -> void:
 	var app := AppContext.kernel(self)
+	if _selected_character(app) == null:
+		return
+	_character_picker_open = true
+	_difficulty_stage_open = false
+	_sync_selection()
+	(get_node("RosterStrip/NikoCell") as Button).call_deferred(&"grab_focus")
+
+
+func _select_character(content_id: StringName) -> void:
+	var app := AppContext.kernel(self)
+	if (
+		not _character_picker_open
+		or app == null
+		or app.content_snapshot == null
+		or content_id != NIKO_ID
+	):
+		return
+	if not app.content_snapshot.definition(content_id, &"character") is CharacterDefinition:
+		return
 	app.selection_draft["character_id"] = content_id
-	app.route(FlowRoute.WEAPON_SELECT)
+	var weapon := app.content_snapshot.definition(app.selection_draft.get("weapon_id", &""), &"weapon") as GogoWeaponDefinition
+	if weapon == null or not (app.content_snapshot.definition(content_id, &"character") as CharacterDefinition).allows_weapon(weapon):
+		app.selection_draft["weapon_id"] = &""
+	_character_picker_open = false
+	_difficulty_stage_open = false
+	_sync_selection()
+	_focus_weapon_or_change()
 
 
-func _center_title() -> void:
-	var heading := get_node("TitleBand/Title") as Label
-	heading.size.x = TITLE_BAND_RECT.size.x
-	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var subtitle := get_node("TitleBand/Subtitle") as Label
-	subtitle.size.x = TITLE_BAND_RECT.size.x
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+func _select_weapon(content_id: StringName) -> void:
+	if _character_picker_open:
+		return
+	var app := AppContext.kernel(self)
+	if app == null or app.content_snapshot == null:
+		return
+	var character := _selected_character(app)
+	if character == null:
+		return
+	for button in _weapons.buttons:
+		if button.get_meta(&"content_id") == content_id:
+			if not button.visible or button.disabled:
+				return
+			var weapon := app.content_snapshot.definition(content_id, &"weapon") as GogoWeaponDefinition
+			if weapon != null and character.allows_weapon(weapon):
+				app.selection_draft["weapon_id"] = content_id
+				_difficulty_stage_open = true
+				_sync_selection()
+				if not _difficulties.buttons.is_empty():
+					_difficulties.buttons[0].call_deferred(&"grab_focus")
+			return
+
+
+func _configuration_is_valid() -> bool:
+	var app := AppContext.kernel(self)
+	if app == null or app.content_snapshot == null:
+		return false
+	var character := _selected_character(app)
+	var weapon := app.content_snapshot.definition(app.selection_draft.get("weapon_id", &""), &"weapon") as GogoWeaponDefinition
+	return character != null and weapon != null and character.allows_weapon(weapon)
+
+
+func _sync_selection() -> void:
+	var app := AppContext.kernel(self)
+	if app == null or app.content_snapshot == null:
+		return
+	var cell := get_node("RosterStrip/NikoCell") as Button
+	var character := _selected_character(app)
+	if character == null:
+		_character_picker_open = true
+		_difficulty_stage_open = false
+	var selected := character != null
+	cell.set_meta(&"selected", selected)
+	cell.set_meta(&"committed", selected)
+	if selected:
+		_apply_selected_fill(cell)
+	else:
+		HUD_SKIN.apply_card(cell, false)
+	_sync_character_label()
+	var weapon := app.content_snapshot.definition(app.selection_draft.get("weapon_id", &""), &"weapon") as GogoWeaponDefinition
+	if character == null or weapon == null or not character.allows_weapon(weapon):
+		app.selection_draft["weapon_id"] = &""
+		weapon = null
+		_difficulty_stage_open = false
+	var weapon_stage := get_node("WeaponStage") as Control
+	var difficulty_stage := get_node("DifficultyStage") as Control
+	var change := get_node("ChangeCharacterButton") as Button
+	_set_character_picker_visible(_character_picker_open)
+	change.visible = character != null and not _character_picker_open
+	change.disabled = not change.visible
+	change.focus_mode = Control.FOCUS_ALL if change.visible else Control.FOCUS_NONE
+	var weapon_stage_ready := character != null and not _character_picker_open
+	weapon_stage.visible = weapon_stage_ready
+	difficulty_stage.visible = weapon_stage_ready and weapon != null and _difficulty_stage_open
+	for button in _weapons.buttons:
+		var option := button.get_meta(&"definition") as GogoWeaponDefinition
+		button.visible = weapon_stage_ready and option != null and character.allows_weapon(option)
+		button.disabled = not button.visible
+		button.focus_mode = Control.FOCUS_ALL if button.visible else Control.FOCUS_NONE
+	_difficulties.set_enabled(difficulty_stage.visible)
+	_weapons.apply_selection(app.selection_draft.get("weapon_id", &""))
+	_rebuild_focus()
+
+
+func _set_character_picker_visible(visible_value: bool) -> void:
+	var caption := get_node("RosterCaption") as Control
+	var roster := get_node("RosterStrip") as GridContainer
+	caption.visible = visible_value
+	roster.visible = visible_value
+	for child in roster.get_children():
+		if child is Control:
+			(child as Control).visible = visible_value
+	var niko := roster.get_node("NikoCell") as Button
+	niko.disabled = not visible_value
+	niko.focus_mode = Control.FOCUS_ALL if visible_value else Control.FOCUS_NONE
+
+
+func _sync_character_label() -> void:
+	var cell := get_node("RosterStrip/NikoCell") as Button
+	var highlighted := bool(cell.get_meta(&"selected", false)) or cell.has_focus() or cell.is_hovered()
+	var label := cell.get_node("Name") as Label
+	label.add_theme_color_override(&"font_color", HUD_SKIN.COLOR_TEXT_FOCUS if highlighted else HUD_SKIN.COLOR_TEXT)
+	label.add_theme_constant_override(&"outline_size", 0 if highlighted else 1)
+
+
+func _rebuild_focus() -> void:
+	var roster := get_node("RosterStrip") as GridContainer
+	var niko := get_node("RosterStrip/NikoCell") as Button
+	var change := get_node("ChangeCharacterButton") as Button
+	var reset: Array[Control] = [change]
+	for child in roster.get_children():
+		if child is Control:
+			reset.append(child as Control)
+	reset.append_array(_weapons.buttons)
+	reset.append_array(_difficulties.buttons)
+	for control in reset:
+		control.focus_neighbor_left = NodePath()
+		control.focus_neighbor_right = NodePath()
+		control.focus_neighbor_top = NodePath()
+		control.focus_neighbor_bottom = NodePath()
+		control.focus_next = NodePath()
+		control.focus_previous = NodePath()
+	var controls: Array[Control] = [get_node("BackButton") as Control]
+	if _character_picker_open:
+		controls.append(niko)
+	else:
+		if change.visible and not change.disabled:
+			controls.append(change)
+	var selected_weapon: Button
+	for button in _weapons.buttons:
+		if not button.visible:
+			continue
+		controls.append(button)
+		if bool(button.get_meta(&"selected", false)):
+			selected_weapon = button
+	if not _difficulties.buttons.is_empty():
+		var difficulty := _difficulties.buttons[0]
+		if difficulty.visible and not difficulty.disabled:
+			controls.append(difficulty)
+	link_focus_cycle(controls)
+	var columns: Array[Array] = []
+	for group in _weapons.column_buttons:
+		var visible_group: Array = []
+		for candidate in group:
+			if (candidate as Button).visible:
+				visible_group.append(candidate)
+		if not visible_group.is_empty():
+			columns.append(visible_group)
+	for column_index in columns.size():
+		var group: Array = columns[column_index]
+		for row in group.size():
+			var button := group[row] as Button
+			for direction in [-1, 1]:
+				var neighbor: Array = columns[posmod(column_index + direction, columns.size())]
+				var target := neighbor[mini(row, neighbor.size() - 1)] as Button
+				button.set("focus_neighbor_left" if direction < 0 else "focus_neighbor_right", button.get_path_to(target))
+	if not _character_picker_open and not _weapons.buttons.is_empty() and _weapons.buttons[0].visible:
+		change.focus_neighbor_right = change.get_path_to(_weapons.buttons[0])
+	if selected_weapon != null and not _difficulties.buttons.is_empty():
+		var difficulty := _difficulties.buttons[0]
+		if difficulty.visible and not difficulty.disabled:
+			selected_weapon.focus_neighbor_bottom = selected_weapon.get_path_to(difficulty)
+
+
+func _focus_initial_control() -> void:
+	if _character_picker_open:
+		(get_node("RosterStrip/NikoCell") as Button).call_deferred(&"grab_focus")
+	else:
+		_focus_weapon_or_change()
+
+
+func _focus_weapon_or_change() -> void:
+	var first_visible: Button
+	for button in _weapons.buttons:
+		if not button.visible or button.disabled:
+			continue
+		if first_visible == null:
+			first_visible = button
+		if bool(button.get_meta(&"selected", false)):
+			button.call_deferred(&"grab_focus")
+			return
+	if first_visible != null:
+		first_visible.call_deferred(&"grab_focus")
+		return
+	var change := get_node("ChangeCharacterButton") as Button
+	if change.visible and not change.disabled:
+		change.call_deferred(&"grab_focus")
+
+
+func _select_difficulty_and_start(content_id: StringName) -> void:
+	if (
+		_starting
+		or _character_picker_open
+		or not (get_node("DifficultyStage") as Control).visible
+		or not _configuration_is_valid()
+	):
+		return
+	var app := AppContext.kernel(self)
+	if app == null or app.content_snapshot == null:
+		return
+	if app.content_snapshot.definition(content_id, &"difficulty") == null:
+		return
+	_starting = true
+	app.selection_draft["difficulty_id"] = content_id
+	var error := app.create_session_from_draft()
+	if error != OK:
+		_starting = false
+		app.route(FlowRoute.DIAGNOSTIC, {"message": "无法创建游戏会话", "details": [error_string(error)]})
+		return
+	app.route(FlowRoute.COMBAT)
 
 
 func _first_frame(niko: CharacterDefinition) -> Texture2D:
@@ -155,6 +426,30 @@ func _first_frame(niko: CharacterDefinition) -> Texture2D:
 	):
 		return null
 	return niko.sprite_frames.get_frame_texture(niko.default_animation, 0)
+
+
+func _cropped_detail_frame(niko: CharacterDefinition) -> Texture2D:
+	var frame := _first_frame(niko)
+	if frame == null:
+		return null
+	var image := frame.get_image()
+	if image == null:
+		return frame
+	var used := image.get_used_rect()
+	if used.size.x <= 0 or used.size.y <= 0:
+		return frame
+	var padded_position := Vector2i(
+		maxi(used.position.x - 4, 0),
+		maxi(used.position.y - 4, 0)
+	)
+	var padded_end := Vector2i(
+		mini(used.end.x + 4, image.get_width()),
+		mini(used.end.y + 4, image.get_height())
+	)
+	var cropped := AtlasTexture.new()
+	cropped.atlas = frame
+	cropped.region = Rect2(padded_position, padded_end - padded_position)
+	return cropped
 
 
 func _niko_summary(niko: CharacterDefinition) -> String:
@@ -179,57 +474,39 @@ func _detail_label(
 	size_value: Vector2,
 	font_size: int
 ) -> Label:
-	var label := Label.new()
-	label.name = node_name
-	label.position = position_value
-	label.size = size_value
-	label.add_theme_font_size_override(&"font_size", font_size)
-	label.add_theme_color_override(&"font_color", Color("f3edd7"))
-	label.add_theme_color_override(&"font_outline_color", Color("111416"))
-	label.add_theme_constant_override(&"outline_size", 1)
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	parent.add_child(label)
-	return label
+	return ui_label(parent, node_name, position_value, size_value, font_size)
 
 
 func _apply_selected_fill(button: Button) -> void:
-	var normal := _selection_style(Color("ddd7c8"), Color("25282c"))
-	var hover := _selection_style(Color("f0ead8"), Color("f2a14a"))
+	var normal := _selection_style(Color("eee8d9"), GogoHudSkin.COLOR_FOCUS, 3)
+	var hover := _selection_style(Color("fffaf0"), GogoHudSkin.COLOR_FOCUS, 3)
+	var pressed := _selection_style(Color("ddd7ca"), GogoHudSkin.COLOR_FOCUS, 3)
 	button.add_theme_stylebox_override(&"normal", normal)
 	button.add_theme_stylebox_override(&"hover", hover)
 	button.add_theme_stylebox_override(&"focus", hover)
-	button.add_theme_stylebox_override(&"pressed", hover)
-	for color_name: StringName in [&"font_color", &"font_hover_color", &"font_focus_color", &"font_pressed_color"]:
-		button.add_theme_color_override(color_name, Color("1a1c20"))
+	button.add_theme_stylebox_override(&"pressed", pressed)
+	button.add_theme_stylebox_override(&"disabled", normal)
+	for color_name: StringName in [
+		&"font_color",
+		&"font_hover_color",
+		&"font_focus_color",
+		&"font_pressed_color",
+	]:
+		button.add_theme_color_override(color_name, GogoHudSkin.COLOR_TEXT_FOCUS)
 
 
-func _apply_back_style(button: Button) -> void:
-	button.text = ""
-	for state: StringName in [&"normal", &"hover", &"focus", &"pressed", &"disabled"]:
-		button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
-	var visual := Panel.new()
-	visual.name = "BackButtonVisual"
-	visual.position = button.position
-	visual.size = button.size
-	visual.z_index = 9
-	visual.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	visual.add_theme_stylebox_override(
-		&"panel",
-		_selection_style(Color(0.03, 0.035, 0.04, 0.96), Color("81724f"))
-	)
-	add_child(visual)
-	var label := _detail_label(visual, "Label", Vector2.ZERO, button.size, 24)
-	label.text = "← 返回"
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+func _apply_selected_label_style(label: Label) -> void:
+	label.add_theme_color_override(&"font_color", GogoHudSkin.COLOR_TEXT_FOCUS)
+	label.add_theme_color_override(&"font_outline_color", Color.TRANSPARENT)
+	label.add_theme_constant_override(&"outline_size", 0)
 
 
-func _selection_style(background: Color, border: Color) -> StyleBoxFlat:
+func _selection_style(background: Color, border: Color, border_width: int = 1) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = background
 	style.border_color = border
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(0)
+	style.set_border_width_all(border_width)
+	style.set_corner_radius_all(8)
 	style.anti_aliasing = false
 	style.border_blend = false
 	return style

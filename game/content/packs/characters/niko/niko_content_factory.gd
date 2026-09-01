@@ -16,7 +16,7 @@ static func create_pack() -> GogoContentPackDefinition:
 	character.tags = [&"niko", &"balanced"]
 	character.base_stats = {
 		&"max_health": 20.0,
-		&"movement_speed": 235.0,
+		&"movement_speed": 300.0,
 		&"damage_multiplier": 1.0,
 		&"attack_speed": 1.0,
 		&"armor": 0.0,

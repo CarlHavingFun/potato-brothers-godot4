@@ -1,7 +1,7 @@
 {
   "schema_version": "gogobro-static-runtime-bindings-v1",
   "kind": "shipping_runtime_bindings",
-  "canonical_registry_sha256": "33D1EA1D276ED5FB862075B28A9A88451DAE518BDBE28CE217266A570E9321C2",
+  "canonical_registry_sha256": "A02C093A1E4B23879B5BA10F0A98A7D972957025AEDC2A15765AC4EB8EB7B82F",
   "expected_noncharacter_units": 70,
   "units": [
     {
@@ -1008,8 +1008,8 @@
       "approval_status": "approved",
       "shipping": {
         "resource_path": "res://game/assets/gogobro_static/projectiles/projectile_hit_kit.png",
-        "sha256": "989759C33AC95BE5FAF6F28A9DFBCF50A903B46FCDF6AA0B098F30FBD4BE5992",
-        "rgba8_sha256": "3A310B8B6D05E7971C89E33983A0DDFC3C49136A23CD1FD4BF6016C5D59041D0",
+        "sha256": "13A02E2274584E9C5D594CF708892CAB5014A347142D729BBD9DB2BC6775A114",
+        "rgba8_sha256": "C44B83522FD52ABD7A67466B282BD569AC045FEF212912DEC8EEF80EFD77B95F",
         "pixel_size": [
           1024,
           1024
@@ -1216,6 +1216,210 @@
             64
           ],
           "anchors_px": {},
+          "consumers": []
+        },
+        {
+          "binding_key": "projectile_hit_kit|muzzle_flash|rapid_muzzle_flash",
+          "role": "muzzle_flash",
+          "selector": "rapid_muzzle_flash",
+          "display_size_px": [
+            64,
+            64
+          ],
+          "display_scale": [
+            1,
+            1
+          ],
+          "pivot_px": [
+            16,
+            32
+          ],
+          "atlas_rect_px": [
+            512,
+            0,
+            64,
+            64
+          ],
+          "anchors_px": {
+            "content_min": [
+              16,
+              20
+            ],
+            "content_max": [
+              45,
+              41
+            ]
+          },
+          "consumers": []
+        },
+        {
+          "binding_key": "projectile_hit_kit|muzzle_flash|rifle_muzzle_flash",
+          "role": "muzzle_flash",
+          "selector": "rifle_muzzle_flash",
+          "display_size_px": [
+            64,
+            64
+          ],
+          "display_scale": [
+            1,
+            1
+          ],
+          "pivot_px": [
+            12,
+            32
+          ],
+          "atlas_rect_px": [
+            576,
+            0,
+            64,
+            64
+          ],
+          "anchors_px": {
+            "content_min": [
+              12,
+              20
+            ],
+            "content_max": [
+              51,
+              43
+            ]
+          },
+          "consumers": []
+        },
+        {
+          "binding_key": "projectile_hit_kit|muzzle_flash|heavy_muzzle_flash",
+          "role": "muzzle_flash",
+          "selector": "heavy_muzzle_flash",
+          "display_size_px": [
+            64,
+            64
+          ],
+          "display_scale": [
+            1,
+            1
+          ],
+          "pivot_px": [
+            8,
+            32
+          ],
+          "atlas_rect_px": [
+            640,
+            0,
+            64,
+            64
+          ],
+          "anchors_px": {
+            "content_min": [
+              8,
+              10
+            ],
+            "content_max": [
+              53,
+              51
+            ]
+          },
+          "consumers": []
+        },
+        {
+          "binding_key": "projectile_hit_kit|feedback_sprite|enemy_death_puff",
+          "role": "feedback_sprite",
+          "selector": "enemy_death_puff",
+          "display_size_px": [
+            64,
+            64
+          ],
+          "display_scale": [
+            1,
+            1
+          ],
+          "pivot_px": [
+            32,
+            32
+          ],
+          "atlas_rect_px": [
+            704,
+            0,
+            64,
+            64
+          ],
+          "anchors_px": {
+            "content_min": [
+              18,
+              18
+            ],
+            "content_max": [
+              44,
+              45
+            ]
+          },
+          "consumers": []
+        },
+        {
+          "binding_key": "projectile_hit_kit|feedback_sprite|player_damage_burst",
+          "role": "feedback_sprite",
+          "selector": "player_damage_burst",
+          "display_size_px": [
+            64,
+            64
+          ],
+          "display_scale": [
+            1,
+            1
+          ],
+          "pivot_px": [
+            32,
+            32
+          ],
+          "atlas_rect_px": [
+            768,
+            0,
+            64,
+            64
+          ],
+          "anchors_px": {
+            "content_min": [
+              13,
+              16
+            ],
+            "content_max": [
+              50,
+              47
+            ]
+          },
+          "consumers": []
+        },
+        {
+          "binding_key": "projectile_hit_kit|feedback_sprite|gold_pickup_flash",
+          "role": "feedback_sprite",
+          "selector": "gold_pickup_flash",
+          "display_size_px": [
+            64,
+            64
+          ],
+          "display_scale": [
+            1,
+            1
+          ],
+          "pivot_px": [
+            32,
+            32
+          ],
+          "atlas_rect_px": [
+            832,
+            0,
+            64,
+            64
+          ],
+          "anchors_px": {
+            "content_min": [
+              17,
+              23
+            ],
+            "content_max": [
+              45,
+              40
+            ]
+          },
           "consumers": []
         }
       ]
@@ -1705,8 +1909,8 @@
       "approval_status": "approved",
       "shipping": {
         "resource_path": "res://game/assets/gogobro_static/items/rebound_fire_bottle.png",
-        "sha256": "27882A8B4B921D5B5E946704059E97974A7700F3B586C8695D0F8526C0ABD75D",
-        "rgba8_sha256": "A6D8712ABCB3842241FF5FD9DCFA889B11ED75F04859AE0CD1AB0F0C2CEA2598",
+        "sha256": "A6A9EE420D3328BC8969102A27E3AF16F41139CC295AE496D0C3E9BBD8E6860B",
+        "rgba8_sha256": "325D6F5042E4E356BF7C19A6E9051A2BD359FCC96BA2BD072D2E5E40AE2014A8",
         "pixel_size": [
           64,
           64
@@ -2818,11 +3022,11 @@
       "approval_status": "approved",
       "shipping": {
         "resource_path": "res://game/assets/gogobro_static/upgrades/one_more_round.png",
-        "sha256": "6B817E9938A96E18622177CC15C9BDD4D880A40360FD471363F879C2BE78881A",
-        "rgba8_sha256": "FF56FDBB2DAEE9A9B0CA94C1D416E75A11C341C8930DBB6684B2F0F21455895D",
+        "sha256": "2ABD8528A9645344B26ADEDB2069DA9AE10525813B48CA0BE28399DAF3FE1F49",
+        "rgba8_sha256": "5357F6D965A2ED31FD17C68BC8589C1C12DE873E0C5A6640DB8B4B94DB67DFF3",
         "pixel_size": [
-          256,
-          256
+          64,
+          64
         ],
         "texture_filter": "nearest",
         "mipmaps": false
@@ -2837,8 +3041,8 @@
             64
           ],
           "display_scale": [
-            0.25,
-            0.25
+            1,
+            1
           ],
           "pivot_px": [
             32,
@@ -2847,8 +3051,8 @@
           "atlas_rect_px": [
             0,
             0,
-            256,
-            256
+            64,
+            64
           ],
           "anchors_px": {},
           "consumers": [
@@ -2871,8 +3075,8 @@
       "approval_status": "approved",
       "shipping": {
         "resource_path": "res://game/assets/gogobro_static/upgrades/trade_step_drills.png",
-        "sha256": "BA931682CBF1C4A97DA8A6F0AB592FE0D4569A5AAD041B8DDD7B36DBF25A14B2",
-        "rgba8_sha256": "C2C84B7081E501041422DCA08D101BCE43ED1601E38C923D1B9F242AB4449768",
+        "sha256": "C8A50C37EAD921DD1B1F55DDE855E476A75592F21406EEA4CA0310F67435A9DB",
+        "rgba8_sha256": "8FC30B519DD74F8F649FC6DF5519A7849E7B8CDCAF606BC89A18D3E739611EE1",
         "pixel_size": [
           64,
           64
@@ -2924,8 +3128,8 @@
       "approval_status": "approved",
       "shipping": {
         "resource_path": "res://game/assets/gogobro_static/upgrades/pre_aim_drills.png",
-        "sha256": "2BB496AB5B31BE7063F4281C2D3784AE473EDB9A1027D789872BF50D03AF1180",
-        "rgba8_sha256": "31DCB8EC1CE1579F727B0AEA183DB5BC3351ED8749EAA267AAEDF95FE5368984",
+        "sha256": "E080CC560EFA768CF567B0FCDFBF14C97C81A8E13C627FD1C0CBFAE2A0491CAE",
+        "rgba8_sha256": "7AEBAB4C33BC3D786B8C268DA8163D95F4DFC68F2DF3BBAC90A6420E70CFBC38",
         "pixel_size": [
           64,
           64
@@ -3030,8 +3234,8 @@
       "approval_status": "approved",
       "shipping": {
         "resource_path": "res://game/assets/gogobro_static/upgrades/kevlar_reinforcement.png",
-        "sha256": "D20F535530A49A76A9D9EDD32C5C5376A85625E18BCB1767E21B496E9871F3D2",
-        "rgba8_sha256": "50402CD8B6A86F2B1FC7E788BE62AFDA13969D7E16987B3C62BA4A93701EBAAC",
+        "sha256": "55D37D27C2234413BE4A2B2A7ACD71C76682A3898BDCB415D8D900421BEE7435",
+        "rgba8_sha256": "0C7AC19D35142C6614EF0C2F2F7508B9983ADF2C45343C8E7B1CC5F26570CF93",
         "pixel_size": [
           64,
           64
@@ -3083,8 +3287,8 @@
       "approval_status": "approved",
       "shipping": {
         "resource_path": "res://game/assets/gogobro_static/upgrades/medical_timeout.png",
-        "sha256": "87C1EF837ACDDE0909A142FEE813BD8D2CA6BEF07FDDDCAAF29128DCC1BF1BFD",
-        "rgba8_sha256": "DE51B67004BC6B820AC18FA1E8AC62BB980526EF45892AE7FE28A44A3AA3F39D",
+        "sha256": "436803B3A7B1E189945A6B4A07A86AD225194BED2037049C05BAEC46F8837721",
+        "rgba8_sha256": "229238BF6DB425A0C8AAFCC0434E1331A8CAF448B7B682DCCC2C9881660B1828",
         "pixel_size": [
           64,
           64
@@ -3475,8 +3679,8 @@
       "approval_status": "approved",
       "shipping": {
         "resource_path": "res://game/assets/gogobro_static/world/spawn_marker.png",
-        "sha256": "1F3695720139CDB910EBDC2E214F9BAAC9767BF561043B0E7FD72ADCE0885ED1",
-        "rgba8_sha256": "5FC8ABC6D91E5068DE7152F553CF8EC96172E7D9BA03C28ADD9A4424ECBA3667",
+        "sha256": "0A8AF023B7CCF8EA80D87BD7517E71C73DC7709119C959CC10AFAC2B025CC8D8",
+        "rgba8_sha256": "6782051FF1A529796639E24173850C462536C999B6C9E7FD1AB4B6BF2E986C2C",
         "pixel_size": [
           96,
           64
@@ -3526,8 +3730,8 @@
       "approval_status": "approved",
       "shipping": {
         "resource_path": "res://game/assets/gogobro_static/world/experience_pickup.png",
-        "sha256": "2A71E7CE6E55F19EC0CBF7357CDA9D749572E9F7F2A0F80EEB4A49DF3443E3D2",
-        "rgba8_sha256": "CF614F59A6CFC36AAEA84D0B665932868ACDB09E4DEFB7367ABC4FA97F694B59",
+        "sha256": "D99CD7F6B71826D28BF8019C8957DD3A19EACD925336E48587CC88D311CAAEED",
+        "rgba8_sha256": "D655251CC1DA3E7203E3732F499880E3DDE676B3AE621554051E378230265DCF",
         "pixel_size": [
           96,
           64
@@ -3577,8 +3781,8 @@
       "approval_status": "approved",
       "shipping": {
         "resource_path": "res://game/assets/gogobro_static/world/supply_pickup.png",
-        "sha256": "83476C32A3661D83A0D6502E994F2AC6C87DD7ED54E40F750A22B69EBDB2D7FF",
-        "rgba8_sha256": "D5E31DD6B6191B8129B78A765C310FAED211B77647FEBE42937C657892295D0F",
+        "sha256": "04756CF87017D8F0C5A8B2B8A553E330026941B3B64E2DDB2847481CE1128B85",
+        "rgba8_sha256": "8676E5D90AFD9CC4504799F03B7AB7CE30BBCB26BDDC7651E76963DD6B03D06C",
         "pixel_size": [
           96,
           64
@@ -3730,8 +3934,8 @@
       "approval_status": "approved",
       "shipping": {
         "resource_path": "res://game/assets/gogobro_static/world/hazard_beacon.png",
-        "sha256": "05388C04DDE02EBB56C8E9313E79DA7FC6229BBAA153F889C915F553E7AF1990",
-        "rgba8_sha256": "C391A9AF062585DBA062527A87C285AADCEC72D20AF90093CD4CE7557FBB6972",
+        "sha256": "0BA957E2063CAF67A6EA421239A841D0A1F2D0A0C9F53A408C818A7AD30A1FBB",
+        "rgba8_sha256": "CDBF79A8A8F246C6DF84B9C8170CE34B9705D57C244482CF1CC6871BE16175B8",
         "pixel_size": [
           64,
           64

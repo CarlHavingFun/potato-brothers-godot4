@@ -16,6 +16,17 @@ func _init() -> void:
 	kind = &"character"
 
 
+func allows_weapon(weapon: GogoWeaponDefinition) -> bool:
+	if weapon == null:
+		return false
+	if allowed_weapon_tags.is_empty():
+		return true
+	for tag: StringName in weapon.tags:
+		if allowed_weapon_tags.has(tag):
+			return true
+	return false
+
+
 func is_valid() -> bool:
 	if not super.is_valid():
 		return false

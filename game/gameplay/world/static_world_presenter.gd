@@ -12,20 +12,26 @@ const PROP_ASSET_IDS: Array[StringName] = [
 const PICKUP_ASSET_IDS: Array[StringName] = [
 	&"medical_pickup",
 ]
+# Mount only visually unambiguous, noninteractive decorations. The remaining
+# approved selector handles stay available in the snapshot but are not world props.
 const DECOR_SELECTORS: Array[StringName] = [
 	&"decor_variant_01",
-	&"decor_variant_02",
 	&"decor_variant_03",
-	&"decor_variant_04",
 	&"decor_variant_05",
-	&"decor_variant_06",
 ]
+const DECOR_RUNTIME_NAMES := {
+	&"decor_variant_01": &"decor_visual_gauge_barrel",
+	&"decor_variant_03": &"decor_visual_button_panel_device",
+	&"decor_variant_05": &"decor_visual_headset",
+}
 const GRID_SIZE := 64
-const BOUNDARY_SPACING_MULTIPLIER := 3.0
 const PLAYER_CLEAR_RADIUS := 240.0
 const CAPTURE_CENTER_HALF_SIZE := Vector2(176.0, 112.0)
 const PROP_EDGE_INSET := 96.0
 const PROP_MINIMUM_SEPARATION := 128.0
+const FLOOR_MODULATE := Color.WHITE
+const BOUNDARY_MODULATE := Color(1.0, 1.0, 1.0, 0.0)
+const PERMANENT_PROP_MODULATE := Color(0.90, 0.92, 0.88, 0.76)
 const PROP_ANCHOR_FACTORS: Array[Vector2] = [
 	Vector2(0.08, 0.13), Vector2(0.22, 0.09), Vector2(0.38, 0.14),
 	Vector2(0.55, 0.08), Vector2(0.72, 0.15), Vector2(0.88, 0.10),
@@ -168,6 +174,7 @@ func _build_floor() -> void:
 	instance.name = "community_server_floor"
 	instance.texture = handle.texture
 	instance.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	instance.self_modulate = FLOOR_MODULATE
 	var columns := ceili(_arena_rect.size.x / tile_size.x)
 	var rows := ceili(_arena_rect.size.y / tile_size.y)
 	var mesh := QuadMesh.new()
@@ -196,88 +203,72 @@ func _build_boundary() -> void:
 		_issue(&"arena_boundary_border")
 		return
 	var segment_size := Vector2(handle.display_size_px)
-	var target_spacing := segment_size.x * BOUNDARY_SPACING_MULTIPLIER
-	var horizontal_count := maxi(2, ceili(_arena_rect.size.x / target_spacing))
-	var bottom_count := maxi(2, horizontal_count - 1)
-	var vertical_count := maxi(1, ceili(_arena_rect.size.y / target_spacing) - 1)
-	var horizontal_span := maxf(0.0, _arena_rect.size.x - segment_size.x)
-	var top_step := horizontal_span / float(horizontal_count - 1)
-	var bottom_step := horizontal_span / float(bottom_count - 1)
-	var vertical_step := _arena_rect.size.y / float(vertical_count + 1)
-	_build_boundary_edge(
-		handle,
-		"arena_boundary_border_top",
-		horizontal_count,
-		Vector2(_arena_rect.position.x + segment_size.x * 0.5, _arena_rect.position.y + segment_size.y * 0.5),
-		Vector2(top_step, 0.0),
-		0.0
-	)
-	_build_boundary_edge(
-		handle,
-		"arena_boundary_border_bottom",
-		bottom_count,
-		Vector2(_arena_rect.position.x + segment_size.x * 0.5, _arena_rect.end.y - segment_size.y * 0.5),
-		Vector2(bottom_step, 0.0),
-		PI
-	)
-	_build_boundary_edge(
-		handle,
-		"arena_boundary_border_left",
-		vertical_count,
-		Vector2(_arena_rect.position.x + segment_size.y * 0.5, _arena_rect.position.y + vertical_step),
-		Vector2(0.0, vertical_step),
-		-PI * 0.5
-	)
-	_build_boundary_edge(
-		handle,
-		"arena_boundary_border_right",
-		vertical_count,
-		Vector2(_arena_rect.end.x - segment_size.y * 0.5, _arena_rect.position.y + vertical_step),
-		Vector2(0.0, vertical_step),
-		PI * 0.5
-	)
-	_record(handle, _boundary_layer.get_child(0), Vector2i(_arena_rect.position))
-
-
-func _build_boundary_edge(
-	handle: GogoStaticAssetHandle,
-	node_name: String,
-	count: int,
-	first_center: Vector2,
-	step: Vector2,
-	rotation: float
-) -> void:
+	if segment_size.x <= 0.0 or segment_size.y <= 0.0:
+		_issue(&"arena_boundary_border")
+		return
 	var instance := MultiMeshInstance2D.new()
-	instance.name = node_name
+	instance.name = "arena_boundary_border_corners"
 	instance.texture = handle.texture
 	instance.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	instance.self_modulate = BOUNDARY_MODULATE
+	instance.visible = false
 	var mesh := QuadMesh.new()
-	mesh.size = Vector2(handle.display_size_px)
+	mesh.size = segment_size
 	var multi_mesh := MultiMesh.new()
 	multi_mesh.transform_format = MultiMesh.TRANSFORM_2D
 	multi_mesh.mesh = mesh
-	multi_mesh.instance_count = count
-	for index in count:
-		multi_mesh.set_instance_transform_2d(
-			index,
-			Transform2D(rotation, (first_center + step * float(index)).round())
-		)
+	multi_mesh.instance_count = 4
+	var half_size := segment_size * 0.5
+	var rotated_half_size := Vector2(half_size.y, half_size.x)
+	var corner_transforms: Array[Transform2D] = [
+		Transform2D(0.0, (_arena_rect.position + half_size).round()),
+		Transform2D(
+			PI * 0.5,
+			Vector2(
+				_arena_rect.end.x - rotated_half_size.x,
+				_arena_rect.position.y + rotated_half_size.y
+			).round()
+		),
+		Transform2D(PI, (_arena_rect.end - half_size).round()),
+		Transform2D(
+			-PI * 0.5,
+			Vector2(
+				_arena_rect.position.x + rotated_half_size.x,
+				_arena_rect.end.y - rotated_half_size.y
+			).round()
+		),
+	]
+	for index in corner_transforms.size():
+		multi_mesh.set_instance_transform_2d(index, corner_transforms[index])
 	instance.multimesh = multi_mesh
 	_boundary_layer.add_child(instance)
+	_record(handle, instance, Vector2i(_arena_rect.position))
 
 
 func _build_props(run_seed: int, development_preview: bool) -> void:
 	var sockets := _prop_sockets(run_seed)
 	var socket_index := 0
-	for handle in _decor_handles():
+	var decor_handles := _decor_handles()
+	for decor_index in decor_handles.size():
 		if socket_index >= sockets.size():
 			break
+		var handle := decor_handles[decor_index]
 		var decor_sprite := _sprite_for_handle(handle)
-		decor_sprite.name = _prop_node_name(handle)
+		var runtime_name := _decor_runtime_name(handle)
+		decor_sprite.name = runtime_name
 		decor_sprite.position = sockets[socket_index]
 		socket_index += 1
 		_prop_layer.add_child(decor_sprite)
-		_record(handle, decor_sprite, Vector2i(decor_sprite.position))
+		_record(
+			handle,
+			decor_sprite,
+			Vector2i(decor_sprite.position),
+			{
+				"runtime_name": StringName(runtime_name),
+				"runtime_role": &"noninteractive_visual_decor",
+				"interaction": &"none",
+			}
+		)
 	for asset_id in PROP_ASSET_IDS:
 		if asset_id == &"community_server_decor_pack":
 			continue
@@ -305,6 +296,8 @@ func _build_props(run_seed: int, development_preview: bool) -> void:
 		pickup.position = sockets[socket_index]
 		socket_index += 1
 		pickup.configure(handle)
+		pickup.modulate = PERMANENT_PROP_MODULATE
+		pickup.visible = false
 		_prop_layer.add_child(pickup)
 		_record(handle, pickup, Vector2i(pickup.position))
 	if development_preview and socket_index < sockets.size():
@@ -323,6 +316,7 @@ func _build_preview_turret(at: Vector2) -> void:
 	turret.configure(20.0, -1)
 	turret.configure_visual(handle)
 	turret.position = at
+	turret.modulate = PERMANENT_PROP_MODULATE
 	_prop_layer.add_child(turret)
 	_record(handle, turret, Vector2i(turret.position))
 
@@ -375,6 +369,7 @@ func _sprite_for_handle(handle: GogoStaticAssetHandle) -> Sprite2D:
 	sprite.texture = handle.texture
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.offset = -Vector2(handle.pivot_px)
+	sprite.modulate = PERMANENT_PROP_MODULATE
 	return sprite
 
 
@@ -396,10 +391,10 @@ func _decor_handles() -> Array[GogoStaticAssetHandle]:
 	return result
 
 
-func _prop_node_name(handle: GogoStaticAssetHandle) -> String:
+func _decor_runtime_name(handle: GogoStaticAssetHandle) -> String:
 	if handle.selector.is_empty():
-		return String(handle.asset_id)
-	return "%s_%s" % [handle.asset_id, handle.selector]
+		return "decor_visual_marked_barrel"
+	return String(DECOR_RUNTIME_NAMES.get(handle.selector, &"decor_visual_unmapped"))
 
 
 func _handle(asset_id: StringName, selector: StringName = &"") -> GogoStaticAssetHandle:
@@ -408,20 +403,28 @@ func _handle(asset_id: StringName, selector: StringName = &"") -> GogoStaticAsse
 	return _snapshot.resolve_asset(asset_id, &"world_sprite", selector)
 
 
-func _record(handle: GogoStaticAssetHandle, node: Node, at: Vector2i) -> void:
+func _record(
+	handle: GogoStaticAssetHandle,
+	node: Node,
+	at: Vector2i,
+	metadata: Dictionary = {}
+) -> void:
 	GogoStaticConsumerRegistry.observe_handle(
 		handle,
 		"res://game/gameplay/world/static_world_presenter.gd",
 		String(get_path_to(node))
 	)
-	_records.append({
+	var record := {
 		"asset_id": handle.asset_id,
 		"selector": handle.selector,
 		"node": String(get_path_to(node)),
 		"position": at,
 		"display_size_px": handle.display_size_px,
 		"pivot_px": handle.pivot_px,
-	})
+	}
+	for key: Variant in metadata:
+		record[key] = metadata[key]
+	_records.append(record)
 
 
 func _capture_candidate_centers(visible_rect: Rect2) -> Array[Vector2]:

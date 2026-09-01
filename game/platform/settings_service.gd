@@ -36,3 +36,15 @@ func resolved_window_mode() -> DisplayServer.WindowMode:
 	return DisplayServer.WINDOW_MODE_FULLSCREEN \
 		if bool(values.get("fullscreen", false)) \
 		else DisplayServer.WINDOW_MODE_WINDOWED
+
+
+func save_settings() -> Error:
+	var directory_error := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SETTINGS_PATH.get_base_dir()))
+	if directory_error != OK:
+		return directory_error
+	var file := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
+	if file == null:
+		return FileAccess.get_open_error()
+	file.store_string(JSON.stringify(values, "\t"))
+	file.flush()
+	return file.get_error()

@@ -10,6 +10,7 @@ enum Role { CHASER, SHOOTER, CHARGER }
 @export var touch_damage: float = 2.0
 @export var xp_value: int = 4
 @export var material_value: int = 2
+@export var is_boss: bool = false
 
 
 func _init() -> void:

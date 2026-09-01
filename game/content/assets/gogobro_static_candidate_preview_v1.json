@@ -13,7 +13,7 @@
     "ui_brand": 7
   },
   "coverage_report_path": "res://tools/assets/gogobro_static_candidate_preview_coverage_v1.json",
-  "coverage_report_sha256": "3B4F2F5248BA36E2059DAD3835F1A57D7F608C363406AE310900469F3192C1A6",
+  "coverage_report_sha256": "3D7A580E1036C6556265F0BF40EC8EA67573AAD21443FD12F0253D4F320762E5",
   "units": [
     {
       "asset_id": "warmup_shiv",
@@ -605,8 +605,8 @@
       "category": "item",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/items/rebound_fire_bottle.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/rebound_fire_bottle/candidate-001/curated/rebound-fire-bottle-icon-64.png",
-      "sha256": "27882A8B4B921D5B5E946704059E97974A7700F3B586C8695D0F8526C0ABD75D",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/items/rebound_fire_bottle/candidate-002/curated/rebound-fire-bottle-icon-64.png",
+      "sha256": "A6A9EE420D3328BC8969102A27E3AF16F41139CC295AE496D0C3E9BBD8E6860B",
       "pixel_size": [
         64,
         64
@@ -1130,8 +1130,8 @@
       "category": "upgrade",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/upgrades/trade_step_drills.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/trade_step_drills/candidate-001/curated/trade_step_drills-icon-64x64.png",
-      "sha256": "BA931682CBF1C4A97DA8A6F0AB592FE0D4569A5AAD041B8DDD7B36DBF25A14B2",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/trade_step_drills/candidate-002/curated/trade_step_drills-icon-64x64.png",
+      "sha256": "C8A50C37EAD921DD1B1F55DDE855E476A75592F21406EEA4CA0310F67435A9DB",
       "pixel_size": [
         64,
         64
@@ -1155,8 +1155,8 @@
       "category": "upgrade",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/upgrades/pre_aim_drills.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/pre_aim_drills/candidate-002/curated/pre_aim_drills-icon-64x64.png",
-      "sha256": "2BB496AB5B31BE7063F4281C2D3784AE473EDB9A1027D789872BF50D03AF1180",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/pre_aim_drills/candidate-003/curated/pre_aim_drills-icon-64x64.png",
+      "sha256": "E080CC560EFA768CF567B0FCDFBF14C97C81A8E13C627FD1C0CBFAE2A0491CAE",
       "pixel_size": [
         64,
         64
@@ -1205,8 +1205,8 @@
       "category": "upgrade",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/upgrades/kevlar_reinforcement.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/kevlar_reinforcement/candidate-001/curated/kevlar_reinforcement-icon-64x64.png",
-      "sha256": "D20F535530A49A76A9D9EDD32C5C5376A85625E18BCB1767E21B496E9871F3D2",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/kevlar_reinforcement/candidate-002/curated/kevlar_reinforcement-icon-64x64.png",
+      "sha256": "55D37D27C2234413BE4A2B2A7ACD71C76682A3898BDCB415D8D900421BEE7435",
       "pixel_size": [
         64,
         64
@@ -1230,8 +1230,8 @@
       "category": "upgrade",
       "role": "icon",
       "resource_path": "res://game/assets/gogobro_static_preview/upgrades/medical_timeout.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/medical_timeout/candidate-001/curated/medical_timeout-icon-64x64.png",
-      "sha256": "87C1EF837ACDDE0909A142FEE813BD8D2CA6BEF07FDDDCAAF29128DCC1BF1BFD",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/medical_timeout/candidate-002/curated/medical_timeout-icon-64x64.png",
+      "sha256": "436803B3A7B1E189945A6B4A07A86AD225194BED2037049C05BAEC46F8837721",
       "pixel_size": [
         64,
         64
@@ -1254,20 +1254,31 @@
       "asset_id": "community_server_floor",
       "category": "world",
       "role": "world_sprite",
-      "resource_path": "res://game/assets/gogobro_static_preview/world/community_server_floor.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/community_server_floor/candidate-002/pipeline/final-verification/curated/1-community-server-floor-64.png",
-      "sha256": "7787391CB07C279426F1F5336DEE051D13DC9B8756F2DE713C7660AE50376AF4",
+      "resource_path": "res://game/assets/gogobro_static_preview/world/community_server_floor_stripes_v1_1254.png",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/community_server_floor/candidate-003/curated/community-server-floor-stripes-v1-1254.png",
+      "candidate_revision": "stripes-v1-1254",
+      "sha256": "21E66402E309A8212AB59263E36FB32E842EEFADC18BE675860DF359F7AF58CC",
       "pixel_size": [
-        64,
-        64
+        1254,
+        1254
+      ],
+      "atlas_rect_px": [
+        0,
+        0,
+        1254,
+        1254
       ],
       "display_size_px": [
-        64,
-        64
+        418,
+        418
+      ],
+      "display_scale": [
+        0.3333333333333333,
+        0.3333333333333333
       ],
       "pivot_px": [
-        32,
-        32
+        209,
+        209
       ],
       "anchors_px": {},
       "texture_filter": "nearest",
@@ -1338,8 +1349,8 @@
       "category": "world",
       "role": "world_sprite",
       "resource_path": "res://game/assets/gogobro_static_preview/world/spawn_marker.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/spawn_marker/candidate-001/curated/spawn_marker-world-96x64.png",
-      "sha256": "1F3695720139CDB910EBDC2E214F9BAAC9767BF561043B0E7FD72ADCE0885ED1",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/spawn_marker/candidate-002/curated/spawn-marker-csgo-ab-96x64.png",
+      "sha256": "0A8AF023B7CCF8EA80D87BD7517E71C73DC7709119C959CC10AFAC2B025CC8D8",
       "pixel_size": [
         96,
         64
@@ -1363,8 +1374,8 @@
       "category": "world",
       "role": "world_sprite",
       "resource_path": "res://game/assets/gogobro_static_preview/world/experience_pickup.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/experience_pickup/candidate-001/curated/experience_pickup-world-96x64.png",
-      "sha256": "2A71E7CE6E55F19EC0CBF7357CDA9D749572E9F7F2A0F80EEB4A49DF3443E3D2",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/experience_pickup/candidate-003/curated/experience-pickup-angular-gold-fragments-96x64.png",
+      "sha256": "D99CD7F6B71826D28BF8019C8957DD3A19EACD925336E48587CC88D311CAAEED",
       "pixel_size": [
         96,
         64
@@ -1388,8 +1399,8 @@
       "category": "world",
       "role": "world_sprite",
       "resource_path": "res://game/assets/gogobro_static_preview/world/supply_pickup.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/supply_pickup/candidate-001/curated/supply_pickup-world-96x64.png",
-      "sha256": "83476C32A3661D83A0D6502E994F2AC6C87DD7ED54E40F750A22B69EBDB2D7FF",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/supply_pickup/candidate-003/curated/supply-pickup-angular-gold-fragments-96x64.png",
+      "sha256": "04756CF87017D8F0C5A8B2B8A553E330026941B3B64E2DDB2847481CE1128B85",
       "pixel_size": [
         96,
         64
@@ -1463,8 +1474,8 @@
       "category": "world",
       "role": "world_sprite",
       "resource_path": "res://game/assets/gogobro_static_preview/world/hazard_beacon.png",
-      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/hazard_beacon/candidate-002/pipeline/run/curated/frame-0.png",
-      "sha256": "05388C04DDE02EBB56C8E9313E79DA7FC6229BBAA153F889C915F553E7AF1990",
+      "source_candidate_path": "GOGOBRO_ASSET_INBOX/02_static_assets/world/hazard_beacon/candidate-003/curated/hazard-beacon-64.png",
+      "sha256": "0BA957E2063CAF67A6EA421239A841D0A1F2D0A0C9F53A408C818A7AD30A1FBB",
       "pixel_size": [
         64,
         64
