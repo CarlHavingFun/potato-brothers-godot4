@@ -7,7 +7,7 @@ const OUTPUT_DIRECTORY := "user://task-zone-native-960-v1"
 const SECOND_ZONE_ID := &"gogobro.test:zone/night_training"
 
 
-func test_real_task_selector_and_character_roster_render_at_native_960() -> void:
+func test_release_summary_and_test_only_multi_task_input_render_at_native_960() -> void:
 	GogoStaticConsumerRegistry.reset_current()
 	var root_window := get_tree().root
 	root_window.size = CLIENT_SIZE
@@ -25,9 +25,8 @@ func test_real_task_selector_and_character_roster_render_at_native_960() -> void
 	assert_bool(app.boot_result.is_ok()).is_true()
 	if not app.boot_result.is_ok():
 		return
-	var packs := ValidationContentFactory.create_packs(true)
-	packs.append(_second_zone_pack())
-	app.content_snapshot = GogoContentRegistry.new().build_snapshot(packs)
+	assert_object(app.content_snapshot).is_not_null()
+	assert_int(app.content_snapshot.all(&"zone").size()).is_equal(1)
 	root_window.size = CLIENT_SIZE
 	DisplayServer.window_set_size(CLIENT_SIZE, root_window.get_window_id())
 	await _settle(4)
@@ -37,11 +36,35 @@ func test_real_task_selector_and_character_roster_render_at_native_960() -> void
 	var host := app.get_node("SceneHost") as Node
 	var screen := host.get_child(0) as Control
 	var task_option := screen.get_node("TaskOptionButton") as OptionButton
+	var task_summary := screen.get_node("TaskCurrentSummary") as Panel
 	var roster := screen.get_node("RosterStrip") as GridContainer
 	assert_object(screen.get_node_or_null("TaskButton")).is_null()
 	assert_object(screen.get_node_or_null("ZoneStage")).is_null()
 	assert_bool(roster.visible).is_true()
 	assert_int(roster.get_child_count()).is_equal(24)
+	assert_int(task_option.item_count).is_equal(1)
+	assert_bool(task_option.visible).is_false()
+	assert_bool(task_option.disabled).is_true()
+	assert_int(task_option.focus_mode).is_equal(Control.FOCUS_NONE)
+	assert_bool(task_summary.visible).is_true()
+	assert_str((task_summary.get_node("Label") as Label).text).is_equal("当前任务 · 训练场")
+	assert_object((task_summary.get_node("Icon") as TextureRect).texture).is_not_null()
+	assert_int(screen.find_children("UnavailableZoneSlot*", "Button", true, false).size()).is_equal(0)
+	assert_int(_capture(root_window, "task-current-summary-release-960x540.png")).is_equal(OK)
+
+	var packs := ValidationContentFactory.create_packs(true)
+	packs.append(_second_zone_pack())
+	app.content_snapshot = GogoContentRegistry.new().build_snapshot(packs)
+	app.begin_selection()
+	assert_int(app.route(FlowRoute.CHARACTER_SELECT)).is_equal(OK)
+	await _settle(4)
+	screen = host.get_child(0) as Control
+	task_option = screen.get_node("TaskOptionButton") as OptionButton
+	task_summary = screen.get_node("TaskCurrentSummary") as Panel
+	roster = screen.get_node("RosterStrip") as GridContainer
+	assert_bool(task_option.visible).is_true()
+	assert_bool(task_option.disabled).is_false()
+	assert_bool(task_summary.visible).is_false()
 	assert_int(task_option.item_count).is_equal(2)
 	var training_index := _item_index(task_option, ValidationContentFactory.ZONE_ID)
 	assert_int(training_index).is_greater_equal(0)
@@ -67,12 +90,10 @@ func test_real_task_selector_and_character_roster_render_at_native_960() -> void
 	assert_object(zone).is_not_null()
 	if zone != null:
 		assert_str(String(zone.icon_asset_id)).is_equal("zone_thumbnail")
-	assert_int(screen.find_children("UnavailableZoneSlot*", "Button", true, false).size()).is_equal(0)
-	assert_int(_capture(root_window, "character-roster-960x540.png")).is_equal(OK)
 	task_option.grab_focus()
 	await _settle(4)
 	assert_bool(task_option.has_focus()).is_true()
-	assert_int(_capture(root_window, "task-selector-960x540.png")).is_equal(OK)
+	assert_int(_capture(root_window, "task-selector-test-two-zone-960x540.png")).is_equal(OK)
 	var popup := task_option.get_popup()
 	var selected_indices: Array[int] = []
 	task_option.item_selected.connect(
@@ -89,27 +110,43 @@ func test_real_task_selector_and_character_roster_render_at_native_960() -> void
 	assert_bool(popup.visible).is_true()
 	if not popup.visible:
 		return
-	popup.set_focused_item(second_index)
-	await _settle(2)
+	assert_int(popup.get_focused_item()).is_equal(training_index)
+	await _push_gamepad_action(JOY_BUTTON_DPAD_DOWN, &"ui_down")
+	assert_int(popup.get_focused_item()).is_equal(second_index)
+	await _push_key(KEY_UP, &"ui_up")
+	assert_int(popup.get_focused_item()).is_equal(training_index)
+	await _push_key(KEY_DOWN, &"ui_down")
+	assert_int(popup.get_focused_item()).is_equal(second_index)
+	assert_array(selected_indices).is_empty()
+	assert_int(task_option.selected).is_equal(training_index)
+	assert_str(String(app.selection_draft.get("zone_id", &""))).is_equal(
+		String(ValidationContentFactory.ZONE_ID)
+	)
 	var detail := screen.get_node("TaskFocusDetail") as Panel
 	assert_bool(detail.visible).is_true()
 	assert_str((detail.get_node("Name") as Label).text).is_equal(second_zone.display_name)
 	assert_str((detail.get_node("Metadata") as Label).text).contains("20 波")
-	assert_int(_capture(root_window, "task-selector-popup-960x540.png")).is_equal(OK)
-	assert_str(_capture_sha256("task-selector-popup-960x540.png")).is_not_equal(
-		_capture_sha256("task-selector-960x540.png")
+	assert_int(_capture(root_window, "task-selector-popup-test-two-zone-960x540.png")).is_equal(OK)
+	assert_str(_capture_sha256("task-selector-popup-test-two-zone-960x540.png")).is_not_equal(
+		_capture_sha256("task-selector-test-two-zone-960x540.png")
 	)
-	await _push_escape(root_window)
+	await _push_key(KEY_ESCAPE, &"ui_cancel")
 	assert_bool(not is_instance_valid(popup) or not popup.visible).is_true()
+	assert_bool(detail.visible).is_false()
 	assert_bool(task_option.has_focus()).is_true()
 	assert_array(selected_indices).is_empty()
 	assert_int(task_option.selected).is_equal(training_index)
+	assert_str(String(app.selection_draft.get("zone_id", &""))).is_equal(
+		String(ValidationContentFactory.ZONE_ID)
+	)
 	popup = task_option.get_popup()
 	await _push_gamepad_accept(root_window)
 	assert_bool(popup.visible).is_true()
 	if not popup.visible:
 		return
-	popup.set_focused_item(second_index)
+	assert_int(popup.get_focused_item()).is_equal(training_index)
+	await _push_key(KEY_DOWN, &"ui_down")
+	assert_int(popup.get_focused_item()).is_equal(second_index)
 	await _push_gamepad_accept(root_window)
 	await _settle(3)
 	assert_bool(not is_instance_valid(popup) or not popup.visible).is_true()
@@ -123,7 +160,7 @@ func test_real_task_selector_and_character_roster_render_at_native_960() -> void
 	assert_bool(task_option.has_focus()).is_true()
 	assert_object(app.current_session).is_null()
 	print(
-		"TASK_ZONE_NATIVE_960_OK captures=3 zone=%s waves=20 start=1 items=2 inline=true popup_visible=true keyboard_escape=true gamepad_open=true gamepad_accept=true selection_signal=1"
+		"TASK_ZONE_NATIVE_960_OK captures=3 release_items=1 release_summary=true test_items=2 zone=%s direction_input=true keyboard_escape=true gamepad_open=true gamepad_accept=true selection_signal=1"
 		% String(second_zone_id)
 	)
 
@@ -154,28 +191,40 @@ func _settle(frame_count: int) -> void:
 		await get_tree().process_frame
 
 
-func _push_escape(root_window: Window) -> void:
+func _push_key(keycode: Key, action: StringName) -> void:
 	var event := InputEventKey.new()
-	event.keycode = KEY_ESCAPE
+	event.keycode = keycode
+	event.physical_keycode = keycode
 	event.pressed = true
-	root_window.push_input(event)
+	assert_bool(event.is_action_pressed(action, true)).is_true()
+	Input.parse_input_event(event)
+	Input.flush_buffered_events()
 	await _settle(2)
 	event = event.duplicate() as InputEventKey
 	event.pressed = false
-	root_window.push_input(event)
+	Input.parse_input_event(event)
+	Input.flush_buffered_events()
 	await _settle(2)
 
 
 func _push_gamepad_accept(root_window: Window) -> void:
+	assert_object(root_window).is_not_null()
+	await _push_gamepad_action(JOY_BUTTON_A, &"ui_accept")
+
+
+func _push_gamepad_action(button_index: JoyButton, action: StringName) -> void:
 	var event := InputEventJoypadButton.new()
 	event.device = 0
-	event.button_index = JOY_BUTTON_A
+	event.button_index = button_index
 	event.pressed = true
+	assert_bool(event.is_action_pressed(action, true)).is_true()
 	Input.parse_input_event(event)
+	Input.flush_buffered_events()
 	await _settle(2)
 	event = event.duplicate() as InputEventJoypadButton
 	event.pressed = false
 	Input.parse_input_event(event)
+	Input.flush_buffered_events()
 	await _settle(2)
 
 

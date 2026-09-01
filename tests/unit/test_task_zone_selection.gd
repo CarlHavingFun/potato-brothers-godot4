@@ -6,20 +6,35 @@ const SECOND_ZONE_ID := &"gogobro.test:zone/night_training"
 const INVALID_ZONE_ID := &"gogobro.test:zone/invalid_empty"
 
 
-func test_task_option_lists_only_real_zones_inline_without_creating_a_session() -> void:
+func test_single_real_task_uses_a_noninteractive_current_task_summary() -> void:
 	GogoStaticConsumerRegistry.reset_current()
 	var fixture := await _fixture()
 	var app := fixture.app as AppKernel
 	var screen := fixture.screen as Control
 	var option := screen.get_node_or_null("TaskOptionButton") as OptionButton
+	var summary := screen.get_node_or_null("TaskCurrentSummary") as Panel
 	assert_object(option).is_not_null()
+	assert_object(summary).is_not_null()
 	assert_object(screen.get_node_or_null("TaskButton")).is_null()
 	assert_object(screen.get_node_or_null("ZoneStage")).is_null()
-	if option == null:
+	if option == null or summary == null:
 		return
 	var zones := app.content_snapshot.all(&"zone")
 	assert_int(option.item_count).is_equal(zones.size())
 	assert_int(option.item_count).is_equal(1)
+	assert_bool(option.visible).is_false()
+	assert_bool(option.disabled).is_true()
+	assert_int(option.focus_mode).is_equal(Control.FOCUS_NONE)
+	assert_int(option.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_int(option.get_signal_connection_list(&"item_selected").size()).is_equal(0)
+	assert_bool(summary.visible).is_true()
+	assert_int(summary.focus_mode).is_equal(Control.FOCUS_NONE)
+	assert_int(summary.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_str((summary.get_node("Label") as Label).text).is_equal("当前任务 · 训练场")
+	var summary_icon := summary.get_node("Icon") as TextureRect
+	assert_bool(summary_icon.visible).is_true()
+	assert_object(summary_icon.texture).is_not_null()
+	assert_vector(summary_icon.size).is_equal(Vector2(48, 27))
 	for index in option.item_count:
 		var content_id := StringName(option.get_item_metadata(index))
 		var definition := app.content_snapshot.definition(content_id, &"zone") as GogoZoneDefinition
@@ -49,6 +64,7 @@ func test_task_option_lists_only_real_zones_inline_without_creating_a_session() 
 	assert_int(icon_records.size()).is_equal(1)
 	if icon_records.size() == 1:
 		var icon_record := icon_records[0] as Dictionary
+		assert_str(String(icon_record.get("node", ""))).is_equal("TaskCurrentSummary/Icon")
 		assert_bool(icon_record.has("integer_display_scale")).is_false()
 		assert_vector(icon_record.get("rendered_size_px", Vector2.ZERO)).is_equal_approx(
 			Vector2(48.0, 27.0), Vector2(0.001, 0.001)
@@ -89,10 +105,6 @@ func test_task_option_lists_only_real_zones_inline_without_creating_a_session() 
 	assert_int(screen.find_children("UnavailableZoneSlot*", "Button", true, false).size()).is_equal(0)
 	assert_bool(_visible_text(screen).contains("参考 Brotato")).is_false()
 	assert_object(app.current_session).is_null()
-	option.item_selected.emit(option.selected)
-	await _settle()
-	assert_bool((screen.get_node("RosterStrip") as Control).visible).is_true()
-	assert_object(app.current_session).is_null()
 
 
 func test_task_option_commits_only_the_selected_real_zone_id() -> void:
@@ -105,6 +117,10 @@ func test_task_option_commits_only_the_selected_real_zone_id() -> void:
 		return
 	assert_int(option.item_count).is_equal(app.content_snapshot.all(&"zone").size())
 	assert_int(option.item_count).is_equal(2)
+	assert_bool(option.visible).is_true()
+	assert_bool(option.disabled).is_false()
+	assert_int(option.focus_mode).is_equal(Control.FOCUS_ALL)
+	assert_bool((screen.get_node("TaskCurrentSummary") as Control).visible).is_false()
 	var second_index := _item_index(option, SECOND_ZONE_ID)
 	assert_int(second_index).is_greater_equal(0)
 	if second_index < 0:
@@ -142,7 +158,7 @@ func test_task_option_does_not_observe_first_icon_before_restoring_a_later_draft
 	assert_object(app.current_session).is_null()
 
 
-func test_selecting_a_valid_task_unlocks_difficulty_after_character_and_weapon_are_ready() -> void:
+func test_selecting_a_valid_task_unlocks_difficulty_and_keeps_task_focus() -> void:
 	var fixture := await _fixture(_second_zone_pack())
 	var app := fixture.app as AppKernel
 	var screen := fixture.screen as Control
@@ -164,12 +180,19 @@ func test_selecting_a_valid_task_unlocks_difficulty_after_character_and_weapon_a
 	assert_int(second_index).is_greater_equal(0)
 	if second_index < 0:
 		return
+	option.grab_focus()
+	await _settle()
+	assert_bool(option.has_focus()).is_true()
 	option.item_selected.emit(second_index)
 	await _settle()
 	assert_str(String(app.selection_draft.get("zone_id", &""))).is_equal(String(SECOND_ZONE_ID))
 	assert_bool((screen.get_node("DifficultyStage") as Control).visible).is_true()
 	assert_bool(screen.find_children("DifficultyOption*", "Button", true, false).any(
 		func(button: Button) -> bool: return button.visible and not button.disabled
+	)).is_true()
+	assert_bool(option.has_focus()).is_true()
+	assert_bool(screen.find_children("DifficultyOption*", "Button", true, false).all(
+		func(button: Button) -> bool: return not button.has_focus()
 	)).is_true()
 	assert_object(app.current_session).is_null()
 
@@ -179,10 +202,15 @@ func test_snapshot_without_zones_never_exposes_a_dead_start_action() -> void:
 	var app := fixture.app as AppKernel
 	var screen := fixture.screen as Control
 	var option := screen.get_node("TaskOptionButton") as OptionButton
+	var summary := screen.get_node("TaskCurrentSummary") as Panel
 	assert_int(option.item_count).is_equal(0)
+	assert_bool(option.visible).is_false()
 	assert_bool(option.disabled).is_true()
 	assert_int(option.focus_mode).is_equal(Control.FOCUS_NONE)
 	assert_str(option.text).is_equal("任务 · 无可用任务")
+	assert_bool(summary.visible).is_true()
+	assert_str((summary.get_node("Label") as Label).text).is_equal("当前任务 · 无可用任务")
+	assert_bool((summary.get_node("Icon") as TextureRect).visible).is_false()
 	(screen.get_node("RosterStrip/NikoCell") as Button).pressed.emit()
 	await _settle()
 	var weapon_candidates := screen.find_children("WeaponOption*", "Button", true, false).filter(
@@ -201,16 +229,24 @@ func test_snapshot_without_zones_never_exposes_a_dead_start_action() -> void:
 	assert_object(app.current_session).is_null()
 
 
-func test_invalid_zone_graph_is_not_listed_and_never_unlocks_a_dead_start_action() -> void:
+func test_invalid_zone_graph_is_omitted_and_the_only_valid_task_is_restored() -> void:
 	var fixture := await _fixture(_invalid_zone_pack(), INVALID_ZONE_ID)
 	var app := fixture.app as AppKernel
 	var screen := fixture.screen as Control
 	var option := screen.get_node("TaskOptionButton") as OptionButton
+	var summary := screen.get_node("TaskCurrentSummary") as Panel
 	assert_int(app.content_snapshot.all(&"zone").size()).is_equal(2)
 	assert_int(option.item_count).is_equal(1)
+	assert_bool(option.visible).is_false()
+	assert_bool(option.disabled).is_true()
 	assert_int(_item_index(option, INVALID_ZONE_ID)).is_equal(-1)
-	assert_str(option.text).is_equal("任务 · 未选择")
-	assert_str(String(app.selection_draft.get("zone_id", &""))).is_equal(String(INVALID_ZONE_ID))
+	assert_str(option.text).is_equal("任务 · 训练场")
+	assert_bool(summary.visible).is_true()
+	assert_str((summary.get_node("Label") as Label).text).is_equal("当前任务 · 训练场")
+	assert_bool((summary.get_node("Icon") as TextureRect).visible).is_true()
+	assert_str(String(app.selection_draft.get("zone_id", &""))).is_equal(
+		String(ValidationContentFactory.ZONE_ID)
+	)
 	(screen.get_node("RosterStrip/NikoCell") as Button).pressed.emit()
 	await _settle()
 	var weapon_candidates := screen.find_children("WeaponOption*", "Button", true, false).filter(
@@ -221,17 +257,125 @@ func test_invalid_zone_graph_is_not_listed_and_never_unlocks_a_dead_start_action
 		return
 	(weapon_candidates.front() as Button).pressed.emit()
 	await _settle()
-	assert_bool((screen.get_node("DifficultyStage") as Control).visible).is_false()
-	assert_bool(screen.find_children("DifficultyOption*", "Button", true, false).all(
-		func(button: Button) -> bool: return button.disabled or not button.visible
+	assert_bool((screen.get_node("DifficultyStage") as Control).visible).is_true()
+	assert_bool(screen.find_children("DifficultyOption*", "Button", true, false).any(
+		func(button: Button) -> bool: return button.visible and not button.disabled
 	)).is_true()
 	assert_object(app.current_session).is_null()
+
+
+func test_single_task_fallback_restores_a_complete_draft_and_back_stays_progressive() -> void:
+	var fixture := await _fixture(
+		_invalid_zone_pack(),
+		INVALID_ZONE_ID,
+		true,
+		{
+			"character_id": NikoContentFactory.CHARACTER_ID,
+			"weapon_id": ValidationContentFactory.RANGED_ID,
+		}
+	)
+	var app := fixture.app as AppKernel
+	var screen := fixture.screen as Control
+	assert_str(String(app.selection_draft.get("zone_id", &""))).is_equal(
+		String(ValidationContentFactory.ZONE_ID)
+	)
+	assert_str(String(app.selection_draft.get("character_id", &""))).is_equal(
+		String(NikoContentFactory.CHARACTER_ID)
+	)
+	assert_str(String(app.selection_draft.get("weapon_id", &""))).is_equal(
+		String(ValidationContentFactory.RANGED_ID)
+	)
+	assert_bool((screen.get_node("RosterStrip") as Control).visible).is_false()
+	assert_bool((screen.get_node("WeaponStage") as Control).visible).is_true()
+	assert_bool((screen.get_node("DifficultyStage") as Control).visible).is_true()
+	(screen.get_node("BackButton") as Button).pressed.emit()
+	await _settle()
+	assert_bool((screen.get_node("RosterStrip") as Control).visible).is_false()
+	assert_bool((screen.get_node("WeaponStage") as Control).visible).is_true()
+	assert_bool((screen.get_node("DifficultyStage") as Control).visible).is_false()
+	assert_str(String(app.selection_draft.get("zone_id", &""))).is_equal(
+		String(ValidationContentFactory.ZONE_ID)
+	)
+	assert_str(String(app.selection_draft.get("weapon_id", &""))).is_equal(
+		String(ValidationContentFactory.RANGED_ID)
+	)
+
+
+func test_single_task_focus_graph_skips_the_hidden_selector() -> void:
+	var fixture := await _fixture()
+	var screen := fixture.screen as Control
+	var back := screen.get_node("BackButton") as Control
+	var option := screen.get_node("TaskOptionButton") as OptionButton
+	var niko := screen.get_node("RosterStrip/NikoCell") as Control
+	assert_bool(option.visible).is_false()
+	_assert_focus_target(back, &"focus_neighbor_left", back)
+	_assert_focus_target(back, &"focus_neighbor_top", back)
+	_assert_focus_target(back, &"focus_neighbor_right", niko)
+	_assert_focus_target(back, &"focus_neighbor_bottom", niko)
+	_assert_focus_target(niko, &"focus_neighbor_left", back)
+	_assert_focus_target(niko, &"focus_neighbor_top", back)
+	_assert_focus_target(niko, &"focus_neighbor_right", niko)
+	_assert_focus_target(niko, &"focus_neighbor_bottom", back)
+	for property: StringName in [
+		&"focus_neighbor_left", &"focus_neighbor_right",
+		&"focus_neighbor_top", &"focus_neighbor_bottom",
+		&"focus_next", &"focus_previous",
+	]:
+		var path: NodePath = option.get(property)
+		assert_bool(path.is_empty()).is_true()
+
+
+func test_multi_task_focus_graph_links_back_task_and_character_grid() -> void:
+	var fixture := await _fixture(_second_zone_pack())
+	var screen := fixture.screen as Control
+	var back := screen.get_node("BackButton") as Control
+	var option := screen.get_node("TaskOptionButton") as OptionButton
+	var niko := screen.get_node("RosterStrip/NikoCell") as Control
+	assert_bool(option.visible).is_true()
+	_assert_focus_target(back, &"focus_neighbor_left", back)
+	_assert_focus_target(back, &"focus_neighbor_top", back)
+	_assert_focus_target(back, &"focus_neighbor_right", option)
+	_assert_focus_target(back, &"focus_neighbor_bottom", option)
+	_assert_focus_target(option, &"focus_neighbor_left", back)
+	_assert_focus_target(option, &"focus_neighbor_top", back)
+	_assert_focus_target(option, &"focus_neighbor_right", option)
+	_assert_focus_target(option, &"focus_neighbor_bottom", niko)
+	_assert_focus_target(niko, &"focus_neighbor_left", back)
+	_assert_focus_target(niko, &"focus_neighbor_top", option)
+	_assert_focus_target(niko, &"focus_neighbor_right", niko)
+	_assert_focus_target(niko, &"focus_neighbor_bottom", back)
+
+
+func test_multi_task_focus_graph_links_task_to_change_and_first_weapon_after_character() -> void:
+	var fixture := await _fixture(_second_zone_pack())
+	var screen := fixture.screen as Control
+	var back := screen.get_node("BackButton") as Control
+	var option := screen.get_node("TaskOptionButton") as OptionButton
+	var niko := screen.get_node("RosterStrip/NikoCell") as Button
+	niko.pressed.emit()
+	await _settle()
+	var change := screen.get_node("ChangeCharacterButton") as Control
+	var weapon_candidates := screen.find_children("WeaponOption*", "Button", true, false).filter(
+		func(button: Button) -> bool: return button.visible and not button.disabled
+	)
+	assert_bool(option.visible).is_true()
+	assert_bool(change.visible).is_true()
+	assert_bool(not weapon_candidates.is_empty()).is_true()
+	if weapon_candidates.is_empty():
+		return
+	var first_weapon := weapon_candidates.front() as Control
+	_assert_focus_target(option, &"focus_neighbor_bottom", change)
+	_assert_focus_target(change, &"focus_neighbor_top", option)
+	_assert_focus_target(change, &"focus_neighbor_left", back)
+	_assert_focus_target(change, &"focus_neighbor_right", first_weapon)
+	_assert_focus_target(change, &"focus_neighbor_bottom", first_weapon)
 
 
 func _fixture(
 	extra_pack: GogoContentPackDefinition = null,
 	initial_zone_id: StringName = &"",
-	include_zones: bool = true
+	include_zones: bool = true,
+	initial_draft: Dictionary = {}
 ) -> Dictionary:
 	var app := auto_free(AppKernel.new()) as AppKernel
 	app.add_to_group(&"gogobro_app")
@@ -263,6 +407,7 @@ func _fixture(
 	app.begin_selection()
 	if not initial_zone_id.is_empty():
 		app.selection_draft["zone_id"] = initial_zone_id
+	app.selection_draft.merge(initial_draft, true)
 	assert_int(app.route(FlowRoute.CHARACTER_SELECT)).is_equal(OK)
 	await _settle()
 	return {"app": app, "host": host, "screen": host.get_child(0)}
@@ -305,6 +450,15 @@ func _item_index(option: OptionButton, content_id: StringName) -> int:
 		if StringName(option.get_item_metadata(index)) == content_id:
 			return index
 	return -1
+
+
+func _assert_focus_target(source: Control, property: StringName, expected: Control) -> void:
+	var path: NodePath = source.get(property)
+	assert_bool(not path.is_empty()).is_true()
+	if path.is_empty():
+		return
+	assert_str(String(path)).is_equal(String(source.get_path_to(expected)))
+	assert_object(source.get_node_or_null(path)).is_same(expected)
 
 
 func _visible_text(root: Node) -> String:

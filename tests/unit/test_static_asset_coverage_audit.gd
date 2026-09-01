@@ -32,7 +32,7 @@ func test_actual_consumers_cover_every_canonical_unit() -> void:
 	var expected_routes := {
 		&"zone_thumbnail": [
 			"res://game/ui/character_select_screen.gd",
-			"TaskOptionButton",
+			"TaskCurrentSummary/Icon",
 		],
 	}
 	for asset_id: StringName in expected_routes:
@@ -77,7 +77,7 @@ func test_required_visible_zone_texture_rejects_a_non_visible_observation() -> v
 	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
 	var snapshot := _debug_snapshot(content)
 	_exercise_real_consumers(content, snapshot)
-	var route_nodes := {&"zone_thumbnail": "TaskOptionButton"}
+	var route_nodes := {&"zone_thumbnail": "TaskCurrentSummary/Icon"}
 	for asset_id: StringName in route_nodes:
 		var records: Array[Dictionary] = []
 		for record: Dictionary in GogoStaticConsumerRegistry.current().records():
@@ -175,6 +175,66 @@ func test_visible_option_icon_observer_requires_exact_live_texture_and_provenanc
 	)).is_true()
 	var record := GogoStaticConsumerRegistry.current().records()[0]
 	assert_bool(record.get("visible_texture", false)).is_true()
+
+
+func test_visible_scaled_texture_observer_requires_exact_live_texture_and_provenance() -> void:
+	var registry_script := load(CONSUMER_REGISTRY_PATH) as GDScript
+	var method_exists := registry_script.get_script_method_list().any(
+		func(method: Dictionary) -> bool:
+			return method.get("name", "") == "observe_visible_scaled_texture"
+	)
+	assert_bool(method_exists).is_true()
+	if not method_exists:
+		return
+	GogoStaticConsumerRegistry.reset_current()
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	var snapshot := _debug_snapshot(content)
+	var handle := snapshot.resolve_global(&"zone_thumbnail")
+	var app := auto_free(AppKernel.new()) as AppKernel
+	app.add_to_group(&"gogobro_app")
+	app.content_snapshot = content
+	add_child(app)
+	app.begin_selection()
+	var screen := auto_free(load(
+		"res://game/ui/character_select_screen.gd"
+	).new()) as GogoScreenBase
+	screen.static_asset_snapshot_override = snapshot
+	add_child(screen)
+	var summary_icon := screen.get_node("TaskCurrentSummary/Icon") as TextureRect
+	assert_object(summary_icon.texture).is_same(handle.texture)
+	GogoStaticConsumerRegistry.reset_current()
+	summary_icon.visible = false
+	assert_bool(registry_script.call(
+		"observe_visible_scaled_texture", handle, summary_icon,
+		"res://game/ui/character_select_screen.gd", "TaskCurrentSummary/Icon", Vector2(48, 27)
+	)).is_false()
+	summary_icon.visible = true
+	summary_icon.texture = _texture(Vector2i(256, 144))
+	assert_bool(registry_script.call(
+		"observe_visible_scaled_texture", handle, summary_icon,
+		"res://game/ui/character_select_screen.gd", "TaskCurrentSummary/Icon", Vector2(48, 27)
+	)).is_false()
+	summary_icon.texture = handle.texture
+	assert_bool(registry_script.call(
+		"observe_visible_scaled_texture", handle, summary_icon,
+		"res://tools/gallery.gd", "TaskCurrentSummary/Icon", Vector2(48, 27)
+	)).is_false()
+	assert_bool(registry_script.call(
+		"observe_visible_scaled_texture", handle, summary_icon,
+		"res://game/ui/character_select_screen.gd", "TaskCurrentSummary/FakeIcon", Vector2(48, 27)
+	)).is_false()
+	assert_bool(registry_script.call(
+		"observe_visible_scaled_texture", handle, summary_icon,
+		"res://game/ui/character_select_screen.gd", "TaskCurrentSummary/Icon", Vector2(49, 27)
+	)).is_false()
+	assert_array(GogoStaticConsumerRegistry.current().records()).is_empty()
+	assert_bool(registry_script.call(
+		"observe_visible_scaled_texture", handle, summary_icon,
+		"res://game/ui/character_select_screen.gd", "TaskCurrentSummary/Icon", Vector2(48, 27)
+	)).is_true()
+	var record := GogoStaticConsumerRegistry.current().records()[0]
+	assert_bool(record.get("visible_texture", false)).is_true()
+	assert_vector(record.get("rendered_size_px", Vector2.ZERO)).is_equal(Vector2(48, 27))
 
 
 func test_missing_required_floor_is_a_hard_failure_even_with_other_sixty_nine_units() -> void:

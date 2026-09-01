@@ -70,6 +70,49 @@ static func observe_visible_texture(
 	)
 
 
+static func observe_visible_scaled_texture(
+	handle: GogoStaticAssetHandle,
+	texture_rect: TextureRect,
+	scene_path: String,
+	node_path: String,
+	expected_rendered_size: Vector2 = Vector2.ZERO,
+	source_kind: StringName = &""
+) -> bool:
+	if (
+		handle == null
+		or handle.texture == null
+		or texture_rect == null
+		or not texture_rect.is_inside_tree()
+		or not texture_rect.is_visible_in_tree()
+		or texture_rect.texture != handle.texture
+		or not _is_allowed_scene(scene_path)
+		or node_path.strip_edges().is_empty()
+		or not _has_verified_provenance(texture_rect, scene_path, node_path)
+	):
+		return false
+	var texture_size := Vector2(handle.texture.get_width(), handle.texture.get_height())
+	var rendered_size := _texture_rect_rendered_size(texture_rect, texture_size)
+	if (
+		not rendered_size.is_finite()
+		or rendered_size.x <= 0.0
+		or rendered_size.y <= 0.0
+		or (
+			expected_rendered_size != Vector2.ZERO
+			and not rendered_size.is_equal_approx(expected_rendered_size)
+		)
+	):
+		return false
+	return current()._observe_rendered(
+		handle,
+		scene_path,
+		node_path,
+		rendered_size,
+		Vector2(rendered_size.x / texture_size.x, rendered_size.y / texture_size.y),
+		source_kind,
+		true
+	)
+
+
 static func observe_visible_option_icon(
 	handle: GogoStaticAssetHandle,
 	option: OptionButton,

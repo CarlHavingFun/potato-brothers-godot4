@@ -90,14 +90,22 @@ func _run() -> void:
 		return
 	var selection_host := host.get_child(0)
 	var task_option := selection_host.get_node_or_null("TaskOptionButton") as OptionButton
+	var task_summary := selection_host.get_node_or_null("TaskCurrentSummary") as Panel
+	var task_summary_label := (
+		task_summary.get_node_or_null("Label") as Label if task_summary != null else null
+	)
+	var task_summary_icon := (
+		task_summary.get_node_or_null("Icon") as TextureRect if task_summary != null else null
+	)
 	var zone_stage := selection_host.get_node_or_null("ZoneStage")
 	var roster := selection_host.get_node_or_null("RosterStrip") as GridContainer
 	var weapon_stage := selection_host.get_node_or_null("WeaponStage") as Control
 	var difficulty_stage := selection_host.get_node_or_null("DifficultyStage") as Control
 	var niko_preview := selection_host.get_node_or_null("NikoDetail/Preview") as TextureRect
 	var niko_cell := selection_host.get_node_or_null("RosterStrip/NikoCell") as Button
-	check(task_option != null and zone_stage == null and weapon_stage != null and difficulty_stage != null,
-		"inline task option and same-host later stages exist")
+	check(task_option != null and task_summary != null and zone_stage == null
+		and weapon_stage != null and difficulty_stage != null,
+		"single-task summary and same-host later stages exist")
 	check(niko_preview != null and niko_preview.texture != null, "NiKo preview loaded")
 	check(niko_cell != null and niko_cell.is_visible_in_tree() and not niko_cell.disabled, "actual NiKo choice")
 	check(roster != null and roster.columns == 8 and roster.get_child_count() == 24, "exact 8x3 character roster")
@@ -115,7 +123,14 @@ func _run() -> void:
 				and slot_index != null and slot_index.text == "%02d" % (index + 1)
 				and glyph != null and glyph.text == "空位" and status != null and status.text == "待开放",
 				"neutral unavailable character placeholder %d" % index)
-	if task_option == null or roster == null or weapon_stage == null or difficulty_stage == null or niko_cell == null:
+	if (
+		task_option == null
+		or task_summary == null
+		or roster == null
+		or weapon_stage == null
+		or difficulty_stage == null
+		or niko_cell == null
+	):
 		finish()
 		return
 	var zone := content.definition(
@@ -127,10 +142,17 @@ func _run() -> void:
 	)
 	var task_item_icon: Texture2D = task_option.get_item_icon(0) if task_item_ready else null
 	check(app.current_session == null, "no inventory/session before character choice")
-	check(task_item_ready and task_option.is_visible_in_tree() and not task_option.disabled
+	check(task_item_ready and not task_option.is_visible_in_tree() and task_option.disabled
+		and task_option.focus_mode == Control.FOCUS_NONE
+		and task_option.get_signal_connection_list(&"item_selected").is_empty()
 		and task_option.selected == 0 and task_option.text == "任务 · 训练场"
 		and task_option.tooltip_text == "训练场 · 20 波 · 从第 1 波开始",
-		"compact task option summarizes the selected training ground")
+		"single-task option stays hidden and noninteractive")
+	check(task_summary.is_visible_in_tree() and task_summary.focus_mode == Control.FOCUS_NONE
+		and task_summary.mouse_filter == Control.MOUSE_FILTER_IGNORE
+		and task_summary_label != null and task_summary_label.text == "当前任务 · 训练场"
+		and task_summary_icon != null and task_summary_icon.texture != null,
+		"current-task summary visibly presents the selected training ground")
 	check(task_item_id == &"gogobro.core:zone/training_ground"
 		and task_option.get_item_text(0) == "任务 · 训练场"
 		and task_option.get_item_tooltip(0) == "训练场 · 20 波 · 从第 1 波开始",
@@ -142,25 +164,14 @@ func _run() -> void:
 	check(selection_host.find_children("UnavailableZoneSlot*", "Button", true, false).is_empty(),
 		"task option has no unavailable task placeholders")
 	check(roster.visible and not weapon_stage.visible and not difficulty_stage.visible,
-		"inline task option keeps the character page visible")
-	task_option.grab_focus()
-	await settle()
-	check(task_option.has_focus(), "inline task option accepts keyboard and gamepad focus")
-	check(app.current_session == null, "task option focus creates no session")
+		"current-task summary keeps the character page visible")
+	check(not task_option.has_focus(), "hidden single-task option never owns focus")
+	check(app.current_session == null, "task summary creates no session")
 	if not failures.is_empty():
 		finish()
 		return
-	print("PACKAGE_TASK_ZONE_OK zone=training_ground waves=20 start=1 items=1 placeholders=0 inline=true")
+	print("PACKAGE_TASK_ZONE_OK zone=training_ground waves=20 start=1 items=1 placeholders=0 summary=true interactive=false")
 	if not await save_viewport("task-selector"):
-		finish()
-		return
-	task_option.item_selected.emit(0)
-	await settle()
-	check(app.selection_draft.get("zone_id", &"") == &"gogobro.core:zone/training_ground",
-		"task choice commits the actual training-ground content ID")
-	check(roster.visible and task_option.has_focus(), "task choice stays inline with the character roster")
-	check(app.current_session == null, "task choice still creates no session")
-	if not failures.is_empty():
 		finish()
 		return
 	niko_cell.grab_focus()

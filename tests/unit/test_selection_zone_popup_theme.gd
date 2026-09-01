@@ -8,7 +8,7 @@ const SECOND_ZONE_ID := &"gogobro.test:zone/night_training"
 
 
 func test_task_popup_uses_a_high_contrast_gogobro_menu_theme() -> void:
-	var fixture := _fixture()
+	var fixture := _fixture(true)
 	var presenter := fixture.presenter as RefCounted
 	var option := fixture.option as OptionButton
 	var popup := option.get_popup()
@@ -33,6 +33,8 @@ func test_task_popup_uses_a_high_contrast_gogobro_menu_theme() -> void:
 		assert_object(detail.get_node_or_null("Name")).is_not_null()
 		assert_object(detail.get_node_or_null("Metadata")).is_not_null()
 		assert_object(detail.get_node_or_null("Help")).is_not_null()
+		assert_bool((detail.get_node("Help") as Label).text.contains("方向键")).is_false()
+		assert_bool((detail.get_node("Help") as Label).text.contains("摇杆")).is_false()
 
 	var panel := popup.get_theme_stylebox(&"panel") as StyleBoxFlat
 	var hover := popup.get_theme_stylebox(&"hover") as StyleBoxFlat
@@ -71,41 +73,45 @@ func test_task_popup_uses_a_high_contrast_gogobro_menu_theme() -> void:
 
 
 func test_task_popup_keeps_real_items_contiguous_and_marks_the_selection() -> void:
-	var fixture := _fixture()
-	var presenter := fixture.presenter as RefCounted
-	var option := fixture.option as OptionButton
-	var popup := option.get_popup()
-
-	assert_int(option.item_count).is_equal(1)
-	assert_int(popup.item_count).is_equal(option.item_count)
-	assert_bool(popup.is_item_radio_checkable(0)).is_true()
-	assert_bool(popup.is_item_checked(0)).is_false()
-	presenter.call(&"apply_selection", ValidationContentFactory.ZONE_ID)
-	assert_int(option.selected).is_equal(0)
-	assert_bool(popup.is_item_radio_checkable(0)).is_true()
-	assert_bool(popup.is_item_checked(0)).is_true()
-	assert_str(option.get_item_text(0)).is_equal("任务 · 训练场")
-	assert_object(option.get_item_icon(0)).is_not_null()
-
-
-func test_task_focus_detail_tracks_the_popup_focused_item_and_hides_with_it() -> void:
 	var fixture := _fixture(true)
 	var presenter := fixture.presenter as RefCounted
 	var option := fixture.option as OptionButton
 	var popup := option.get_popup()
+
+	assert_int(option.item_count).is_equal(2)
+	assert_bool(option.visible).is_true()
+	assert_bool((fixture.screen.get_node("TaskCurrentSummary") as Control).visible).is_false()
+	assert_int(popup.item_count).is_equal(option.item_count)
+	var training_index := _item_index(option, ValidationContentFactory.ZONE_ID)
+	assert_int(training_index).is_greater_equal(0)
+	if training_index < 0:
+		return
+	assert_bool(popup.is_item_radio_checkable(training_index)).is_true()
+	assert_bool(popup.is_item_checked(training_index)).is_false()
+	presenter.call(&"apply_selection", ValidationContentFactory.ZONE_ID)
+	assert_int(option.selected).is_equal(training_index)
+	assert_bool(popup.is_item_radio_checkable(training_index)).is_true()
+	assert_bool(popup.is_item_checked(training_index)).is_true()
+	assert_str(option.get_item_text(training_index)).is_equal("任务 · 训练场")
+	assert_object(option.get_item_icon(training_index)).is_not_null()
+
+
+func test_task_focus_detail_renders_the_selected_item_and_hides_with_the_popup() -> void:
+	var fixture := _fixture(true)
+	var presenter := fixture.presenter as RefCounted
+	var option := fixture.option as OptionButton
 	var detail := fixture.screen.get_node("TaskFocusDetail") as Panel
 	var poll := fixture.screen.get_node_or_null("TaskFocusPoll") as Timer
 	assert_object(poll).is_not_null()
 	if poll != null:
 		assert_float(poll.wait_time).is_less_equal(0.05)
-	presenter.call(&"_on_popup_about_to_show")
-	assert_bool(detail.visible).is_true()
 	var second_index := _item_index(option, SECOND_ZONE_ID)
 	assert_int(second_index).is_greater_equal(0)
 	if second_index < 0:
 		return
-	popup.set_focused_item(second_index)
-	presenter.call(&"_sync_from_popup_focus")
+	presenter.call(&"apply_selection", SECOND_ZONE_ID)
+	presenter.call(&"_on_popup_about_to_show")
+	assert_bool(detail.visible).is_true()
 	assert_str((detail.get_node("Name") as Label).text).is_equal("夜间训练场")
 	assert_str((detail.get_node("Metadata") as Label).text).contains("20 波")
 	presenter.call(&"_on_popup_hidden")

@@ -9,6 +9,7 @@ const POPUP_HORIZONTAL_SEPARATION := 12
 const POPUP_VERTICAL_SEPARATION := 8
 const POPUP_ITEM_PADDING := 12
 const DETAIL_RECT := Rect2(584, 92, 344, 304)
+const SUMMARY_ICON_RECT := Rect2(14, 14, 48, 27)
 
 const POPUP_PANEL_COLOR := Color("090c0e")
 const POPUP_PANEL_BORDER_COLOR := Color("f2a241")
@@ -17,6 +18,9 @@ const POPUP_SEPARATOR_COLOR := Color("554731")
 
 var _screen: GogoScreenBase
 var _button: OptionButton
+var _summary: Panel
+var _summary_icon: TextureRect
+var _summary_label: Label
 var _on_selected: Callable
 var _global_icon_handles: Dictionary = {}
 var _definitions: Dictionary = {}
@@ -53,6 +57,7 @@ func build(
 	HUD_SKIN.apply_action_button(_button, &"compact", false, true)
 	_button.add_theme_constant_override(&"icon_max_width", OPTION_ICON_MAX_WIDTH)
 	parent.add_child(_button)
+	_build_current_summary(parent, rect)
 	_apply_popup_skin(rect)
 	_build_focus_detail(parent)
 	for definition: GogoZoneDefinition in app.content_snapshot.all(&"zone"):
@@ -87,7 +92,8 @@ func build(
 		_sync_popup_selection(-1)
 		_button.text = "任务 · 未选择"
 		_button.tooltip_text = "请选择任务区域"
-	_button.item_selected.connect(_activate)
+	if _button.item_count >= 2:
+		_button.item_selected.connect(_activate)
 	var popup := _button.get_popup()
 	popup.about_to_popup.connect(_on_popup_about_to_show)
 	popup.popup_hide.connect(_on_popup_hidden)
@@ -99,12 +105,23 @@ func build(
 func set_enabled(enabled: bool) -> void:
 	if _button == null:
 		return
-	var available := enabled and _button.item_count > 0
+	var selectable := _button.item_count >= 2
+	var available := enabled and selectable
+	_button.visible = selectable
 	_button.disabled = not available
 	_button.focus_mode = Control.FOCUS_ALL if available else Control.FOCUS_NONE
+	_button.mouse_filter = Control.MOUSE_FILTER_STOP if available else Control.MOUSE_FILTER_IGNORE
 	_button.mouse_default_cursor_shape = (
 		Control.CURSOR_POINTING_HAND if available else Control.CURSOR_FORBIDDEN
 	)
+	if _summary != null:
+		_summary.visible = not selectable
+
+
+func single_content_id() -> StringName:
+	if _button == null or _button.item_count != 1:
+		return &""
+	return StringName(_button.get_item_metadata(0))
 
 
 func apply_selection(content_id: StringName) -> bool:
@@ -113,18 +130,21 @@ func apply_selection(content_id: StringName) -> bool:
 	if _button.item_count == 0:
 		_button.text = "任务 · 无可用任务"
 		_button.tooltip_text = "内容快照中没有可用区域"
+		_sync_summary(-1, "当前任务 · 无可用任务")
 		return false
 	for index in _button.item_count:
 		if StringName(_button.get_item_metadata(index)) == content_id:
 			_button.select(index)
 			_sync_popup_selection(index)
 			_sync_selected_tooltip(index)
+			_sync_summary(index)
 			_observe_selected_icon(index)
 			return true
 	_button.select(-1)
 	_sync_popup_selection(-1)
 	_button.text = "任务 · 未选择"
 	_button.tooltip_text = "请选择任务区域"
+	_sync_summary(-1, "当前任务 · 未选择")
 	return false
 
 
@@ -142,6 +162,46 @@ func _activate(index: int) -> void:
 	_sync_popup_selection(index)
 	_sync_focus_detail(index)
 	_on_selected.call(content_id)
+
+
+func _build_current_summary(parent: Node, rect: Rect2) -> void:
+	_summary = _screen.ui_panel(parent, "TaskCurrentSummary", rect)
+	_summary.z_index = 10
+	_summary.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_summary.focus_mode = Control.FOCUS_NONE
+	_summary_icon = TextureRect.new()
+	_summary_icon.name = "Icon"
+	_summary_icon.position = SUMMARY_ICON_RECT.position
+	_summary_icon.size = SUMMARY_ICON_RECT.size
+	_summary_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_summary_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_summary_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_summary_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_summary.add_child(_summary_icon)
+	_summary_label = _screen.ui_label(
+		_summary, "Label", Vector2(74, 8), Vector2(rect.size.x - 88, 40), 20
+	)
+	_summary_label.text = "当前任务 · 未选择"
+	_summary_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_summary_label.clip_text = true
+
+
+func _sync_summary(index: int, fallback_text := "") -> void:
+	if _summary == null or _summary_icon == null or _summary_label == null:
+		return
+	var definition := _definitions.get(index) as GogoZoneDefinition
+	if definition == null:
+		_summary_icon.texture = null
+		_summary_icon.visible = false
+		_summary_label.position.x = 18.0
+		_summary_label.size.x = _summary.size.x - 36.0
+		_summary_label.text = fallback_text if not fallback_text.is_empty() else "当前任务 · 未选择"
+		return
+	_summary_icon.texture = _item_icons.get(index) as Texture2D
+	_summary_icon.visible = _summary_icon.texture != null
+	_summary_label.position.x = 74.0 if _summary_icon.visible else 18.0
+	_summary_label.size.x = _summary.size.x - _summary_label.position.x - 14.0
+	_summary_label.text = "当前任务 · %s" % definition.display_name
 
 
 func _build_focus_detail(parent: Node) -> void:
@@ -184,7 +244,7 @@ func _build_focus_detail(parent: Node) -> void:
 	_detail_help = _screen.ui_label(
 		_detail_panel, "Help", Vector2(18, 270), Vector2(308, 24), 13
 	)
-	_detail_help.text = "方向键 / 摇杆浏览  ·  确认选择  ·  取消 / Esc 关闭"
+	_detail_help.text = "浏览任务预览，确认后保留当前配置"
 	_detail_help.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_detail_help.add_theme_color_override(&"font_color", HUD_SKIN.COLOR_TEXT_MUTED)
 	_detail_help.add_theme_constant_override(&"outline_size", 0)
@@ -371,12 +431,21 @@ func _observe_selected_icon(index: int) -> void:
 	var screen_script := _screen.get_script() as Script
 	if handle == null or screen_script == null:
 		return
-	GogoStaticConsumerRegistry.observe_visible_option_icon(
-		handle,
-		_button,
-		String(screen_script.resource_path),
-		String(_screen.get_path_to(_button))
-	)
+	if _button.is_visible_in_tree():
+		GogoStaticConsumerRegistry.observe_visible_option_icon(
+			handle,
+			_button,
+			String(screen_script.resource_path),
+			String(_screen.get_path_to(_button))
+		)
+	elif _summary_icon != null and _summary_icon.is_visible_in_tree():
+		GogoStaticConsumerRegistry.observe_visible_scaled_texture(
+			handle,
+			_summary_icon,
+			String(screen_script.resource_path),
+			String(_screen.get_path_to(_summary_icon)),
+			SUMMARY_ICON_RECT.size
+		)
 
 
 func _item_text(definition: GogoZoneDefinition) -> String:

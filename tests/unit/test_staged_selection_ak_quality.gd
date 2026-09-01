@@ -73,7 +73,8 @@ func test_hidden_weapon_stage_has_no_enabled_control_or_stale_focus_destination(
 	assert_bool((screen.get_node("WeaponStage") as Control).visible).is_false()
 	assert_bool(option.disabled).is_true()
 	assert_int(option.focus_mode).is_equal(Control.FOCUS_NONE)
-	assert_str(String(niko.focus_neighbor_right)).is_empty()
+	assert_str(String(niko.focus_neighbor_right)).is_equal(String(niko.get_path_to(niko)))
+	assert_object(niko.get_node_or_null(niko.focus_neighbor_right)).is_same(niko)
 
 
 func test_repeated_difficulty_activation_creates_exactly_one_session() -> void:

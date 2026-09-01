@@ -156,19 +156,29 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	var coverage_host := app.get_node("SceneHost") as Node
 	var staged_route := coverage_host.get_child(0) as Control
 	var task_option := staged_route.get_node_or_null("TaskOptionButton") as OptionButton
+	var task_summary := staged_route.get_node_or_null("TaskCurrentSummary") as Panel
+	var task_summary_icon := (
+		task_summary.get_node_or_null("Icon") as TextureRect if task_summary != null else null
+	)
 	if not _require(
 		app.scene_flow.current_route() == FlowRoute.CHARACTER_SELECT
 		and staged_route.get_script() != null
 		and (staged_route.get_script() as Script).resource_path
 			== "res://game/ui/character_select_screen.gd"
 		and task_option != null
-		and task_option.is_visible_in_tree()
+		and not task_option.is_visible_in_tree()
+		and task_option.disabled
+		and task_option.focus_mode == Control.FOCUS_NONE
+		and task_summary != null
+		and task_summary.is_visible_in_tree()
+		and task_summary_icon != null
+		and task_summary_icon.texture != null
 		and task_option.item_count == content.all(&"zone").size()
 		and task_option.selected >= 0
 		and task_option.get_item_metadata(task_option.selected) == ValidationContentFactory.ZONE_ID
 		and task_option.get_item_icon(task_option.selected) != null
 		and (staged_route.get_node("DifficultyStage") as Control).visible,
-		"real visible inline task-option zone coverage"
+		"real visible noninteractive current-task summary coverage"
 	):
 		return
 	if not _require(app.route(FlowRoute.DIAGNOSTIC, {

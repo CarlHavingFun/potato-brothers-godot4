@@ -61,7 +61,7 @@ func test_main_menu_starts_with_a_visible_keyboard_and_gamepad_focus() -> void:
 	assert_bool(start_button.has_focus()).is_true()
 
 
-func test_difficulty_route_uses_inline_task_option_with_the_real_zone_icon() -> void:
+func test_character_route_uses_noninteractive_single_task_summary_with_real_zone_icon() -> void:
 	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
 	var app := auto_free(AppKernel.new()) as AppKernel
 	app.add_to_group(&"gogobro_app")
@@ -72,16 +72,21 @@ func test_difficulty_route_uses_inline_task_option_with_the_real_zone_icon() -> 
 	screen.static_asset_snapshot_override = _static_ui_snapshot()
 	add_child(screen)
 	var task_option := screen.get_node_or_null("TaskOptionButton") as OptionButton
+	var task_summary := screen.get_node_or_null("TaskCurrentSummary") as Panel
 	var difficulty_stage := screen.get_node_or_null("DifficultyStage") as Control
 	assert_object(task_option).is_not_null()
+	assert_object(task_summary).is_not_null()
 	assert_object(difficulty_stage).is_not_null()
 	assert_object(screen.get_node_or_null("SelectedDifficultyDetail")).is_null()
 	assert_object(screen.get_node_or_null("ZoneStage")).is_null()
-	if task_option == null or difficulty_stage == null:
+	if task_option == null or task_summary == null or difficulty_stage == null:
 		return
 	assert_int(task_option.item_count).is_equal(content.all(&"zone").size())
 	assert_int(task_option.item_count).is_equal(1)
 	assert_int(task_option.selected).is_equal(0)
+	assert_bool(task_option.visible).is_false()
+	assert_bool(task_option.disabled).is_true()
+	assert_int(task_option.focus_mode).is_equal(Control.FOCUS_NONE)
 	assert_str(String(task_option.get_item_metadata(0))).is_equal(
 		String(ValidationContentFactory.ZONE_ID)
 	)
@@ -89,6 +94,10 @@ func test_difficulty_route_uses_inline_task_option_with_the_real_zone_icon() -> 
 	assert_str(task_option.get_item_tooltip(0)).is_equal("训练场 · 20 波 · 从第 1 波开始")
 	assert_object(task_option.get_item_icon(0)).is_not_null()
 	assert_int(task_option.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
+	assert_bool(task_summary.visible).is_true()
+	assert_int(task_summary.focus_mode).is_equal(Control.FOCUS_NONE)
+	assert_str((task_summary.get_node("Label") as Label).text).is_equal("当前任务 · 训练场")
+	assert_object((task_summary.get_node("Icon") as TextureRect).texture).is_not_null()
 	var zone := content.definition(
 		ValidationContentFactory.ZONE_ID, &"zone"
 	) as GogoZoneDefinition

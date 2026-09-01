@@ -23,7 +23,7 @@ var _difficulty_stage_open := false
 
 func _ready() -> void:
 	use_menu_background_v2 = true
-	build_screen_chrome("出战配置", "依次选择任务、人物、武器与难度")
+	build_screen_chrome("出战配置", "确认任务配置，依次选择人物、武器与难度")
 	selection_title()
 	var app := AppContext.kernel(self)
 	if app == null or app.content_snapshot == null:
@@ -109,8 +109,9 @@ func _select_zone(content_id: StringName) -> void:
 	_zones.apply_selection(definition.content_id)
 	_difficulty_stage_open = not _character_picker_open and _configuration_is_valid()
 	_sync_selection()
-	if _difficulty_stage_open and not _difficulties.buttons.is_empty():
-		_difficulties.buttons[0].call_deferred(&"grab_focus")
+	var task := get_node_or_null("TaskOptionButton") as OptionButton
+	if task != null and task.visible and not task.disabled:
+		task.call_deferred(&"grab_focus")
 
 
 func _build_niko_detail(niko: CharacterDefinition) -> void:
@@ -333,7 +334,14 @@ func _sync_selection() -> void:
 	var difficulty_stage := get_node("DifficultyStage") as Control
 	var change := get_node("ChangeCharacterButton") as Button
 	var selected_zone_id := app.selection_draft.get("zone_id", &"") as StringName
-	_zones.apply_selection(selected_zone_id)
+	var restored_single_zone := false
+	if not _zones.apply_selection(selected_zone_id):
+		var single_zone_id := _zones.single_content_id()
+		if not single_zone_id.is_empty():
+			app.selection_draft["zone_id"] = single_zone_id
+			selected_zone_id = single_zone_id
+			_zones.apply_selection(selected_zone_id)
+			restored_single_zone = true
 	_zones.set_enabled(not _starting)
 	niko_detail.visible = true
 	var cell := get_node("RosterStrip/NikoCell") as Button
@@ -354,6 +362,11 @@ func _sync_selection() -> void:
 		app.selection_draft["weapon_id"] = &""
 		weapon = null
 		_difficulty_stage_open = false
+	elif restored_single_zone and not _character_picker_open and _configuration_is_valid():
+		# Canonicalizing a stale draft to the sole launchable task happens after
+		# the initial ready-time stage calculation. Reopen only for that recovery;
+		# an ordinary Back action keeps its explicit closed state on later syncs.
+		_difficulty_stage_open = true
 	_set_character_picker_visible(_character_picker_open)
 	change.visible = character != null and not _character_picker_open
 	change.disabled = not change.visible
@@ -403,6 +416,7 @@ func _rebuild_focus() -> void:
 	var niko := get_node("RosterStrip/NikoCell") as Button
 	var change := get_node("ChangeCharacterButton") as Button
 	var task := get_node("TaskOptionButton") as OptionButton
+	var back := get_node("BackButton") as Control
 	var reset: Array[Control] = [change, task]
 	for child in roster.get_children():
 		if child is Control:
@@ -416,14 +430,17 @@ func _rebuild_focus() -> void:
 		control.focus_neighbor_bottom = NodePath()
 		control.focus_next = NodePath()
 		control.focus_previous = NodePath()
-	var controls: Array[Control] = [get_node("BackButton") as Control]
+	var controls: Array[Control] = [back]
 	if task.visible and not task.disabled:
 		controls.append(task)
+	var primary: Control
 	if _character_picker_open:
 		controls.append(niko)
+		primary = niko
 	else:
 		if change.visible and not change.disabled:
 			controls.append(change)
+			primary = change
 	var selected_weapon: Button
 	for button in _weapons.buttons:
 		if not button.visible:
@@ -458,6 +475,34 @@ func _rebuild_focus() -> void:
 		var difficulty := _difficulties.buttons[0]
 		if difficulty.visible and not difficulty.disabled:
 			selected_weapon.focus_neighbor_bottom = selected_weapon.get_path_to(difficulty)
+	_configure_setup_focus(back, task, primary)
+
+
+func _configure_setup_focus(back: Control, task: OptionButton, primary: Control) -> void:
+	if back == null:
+		return
+	back.focus_neighbor_left = back.get_path_to(back)
+	back.focus_neighbor_top = back.get_path_to(back)
+	if primary == null:
+		back.focus_neighbor_right = back.get_path_to(back)
+		back.focus_neighbor_bottom = back.get_path_to(back)
+		return
+	var task_selectable := task != null and task.visible and not task.disabled
+	if task_selectable:
+		back.focus_neighbor_right = back.get_path_to(task)
+		back.focus_neighbor_bottom = back.get_path_to(task)
+		task.focus_neighbor_left = task.get_path_to(back)
+		task.focus_neighbor_top = task.get_path_to(back)
+		task.focus_neighbor_right = task.get_path_to(task)
+		task.focus_neighbor_bottom = task.get_path_to(primary)
+		primary.focus_neighbor_top = primary.get_path_to(task)
+	else:
+		back.focus_neighbor_right = back.get_path_to(primary)
+		back.focus_neighbor_bottom = back.get_path_to(primary)
+		primary.focus_neighbor_top = primary.get_path_to(back)
+	primary.focus_neighbor_left = primary.get_path_to(back)
+	if primary == get_node("RosterStrip/NikoCell"):
+		primary.focus_neighbor_right = primary.get_path_to(primary)
 
 
 func _focus_initial_control() -> void:
