@@ -34,7 +34,7 @@ func test_actual_consumers_cover_every_canonical_unit() -> void:
 		&"combat_hud_shell": ["res://game/ui/brotato_combat_hud.gd", "BrotatoHUD/Shell"],
 		&"zone_thumbnail": [
 			"res://game/ui/difficulty_select_screen.gd",
-			"SelectedDifficultyDetail/ZoneThumbnail",
+			"TaskOptionButton",
 		],
 	}
 	for asset_id: StringName in expected_routes:
@@ -82,7 +82,7 @@ func test_required_ui_textures_reject_non_visible_observations() -> void:
 	var route_nodes := {
 		&"nine_slice_panel": "Diagnostic/PrincipalSurface",
 		&"combat_hud_shell": "BrotatoHUD/Shell",
-		&"zone_thumbnail": "SelectedDifficultyDetail/ZoneThumbnail",
+		&"zone_thumbnail": "TaskOptionButton",
 	}
 	for asset_id: StringName in route_nodes:
 		var records: Array[Dictionary] = []
@@ -111,11 +111,11 @@ func test_required_ui_textures_reject_non_visible_observations() -> void:
 		)).is_true()
 
 
-func test_visible_texture_observer_requires_exact_live_texture_and_provenance() -> void:
+func test_visible_option_icon_observer_requires_exact_live_texture_and_provenance() -> void:
 	var registry_script := load(CONSUMER_REGISTRY_PATH) as GDScript
 	var method_exists := registry_script.get_script_method_list().any(
 		func(method: Dictionary) -> bool:
-			return method.get("name", "") == "observe_visible_texture"
+			return method.get("name", "") == "observe_visible_option_icon"
 	)
 	assert_bool(method_exists).is_true()
 	if not method_exists:
@@ -134,53 +134,50 @@ func test_visible_texture_observer_requires_exact_live_texture_and_provenance() 
 	).new()) as GogoScreenBase
 	screen.static_asset_snapshot_override = snapshot
 	add_child(screen)
-	var thumbnail := screen.get_node(
-		"SelectedDifficultyDetail/ZoneThumbnail"
-	) as TextureRect
+	var task_option := screen.get_node("TaskOptionButton") as OptionButton
+	assert_object(task_option.get_item_icon(0)).is_same(handle.texture)
 	GogoStaticConsumerRegistry.reset_current()
-	thumbnail.visible = false
+	task_option.visible = false
 	assert_bool(registry_script.call(
-		"observe_visible_texture", handle, thumbnail,
+		"observe_visible_option_icon", handle, task_option,
 		"res://game/ui/difficulty_select_screen.gd",
-		"SelectedDifficultyDetail/ZoneThumbnail"
+		"TaskOptionButton"
 	)).is_false()
-	thumbnail.visible = true
-	thumbnail.texture = _texture(Vector2i(512, 288))
+	task_option.visible = true
+	task_option.set_item_icon(0, _texture(Vector2i(512, 288)))
 	assert_bool(registry_script.call(
-		"observe_visible_texture", handle, thumbnail,
+		"observe_visible_option_icon", handle, task_option,
 		"res://game/ui/difficulty_select_screen.gd",
-		"SelectedDifficultyDetail/ZoneThumbnail"
+		"TaskOptionButton"
 	)).is_false()
-	thumbnail.texture = handle.texture
+	task_option.set_item_icon(0, handle.texture)
 	assert_bool(registry_script.call(
-		"observe_visible_texture", handle, thumbnail,
+		"observe_visible_option_icon", handle, task_option,
 		"res://tools/gallery.gd",
-		"SelectedDifficultyDetail/ZoneThumbnail"
+		"TaskOptionButton"
 	)).is_false()
 	assert_bool(registry_script.call(
-		"observe_visible_texture", handle, thumbnail,
+		"observe_visible_option_icon", handle, task_option,
 		"res://game/ui/diagnostic_screen.gd",
-		"SelectedDifficultyDetail/ZoneThumbnail"
+		"TaskOptionButton"
 	)).is_false()
 	assert_bool(registry_script.call(
-		"observe_visible_texture", handle, thumbnail,
+		"observe_visible_option_icon", handle, task_option,
 		"res://game/ui/difficulty_select_screen.gd",
-		"SelectedDifficultyDetail/FakeThumbnail"
-	)).is_false()
-	assert_array(GogoStaticConsumerRegistry.current().records()).is_empty()
-	thumbnail.size = Vector2(128, 72)
-	assert_bool(registry_script.call(
-		"observe_visible_texture", handle, thumbnail,
-		"res://game/ui/difficulty_select_screen.gd",
-		"SelectedDifficultyDetail/ZoneThumbnail",
-		Vector2i.ONE
+		"FakeTaskOptionButton"
 	)).is_false()
 	assert_array(GogoStaticConsumerRegistry.current().records()).is_empty()
-	thumbnail.size = Vector2(256, 144)
 	assert_bool(registry_script.call(
-		"observe_visible_texture", handle, thumbnail,
+		"observe_visible_option_icon", handle, task_option,
 		"res://game/ui/difficulty_select_screen.gd",
-		"SelectedDifficultyDetail/ZoneThumbnail"
+		"TaskOptionButton",
+		Vector2i(2, 1)
+	)).is_false()
+	assert_array(GogoStaticConsumerRegistry.current().records()).is_empty()
+	assert_bool(registry_script.call(
+		"observe_visible_option_icon", handle, task_option,
+		"res://game/ui/difficulty_select_screen.gd",
+		"TaskOptionButton"
 	)).is_true()
 	var record := GogoStaticConsumerRegistry.current().records()[0]
 	assert_bool(record.get("visible_texture", false)).is_true()

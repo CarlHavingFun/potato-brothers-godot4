@@ -193,6 +193,7 @@ static func _core_pack() -> GogoContentPackDefinition:
 	var zone := GogoZoneDefinition.new()
 	zone.content_id = ZONE_ID
 	zone.display_name = "训练场"
+	zone.icon_asset_id = &"zone_thumbnail"
 	var wave_specs := [
 		{
 			"number": 1,

@@ -156,13 +156,19 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	await get_tree().process_frame
 	var coverage_host := app.get_node("SceneHost") as Node
 	var difficulty_route := coverage_host.get_child(0) as Control
+	var task_option := difficulty_route.get_node_or_null("TaskOptionButton") as OptionButton
 	if not _require(
 		difficulty_route.get_script() != null
 		and (difficulty_route.get_script() as Script).resource_path
 			== "res://game/ui/difficulty_select_screen.gd"
-		and difficulty_route.get_node_or_null("SelectedDifficultyDetail/ZoneThumbnail") is TextureRect
-		and (difficulty_route.get_node("SelectedDifficultyDetail/ZoneThumbnail") as TextureRect).is_visible_in_tree(),
-		"real visible zone-thumbnail coverage"
+		and task_option != null
+		and task_option.is_visible_in_tree()
+		and task_option.item_count == content.all(&"zone").size()
+		and task_option.selected >= 0
+		and task_option.get_item_metadata(task_option.selected) == ValidationContentFactory.ZONE_ID
+		and task_option.get_item_icon(task_option.selected) != null
+		and (difficulty_route.get_node("DifficultyStage") as Control).visible,
+		"real visible inline task-option zone coverage"
 	):
 		return
 	if not _require(app.route(FlowRoute.DIAGNOSTIC, {

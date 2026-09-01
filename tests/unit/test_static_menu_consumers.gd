@@ -61,7 +61,7 @@ func test_main_menu_starts_with_a_visible_keyboard_and_gamepad_focus() -> void:
 	assert_bool(start_button.has_focus()).is_true()
 
 
-func test_difficulty_route_displays_unframed_zone_thumbnail_inside_detail() -> void:
+func test_difficulty_route_uses_inline_task_option_with_the_real_zone_icon() -> void:
 	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
 	var app := auto_free(AppKernel.new()) as AppKernel
 	app.add_to_group(&"gogobro_app")
@@ -71,19 +71,33 @@ func test_difficulty_route_displays_unframed_zone_thumbnail_inside_detail() -> v
 	var screen := auto_free(DIFFICULTY_SELECT.new()) as GogoScreenBase
 	screen.static_asset_snapshot_override = _static_ui_snapshot()
 	add_child(screen)
-	var detail := screen.get_node("SelectedDifficultyDetail") as Control
-	var thumbnail := detail.get_node_or_null("ZoneThumbnail") as TextureRect
-	assert_object(thumbnail).is_not_null()
-	if thumbnail == null:
+	var task_option := screen.get_node_or_null("TaskOptionButton") as OptionButton
+	var difficulty_stage := screen.get_node_or_null("DifficultyStage") as Control
+	assert_object(task_option).is_not_null()
+	assert_object(difficulty_stage).is_not_null()
+	assert_object(screen.get_node_or_null("SelectedDifficultyDetail")).is_null()
+	assert_object(screen.get_node_or_null("ZoneStage")).is_null()
+	if task_option == null or difficulty_stage == null:
 		return
-	assert_object(thumbnail.texture).is_not_null()
-	assert_bool(thumbnail.is_visible_in_tree()).is_true()
-	assert_int(thumbnail.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
-	assert_vector(thumbnail.size).is_equal(Vector2(256, 144))
-	assert_bool(detail.get_node_or_null("ZoneThumbnailFrame") == null).is_true()
-	for node_name in ["Icon", "Name", "Kind", "Multipliers"]:
-		var control := detail.get_node(node_name) as Control
-		assert_bool(Rect2(Vector2.ZERO, detail.size).encloses(Rect2(control.position, control.size))).is_true()
+	assert_int(task_option.item_count).is_equal(content.all(&"zone").size())
+	assert_int(task_option.item_count).is_equal(1)
+	assert_int(task_option.selected).is_equal(0)
+	assert_str(String(task_option.get_item_metadata(0))).is_equal(
+		String(ValidationContentFactory.ZONE_ID)
+	)
+	assert_str(task_option.get_item_text(0)).is_equal("任务 · 训练场")
+	assert_str(task_option.get_item_tooltip(0)).is_equal("训练场 · 20 波 · 从第 1 波开始")
+	assert_object(task_option.get_item_icon(0)).is_not_null()
+	assert_int(task_option.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
+	var zone := content.definition(
+		ValidationContentFactory.ZONE_ID, &"zone"
+	) as GogoZoneDefinition
+	assert_object(zone).is_not_null()
+	if zone != null:
+		assert_str(String(zone.icon_asset_id)).is_equal("zone_thumbnail")
+	assert_bool((screen.get_node("RosterStrip") as Control).visible).is_true()
+	assert_bool(difficulty_stage.visible).is_false()
+	assert_object(app.current_session).is_null()
 
 
 func test_diagnostic_route_uses_one_centered_principal_surface() -> void:

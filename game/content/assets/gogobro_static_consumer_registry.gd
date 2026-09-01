@@ -70,6 +70,39 @@ static func observe_visible_texture(
 	)
 
 
+static func observe_visible_option_icon(
+	handle: GogoStaticAssetHandle,
+	option: OptionButton,
+	scene_path: String,
+	node_path: String,
+	integer_display_scale := Vector2i.ONE,
+	source_kind: StringName = &""
+) -> bool:
+	if (
+		handle == null
+		or handle.texture == null
+		or option == null
+		or not option.is_inside_tree()
+		or not option.is_visible_in_tree()
+		or option.selected < 0
+		or option.selected >= option.item_count
+		or option.get_item_icon(option.selected) != handle.texture
+		or integer_display_scale != Vector2i.ONE
+		or not _is_allowed_scene(scene_path)
+		or node_path.strip_edges().is_empty()
+		or not _has_verified_provenance(option, scene_path, node_path)
+	):
+		return false
+	return current().observe(
+		handle,
+		scene_path,
+		node_path,
+		integer_display_scale,
+		source_kind,
+		true
+	)
+
+
 func observe(
 	handle: GogoStaticAssetHandle,
 	scene_path: String,

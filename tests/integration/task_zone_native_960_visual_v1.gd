@@ -32,26 +32,41 @@ func test_real_task_selector_and_character_roster_render_at_native_960() -> void
 	await _settle(4)
 	var host := app.get_node("SceneHost") as Node
 	var screen := host.get_child(0) as Control
-	var task_button := screen.get_node("TaskButton") as Button
-	assert_str(task_button.text).is_equal("任务 · 训练场")
-	assert_str(task_button.tooltip_text).contains("20 波")
+	var task_option := screen.get_node("TaskOptionButton") as OptionButton
+	var roster := screen.get_node("RosterStrip") as GridContainer
+	assert_object(screen.get_node_or_null("TaskButton")).is_null()
+	assert_object(screen.get_node_or_null("ZoneStage")).is_null()
+	assert_bool(roster.visible).is_true()
+	assert_int(roster.get_child_count()).is_equal(24)
+	assert_int(task_option.item_count).is_equal(1)
+	assert_int(task_option.selected).is_equal(0)
+	assert_str(task_option.text).is_equal("任务 · 训练场")
+	assert_str(task_option.tooltip_text).is_equal("训练场 · 20 波 · 从第 1 波开始")
+	assert_str(String(task_option.get_item_metadata(0))).is_equal(
+		String(ValidationContentFactory.ZONE_ID)
+	)
+	assert_object(task_option.get_item_icon(0)).is_not_null()
+	var zone := app.content_snapshot.definition(
+		ValidationContentFactory.ZONE_ID, &"zone"
+	) as GogoZoneDefinition
+	assert_object(zone).is_not_null()
+	if zone != null:
+		assert_str(String(zone.icon_asset_id)).is_equal("zone_thumbnail")
+	assert_int(screen.find_children("UnavailableZoneSlot*", "Button", true, false).size()).is_equal(0)
 	assert_int(_capture(root_window, "character-roster-960x540.png")).is_equal(OK)
-	task_button.pressed.emit()
+	task_option.grab_focus()
 	await _settle(4)
-	var zone_stage := screen.get_node("ZoneStage") as Control
-	var option := zone_stage.get_node("ZoneGrid/ZoneOption0") as Button
-	assert_bool(zone_stage.visible).is_true()
-	assert_bool((screen.get_node("RosterStrip") as Control).visible).is_false()
-	assert_str(String(option.get_meta(&"content_id", &""))).is_equal(String(ValidationContentFactory.ZONE_ID))
-	assert_object((option.get_node("Thumbnail") as TextureRect).texture).is_not_null()
-	assert_object((zone_stage.get_node("SelectedZoneDetail/Thumbnail") as TextureRect).texture).is_not_null()
+	assert_bool(task_option.has_focus()).is_true()
 	assert_int(_capture(root_window, "task-selector-960x540.png")).is_equal(OK)
-	option.pressed.emit()
+	task_option.item_selected.emit(0)
 	await _settle(3)
-	assert_bool(zone_stage.visible).is_false()
-	assert_bool((screen.get_node("RosterStrip") as Control).visible).is_true()
+	assert_str(String(app.selection_draft.get("zone_id", &""))).is_equal(
+		String(ValidationContentFactory.ZONE_ID)
+	)
+	assert_bool(roster.visible).is_true()
+	assert_bool(task_option.has_focus()).is_true()
 	assert_object(app.current_session).is_null()
-	print("TASK_ZONE_NATIVE_960_OK captures=2 zone=training_ground waves=20 start=1")
+	print("TASK_ZONE_NATIVE_960_OK captures=2 zone=training_ground waves=20 start=1 items=1 inline=true")
 
 
 func _capture(root_window: Window, filename: String) -> Error:

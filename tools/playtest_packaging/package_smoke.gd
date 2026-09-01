@@ -89,14 +89,15 @@ func _run() -> void:
 		finish()
 		return
 	var selection_host := host.get_child(0)
-	var task_button := selection_host.get_node_or_null("TaskButton") as Button
-	var zone_stage := selection_host.get_node_or_null("ZoneStage") as Control
+	var task_option := selection_host.get_node_or_null("TaskOptionButton") as OptionButton
+	var zone_stage := selection_host.get_node_or_null("ZoneStage")
 	var roster := selection_host.get_node_or_null("RosterStrip") as GridContainer
 	var weapon_stage := selection_host.get_node_or_null("WeaponStage") as Control
 	var difficulty_stage := selection_host.get_node_or_null("DifficultyStage") as Control
 	var niko_preview := selection_host.get_node_or_null("NikoDetail/Preview") as TextureRect
 	var niko_cell := selection_host.get_node_or_null("RosterStrip/NikoCell") as Button
-	check(task_button != null and zone_stage != null and weapon_stage != null and difficulty_stage != null, "same-host stages exist")
+	check(task_option != null and zone_stage == null and weapon_stage != null and difficulty_stage != null,
+		"inline task option and same-host later stages exist")
 	check(niko_preview != null and niko_preview.texture != null, "NiKo preview loaded")
 	check(niko_cell != null and niko_cell.is_visible_in_tree() and not niko_cell.disabled, "actual NiKo choice")
 	check(roster != null and roster.columns == 6 and roster.get_child_count() == 24, "exact 6x4 character roster")
@@ -114,67 +115,55 @@ func _run() -> void:
 				and slot_index != null and slot_index.text == "%02d" % (index + 1)
 				and glyph != null and glyph.text == "?" and status != null and status.text == "未开放",
 				"neutral unavailable character placeholder %d" % index)
+	if task_option == null or roster == null or weapon_stage == null or difficulty_stage == null or niko_cell == null:
+		finish()
+		return
+	var zone := content.definition(
+		&"gogobro.core:zone/training_ground", &"zone"
+	) as GogoZoneDefinition
+	var task_item_ready := task_option != null and task_option.item_count == 1
+	var task_item_id := task_option.get_item_metadata(0) if task_item_ready else &""
+	var task_item_icon := task_option.get_item_icon(0) if task_item_ready else null
 	check(app.current_session == null, "no inventory/session before character choice")
-	check(task_button != null and task_button.is_visible_in_tree() and not task_button.disabled
-		and task_button.text == "任务 · 训练场" and task_button.tooltip_text == "训练场 · 20 波 · 从第 1 波开始",
-		"actual task button summarizes the selected training ground")
-	check(zone_stage != null and not zone_stage.visible, "task selector begins closed")
-	if not failures.is_empty():
-		finish()
-		return
-	task_button.pressed.emit()
+	check(task_item_ready and task_option.is_visible_in_tree() and not task_option.disabled
+		and task_option.selected == 0 and task_option.text == "任务 · 训练场"
+		and task_option.tooltip_text == "训练场 · 20 波 · 从第 1 波开始",
+		"compact task option summarizes the selected training ground")
+	check(task_item_id == &"gogobro.core:zone/training_ground"
+		and task_option.get_item_text(0) == "任务 · 训练场"
+		and task_option.get_item_tooltip(0) == "训练场 · 20 波 · 从第 1 波开始",
+		"task option metadata is the actual sequential zone contract")
+	check(zone != null and zone.icon_asset_id == &"zone_thumbnail" and task_item_icon != null,
+		"training-ground task option resolves its declared real icon")
+	check(content.all(&"zone").size() == task_option.item_count,
+		"task option contains every real zone and no synthetic entries")
+	check(selection_host.find_children("UnavailableZoneSlot*", "Button", true, false).is_empty(),
+		"task option has no unavailable task placeholders")
+	check(roster.visible and not weapon_stage.visible and not difficulty_stage.visible,
+		"inline task option keeps the character page visible")
+	task_option.grab_focus()
 	await settle()
-	check(zone_stage.visible and not roster.visible and not weapon_stage.visible and not difficulty_stage.visible,
-		"task selector replaces later setup stages")
-	check(task_button.disabled and task_button.focus_mode == Control.FOCUS_NONE,
-		"task button cannot reactivate its open overlay")
-	var zone_option := zone_stage.get_node_or_null("ZoneGrid/ZoneOption0") as Button
-	var zone_thumbnail := zone_stage.get_node_or_null("ZoneGrid/ZoneOption0/Thumbnail") as TextureRect
-	var zone_detail_thumbnail := zone_stage.get_node_or_null("SelectedZoneDetail/Thumbnail") as TextureRect
-	var zone_name := zone_stage.get_node_or_null("ZoneGrid/ZoneOption0/Name") as Label
-	var zone_wave_count := zone_stage.get_node_or_null("ZoneGrid/ZoneOption0/WaveCount") as Label
-	var zone_start_wave := zone_stage.get_node_or_null("ZoneGrid/ZoneOption0/StartWave") as Label
-	check(zone_option != null and zone_option.is_visible_in_tree() and not zone_option.disabled
-		and zone_option.focus_mode != Control.FOCUS_NONE
-		and zone_option.get_meta(&"content_id", &"") == &"gogobro.core:zone/training_ground",
-		"one actual training-ground task card")
-	check(zone_option != null and zone_option.has_focus(), "task selector focuses the actual task card")
-	check(zone_thumbnail != null and zone_thumbnail.texture != null
-		and zone_detail_thumbnail != null and zone_detail_thumbnail.texture != null,
-		"task card and task detail thumbnails loaded")
-	check(zone_name != null and zone_name.text == "训练场"
-		and zone_wave_count != null and zone_wave_count.text == "20 波"
-		and zone_start_wave != null and zone_start_wave.text == "从第 1 波开始",
-		"task card exposes the exact sequential wave contract")
-	var unavailable_zones := zone_stage.find_children("UnavailableZoneSlot*", "Button", true, false)
-	check(unavailable_zones.size() == 2, "exactly two unavailable task placeholders")
-	for candidate in unavailable_zones:
-		var placeholder := candidate as Button
-		var glyph := placeholder.get_node_or_null("Glyph") as Label if placeholder != null else null
-		var status := placeholder.get_node_or_null("Status") as Label if placeholder != null else null
-		check(placeholder != null and placeholder.disabled and placeholder.focus_mode == Control.FOCUS_NONE
-			and not placeholder.has_meta(&"content_id") and placeholder.text.is_empty()
-			and placeholder.get_signal_connection_list(&"pressed").is_empty()
-			and glyph != null and glyph.text == "?" and status != null and status.text == "未开放",
-			"neutral unavailable task placeholder")
-	check(app.current_session == null, "task selector creates no session")
+	check(task_option.has_focus(), "inline task option accepts keyboard and gamepad focus")
+	check(app.current_session == null, "task option focus creates no session")
 	if not failures.is_empty():
 		finish()
 		return
-	print("PACKAGE_TASK_ZONE_OK zone=training_ground waves=20 start=1 placeholders=2")
+	print("PACKAGE_TASK_ZONE_OK zone=training_ground waves=20 start=1 items=1 placeholders=0 inline=true")
 	if not await save_viewport("task-selector"):
 		finish()
 		return
-	zone_option.pressed.emit()
+	task_option.item_selected.emit(0)
 	await settle()
 	check(app.selection_draft.get("zone_id", &"") == &"gogobro.core:zone/training_ground",
 		"task choice commits the actual training-ground content ID")
-	check(not zone_stage.visible and roster.visible, "task choice returns to the character roster")
-	check(niko_cell.has_focus() and not niko_cell.disabled, "task choice restores the actionable character focus")
+	check(roster.visible and task_option.has_focus(), "task choice stays inline with the character roster")
 	check(app.current_session == null, "task choice still creates no session")
 	if not failures.is_empty():
 		finish()
 		return
+	niko_cell.grab_focus()
+	await settle()
+	check(niko_cell.has_focus() and not niko_cell.disabled, "character roster remains actionable after task choice")
 	print("PACKAGE_CHARACTER_GRID_OK columns=6 rows=4 live=1 placeholders=23")
 	check(not weapon_stage.visible and not difficulty_stage.visible, "character-only hides later stages")
 	if not failures.is_empty() or not await save_viewport("character-only"):

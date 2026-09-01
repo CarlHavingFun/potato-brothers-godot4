@@ -207,7 +207,7 @@ try{
         $progressIndexes.PACKAGE_ENDLESS_21_22_OK -lt $progressIndexes.PACKAGE_PROFILE_READBACK_OK -and $progressIndexes.PACKAGE_PROFILE_READBACK_OK -lt $wireIndex)){
         throw 'PCK progression marker order mismatch.'
     }
-    if($lines[$progressIndexes.PACKAGE_TASK_ZONE_OK] -cne 'PACKAGE_TASK_ZONE_OK zone=training_ground waves=20 start=1 placeholders=2'){
+    if($lines[$progressIndexes.PACKAGE_TASK_ZONE_OK] -cne 'PACKAGE_TASK_ZONE_OK zone=training_ground waves=20 start=1 items=1 placeholders=0 inline=true'){
         throw 'PCK task-zone receipt mismatch.'
     }
     if($lines[$progressIndexes.PACKAGE_CHARACTER_GRID_OK] -cne 'PACKAGE_CHARACTER_GRID_OK columns=6 rows=4 live=1 placeholders=23'){
