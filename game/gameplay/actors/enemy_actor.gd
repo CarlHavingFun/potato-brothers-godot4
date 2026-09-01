@@ -1,9 +1,9 @@
 class_name GogoEnemyActor
 extends CharacterBody2D
 
-const HIT_FLASH_SECONDS := 0.055
-const HIT_SQUASH_SECONDS := 0.090
-const HIT_FLASH_GAIN := 0.42
+const HIT_FLASH_SECONDS := 0.075
+const HIT_SQUASH_SECONDS := 0.110
+const HIT_FLASH_GAIN := 0.58
 const HIT_SQUASH_X := 0.10
 const HIT_SQUASH_Y := 0.08
 const TARGET_LOCAL_HITSTOP_MAX_SECONDS := 0.050
@@ -12,6 +12,10 @@ const CHARGE_RECOVERY_SECONDS := 2.20
 const CHARGE_SPEED_MULTIPLIER := 3.20
 const CHARGE_WARNING_TINT := Color(1.0, 0.52, 0.34, 1.0)
 const BODY_RADIUS := 14.0
+const GROUND_SHADOW_CENTER := Vector2(0.0, 13.0)
+const GROUND_SHADOW_SCALE := Vector2(1.0, 0.36)
+const GROUND_SHADOW_COLOR := Color(0.02, 0.025, 0.03, 0.28)
+const GROUND_SHADOW_RADIUS := 16.0
 const ENEMY_COLLISION_LAYER := 1 << 1
 const WORLD_COLLISION_LAYER := 1 << 7
 const HIT_FLASH_SHADER_CODE := """
@@ -412,6 +416,9 @@ static func visual_color_for_role(role: GogoEnemyDefinition.Role) -> Color:
 
 
 func _draw() -> void:
+	draw_set_transform(GROUND_SHADOW_CENTER, 0.0, GROUND_SHADOW_SCALE)
+	draw_circle(Vector2.ZERO, GROUND_SHADOW_RADIUS, GROUND_SHADOW_COLOR)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if is_charge_telegraphing():
 		draw_arc(Vector2.ZERO, 21.0, 0.0, TAU, 24, Color("ff4438"), 3.0)
 		draw_line(Vector2.ZERO, _committed_charge_direction * 29.0, Color("ffd45a"), 3.0)

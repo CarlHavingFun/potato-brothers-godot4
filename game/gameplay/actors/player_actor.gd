@@ -18,6 +18,10 @@ const WEAPON_CONTAINER_OFFSET := Vector2.ZERO
 const WEAPON_VISUAL_SCALE := 1.0
 const SINGLE_WEAPON_OFFSET := Vector2(0.0, 48.0)
 const MAX_WEAPON_SLOTS := 6
+const GROUND_SHADOW_CENTER := Vector2(0.0, 18.0)
+const GROUND_SHADOW_SCALE := Vector2(1.0, 0.34)
+const GROUND_SHADOW_COLOR := Color(0.02, 0.025, 0.03, 0.30)
+const GROUND_SHADOW_RADIUS := 19.0
 
 signal died
 signal health_changed(current: float, maximum: float)
@@ -368,6 +372,9 @@ func weapon_idle_angle() -> float:
 
 
 func _draw() -> void:
+	draw_set_transform(GROUND_SHADOW_CENTER, 0.0, GROUND_SHADOW_SCALE)
+	draw_circle(Vector2.ZERO, GROUND_SHADOW_RADIUS, GROUND_SHADOW_COLOR)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if character_visual != null:
 		return
 	var body_color := Color("86d98b") if damage_cooldown <= 0.0 else Color("ffffff")

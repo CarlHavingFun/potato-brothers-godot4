@@ -100,7 +100,7 @@ func _run() -> void:
 		"inline task option and same-host later stages exist")
 	check(niko_preview != null and niko_preview.texture != null, "NiKo preview loaded")
 	check(niko_cell != null and niko_cell.is_visible_in_tree() and not niko_cell.disabled, "actual NiKo choice")
-	check(roster != null and roster.columns == 6 and roster.get_child_count() == 24, "exact 6x4 character roster")
+	check(roster != null and roster.columns == 8 and roster.get_child_count() == 24, "exact 8x3 character roster")
 	if roster != null and roster.get_child_count() == 24:
 		check(roster.get_child(0) == niko_cell and niko_cell.focus_mode != Control.FOCUS_NONE
 			and niko_cell.has_meta(&"content_id"), "NiKo is the only live first roster cell")
@@ -113,7 +113,7 @@ func _run() -> void:
 				and not placeholder.has_meta(&"content_id") and placeholder.text.is_empty()
 				and placeholder.get_signal_connection_list(&"pressed").is_empty()
 				and slot_index != null and slot_index.text == "%02d" % (index + 1)
-				and glyph != null and glyph.text == "?" and status != null and status.text == "未开放",
+				and glyph != null and glyph.text == "空位" and status != null and status.text == "待开放",
 				"neutral unavailable character placeholder %d" % index)
 	if task_option == null or roster == null or weapon_stage == null or difficulty_stage == null or niko_cell == null:
 		finish()
@@ -166,7 +166,7 @@ func _run() -> void:
 	niko_cell.grab_focus()
 	await settle()
 	check(niko_cell.has_focus() and not niko_cell.disabled, "character roster remains actionable after task choice")
-	print("PACKAGE_CHARACTER_GRID_OK columns=6 rows=4 live=1 placeholders=23")
+	print("PACKAGE_CHARACTER_GRID_OK columns=8 rows=3 live=1 placeholders=23")
 	check(not weapon_stage.visible and not difficulty_stage.visible, "character-only hides later stages")
 	if not failures.is_empty() or not await save_viewport("character-only"):
 		finish()

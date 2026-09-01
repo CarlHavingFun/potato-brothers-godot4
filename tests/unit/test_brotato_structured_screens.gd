@@ -712,13 +712,13 @@ func test_character_setup_has_exactly_one_real_niko_cell_and_first_frame_detail(
 	var roster := screen.get_node_or_null("RosterStrip") as GridContainer
 	if roster == null:
 		return
-	assert_int(roster.columns).is_equal(6)
+	assert_int(roster.columns).is_equal(8)
 	assert_int(roster.get_child_count()).is_equal(24)
 	assert_str((screen.get_node("RosterCaption") as Label).text).is_equal("角色档案 · 已解锁 1 / 24")
 	var niko_cell := roster.get_node("NikoCell") as Button
 	assert_str(String(niko_cell.get_meta(&"content_id", &""))).is_equal(String(NIKO_ID))
 	assert_bool(niko_cell.focus_mode == Control.FOCUS_ALL).is_true()
-	assert_bool(niko_cell.custom_minimum_size.is_equal_approx(Vector2(143, 116))).is_true()
+	assert_bool(niko_cell.custom_minimum_size.is_equal_approx(Vector2(104, 112))).is_true()
 	assert_str((niko_cell.get_node("SlotIndex") as Label).text).is_equal("01")
 	assert_str((niko_cell.get_node("RoleTag") as Label).text).is_equal("均衡")
 	var draft_before := app.selection_draft.duplicate(true)
@@ -732,8 +732,8 @@ func test_character_setup_has_exactly_one_real_niko_cell_and_first_frame_detail(
 		assert_str(String(slot.name)).starts_with("UnavailableCharacterSlot")
 		assert_str(slot.text).is_empty()
 		assert_str((slot.get_node("SlotIndex") as Label).text).is_equal("%02d" % (unavailable_count + 1))
-		assert_str((slot.get_node("Glyph") as Label).text).is_equal("?")
-		assert_str((slot.get_node("Status") as Label).text).is_equal("未开放")
+		assert_str((slot.get_node("Glyph") as Label).text).is_equal("空位")
+		assert_str((slot.get_node("Status") as Label).text).is_equal("待开放")
 		assert_bool(slot.disabled).is_true()
 		assert_int(slot.focus_mode).is_equal(Control.FOCUS_NONE)
 		assert_bool(slot.has_meta(&"content_id")).is_false()
@@ -766,7 +766,7 @@ func test_character_setup_has_exactly_one_real_niko_cell_and_first_frame_detail(
 	assert_int(_authored_panel_container_count(screen)).is_equal(0)
 	assert_bool(
 		(screen.get_node("RosterStrip") as Control).get_rect().is_equal_approx(
-			Rect2(348, 140, 900, 488)
+			Rect2(348, 140, 900, 360)
 		)
 	).is_true()
 	assert_bool(

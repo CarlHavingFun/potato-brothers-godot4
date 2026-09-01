@@ -181,7 +181,7 @@ func test_escape_uses_the_same_progressive_back_rule_and_focus_restoration() -> 
 	assert_object(app.current_session).is_null()
 
 
-func test_initial_picker_is_six_by_four_with_one_real_niko_and_twenty_three_unavailable_slots() -> void:
+func test_initial_picker_is_eight_by_three_with_one_real_niko_and_twenty_three_unavailable_slots() -> void:
 	var fixture := await _fixture()
 	var app := fixture.app as AppKernel
 	var host := fixture.host as Control
@@ -194,7 +194,7 @@ func test_initial_picker_is_six_by_four_with_one_real_niko_and_twenty_three_unav
 	assert_object(change).is_not_null()
 	if roster == null or niko == null or change == null:
 		return
-	assert_int(roster.columns).is_equal(6)
+	assert_int(roster.columns).is_equal(8)
 	assert_int(roster.get_child_count()).is_equal(24)
 	assert_int(int(ProjectSettings.get_setting("display/window/size/viewport_width"))).is_equal(1280)
 	assert_int(int(ProjectSettings.get_setting("display/window/size/viewport_height"))).is_equal(720)
@@ -230,8 +230,8 @@ func test_initial_picker_is_six_by_four_with_one_real_niko_and_twenty_three_unav
 		assert_str(String(cell.name)).is_equal("UnavailableCharacterSlot%02d" % slot_number)
 		assert_str(cell.tooltip_text).contains("角色槽位 %02d" % slot_number)
 		assert_str(cell.text).is_empty()
-		assert_str((cell.get_node("Glyph") as Label).text).is_equal("?")
-		assert_str((cell.get_node("Status") as Label).text).is_equal("未开放")
+		assert_str((cell.get_node("Glyph") as Label).text).is_equal("空位")
+		assert_str((cell.get_node("Status") as Label).text).is_equal("待开放")
 		assert_int(cell.get_signal_connection_list(&"pressed").size()).is_equal(0)
 		for neighbor_path in [
 			cell.focus_neighbor_left,

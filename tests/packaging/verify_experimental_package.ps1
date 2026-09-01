@@ -335,7 +335,7 @@ try{
     if($lines[$progressIndexes.PACKAGE_TASK_ZONE_OK] -cne 'PACKAGE_TASK_ZONE_OK zone=training_ground waves=20 start=1 items=1 placeholders=0 inline=true'){
         throw 'PCK task-zone receipt mismatch.'
     }
-    if($lines[$progressIndexes.PACKAGE_CHARACTER_GRID_OK] -cne 'PACKAGE_CHARACTER_GRID_OK columns=6 rows=4 live=1 placeholders=23'){
+    if($lines[$progressIndexes.PACKAGE_CHARACTER_GRID_OK] -cne 'PACKAGE_CHARACTER_GRID_OK columns=8 rows=3 live=1 placeholders=23'){
         throw 'PCK character grid receipt mismatch.'
     }
     $counterLine=@($lines|Where-Object {$_ -match '^PACKAGE_COUNTER_STRAFE_OK(?:\s|$)'})

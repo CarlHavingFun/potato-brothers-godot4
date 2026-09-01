@@ -190,7 +190,7 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 				and cell.has_node("SlotIndex")
 				and cell.has_node("Glyph")
 				and cell.has_node("Status")
-				and (cell.get_node("Status") as Label).text == "未开放"
+				and (cell.get_node("Status") as Label).text == "待开放"
 				and cell.disabled
 				and cell.focus_mode == Control.FOCUS_NONE
 				and not cell.has_meta(&"content_id")
@@ -207,7 +207,7 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 		and not (character_screen.get_node("NikoDetail/Traits") as Label).text.is_empty()
 		and character_screen.get_node_or_null("RosterCaption") is Label
 		and roster != null
-		and roster.columns == 6
+		and roster.columns == 8
 		and roster.get_child_count() == 24
 		and niko_cell != null
 		and niko_cell.get_meta(&"content_id", &"") == NikoContentFactory.CHARACTER_ID
@@ -218,7 +218,7 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 		and change_character.disabled
 		and not (character_screen.get_node("WeaponStage") as Control).visible
 		and not (character_screen.get_node("DifficultyStage") as Control).visible,
-		"six-by-four Niko plus unavailable character picker"
+		"eight-by-three Niko plus unavailable character picker"
 	):
 		return
 	if not _require(

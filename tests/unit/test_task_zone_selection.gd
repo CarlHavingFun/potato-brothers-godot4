@@ -51,10 +51,10 @@ func test_task_option_lists_only_real_zones_inline_without_creating_a_session() 
 		var icon_record := icon_records[0] as Dictionary
 		assert_bool(icon_record.has("integer_display_scale")).is_false()
 		assert_vector(icon_record.get("rendered_size_px", Vector2.ZERO)).is_equal_approx(
-			Vector2(40.0, 23.0), Vector2(0.001, 0.001)
+			Vector2(48.0, 27.0), Vector2(0.001, 0.001)
 		)
 		assert_vector(icon_record.get("display_scale", Vector2.ZERO)).is_equal_approx(
-			Vector2(0.15625, 23.0 / 144.0), Vector2(0.00001, 0.00001)
+			Vector2(0.1875, 0.1875), Vector2(0.00001, 0.00001)
 		)
 		var snapshot := app.static_asset_service.active_snapshot()
 		var report := GogoStaticCoverageAudit.build(
@@ -66,10 +66,10 @@ func test_task_option_lists_only_real_zones_inline_without_creating_a_session() 
 		assert_int(accepted.size()).is_equal(1)
 		if accepted.size() == 1:
 			assert_vector(_vector2(accepted[0].get("rendered_size_px", []))).is_equal(
-				Vector2(40.0, 23.0)
+				Vector2(48.0, 27.0)
 			)
 			assert_vector(_vector2(accepted[0].get("display_scale", []))).is_equal_approx(
-				Vector2(0.15625, 23.0 / 144.0), Vector2(0.00001, 0.00001)
+				Vector2(0.1875, 0.1875), Vector2(0.00001, 0.00001)
 			)
 		var forged_records := icon_records.duplicate(true)
 		forged_records[0]["display_scale"] = Vector2.ONE

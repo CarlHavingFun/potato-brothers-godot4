@@ -5,14 +5,14 @@ const ZONE_PRESENTER := preload("res://game/ui/selection_zone_presenter.gd")
 const WEAPON_PRESENTER := preload("res://game/ui/selection_weapon_presenter.gd")
 const DIFFICULTY_PRESENTER := preload("res://game/ui/selection_difficulty_presenter.gd")
 const ROSTER_CAPTION_RECT := Rect2(348, 104, 900, 28)
-const ROSTER_RECT := Rect2(348, 140, 900, 488)
-const ROSTER_CELL_SIZE := Vector2(143, 116)
+const ROSTER_RECT := Rect2(348, 140, 900, 360)
+const ROSTER_CELL_SIZE := Vector2(104, 112)
 const ROSTER_CAPACITY := 24
-const ROSTER_COLUMNS := 6
-const PLACEHOLDER_STATUS := "未开放"
+const ROSTER_COLUMNS := 8
+const PLACEHOLDER_STATUS := "待开放"
 const CHANGE_CHARACTER_RECT := Rect2(32, 648, 300, 56)
 const DETAIL_RECT := Rect2(32, 104, 300, 510)
-const TASK_OPTION_RECT := Rect2(1010, 28, 238, 48)
+const TASK_OPTION_RECT := Rect2(944, 24, 304, 56)
 var _zones := ZONE_PRESENTER.new()
 var _weapons := WEAPON_PRESENTER.new()
 var _difficulties := DIFFICULTY_PRESENTER.new()
@@ -131,8 +131,15 @@ func _build_niko_detail(niko: CharacterDefinition) -> void:
 	preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	detail.add_child(preview)
-	_detail_label(detail, "SectionTitle", Vector2(20, 286), Vector2(260, 30), 22).text = "基础属性"
-	var traits := _detail_label(detail, "Traits", Vector2(20, 320), Vector2(260, 174), 19)
+	var control_profile := _detail_label(
+		detail, "ControlProfile", Vector2(20, 286), Vector2(260, 22), 13
+	)
+	control_profile.text = "反向急停  ·  自动开火"
+	control_profile.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	control_profile.add_theme_color_override(&"font_color", Color("f2a14a"))
+	control_profile.add_theme_constant_override(&"outline_size", 0)
+	_detail_label(detail, "SectionTitle", Vector2(20, 314), Vector2(260, 28), 21).text = "基础属性"
+	var traits := _detail_label(detail, "Traits", Vector2(20, 346), Vector2(260, 150), 17)
 	traits.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	traits.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	traits.text = _niko_summary(niko)
@@ -164,8 +171,8 @@ func _build_roster(niko: CharacterDefinition) -> void:
 	roster.add_child(cell)
 	var portrait := TextureRect.new()
 	portrait.name = "Preview"
-	portrait.position = Vector2(10, 18)
-	portrait.size = Vector2(60, 80)
+	portrait.position = Vector2(23, 12)
+	portrait.size = Vector2(58, 70)
 	portrait.texture = _first_frame(niko)
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -173,16 +180,16 @@ func _build_roster(niko: CharacterDefinition) -> void:
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cell.add_child(portrait)
 	icon_fallback(cell, "Fallback", portrait.position, portrait.size, niko.display_name).visible = portrait.texture == null
-	var slot_index := _detail_label(cell, "SlotIndex", Vector2(9, 4), Vector2(34, 18), 14)
+	var slot_index := _detail_label(cell, "SlotIndex", Vector2(7, 4), Vector2(28, 16), 12)
 	slot_index.text = "01"
-	var availability := _detail_label(cell, "Availability", Vector2(99, 5), Vector2(36, 18), 12)
+	var availability := _detail_label(cell, "Availability", Vector2(61, 5), Vector2(36, 16), 11)
 	availability.text = "可用"
 	availability.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	var cell_name := _detail_label(cell, "Name", Vector2(76, 29), Vector2(58, 30), 18)
+	var cell_name := _detail_label(cell, "Name", Vector2(4, 84), Vector2(96, 22), 17)
 	cell_name.text = niko.display_name
 	cell_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cell_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	var role_tag := _detail_label(cell, "RoleTag", Vector2(76, 65), Vector2(58, 22), 14)
+	var role_tag := _detail_label(cell, "RoleTag", Vector2(50, 62), Vector2(48, 18), 11)
 	role_tag.text = "均衡"
 	role_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	role_tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -205,32 +212,28 @@ func _build_roster(niko: CharacterDefinition) -> void:
 		_apply_placeholder_fill(placeholder, slot_number)
 		roster.add_child(placeholder)
 		var placeholder_index := _detail_label(
-			placeholder, "SlotIndex", Vector2(9, 6), Vector2(38, 18), 14
+			placeholder, "SlotIndex", Vector2(8, 6), Vector2(34, 16), 12
 		)
 		placeholder_index.text = "%02d" % slot_number
-		placeholder_index.add_theme_color_override(&"font_color", Color("b4c0c8"))
-		var lock := _detail_label(placeholder, "Lock", Vector2(93, 7), Vector2(42, 16), 11)
-		lock.text = "LOCK"
-		lock.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		lock.add_theme_color_override(&"font_color", Color("d5aa72"))
-		var glyph := _detail_label(placeholder, "Glyph", Vector2(0, 20), Vector2(143, 54), 38)
-		glyph.text = "?"
+		placeholder_index.add_theme_color_override(&"font_color", Color("87949c"))
+		var glyph := _detail_label(placeholder, "Glyph", Vector2(0, 26), Vector2(104, 36), 18)
+		glyph.text = "空位"
 		glyph.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		glyph.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		glyph.add_theme_color_override(&"font_color", Color("9aa8b2"))
+		glyph.add_theme_color_override(&"font_color", Color(0.58, 0.64, 0.68, 0.58))
 		glyph.add_theme_constant_override(&"outline_size", 0)
 		var divider := ColorRect.new()
 		divider.name = "Divider"
-		divider.position = Vector2(12, 77)
-		divider.size = Vector2(119, 1)
-		divider.color = Color(0.42, 0.48, 0.52, 0.42)
+		divider.position = Vector2(12, 68)
+		divider.size = Vector2(80, 1)
+		divider.color = Color(0.42, 0.48, 0.52, 0.24)
 		divider.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		placeholder.add_child(divider)
-		var status := _detail_label(placeholder, "Status", Vector2(0, 82), Vector2(143, 24), 15)
+		var status := _detail_label(placeholder, "Status", Vector2(0, 76), Vector2(104, 24), 13)
 		status.text = PLACEHOLDER_STATUS
 		status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		status.add_theme_color_override(&"font_color", Color("c2cbd1"))
+		status.add_theme_color_override(&"font_color", Color(0.70, 0.75, 0.78, 0.72))
 	ui_button(
 		self,
 		"ChangeCharacterButton",
@@ -585,8 +588,8 @@ func _apply_selected_fill(button: Button) -> void:
 
 
 func _apply_placeholder_fill(button: Button, index: int) -> void:
-	var background := Color("1b252c") if index % 2 == 0 else Color("202c34")
-	var style := _selection_style(background, Color("71818c"), 2)
+	var background := Color("151d22") if index % 2 == 0 else Color("182127")
+	var style := _selection_style(background, Color(0.40, 0.47, 0.51, 0.32), 1)
 	button.add_theme_stylebox_override(&"normal", style)
 	button.add_theme_stylebox_override(&"hover", style)
 	button.add_theme_stylebox_override(&"focus", style)

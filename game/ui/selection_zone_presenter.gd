@@ -2,12 +2,13 @@ extends RefCounted
 
 
 const HUD_SKIN := preload("res://game/ui/hud_skin.gd")
-const OPTION_ICON_MAX_WIDTH := 40
-const POPUP_ICON_MAX_WIDTH := 64
+const OPTION_ICON_MAX_WIDTH := 48
+const POPUP_ICON_MAX_WIDTH := 112
 const POPUP_FONT_SIZE := 20
 const POPUP_HORIZONTAL_SEPARATION := 12
 const POPUP_VERTICAL_SEPARATION := 8
 const POPUP_ITEM_PADDING := 12
+const DETAIL_RECT := Rect2(584, 92, 344, 304)
 
 const POPUP_PANEL_COLOR := Color("090c0e")
 const POPUP_PANEL_BORDER_COLOR := Color("f2a241")
@@ -18,6 +19,15 @@ var _screen: GogoScreenBase
 var _button: OptionButton
 var _on_selected: Callable
 var _global_icon_handles: Dictionary = {}
+var _definitions: Dictionary = {}
+var _item_icons: Dictionary = {}
+var _detail_panel: Panel
+var _detail_thumbnail: TextureRect
+var _detail_fallback: Control
+var _detail_name: Label
+var _detail_metadata: Label
+var _detail_help: Label
+var _focus_poll_timer: Timer
 
 
 func build(
@@ -30,6 +40,8 @@ func build(
 	_screen = screen
 	_on_selected = on_selected
 	_global_icon_handles.clear()
+	_definitions.clear()
+	_item_icons.clear()
 	_button = OptionButton.new()
 	_button.name = "TaskOptionButton"
 	_button.position = rect.position
@@ -42,6 +54,7 @@ func build(
 	_button.add_theme_constant_override(&"icon_max_width", OPTION_ICON_MAX_WIDTH)
 	parent.add_child(_button)
 	_apply_popup_skin(rect)
+	_build_focus_detail(parent)
 	for definition: GogoZoneDefinition in app.content_snapshot.all(&"zone"):
 		# A task is a launchable wave graph, not merely a registered zone label.
 		# Keep malformed installed/mod content out of the selector so it cannot
@@ -60,6 +73,8 @@ func build(
 		var index := _button.item_count - 1
 		_button.set_item_metadata(index, definition.content_id)
 		_button.set_item_tooltip(index, _item_tooltip(definition))
+		_definitions[index] = definition
+		_item_icons[index] = icon
 		_button.get_popup().set_item_as_radio_checkable(index, true)
 		_button.get_popup().set_item_checked(index, false)
 		if global_handle != null:
@@ -73,6 +88,10 @@ func build(
 		_button.text = "任务 · 未选择"
 		_button.tooltip_text = "请选择任务区域"
 	_button.item_selected.connect(_activate)
+	var popup := _button.get_popup()
+	popup.about_to_popup.connect(_on_popup_about_to_show)
+	popup.popup_hide.connect(_on_popup_hidden)
+	popup.id_focused.connect(_on_popup_id_focused)
 	set_enabled(true)
 	return _button
 
@@ -121,7 +140,113 @@ func _activate(index: int) -> void:
 	if content_id.is_empty():
 		return
 	_sync_popup_selection(index)
+	_sync_focus_detail(index)
 	_on_selected.call(content_id)
+
+
+func _build_focus_detail(parent: Node) -> void:
+	_detail_panel = Panel.new()
+	_detail_panel.name = "TaskFocusDetail"
+	_detail_panel.position = DETAIL_RECT.position
+	_detail_panel.size = DETAIL_RECT.size
+	_detail_panel.z_index = 20
+	_detail_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_detail_panel.add_theme_stylebox_override(&"panel", _detail_panel_style())
+	parent.add_child(_detail_panel)
+	var eyebrow := _screen.ui_label(
+		_detail_panel, "Eyebrow", Vector2(18, 10), Vector2(308, 24), 16
+	)
+	eyebrow.text = "任务情报"
+	eyebrow.add_theme_color_override(&"font_color", HUD_SKIN.COLOR_FOCUS)
+	eyebrow.add_theme_constant_override(&"outline_size", 0)
+	_detail_thumbnail = TextureRect.new()
+	_detail_thumbnail.name = "Thumbnail"
+	_detail_thumbnail.position = Vector2(44, 38)
+	_detail_thumbnail.size = Vector2(256, 144)
+	_detail_thumbnail.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_detail_thumbnail.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_detail_thumbnail.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_detail_thumbnail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_detail_panel.add_child(_detail_thumbnail)
+	_detail_fallback = _screen.icon_fallback(
+		_detail_panel, "ThumbnailFallback", _detail_thumbnail.position,
+		_detail_thumbnail.size, "任务区域"
+	)
+	_detail_name = _screen.ui_label(
+		_detail_panel, "Name", Vector2(18, 190), Vector2(308, 34), 26
+	)
+	_detail_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_detail_metadata = _screen.ui_label(
+		_detail_panel, "Metadata", Vector2(18, 224), Vector2(308, 42), 17
+	)
+	_detail_metadata.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_detail_metadata.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_detail_help = _screen.ui_label(
+		_detail_panel, "Help", Vector2(18, 270), Vector2(308, 24), 13
+	)
+	_detail_help.text = "方向键 / 摇杆浏览  ·  确认选择  ·  取消 / Esc 关闭"
+	_detail_help.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_detail_help.add_theme_color_override(&"font_color", HUD_SKIN.COLOR_TEXT_MUTED)
+	_detail_help.add_theme_constant_override(&"outline_size", 0)
+	_detail_panel.visible = false
+	_focus_poll_timer = Timer.new()
+	_focus_poll_timer.name = "TaskFocusPoll"
+	_focus_poll_timer.wait_time = 0.016
+	_focus_poll_timer.one_shot = false
+	_focus_poll_timer.autostart = false
+	_focus_poll_timer.timeout.connect(_sync_from_popup_focus)
+	parent.add_child(_focus_poll_timer)
+
+
+func _on_popup_about_to_show() -> void:
+	if _button == null or _button.item_count <= 0:
+		return
+	var index := _button.selected
+	if index < 0 or index >= _button.item_count:
+		index = 0
+	_sync_focus_detail(index)
+	_detail_panel.visible = true
+	if _focus_poll_timer != null:
+		_focus_poll_timer.start()
+
+
+func _on_popup_hidden() -> void:
+	if _focus_poll_timer != null:
+		_focus_poll_timer.stop()
+	if _detail_panel != null:
+		_detail_panel.visible = false
+
+
+func _on_popup_id_focused(item_id: int) -> void:
+	if _button == null:
+		return
+	var index := _button.get_popup().get_item_index(item_id)
+	if index >= 0:
+		_sync_focus_detail(index)
+
+
+func _sync_from_popup_focus() -> void:
+	if _button == null:
+		return
+	var index := _button.get_popup().get_focused_item()
+	if index >= 0 and index < _button.item_count:
+		_sync_focus_detail(index)
+
+
+func _sync_focus_detail(index: int) -> void:
+	if _detail_panel == null:
+		return
+	var definition := _definitions.get(index) as GogoZoneDefinition
+	if definition == null:
+		return
+	_detail_thumbnail.texture = _item_icons.get(index) as Texture2D
+	_detail_fallback.visible = _detail_thumbnail.texture == null
+	_detail_name.text = definition.display_name
+	_detail_metadata.text = "%d 波   ·   %d × %d   ·   从第 1 波开始" % [
+		definition.wave_ids.size(),
+		roundi(definition.arena_size.x),
+		roundi(definition.arena_size.y),
+	]
 
 
 func _apply_popup_skin(rect: Rect2) -> void:
@@ -177,6 +302,17 @@ static func _popup_panel_style() -> StyleBoxFlat:
 	style.set_content_margin(SIDE_TOP, 8.0)
 	style.set_content_margin(SIDE_RIGHT, 8.0)
 	style.set_content_margin(SIDE_BOTTOM, 8.0)
+	style.anti_aliasing = false
+	style.border_blend = false
+	return style
+
+
+static func _detail_panel_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.035, 0.047, 0.055, 0.97)
+	style.border_color = POPUP_PANEL_BORDER_COLOR
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(6)
 	style.anti_aliasing = false
 	style.border_blend = false
 	return style

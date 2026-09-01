@@ -91,6 +91,10 @@ func test_real_task_selector_and_character_roster_render_at_native_960() -> void
 		return
 	popup.set_focused_item(second_index)
 	await _settle(2)
+	var detail := screen.get_node("TaskFocusDetail") as Panel
+	assert_bool(detail.visible).is_true()
+	assert_str((detail.get_node("Name") as Label).text).is_equal(second_zone.display_name)
+	assert_str((detail.get_node("Metadata") as Label).text).contains("20 波")
 	assert_int(_capture(root_window, "task-selector-popup-960x540.png")).is_equal(OK)
 	assert_str(_capture_sha256("task-selector-popup-960x540.png")).is_not_equal(
 		_capture_sha256("task-selector-960x540.png")

@@ -190,7 +190,7 @@ func test_keyboard_traversal_and_escape_keep_the_configuration_draft() -> void:
 	var roster := screen.get_node("RosterStrip") as GridContainer
 	var weapon_stage := screen.get_node("WeaponStage") as Control
 	var difficulty_stage := screen.get_node("DifficultyStage") as Control
-	assert_int(roster.columns).is_equal(6)
+	assert_int(roster.columns).is_equal(8)
 	assert_int(roster.get_child_count()).is_equal(24)
 	for child in roster.get_children():
 		var cell := child as Button

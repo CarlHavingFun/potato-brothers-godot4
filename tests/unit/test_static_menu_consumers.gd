@@ -293,7 +293,7 @@ func test_real_selection_shop_and_upgrade_routes_use_structured_setup_consumers(
 	character_screen.static_asset_snapshot_override = static_snapshot
 	add_child(character_screen)
 	var roster := character_screen.get_node("RosterStrip") as GridContainer
-	assert_int(roster.columns).is_equal(6)
+	assert_int(roster.columns).is_equal(8)
 	assert_int(roster.get_child_count()).is_equal(24)
 	assert_str(String(
 		(character_screen.get_node("RosterStrip/NikoCell") as Button).get_meta(&"content_id", &"")
@@ -305,7 +305,7 @@ func test_real_selection_shop_and_upgrade_routes_use_structured_setup_consumers(
 			continue
 		unavailable_count += 1
 		assert_str(cell.text).is_empty()
-		assert_str((cell.get_node("Status") as Label).text).is_equal("未开放")
+		assert_str((cell.get_node("Status") as Label).text).is_equal("待开放")
 		assert_bool(cell.disabled).is_true()
 		assert_int(cell.focus_mode).is_equal(Control.FOCUS_NONE)
 		assert_bool(cell.has_meta(&"content_id")).is_false()

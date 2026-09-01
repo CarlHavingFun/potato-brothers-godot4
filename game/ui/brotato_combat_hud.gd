@@ -7,6 +7,8 @@ const DEFAULT_TEXT_COLOR := Color("f4ecd0")
 const DANGER_TEXT_COLOR := Color("ff5c5c")
 const METRIC_BACKING_COLOR := Color.TRANSPARENT
 const SHELL_ALPHA := 0.0
+const LOCAL_BACKING_COLOR := Color(0.025, 0.031, 0.035, 0.62)
+const LOCAL_BACKING_BORDER := Color(0.76, 0.68, 0.49, 0.32)
 const CONTROL_HINT_AUTO_DISMISS_SECONDS := 2.5
 const TOP_LEFT_POSITION := Vector2(16, 14)
 const TOP_LEFT_SIZE := Vector2(248, 90)
@@ -118,6 +120,7 @@ func _build_hierarchy() -> void:
 	top_left.position = TOP_LEFT_POSITION
 	top_left.size = TOP_LEFT_SIZE
 	add_child(top_left)
+	top_left.add_child(_local_backing("Backing", TOP_LEFT_SIZE))
 
 	var health_metric := _metric_panel("Health", Vector2.ZERO, Vector2(248, 34))
 	top_left.add_child(health_metric)
@@ -181,6 +184,7 @@ func _build_hierarchy() -> void:
 	top_center.position = TOP_CENTER_POSITION
 	top_center.size = TOP_CENTER_SIZE
 	add_child(top_center)
+	top_center.add_child(_local_backing("Backing", TOP_CENTER_SIZE))
 	wave_label = _label("Wave", 12, HORIZONTAL_ALIGNMENT_LEFT)
 	wave_label.position = Vector2(68, 0)
 	wave_label.size = Vector2(108, 24)
@@ -237,6 +241,18 @@ func _metric_panel(node_name: String, at: Vector2, rect_size: Vector2) -> Panel:
 		_flat_style(METRIC_BACKING_COLOR, Color.TRANSPARENT, 0)
 	)
 	metric_panels.append(panel)
+	return panel
+
+
+func _local_backing(node_name: String, rect_size: Vector2) -> Panel:
+	var panel := Panel.new()
+	panel.name = node_name
+	panel.size = rect_size
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_theme_stylebox_override(
+		"panel",
+		_flat_style(LOCAL_BACKING_COLOR, LOCAL_BACKING_BORDER, 1)
+	)
 	return panel
 
 

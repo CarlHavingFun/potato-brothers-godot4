@@ -60,13 +60,13 @@ func test_capture_real_main_character_shop_and_combat_pause_at_1280() -> void:
 	assert_bool(_fits_capture(character_select.get_node("RosterCaption") as Control)).is_true()
 	var roster := character_select.get_node("RosterStrip") as GridContainer
 	assert_bool(_fits_capture(roster)).is_true()
-	assert_int(roster.columns).is_equal(6)
+	assert_int(roster.columns).is_equal(8)
 	assert_int(roster.get_child_count()).is_equal(24)
 	var character_cell := character_select.get_node("RosterStrip/NikoCell") as Button
 	assert_str(String(character_cell.get_meta(&"content_id", &""))).is_equal(
 		String(NikoContentFactory.CHARACTER_ID)
 	)
-	assert_bool(character_cell.custom_minimum_size.is_equal_approx(Vector2(143, 116))).is_true()
+	assert_bool(character_cell.custom_minimum_size.is_equal_approx(Vector2(104, 112))).is_true()
 	var unavailable_count := 0
 	for child in roster.get_children():
 		var cell := child as Button
@@ -76,8 +76,8 @@ func test_capture_real_main_character_shop_and_combat_pause_at_1280() -> void:
 		unavailable_count += 1
 		assert_str(String(cell.name)).starts_with("UnavailableCharacterSlot")
 		assert_str(cell.text).is_empty()
-		assert_str((cell.get_node("Status") as Label).text).is_equal("未开放")
-		assert_str((cell.get_node("Glyph") as Label).text).is_equal("?")
+		assert_str((cell.get_node("Status") as Label).text).is_equal("待开放")
+		assert_str((cell.get_node("Glyph") as Label).text).is_equal("空位")
 		assert_bool(cell.disabled).is_true()
 		assert_int(cell.focus_mode).is_equal(Control.FOCUS_NONE)
 		assert_bool(cell.has_meta(&"content_id")).is_false()

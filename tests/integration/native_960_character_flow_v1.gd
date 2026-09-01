@@ -47,7 +47,7 @@ func test_native_960_character_same_page_flow_waits_for_root_observation_ack(
 	var roster := screen.get_node_or_null("RosterStrip") as GridContainer
 	var niko := screen.get_node_or_null("RosterStrip/NikoCell") as Button
 	var change := screen.get_node_or_null("ChangeCharacterButton") as Button
-	if not _require(_assert_character_picker(screen, roster, niko, change), "initial 6x4 character picker"):
+	if not _require(_assert_character_picker(screen, roster, niko, change), "initial 8x3 character picker"):
 		return
 	if not _require(root_window.gui_get_focus_owner() == niko, "initial Niko focus"):
 		return
@@ -303,7 +303,7 @@ func _assert_character_picker(
 ) -> bool:
 	return (
 		screen != null
-		and roster != null and roster.visible and roster.columns == 6 and roster.get_child_count() == 24
+		and roster != null and roster.visible and roster.columns == 8 and roster.get_child_count() == 24
 		and niko != null and niko.visible and not niko.disabled
 		and niko.get_meta(&"content_id", &"") == NikoContentFactory.CHARACTER_ID
 		and _unavailable_character_count(roster) == 23
@@ -328,7 +328,7 @@ func _unavailable_character_count(roster: GridContainer) -> int:
 			or not slot.has_node("SlotIndex")
 			or not slot.has_node("Glyph")
 			or not slot.has_node("Status")
-			or (slot.get_node("Status") as Label).text != "未开放"
+			or (slot.get_node("Status") as Label).text != "待开放"
 			or not slot.disabled
 			or slot.focus_mode != Control.FOCUS_NONE
 			or slot.has_meta(&"content_id")
