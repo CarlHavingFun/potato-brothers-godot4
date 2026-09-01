@@ -23,10 +23,10 @@ function Get-PckArguments([string]$Package,[string]$Fixture,[bool]$Rendered){
 function Assert-ViewportReceipts([string[]]$Lines,[string]$Directory,[bool]$Rendered){
     $records=@($Lines|Where-Object {$_ -match '^PACKAGE_VIEWPORT(?:\s|$)'})
     if(-not $Rendered){if($records.Count){throw 'Headless PCK unexpectedly emitted viewport evidence.'};return}
-    $names=@('character-only','weapon-choice','difficulty-ready','combat-after5s','shop-after-merge')
-    if($records.Count -ne 5){throw 'Rendered PCK requires exactly five viewport receipts.'}
+    $names=@('task-selector','character-only','weapon-choice','difficulty-ready','combat-after5s','shop-after-merge')
+    if($records.Count -ne $names.Count){throw "Rendered PCK requires exactly $($names.Count) viewport receipts."}
     Add-Type -AssemblyName System.Drawing
-    for($i=0;$i -lt 5;$i++){
+    for($i=0;$i -lt $names.Count;$i++){
         $record=$records[$i].Substring('PACKAGE_VIEWPORT '.Length)|ConvertFrom-Json
         $fields=@('name','path','sha256','bytes','width','height')
         if($record -isnot [pscustomobject] -or @($record.PSObject.Properties.Name).Count -ne $fields.Count -or @($record.PSObject.Properties.Name|Where-Object {$_ -cnotin $fields}).Count){throw 'Viewport receipt schema mismatch.'}
@@ -190,7 +190,7 @@ try{
     if(-not $result.profile_artifact -or $wire.profile_sha256 -cne $result.profile_artifact.sha256 -or $wire.pre_wire_sha256 -notmatch '^[A-F0-9]{64}$' -or $wire.run_seed_exact -cne '9007199254740993'){throw 'PCK wire profile/hash/int64 receipt mismatch.'}
     foreach($field in @('profile','temporary','backup')){if($wire.profile_presence.$field -isnot [bool] -or $wire.profile_presence.$field -ne $result.profile_presence[$field]){throw 'PCK wire three-file presence mismatch.'}}
     $result.profile_wire=$wire
-    $progressMarkers=@('PACKAGE_CHARACTER_GRID_OK','PACKAGE_PROGRESS_20_OK','PACKAGE_ENDLESS_21_22_OK','PACKAGE_PROFILE_READBACK_OK')
+    $progressMarkers=@('PACKAGE_TASK_ZONE_OK','PACKAGE_CHARACTER_GRID_OK','PACKAGE_PROGRESS_20_OK','PACKAGE_ENDLESS_21_22_OK','PACKAGE_PROFILE_READBACK_OK')
     $progressIndexes=[ordered]@{}
     foreach($marker in $progressMarkers){
         $matches=@(for($i=0;$i -lt $lines.Count;$i++){if($lines[$i] -match ('^'+[regex]::Escape($marker)+'(?:\s|$)')){$i}})
@@ -201,10 +201,14 @@ try{
     $routeIndex=[array]::IndexOf($lines,@($lines|Where-Object {$_ -match '^PACKAGE_ROUTE_OK(?:\s|$)'})[0])
     $qualityIndex=[array]::IndexOf($lines,@($lines|Where-Object {$_ -match '^PACKAGE_B_QUALITY_OK(?:\s|$)'})[0])
     $wireIndex=[array]::IndexOf($lines,$wireLine[0])
-    if(-not($resourceIndex -lt $progressIndexes.PACKAGE_CHARACTER_GRID_OK -and $progressIndexes.PACKAGE_CHARACTER_GRID_OK -lt $routeIndex -and
+    if(-not($resourceIndex -lt $progressIndexes.PACKAGE_TASK_ZONE_OK -and $progressIndexes.PACKAGE_TASK_ZONE_OK -lt $progressIndexes.PACKAGE_CHARACTER_GRID_OK -and
+        $progressIndexes.PACKAGE_CHARACTER_GRID_OK -lt $routeIndex -and
         $qualityIndex -lt $progressIndexes.PACKAGE_PROGRESS_20_OK -and $progressIndexes.PACKAGE_PROGRESS_20_OK -lt $progressIndexes.PACKAGE_ENDLESS_21_22_OK -and
         $progressIndexes.PACKAGE_ENDLESS_21_22_OK -lt $progressIndexes.PACKAGE_PROFILE_READBACK_OK -and $progressIndexes.PACKAGE_PROFILE_READBACK_OK -lt $wireIndex)){
         throw 'PCK progression marker order mismatch.'
+    }
+    if($lines[$progressIndexes.PACKAGE_TASK_ZONE_OK] -cne 'PACKAGE_TASK_ZONE_OK zone=training_ground waves=20 start=1 placeholders=2'){
+        throw 'PCK task-zone receipt mismatch.'
     }
     if($lines[$progressIndexes.PACKAGE_CHARACTER_GRID_OK] -cne 'PACKAGE_CHARACTER_GRID_OK columns=6 rows=4 live=1 placeholders=23'){
         throw 'PCK character grid receipt mismatch.'
@@ -221,7 +225,7 @@ try{
     if($readback.resume_claim -ne $false -or @($readback.waves).Count -ne 2 -or $readback.waves[0] -ne 21 -or $readback.waves[1] -ne 22 -or $readback.profile_sha256 -cnotmatch '^[A-F0-9]{64}$'){
         throw 'PCK checkpoint readback receipt mismatch.'
     }
-    $result.progression=[ordered]@{character_grid=$lines[$progressIndexes.PACKAGE_CHARACTER_GRID_OK];waves=$progress;endless=$endless;profile_readback=$readback}
+    $result.progression=[ordered]@{task_zone=$lines[$progressIndexes.PACKAGE_TASK_ZONE_OK];character_grid=$lines[$progressIndexes.PACKAGE_CHARACTER_GRID_OK];waves=$progress;endless=$endless;profile_readback=$readback}
     $result.viewports=@(Assert-ViewportReceipts $lines $result.viewport_directory $RenderedPck.IsPresent)
     $result.pck_smoke_passed=$true
 }catch{if(-not $result.exception){$result.exception=$_.Exception.Message};$result.pck_smoke_passed=$false}finally{
