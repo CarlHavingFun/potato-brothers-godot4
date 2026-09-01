@@ -458,6 +458,16 @@ func _validate_binding_entry(
 		return {}
 	var display_size := _vector2i_from_json(binding.get("display_size_px"))
 	var display_scale := _vector2_from_json(binding.get("display_scale"))
+	# JSON numbers arrive as doubles, while Vector2 components are stored at the
+	# engine's real_t precision. Quantize the expected ratio through Vector2 too,
+	# then keep the exact comparison. This accepts an exact 1254→418 one-third
+	# mapping without relaxing the rejection of merely approximate scales.
+	var expected_display_scale := Vector2.ZERO
+	if atlas_rect.size.x > 0 and atlas_rect.size.y > 0:
+		expected_display_scale = Vector2(
+			float(display_size.x) / float(atlas_rect.size.x),
+			float(display_size.y) / float(atlas_rect.size.y)
+		)
 	if (
 		display_size.x <= 0
 		or display_size.y <= 0
@@ -465,8 +475,7 @@ func _validate_binding_entry(
 		or display_scale.x <= 0.0
 		or display_scale.y <= 0.0
 		or not _has_exact_integer_ratio(atlas_rect.size, display_size)
-		or display_scale.x != float(display_size.x) / float(atlas_rect.size.x)
-		or display_scale.y != float(display_size.y) / float(atlas_rect.size.y)
+		or display_scale != expected_display_scale
 	):
 		_append_issue(issues, &"shipping_binding_display_mapping_invalid", "Binding display mapping must be an exact integer up/down ratio with an explicit matching scale.", asset_id)
 		return {}

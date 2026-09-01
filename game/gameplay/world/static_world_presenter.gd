@@ -16,13 +16,19 @@ const PICKUP_ASSET_IDS: Array[StringName] = [
 # approved selector handles stay available in the snapshot but are not world props.
 const DECOR_SELECTORS: Array[StringName] = [
 	&"decor_variant_01",
+	&"decor_variant_02",
 	&"decor_variant_03",
+	&"decor_variant_04",
 	&"decor_variant_05",
+	&"decor_variant_06",
 ]
 const DECOR_RUNTIME_NAMES := {
 	&"decor_variant_01": &"decor_visual_gauge_barrel",
+	&"decor_variant_02": &"decor_visual_variant_02",
 	&"decor_variant_03": &"decor_visual_button_panel_device",
+	&"decor_variant_04": &"decor_visual_variant_04",
 	&"decor_variant_05": &"decor_visual_headset",
+	&"decor_variant_06": &"decor_visual_variant_06",
 }
 const GRID_SIZE := 64
 const PLAYER_CLEAR_RADIUS := 240.0
@@ -321,7 +327,10 @@ func _build_props(run_seed: int, development_preview: bool) -> void:
 		socket_index += 1
 		pickup.configure(handle)
 		pickup.modulate = PERMANENT_PROP_MODULATE
-		pickup.visible = false
+		# This branch is reached only through mount_validation_props(); expose the
+		# texture there so the coverage fixture can inspect it. Ordinary gameplay
+		# never mounts the node at all.
+		pickup.visible = true
 		_prop_layer.add_child(pickup)
 		_record(handle, pickup, Vector2i(pickup.position))
 	if development_preview and socket_index < sockets.size():

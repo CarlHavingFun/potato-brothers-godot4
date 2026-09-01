@@ -225,6 +225,25 @@ func test_approximately_equal_display_scale_is_not_an_exact_mapping() -> void:
 	_assert_fixture_quarantined(fixture, "shipping_binding_display_mapping_invalid")
 
 
+func test_exact_one_third_display_scale_survives_vector_precision_quantization() -> void:
+	var fixture := _write_installable_fixture({
+		"atlas_rect_px": [0, 0, 63, 63],
+		"display_size_px": [21, 21],
+		"display_scale": [1.0 / 3.0, 1.0 / 3.0],
+		"pivot_px": [10, 10],
+		"anchors_px": {},
+	})
+	var snapshot := _activate_fixture(fixture)
+	assert_int(snapshot.ready_count()).is_equal(1)
+	assert_int(snapshot.issues().size()).is_zero()
+	var handle := snapshot.resolve_asset(&"service_pistol", &"icon", &"")
+	assert_object(handle).is_not_null()
+	assert_bool(handle.display_size_px == Vector2i(21, 21)).is_true()
+	assert_bool(handle.display_scale == Vector2(1.0 / 3.0, 1.0 / 3.0)).is_true()
+	assert_int(handle.texture.get_width()).is_equal(21)
+	assert_int(handle.texture.get_height()).is_equal(21)
+
+
 func test_content_consumer_with_missing_definition_is_quarantined() -> void:
 	var fixture := _write_installable_fixture({
 		"consumers": [{
@@ -399,17 +418,19 @@ func _write_installable_fixture(options: Dictionary = {}) -> Dictionary:
 		[0, 0, FIXTURE_IMAGE_SIZE.x, FIXTURE_IMAGE_SIZE.y]
 	)
 	var display_scale: Array = options.get("display_scale", [1, 1])
+	var display_size_px: Array = options.get("display_size_px", [64, 64])
 	var pivot_px: Array = options.get("pivot_px", [32, 32])
+	var anchors_px: Dictionary = options.get("anchors_px", {"muzzle": [56, 32]})
 	var consumers: Array = options.get("consumers", [])
 	var binding := {
 		"binding_key": "service_pistol|icon|",
 		"role": "icon",
 		"selector": "",
-		"display_size_px": [64, 64],
+		"display_size_px": display_size_px,
 		"display_scale": display_scale,
 		"pivot_px": pivot_px,
 		"atlas_rect_px": atlas_rect_px,
-		"anchors_px": {"muzzle": [56, 32]},
+		"anchors_px": anchors_px,
 		"consumers": consumers,
 	}
 	var bindings: Array = [binding]

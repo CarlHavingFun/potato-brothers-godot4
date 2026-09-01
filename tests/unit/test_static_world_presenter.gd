@@ -54,13 +54,12 @@ func test_ordinary_world_omits_misleading_noninteractive_props() -> void:
 func test_world_consumes_persistent_assets_at_deterministic_collision_free_nodes() -> void:
 	if not FileAccess.file_exists(PRESENTER_PATH):
 		return
-	var first := _build_presenter(9137, true)
-	var second := _build_presenter(9137, true)
+	var first := _build_presenter(9137, true, [], true)
+	var second := _build_presenter(9137, true, [], true)
 	assert_array(first.call("consumer_records")).is_equal(second.call("consumer_records"))
 	assert_object(first.get_node("Floor/community_server_floor")).is_not_null()
-	assert_object(first.get_node("Boundary/arena_boundary_border_top")).is_not_null()
+	assert_object(first.get_node("Boundary/arena_boundary_border_corners")).is_not_null()
 	for asset_id in [
-		"community_server_decor_pack",
 		"medical_pickup",
 		"hazard_beacon",
 		"supply_crate",
@@ -68,6 +67,10 @@ func test_world_consumes_persistent_assets_at_deterministic_collision_free_nodes
 		"site_hold_turret",
 	]:
 		assert_bool(first.has_node("Props/%s" % asset_id)).is_true()
+	var decor_records: Array = first.call("consumer_records").filter(
+		func(record: Dictionary) -> bool: return record.asset_id == &"community_server_decor_pack"
+	)
+	assert_int(decor_records.size()).is_equal(DECOR_SELECTORS.size())
 	assert_bool(first.has_node("Props/experience_pickup")).is_false()
 	assert_bool(first.has_node("Props/supply_pickup")).is_false()
 	assert_int(first.find_children("*", "CollisionShape2D", true, false).size()).is_equal(0)
@@ -90,48 +93,17 @@ func test_world_consumes_persistent_assets_at_deterministic_collision_free_nodes
 	assert_int(off_grid_count).is_greater_equal(6)
 
 
-func test_boundary_decoration_is_sparse_and_keeps_floor_and_corner_coverage() -> void:
+func test_boundary_evidence_is_noninteractive_and_hidden_from_gameplay() -> void:
 	if not FileAccess.file_exists(PRESENTER_PATH):
 		return
 	var presenter := _build_presenter(9137, true, [], false, CAPTURE_VIEW_RECT)
 	var floor := presenter.get_node("Floor/community_server_floor") as MultiMeshInstance2D
-	var top := presenter.get_node("Boundary/arena_boundary_border_top") as MultiMeshInstance2D
-	var bottom := presenter.get_node("Boundary/arena_boundary_border_bottom") as MultiMeshInstance2D
-	var left := presenter.get_node("Boundary/arena_boundary_border_left") as MultiMeshInstance2D
-	var right := presenter.get_node("Boundary/arena_boundary_border_right") as MultiMeshInstance2D
+	var boundary := presenter.get_node("Boundary/arena_boundary_border_corners") as MultiMeshInstance2D
 	assert_int(floor.multimesh.instance_count).is_equal(240)
-	var boundary_count := (
-		top.multimesh.instance_count
-		+ bottom.multimesh.instance_count
-		+ left.multimesh.instance_count
-		+ right.multimesh.instance_count
-	)
-	assert_int(boundary_count).is_between(10, 14)
-	assert_int(top.multimesh.instance_count).is_greater_equal(2)
-	assert_int(bottom.multimesh.instance_count).is_greater_equal(2)
-	assert_int(left.multimesh.instance_count).is_greater_equal(1)
-	assert_int(right.multimesh.instance_count).is_greater_equal(1)
-	var approximate_perimeter_coverage := (
-		float(boundary_count) * 96.0
-		/ (2.0 * (CAPTURE_VIEW_RECT.size.x + CAPTURE_VIEW_RECT.size.y))
-	)
-	assert_float(approximate_perimeter_coverage).is_between(0.24, 0.34)
-	# Godot's dummy headless renderer preserves instance counts but intentionally
-	# discards MultiMesh buffers. Native/OpenGL runs exercise the actual transform
-	# data; the always-on assertions above still protect floor and density in CI.
-	if top.multimesh.buffer.is_empty():
-		assert_str(DisplayServer.get_name()).is_equal("headless")
-		return
-	for boundary in [bottom, left, right]:
-		assert_bool(boundary.multimesh.buffer.is_empty()).is_false()
-	var top_centers := _boundary_centers(top)
-	var bottom_centers := _boundary_centers(bottom)
-	var left_centers := _boundary_centers(left)
-	var right_centers := _boundary_centers(right)
-	_assert_horizontal_boundary_centers(top_centers, 32.0)
-	_assert_horizontal_boundary_centers(bottom_centers, 688.0)
-	_assert_vertical_boundary_centers(left_centers, 32.0)
-	_assert_vertical_boundary_centers(right_centers, 1248.0)
+	assert_int(boundary.multimesh.instance_count).is_equal(4)
+	assert_bool(boundary.visible).is_false()
+	assert_float(boundary.self_modulate.a).is_zero()
+	assert_int(presenter.find_children("*", "CollisionShape2D", true, false).size()).is_zero()
 
 
 func test_release_world_omits_neutral_preview_turret() -> void:
@@ -178,7 +150,8 @@ func test_capture_safe_layout_exposes_every_real_world_node_without_hud_overlap(
 		assert_bool(presenter.has_node(node_path)).is_true()
 		var node := presenter.get_node(node_path) as CanvasItem
 		assert_object(node).is_not_null()
-		assert_bool(node.is_visible_in_tree()).is_true()
+		if asset_id != &"arena_boundary_border":
+			assert_bool(node.is_visible_in_tree()).is_true()
 		var world_rect := record.get("world_rect", Rect2()) as Rect2
 		assert_bool(world_rect.has_area()).is_true()
 		assert_bool(CAPTURE_VIEW_RECT.encloses(world_rect)).is_true()
