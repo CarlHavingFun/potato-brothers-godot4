@@ -1,0 +1,24 @@
+{
+  "schema_version": "gogobro-single-asset-shipping-approval-v1",
+  "decision": "approved",
+  "asset_id": "community_server_floor",
+  "binding_key": "community_server_floor|world_sprite|",
+  "authority": "explicit_user_requirement_item_7",
+  "approved_at_utc": "2026-09-01T16:21:10Z",
+  "plan_sha256": "7702FF3EC73C1F1DAE508106AF5554397EF6CF2EE3B4EF85603A0FCBB61DED8B",
+  "source_contract_sha256": "B144CE3F3317D5A88D6C10DF18A311C9D11D6A92E2E698D88DF9A68BEDB26D7C",
+  "visual_review_sha256": "D8FADB15BFB01F9E86D273F14517ED94E1879C34B29F94B67F8F50F2DEFE6A96",
+  "shipping_texture": {
+    "sha256": "21E66402E309A8212AB59263E36FB32E842EEFADC18BE675860DF359F7AF58CC",
+    "rgba8_sha256": "797654951B0438479D1158629CA3EE89F63B345AAD4DBDEE99A6365A3DF595AF",
+    "pixel_size": [1254, 1254],
+    "display_size_px": [418, 418],
+    "texture_filter": "nearest",
+    "mipmaps": false
+  },
+  "scope": {
+    "kind": "whole_texture",
+    "selectors": []
+  },
+  "notes": "Approval is exact-hash and floor-binding only; no other candidate-preview asset is promoted."
+}

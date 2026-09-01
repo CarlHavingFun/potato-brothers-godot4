@@ -38,6 +38,19 @@ func test_static_world_runtime_presenters_exist() -> void:
 	assert_bool(FileAccess.file_exists(MARKER_PATH)).is_true()
 
 
+func test_ordinary_world_omits_misleading_noninteractive_props() -> void:
+	if not FileAccess.file_exists(PRESENTER_PATH):
+		return
+	var presenter := _build_presenter(9137, true, [], false, Rect2(Vector2.ZERO, Vector2(2048, 1536)), false)
+	assert_int(presenter.get_node("Props").get_child_count()).is_equal(0)
+	var records: Array = presenter.call("consumer_records")
+	assert_int(records.size()).is_equal(2)
+	assert_array(records.map(func(record: Dictionary) -> StringName: return record.asset_id)).contains_exactly([
+		&"community_server_floor",
+		&"arena_boundary_border",
+	])
+
+
 func test_world_consumes_persistent_assets_at_deterministic_collision_free_nodes() -> void:
 	if not FileAccess.file_exists(PRESENTER_PATH):
 		return
@@ -246,7 +259,8 @@ func _build_presenter(
 	development_preview: bool,
 	missing: Array[StringName] = [],
 	include_decor_selectors: bool = false,
-	arena_rect: Rect2 = Rect2(Vector2.ZERO, Vector2(2048, 1536))
+	arena_rect: Rect2 = Rect2(Vector2.ZERO, Vector2(2048, 1536)),
+	mount_validation_props: bool = true
 ) -> Node2D:
 	var presenter_script := load(PRESENTER_PATH) as GDScript
 	var presenter := auto_free(presenter_script.new()) as Node2D
@@ -258,6 +272,8 @@ func _build_presenter(
 		seed,
 		development_preview
 	)
+	if mount_validation_props:
+		presenter.call("mount_validation_props", seed, development_preview)
 	return presenter
 
 

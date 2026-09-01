@@ -80,7 +80,22 @@ func configure(
 	_build_layers()
 	_build_floor()
 	_build_boundary()
-	_build_props(run_seed, development_preview)
+	# Keep gameplay space semantically clean. The world prop atlas contains
+	# crates, racks, beacons and devices that read like pickups or objectives,
+	# even though these presenter instances have no interaction. They remain
+	# available to the explicit validation mount below, but never enter an
+	# ordinary run (including debug/exported playtests).
+	var _unused_run_seed := run_seed
+	var _unused_development_preview := development_preview
+	return consumer_records()
+
+
+func mount_validation_props(run_seed: int, include_preview_turret: bool = false) -> Array[Dictionary]:
+	# Validation-only opt-in for asset coverage fixtures. Production callers do
+	# not invoke this method, so test/evidence silhouettes cannot leak into play.
+	if _prop_layer == null or _prop_layer.get_child_count() > 0:
+		return consumer_records()
+	_build_props(run_seed, include_preview_turret)
 	return consumer_records()
 
 

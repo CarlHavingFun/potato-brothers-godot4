@@ -1,7 +1,7 @@
 {
   "schema_version": "gogobro-static-runtime-bindings-v1",
   "kind": "shipping_runtime_bindings",
-  "canonical_registry_sha256": "A02C093A1E4B23879B5BA10F0A98A7D972957025AEDC2A15765AC4EB8EB7B82F",
+  "canonical_registry_sha256": "C830BC27EA64A1FCCF869A7E9167F6E52F7F32D2D08F3E907F9E69237B83C63F",
   "expected_noncharacter_units": 70,
   "units": [
     {
@@ -3340,11 +3340,11 @@
       "approval_status": "approved",
       "shipping": {
         "resource_path": "res://game/assets/gogobro_static/world/community_server_floor.png",
-        "sha256": "7787391CB07C279426F1F5336DEE051D13DC9B8756F2DE713C7660AE50376AF4",
-        "rgba8_sha256": "C06E6BB0AF0AF9328AF430A55BB2CB61D06CA95955D91441852BA474F8EC1C1F",
+        "sha256": "21E66402E309A8212AB59263E36FB32E842EEFADC18BE675860DF359F7AF58CC",
+        "rgba8_sha256": "797654951B0438479D1158629CA3EE89F63B345AAD4DBDEE99A6365A3DF595AF",
         "pixel_size": [
-          64,
-          64
+          1254,
+          1254
         ],
         "texture_filter": "nearest",
         "mipmaps": false
@@ -3355,22 +3355,22 @@
           "role": "world_sprite",
           "selector": "",
           "display_size_px": [
-            64,
-            64
+            418,
+            418
           ],
           "display_scale": [
-            1.0,
-            1.0
+            0.3333333333333333,
+            0.3333333333333333
           ],
           "pivot_px": [
-            32,
-            32
+            209,
+            209
           ],
           "atlas_rect_px": [
             0,
             0,
-            64,
-            64
+            1254,
+            1254
           ],
           "anchors_px": {},
           "consumers": [

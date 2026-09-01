@@ -9,7 +9,7 @@ const HUD_EXCLUSION_RECTS: Array[Rect2] = [
 ]
 
 
-func test_first_six_noninteractive_props_compose_inside_the_opening_camera() -> void:
+func test_validation_only_props_can_compose_inside_an_evidence_camera() -> void:
 	var presenter := auto_free(GogoStaticWorldPresenter.new()) as GogoStaticWorldPresenter
 	presenter.set("_arena_rect", ARENA_RECT)
 	var sockets: Array = presenter.call("_prop_sockets", 9137)
