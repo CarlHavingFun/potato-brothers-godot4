@@ -292,7 +292,7 @@ func _run() -> void:
 			break
 	check(release_first_velocity > 0.0 and release_first_velocity < movement_speed,
 		"release braking is neither absent nor an instant stop")
-	check(release_frames == 16, "300-speed release braking stops in exactly 16 frames")
+	check(release_frames == 8, "300-speed release braking stops in exactly 8 frames")
 	real_player.global_position = world.arena_rect.get_center()
 	real_player.velocity = Vector2(movement_speed, 0.0)
 	Input.action_press(&"move_left")
@@ -317,12 +317,12 @@ func _run() -> void:
 	real_player.set_physics_process(original_physics_processing)
 	check(reverse_first_velocity > 0.0 and reverse_first_velocity < movement_speed,
 		"reverse braking is neither absent nor an instant direction flip")
-	check(not reverse_crossed_zero and reverse_frames == 8,
-		"300-speed reverse braking reaches zero in exactly 8 frames without crossing")
+	check(not reverse_crossed_zero and reverse_frames == 5,
+		"300-speed reverse braking reaches zero in exactly 5 frames without crossing")
 	if not failures.is_empty():
 		finish()
 		return
-	print("PACKAGE_COUNTER_STRAFE_OK speed=300 release_frames=16 release_ms=266.67 reverse_frames=8 reverse_ms=133.33")
+	print("PACKAGE_COUNTER_STRAFE_OK speed=300 release_frames=8 release_ms=133.33 reverse_frames=5 reverse_ms=83.33")
 	print("PACKAGE_ROUTE_OK menu>character_select[task>character>weapon>difficulty;same-host]>combat elapsed=%.2f input=.pressed.emit/action_input os_input=false" % world.wave_runtime.elapsed)
 	# Deliberately forced shop transition is a route/resource check, not wave-clear evidence.
 	check(app.current_session.transition(&"shop") == OK, "fixture shop transition")

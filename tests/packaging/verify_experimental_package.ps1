@@ -339,7 +339,7 @@ try{
         throw 'PCK character grid receipt mismatch.'
     }
     $counterLine=@($lines|Where-Object {$_ -match '^PACKAGE_COUNTER_STRAFE_OK(?:\s|$)'})
-    if($counterLine.Count -ne 1 -or $counterLine[0] -cne 'PACKAGE_COUNTER_STRAFE_OK speed=300 release_frames=16 release_ms=266.67 reverse_frames=8 reverse_ms=133.33'){
+    if($counterLine.Count -ne 1 -or $counterLine[0] -cne 'PACKAGE_COUNTER_STRAFE_OK speed=300 release_frames=8 release_ms=133.33 reverse_frames=5 reverse_ms=83.33'){
         throw 'PCK counter-strafe timing receipt mismatch.'
     }
     $result.counter_strafe=$counterLine[0]

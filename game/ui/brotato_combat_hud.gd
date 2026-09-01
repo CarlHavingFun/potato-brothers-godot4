@@ -13,7 +13,7 @@ const TOP_LEFT_SIZE := Vector2(248, 90)
 const TOP_CENTER_POSITION := Vector2(528, 8)
 const TOP_CENTER_SIZE := Vector2(224, 64)
 const CONTROL_HINT_POSITION := Vector2(16, 108)
-const CONTROL_HINT_SIZE := Vector2(276, 30)
+const CONTROL_HINT_SIZE := Vector2(356, 30)
 
 var content_snapshot: ContentSnapshot
 var static_asset_snapshot: GogoStaticAssetSnapshot
@@ -219,8 +219,8 @@ func _build_hierarchy() -> void:
 		hint_content.add_child(hint_icon)
 		global_icons["control_icon_kit|%s" % spec[1]] = hint_icon
 	var hint_label := _label("HintText", 12, HORIZONTAL_ALIGNMENT_CENTER)
-	hint_label.text = "WASD / 摇杆 · 自动开火"
-	hint_label.custom_minimum_size = Vector2(196, 26)
+	hint_label.text = "WASD / 摇杆 · 反向急停 · 自动开火"
+	hint_label.custom_minimum_size = Vector2(276, 26)
 	hint_content.add_child(hint_label)
 
 	_apply_static_textures()

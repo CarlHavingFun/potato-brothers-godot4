@@ -22,7 +22,7 @@ func test_real_niko_release_coasts_and_reverse_stops_sooner() -> void:
 	while player.velocity.x > 0.01 and release_ticks < 120:
 		player._physics_process(STEP)
 		release_ticks += 1
-	assert_int(release_ticks).is_less(120)
+	assert_int(release_ticks).is_equal(8)
 	assert_float(player.velocity.length()).is_equal_approx(0.0, 0.01)
 	_run_right(player)
 	Input.action_release("move_right")
@@ -33,7 +33,10 @@ func test_real_niko_release_coasts_and_reverse_stops_sooner() -> void:
 	while player.velocity.x > 0.01 and reverse_ticks < 120:
 		player._physics_process(STEP)
 		reverse_ticks += 1
-	assert_int(reverse_ticks).is_less(release_ticks)
+	assert_int(reverse_ticks).is_equal(5)
+	assert_float(player.velocity.x).is_equal_approx(0.0, 0.01)
+	player._physics_process(STEP)
+	assert_float(player.velocity.x).is_less(0.0)
 	print("COUNTER_STRAFE_INPUT speed=%.2f release_ms=%.2f reverse_ms=%.2f" % [
 		speed_before, release_ticks * STEP * 1000.0, reverse_ticks * STEP * 1000.0
 	])
@@ -52,17 +55,39 @@ func test_real_glock_shot_is_less_stable_while_moving_and_recovers_after_stoppin
 	assert_float(float(moving.kick)).is_greater(float(idle.kick))
 	await _capture(fixture, "02-moving-shot")
 	_release_movement()
-	for _tick in 60:
+	for _tick in 7:
 		player._physics_process(STEP)
+	var almost_stopped := _shoot(fixture)
+	assert_float(float(almost_stopped.angle)).is_greater(float(idle.angle) + 0.00001)
+	assert_float(float(almost_stopped.kick)).is_greater(float(idle.kick))
+	player._physics_process(STEP)
 	var recovered := _shoot(fixture)
 	assert_float(float(recovered.angle)).is_equal_approx(float(idle.angle), 0.00001)
 	assert_float(float(recovered.kick)).is_equal_approx(float(idle.kick), 0.001)
 	assert_vector((fixture.weapon as GogoWeaponInstance).position).is_equal(Vector2(0, 48))
 	await _capture(fixture, "03-stopped-shot")
-	print("COUNTER_STRAFE_SHOT idle_deg=%.5f moving_deg=%.5f recovered_deg=%.5f kick_px=%.1f/%.1f/%.1f" % [
-		rad_to_deg(float(idle.angle)), rad_to_deg(float(moving.angle)), rad_to_deg(float(recovered.angle)),
+	_run_right(player)
+	Input.action_release("move_right")
+	Input.action_press("move_left")
+	for _tick in 4:
+		player._physics_process(STEP)
+	var reverse_braking := _shoot(fixture)
+	assert_float(float(reverse_braking.angle)).is_greater(float(idle.angle) + 0.00001)
+	assert_float(float(reverse_braking.kick)).is_greater(float(idle.kick))
+	player._physics_process(STEP)
+	var reverse_stopped := _shoot(fixture)
+	assert_float(float(reverse_stopped.angle)).is_equal_approx(float(idle.angle), 0.00001)
+	assert_float(float(reverse_stopped.kick)).is_equal_approx(float(idle.kick), 0.001)
+	player._physics_process(STEP)
+	var moving_left := _shoot(fixture)
+	assert_float(float(moving_left.angle)).is_greater(float(idle.angle) + 0.00001)
+	print("COUNTER_STRAFE_SHOT idle_deg=%.5f moving_deg=%.5f almost_deg=%.5f recovered_deg=%.5f reverse_stop_deg=%.5f kick_px=%.1f/%.1f/%.1f" % [
+		rad_to_deg(float(idle.angle)), rad_to_deg(float(moving.angle)),
+		rad_to_deg(float(almost_stopped.angle)), rad_to_deg(float(recovered.angle)),
+		rad_to_deg(float(reverse_stopped.angle)),
 		float(idle.kick), float(moving.kick), float(recovered.kick)
 	])
+	_release_movement()
 
 
 func test_run_and_gun_modifier_reaches_live_shot_without_reducing_run_speed() -> void:
