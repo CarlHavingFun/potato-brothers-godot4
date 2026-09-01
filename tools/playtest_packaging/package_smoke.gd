@@ -122,8 +122,10 @@ func _run() -> void:
 		&"gogobro.core:zone/training_ground", &"zone"
 	) as GogoZoneDefinition
 	var task_item_ready := task_option != null and task_option.item_count == 1
-	var task_item_id := task_option.get_item_metadata(0) if task_item_ready else &""
-	var task_item_icon := task_option.get_item_icon(0) if task_item_ready else null
+	var task_item_id: StringName = (
+		StringName(task_option.get_item_metadata(0)) if task_item_ready else &""
+	)
+	var task_item_icon: Texture2D = task_option.get_item_icon(0) if task_item_ready else null
 	check(app.current_session == null, "no inventory/session before character choice")
 	check(task_item_ready and task_option.is_visible_in_tree() and not task_option.disabled
 		and task_option.selected == 0 and task_option.text == "任务 · 训练场"
