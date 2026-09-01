@@ -38,9 +38,16 @@ $testUserRoot = Join-Path ([System.IO.Path]::GetTempPath()) (
 )
 $testAppData = Join-Path $testUserRoot "Roaming"
 $testLocalAppData = Join-Path $testUserRoot "Local"
-New-Item -ItemType Directory -Path $testAppData, $testLocalAppData -Force | Out-Null
+$testTemp = Join-Path $testUserRoot "Temp"
+$testExpectedUserData = Join-Path $testAppData "GOGOBRO"
+New-Item -ItemType Directory -Path $testAppData, $testLocalAppData, $testTemp -Force | Out-Null
 $previousAppData = $env:APPDATA
 $previousLocalAppData = $env:LOCALAPPDATA
+$previousTemp = $env:TEMP
+$previousTmp = $env:TMP
+$previousExpectedUserData = $env:GOGOBRO_TEST_EXPECTED_USER_DATA_DIR
+$previousExpectedAppData = $env:GOGOBRO_TEST_EXPECTED_APPDATA
+$previousExpectedLocalAppData = $env:GOGOBRO_TEST_EXPECTED_LOCALAPPDATA
 $previousErrorActionPreference = $ErrorActionPreference
 try {
 	# GdUnit exercises real save and settings code. Never let those tests touch a
@@ -48,6 +55,11 @@ try {
 	# SaveProvider.
 	$env:APPDATA = $testAppData
 	$env:LOCALAPPDATA = $testLocalAppData
+	$env:TEMP = $testTemp
+	$env:TMP = $testTemp
+	$env:GOGOBRO_TEST_EXPECTED_USER_DATA_DIR = $testExpectedUserData
+	$env:GOGOBRO_TEST_EXPECTED_APPDATA = $testAppData
+	$env:GOGOBRO_TEST_EXPECTED_LOCALAPPDATA = $testLocalAppData
 	$ErrorActionPreference = "Continue"
 	$output = @(& $GodotBinary @runnerArguments 2>&1)
 	$exitCode = $LASTEXITCODE
@@ -56,6 +68,11 @@ finally {
 	$ErrorActionPreference = $previousErrorActionPreference
 	$env:APPDATA = $previousAppData
 	$env:LOCALAPPDATA = $previousLocalAppData
+	$env:TEMP = $previousTemp
+	$env:TMP = $previousTmp
+	$env:GOGOBRO_TEST_EXPECTED_USER_DATA_DIR = $previousExpectedUserData
+	$env:GOGOBRO_TEST_EXPECTED_APPDATA = $previousExpectedAppData
+	$env:GOGOBRO_TEST_EXPECTED_LOCALAPPDATA = $previousExpectedLocalAppData
 	$resolvedTemp = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
 	$resolvedTestRoot = [System.IO.Path]::GetFullPath($testUserRoot)
 	if ($resolvedTestRoot.StartsWith($resolvedTemp, [System.StringComparison]::OrdinalIgnoreCase)) {

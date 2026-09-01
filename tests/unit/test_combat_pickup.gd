@@ -31,6 +31,20 @@ func test_pop_offset_is_small_integer_and_determined_by_enemy_and_pickup_ids() -
 	assert_bool(
 		pickup.call(&"deterministic_pop_offset", 3, 3) == Vector2i(7, -11)
 	).is_true()
+	assert_bool(pickup.has_method(&"deterministic_visual_region_index")).is_true()
+	if pickup.has_method(&"deterministic_visual_region_index"):
+		assert_int(int(pickup.call(&"deterministic_visual_region_index", 2, 3))).is_equal(1)
+		assert_int(int(pickup.call(&"deterministic_visual_region_index", 2, 4))).is_equal(2)
+	assert_bool(pickup.has_method(&"fallback_outline_for_denomination")).is_true()
+	if pickup.has_method(&"fallback_outline_for_denomination"):
+		var small_outline := pickup.call(&"fallback_outline_for_denomination", 1) as PackedVector2Array
+		var large_outline := pickup.call(&"fallback_outline_for_denomination", 2) as PackedVector2Array
+		assert_int(small_outline.size()).is_equal(5)
+		assert_int(large_outline.size()).is_equal(5)
+		assert_float(small_outline[1].x - small_outline[4].x).is_equal(12.0)
+		assert_float(small_outline[2].y - small_outline[0].y).is_equal(16.0)
+		assert_float(large_outline[1].x - large_outline[4].x).is_equal(18.0)
+		assert_float(large_outline[2].y - large_outline[0].y).is_equal(20.0)
 
 
 func test_pickup_magnetizes_inside_live_range_and_accelerates_smoothly() -> void:
@@ -122,7 +136,7 @@ func test_visible_body_contact_collects_at_50px_and_exact_boundary_without_magne
 	assert_int(int(pickups[3].state)).is_equal(int(pickup_script.get(&"DROPPED")))
 
 
-func test_reserved_enemy_rewards_spawn_one_pickup_per_nonzero_kind_without_applying() -> void:
+func test_reserved_enemy_rewards_bundle_nonzero_kinds_without_applying() -> void:
 	var session := _session_with_player()
 	var player := session.run_state.player()
 	player.xp_to_next_level = 5
@@ -135,26 +149,29 @@ func test_reserved_enemy_rewards_spawn_one_pickup_per_nonzero_kind_without_apply
 		&"_reserve_enemy_reward_snapshot", 17, 1, 4, 2, 0
 	) as Dictionary
 	assert_int(player.xp).is_zero()
-	assert_int(player.materials).is_equal(35)
+	assert_int(player.materials).is_equal(SessionPlayerState.INITIAL_MATERIALS)
 	assert_bool(world.has_method(&"spawn_reserved_enemy_pickups")).is_true()
 	if not world.has_method(&"spawn_reserved_enemy_pickups"):
 		return
 
 	assert_int(int(world.call(
 		&"spawn_reserved_enemy_pickups", 17, Vector2i(200, 300), reservations
-	))).is_equal(2)
-	assert_int(int(world.call(&"active_pickup_count"))).is_equal(2)
-	assert_int(world.pickup_layer.get_child_count()).is_equal(2)
-	var experience := world.call(&"active_pickup_at", 0) as Node2D
-	var supply := world.call(&"active_pickup_at", 1) as Node2D
-	assert_int(int(experience.get("runtime_instance_id"))).is_equal(1)
-	assert_int(int(supply.get("runtime_instance_id"))).is_equal(2)
-	assert_str(String(experience.get("reward_kind"))).is_equal("experience")
-	assert_str(String(supply.get("reward_kind"))).is_equal("supply")
-	assert_vector(experience.global_position).is_equal(Vector2(208, 294))
-	assert_vector(supply.global_position).is_equal(Vector2(189, 307))
+	))).is_equal(1)
+	assert_int(int(world.call(&"active_pickup_count"))).is_equal(1)
+	assert_int(world.pickup_layer.get_child_count()).is_equal(1)
+	var pickup := world.call(&"active_pickup_at", 0) as Node2D
+	assert_int(int(pickup.get("runtime_instance_id"))).is_equal(1)
+	assert_str(String(pickup.get("reward_kind"))).is_equal("experience")
+	assert_int(int(pickup.get("visual_denomination"))).is_equal(2)
+	var reward_entries := pickup.get("reward_entries") as Array
+	assert_int(reward_entries.size()).is_equal(2)
+	assert_str(String((reward_entries[0] as Dictionary).kind)).is_equal("experience")
+	assert_int(int((reward_entries[0] as Dictionary).amount)).is_equal(4)
+	assert_str(String((reward_entries[1] as Dictionary).kind)).is_equal("supply")
+	assert_int(int((reward_entries[1] as Dictionary).amount)).is_equal(2)
+	assert_vector(pickup.global_position).is_equal(Vector2(208, 294))
 	assert_int(player.xp).is_zero()
-	assert_int(player.materials).is_equal(35)
+	assert_int(player.materials).is_equal(SessionPlayerState.INITIAL_MATERIALS)
 
 	var supply_only := world.call(
 		&"_reserve_enemy_reward_snapshot", 18, 1, 0, 3, 0
@@ -162,7 +179,89 @@ func test_reserved_enemy_rewards_spawn_one_pickup_per_nonzero_kind_without_apply
 	assert_int(int(world.call(
 		&"spawn_reserved_enemy_pickups", 18, Vector2i(400, 400), supply_only
 	))).is_equal(1)
-	assert_int(int(world.call(&"active_pickup_count"))).is_equal(3)
+	assert_int(int(world.call(&"active_pickup_count"))).is_equal(2)
+
+
+func test_bundled_collection_applies_and_emits_experience_before_supply_exactly_once() -> void:
+	var session := _session_with_player()
+	var player := session.run_state.player()
+	var world := auto_free(CombatWorld.new()) as CombatWorld
+	add_child(world)
+	world.session = session
+	world.player_actor = _player_actor(player)
+	world.add_child(world.player_actor)
+	var reservations := world._reserve_enemy_reward_snapshot(19, 1, 4, 2, 0)
+	assert_int(world.spawn_reserved_enemy_pickups(19, Vector2i(80, 90), reservations)).is_equal(1)
+	var pickup := world.active_pickup_at(0)
+	var trace: Array[String] = []
+	var event_ids: Array[int] = []
+	session.reward_committed.connect(func(
+		_token: StringName,
+		kind: StringName,
+		_amount: int,
+		_player_index: int
+	) -> void:
+		trace.append("reward_%s" % String(kind))
+	)
+	world.pickup_collected.connect(func(
+		pickup_instance_id: int,
+		kind: StringName,
+		_amount: int,
+		_integer_collection_global_position: Vector2i,
+		_collection_sequence: int
+	) -> void:
+		event_ids.append(pickup_instance_id)
+		trace.append("pickup_%s" % String(kind))
+	)
+
+	assert_str(String(pickup.collect_now())).is_equal(String(GameSession.REWARD_APPLIED))
+	assert_array(trace).is_equal([
+		"reward_experience", "pickup_experience", "reward_supply", "pickup_supply",
+	])
+	assert_array(event_ids).is_equal([int(pickup.runtime_instance_id), int(pickup.runtime_instance_id)])
+	assert_int(player.xp).is_equal(4)
+	assert_int(player.materials).is_equal(SessionPlayerState.INITIAL_MATERIALS + 2)
+	assert_int(session.committed_reward_count()).is_equal(2)
+	assert_int(world.active_pickup_count()).is_zero()
+	assert_str(String(pickup.collect_now())).is_equal(String(GameSession.REWARD_DUPLICATE))
+	assert_int(session.committed_reward_count()).is_equal(2)
+	assert_array(trace).is_equal([
+		"reward_experience", "pickup_experience", "reward_supply", "pickup_supply",
+	])
+
+
+func test_bundled_collection_returns_applied_when_only_supply_entry_is_newly_applied() -> void:
+	var session := _session_with_player()
+	var player := session.run_state.player()
+	var world := auto_free(CombatWorld.new()) as CombatWorld
+	add_child(world)
+	world.session = session
+	world.player_actor = _player_actor(player)
+	world.add_child(world.player_actor)
+	var reservations := world._reserve_enemy_reward_snapshot(20, 1, 4, 2, 0)
+	assert_int(world.spawn_reserved_enemy_pickups(20, Vector2i(80, 90), reservations)).is_equal(1)
+	var experience_reservation := reservations[GameSession.REWARD_EXPERIENCE] as Dictionary
+	assert_str(String(session.apply_reserved_reward(
+		StringName(experience_reservation.get(&"token", &"")),
+		int(experience_reservation.get(&"reservation_id", 0))
+	))).is_equal(String(GameSession.REWARD_APPLIED))
+	var emitted_kinds: Array[StringName] = []
+	world.pickup_collected.connect(func(
+		_pickup_instance_id: int,
+		kind: StringName,
+		_amount: int,
+		_integer_collection_global_position: Vector2i,
+		_collection_sequence: int
+	) -> void:
+		emitted_kinds.append(kind)
+	)
+	var pickup := world.active_pickup_at(0)
+	assert_str(String(pickup.collect_now())).is_equal(String(GameSession.REWARD_APPLIED))
+	assert_array(emitted_kinds).is_equal([GameSession.REWARD_SUPPLY])
+	assert_int(player.xp).is_equal(4)
+	assert_int(player.materials).is_equal(SessionPlayerState.INITIAL_MATERIALS + 2)
+	assert_int(session.committed_reward_count()).is_equal(2)
+	assert_str(String(pickup.collect_now())).is_equal(String(GameSession.REWARD_DUPLICATE))
 
 
 func test_missing_texture_collects_exactly_once_and_publishes_only_when_applied() -> void:
@@ -244,7 +343,7 @@ func test_missing_texture_collects_exactly_once_and_publishes_only_when_applied(
 		StringName(supply_reservation.token), int(supply_reservation.reservation_id)
 	))).is_equal(String(GameSession.REWARD_APPLIED))
 	assert_str(String(stale_pickup.call(&"collect_now"))).is_equal(String(GameSession.REWARD_DUPLICATE))
-	assert_int(player.materials).is_equal(38)
+	assert_int(player.materials).is_equal(SessionPlayerState.INITIAL_MATERIALS + 3)
 	assert_int(collected_payloads.size()).is_equal(1)
 
 
@@ -268,9 +367,9 @@ func test_enemy_death_reserves_and_spawns_instead_of_applying_immediately() -> v
 
 	assert_bool(enemy.take_damage(1.0)).is_true()
 	assert_int(player.xp).is_zero()
-	assert_int(player.materials).is_equal(35)
-	assert_int(world.active_pickup_count()).is_equal(2)
-	assert_int(world.pickup_layer.get_child_count()).is_equal(2)
+	assert_int(player.materials).is_equal(SessionPlayerState.INITIAL_MATERIALS)
+	assert_int(world.active_pickup_count()).is_equal(1)
+	assert_int(world.pickup_layer.get_child_count()).is_equal(1)
 
 
 func test_dynamic_pickup_uses_static_texture_and_records_the_real_consumer() -> void:
@@ -306,12 +405,74 @@ func test_dynamic_pickup_uses_static_texture_and_records_the_real_consumer() -> 
 		return
 	assert_object(sprite.texture).is_same(handle.texture)
 	assert_int(sprite.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
-	assert_vector(sprite.position).is_equal(Vector2(-48, -32))
+	assert_bool(sprite.region_enabled).is_true()
+	assert_bool(sprite.region_rect == Rect2(64, 0, 32, 64)).is_true()
+	assert_vector(sprite.position).is_equal(Vector2(-16, -32))
 	assert_bool(pickup.get("fallback_visual_active") == false).is_true()
 	var records := GogoStaticConsumerRegistry.current().records()
 	assert_int(records.size()).is_equal(1)
 	assert_str(String((records[0] as Dictionary).asset_id)).is_equal("experience_pickup")
 	assert_str(String((records[0] as Dictionary).scene)).is_equal(PICKUP_PATH)
+	pickup._physics_process(GogoCombatPickup.SPAWN_POP_SECONDS * 0.5)
+	assert_float(sprite.position.y).is_less_equal(-36.0)
+	assert_bool(sprite.modulate.is_equal_approx(Color.WHITE)).is_true()
+	world.player_actor.player_state.final_stats[&"pickup_range"] = 1000.0
+	pickup._physics_process(0.0)
+	assert_int(int(pickup.state)).is_equal(GogoCombatPickup.MAGNETIZING)
+	assert_bool(sprite.modulate.is_equal_approx(GogoCombatPickup.MAGNET_VISUAL_COLOR)).is_true()
+
+
+func test_bundled_pickup_uses_large_supply_atlas_for_material_amount_two() -> void:
+	GogoStaticConsumerRegistry.reset_current()
+	var session := _session_with_player()
+	var experience_handle := _pickup_handle(&"experience_pickup")
+	var supply_handle := _pickup_handle(&"supply_pickup")
+	var snapshot := GogoStaticAssetSnapshot.new()
+	snapshot._configure(
+		1,
+		"pickup_bundle_fixture",
+		70,
+		{&"experience_pickup": &"ready", &"supply_pickup": &"ready"},
+		{
+			String(experience_handle.binding_key): experience_handle,
+			String(supply_handle.binding_key): supply_handle,
+		},
+		{},
+		{},
+		{},
+		[]
+	)
+	session.static_asset_snapshot = snapshot
+	var world := auto_free(CombatWorld.new()) as CombatWorld
+	add_child(world)
+	world.session = session
+	world.player_actor = _player_actor(session.run_state.player())
+	world.add_child(world.player_actor)
+	var reservations := world._reserve_enemy_reward_snapshot(42, 1, 4, 2, 0)
+	assert_int(world.spawn_reserved_enemy_pickups(42, Vector2i(300, 200), reservations)).is_equal(1)
+	var pickup := world.active_pickup_at(0)
+	var sprite := pickup.get_node_or_null("StaticVisual") as Sprite2D
+	assert_object(sprite).is_not_null()
+	if sprite == null:
+		return
+	assert_int(int(pickup.get("visual_denomination"))).is_equal(2)
+	assert_object(sprite.texture).is_same(supply_handle.texture)
+	assert_bool(sprite.region_enabled).is_true()
+	assert_bool(sprite.region_rect == Rect2(32, 0, 32, 64)).is_true()
+	assert_vector(sprite.position).is_equal(Vector2(-16, -32))
+
+	var small_reservations := world._reserve_enemy_reward_snapshot(43, 1, 4, 1, 0)
+	assert_int(world.spawn_reserved_enemy_pickups(
+		43, Vector2i(340, 200), small_reservations
+	)).is_equal(1)
+	var small_pickup := world.active_pickup_at(1)
+	var small_sprite := small_pickup.get_node_or_null("StaticVisual") as Sprite2D
+	assert_object(small_sprite).is_not_null()
+	if small_sprite == null:
+		return
+	assert_int(int(small_pickup.get("visual_denomination"))).is_equal(1)
+	assert_object(small_sprite.texture).is_same(experience_handle.texture)
+	assert_bool(small_sprite.region_rect == Rect2(32, 0, 32, 64)).is_true()
 
 
 func test_wave_finish_auto_collects_in_runtime_id_order_before_final_hud_and_transition() -> void:
@@ -374,9 +535,13 @@ func test_wave_finish_auto_collects_in_runtime_id_order_before_final_hud_and_tra
 	world.call(&"_finish_wave")
 
 	assert_array(trace).is_equal(["pickup_3", "pickup_7", "pickup_9", "hud", "wave"])
-	assert_int(final_hud_materials[0]).is_equal(41)
+	assert_int(final_hud_materials[0]).is_equal(SessionPlayerState.INITIAL_MATERIALS + 6)
 	assert_int(final_hud_wave_materials[0]).is_equal(6)
-	assert_int(player.materials).is_equal(57)
+	assert_int(player.materials).is_equal(
+		SessionPlayerState.INITIAL_MATERIALS
+		+ 6
+		+ GameSession.fixed_wave_material_reward(1)
+	)
 	assert_int(world.active_pickup_count()).is_zero()
 
 
@@ -415,3 +580,4 @@ func _pickup_handle(asset_id: StringName) -> GogoStaticAssetHandle:
 		"atlas_rect_px": Rect2i(Vector2i.ZERO, size),
 	}, ImageTexture.create_from_image(image))
 	return handle
+
