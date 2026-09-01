@@ -7,8 +7,8 @@ func test_debug_catalog_exposes_every_static_weapon_item_and_upgrade_with_only_n
 	if content == null:
 		return
 	assert_int(content.all(&"weapon").size()).is_equal(12)
-	assert_int(content.all(&"item").size()).is_equal(30)
-	assert_int(content.all(&"upgrade").size()).is_equal(6)
+	assert_int(content.all(&"item").size()).is_equal(80)
+	assert_int(content.all(&"upgrade").size()).is_equal(18)
 	assert_int(content.all(&"character").size()).is_equal(1)
 	assert_str(String(content.all(&"character")[0].content_id)).is_equal(
 		"character.niko:character/niko"
@@ -68,8 +68,8 @@ func test_release_catalog_keeps_all_static_definitions_without_candidate_preview
 	if content == null:
 		return
 	assert_int(content.all(&"weapon").size()).is_equal(12)
-	assert_int(content.all(&"item").size()).is_equal(30)
-	assert_int(content.all(&"upgrade").size()).is_equal(6)
+	assert_int(content.all(&"item").size()).is_equal(80)
+	assert_int(content.all(&"upgrade").size()).is_equal(18)
 	assert_bool(
 		content.has_definition(&"gogobro.preview:weapon/community_tapper", &"weapon")
 	).is_true()
