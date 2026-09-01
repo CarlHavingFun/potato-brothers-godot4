@@ -363,7 +363,7 @@ static func _definition_is_available(
 	if session == null or session.content_snapshot == null or player == null:
 		return false
 	if definition is GogoItemDefinition:
-		return (definition as GogoItemDefinition).is_available_to(player.character_id)
+		return (definition as GogoItemDefinition).is_shop_offerable_to(player.character_id)
 	if definition is GogoWeaponDefinition:
 		var character := session.content_snapshot.definition(
 			player.character_id, &"character"

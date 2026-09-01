@@ -7,6 +7,7 @@ extends GogoContentDefinition
 @export var effect_ids: Array[StringName] = []
 @export var max_count: int = 99
 @export var owner_character_ids: Array[StringName] = []
+@export var shop_offerable: bool = true
 @export var appearances: Array[GogoAppearanceDefinition] = []
 
 
@@ -16,3 +17,7 @@ func _init() -> void:
 
 func is_available_to(character_id: StringName) -> bool:
 	return owner_character_ids.is_empty() or owner_character_ids.has(character_id)
+
+
+func is_shop_offerable_to(character_id: StringName) -> bool:
+	return shop_offerable and is_available_to(character_id)

@@ -16,6 +16,9 @@ const EXISTING_ITEM_ASSET_IDS := {
 	"trade_guard": true,
 	"tactical_med_patch": true,
 }
+const DEFERRED_SHOP_ITEM_ASSET_IDS := {
+	"post_match_analysis_desk": true,
+}
 const RARITY_TIER := {
 	"common": 1,
 	"uncommon": 2,
@@ -127,6 +130,7 @@ static func _item_definition(unit: Dictionary, mark_candidate_preview: bool) -> 
 	if max_count_variant is int or max_count_variant is float:
 		definition.max_count = maxi(int(max_count_variant), 1)
 	definition.stat_modifiers = _literal_stat_modifiers(unit.get("effects", []))
+	definition.shop_offerable = not DEFERRED_SHOP_ITEM_ASSET_IDS.has(asset_id)
 	if mark_candidate_preview:
 		definition.tags = [&"candidate_preview"]
 	if asset_id == "smoke_shell_helmet":

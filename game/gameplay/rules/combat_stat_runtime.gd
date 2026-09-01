@@ -9,13 +9,13 @@ const ECONOMY_REMAINDER_EPSILON := 0.000001
 
 static func health_regen_interval_seconds(health_regen: float) -> float:
 	# Match Brotato's authored cadence: 1 regeneration heals one point every five
-	# seconds, with additional points shortening the interval non-linearly.
-	if not is_finite(health_regen):
+	# seconds, with additional points shortening the interval non-linearly. Positive
+	# fractional totals below one heal proportionally instead of being discarded.
+	if not is_finite(health_regen) or health_regen <= 0.0:
 		return INF
-	var discrete_regen := floorf(health_regen)
-	if discrete_regen <= 0.0:
-		return INF
-	return 5.0 / (1.0 + absf(discrete_regen - 1.0) / 2.25)
+	if health_regen < 1.0:
+		return 5.0 / health_regen
+	return 5.0 / (1.0 + (health_regen - 1.0) / 2.25)
 
 
 static func is_critical_roll(critical_chance: float, roll: float) -> bool:

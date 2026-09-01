@@ -13,7 +13,7 @@
   "runtime_reference": {
     "character": {
       "max_health": 20.0,
-      "movement_speed": 235.0,
+      "movement_speed": 300.0,
       "attack_speed": 1.0,
       "armor": 0.0,
       "dodge": 0.0,
@@ -54,10 +54,10 @@
       "critical_chance": {"method": "linear_capped", "points_per_unit": 100.0, "minimum": 0.0, "maximum": 1.0, "inactive_floor_negative_nominal_points_per_unit": 100.0},
       "dodge": {"method": "dodge_ehp", "minimum": 0.0, "maximum": 0.60, "inactive_floor_negative_nominal_points_per_unit": 100.0},
       "movement_speed_multiplier": {"method": "linear", "points_per_unit": 45.0},
-      "movement_speed": {"method": "linear", "points_per_unit": 0.1914893617},
+      "movement_speed": {"method": "linear", "points_per_unit": 0.15},
       "max_health": {"method": "health_ratio", "reference_key": "max_health"},
       "armor": {"method": "armor_ehp", "minimum": -20.0},
-      "health_regen": {"method": "discrete_regen", "minimum_effective_total": 1.0},
+      "health_regen": {"method": "fractional_regen", "minimum_effective_total": 0.0},
       "pickup_range": {"method": "linear", "points_per_unit": 0.10},
       "economy": {"method": "linear", "points_per_unit": 0.65},
       "melee_damage": {"method": "flat_weapon_damage", "mode": "melee", "availability_factor": 0.75},

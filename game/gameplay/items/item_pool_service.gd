@@ -49,7 +49,7 @@ func generate_shop_offers(
 			continue
 		if candidate is GogoItemDefinition:
 			var item := candidate as GogoItemDefinition
-			if not item.is_available_to(player.character_id):
+			if not item.is_shop_offerable_to(player.character_id):
 				continue
 		elif candidate is GogoWeaponDefinition:
 			var weapon := candidate as GogoWeaponDefinition
