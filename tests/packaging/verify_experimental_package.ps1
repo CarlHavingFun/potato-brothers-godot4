@@ -177,7 +177,7 @@ try{
     foreach($field in @('profile','temporary','backup')){if($guard.profile_before.$field -isnot [bool] -or $guard.profile_before.$field){throw 'PCK profile must be absent at the pre-App guard.'}}
     $result.guard_ok=$true;$result.guard=$guard
     $lines=@($out -split '\r?\n');$lastIndex=-1
-    foreach($marker in @('PACKAGE_ISOLATION_OK','PACKAGE_RESOURCES_OK','PACKAGE_ROUTE_OK','PACKAGE_B_PURCHASE_OK','PACKAGE_SHOP_OK','PACKAGE_B_QUALITY_OK','PACKAGE_PROFILE_WIRE_OK','PACKAGE_SMOKE_RESULT')){
+    foreach($marker in @('PACKAGE_ISOLATION_OK','PACKAGE_RESOURCES_OK','PACKAGE_COUNTER_STRAFE_OK','PACKAGE_ROUTE_OK','PACKAGE_B_PURCHASE_OK','PACKAGE_SHOP_OK','PACKAGE_B_QUALITY_OK','PACKAGE_PROFILE_WIRE_OK','PACKAGE_SMOKE_RESULT')){
         $matches=@(for($i=0;$i -lt $lines.Count;$i++){if($lines[$i] -match ('^'+[regex]::Escape($marker)+'(?:\s|$)')){$i}})
         if($matches.Count -ne 1 -or $matches[0] -le $lastIndex){throw "Missing/duplicate/out-of-order PCK completion marker: $marker"}
         $lastIndex=$matches[0]
@@ -213,6 +213,11 @@ try{
     if($lines[$progressIndexes.PACKAGE_CHARACTER_GRID_OK] -cne 'PACKAGE_CHARACTER_GRID_OK columns=6 rows=4 live=1 placeholders=23'){
         throw 'PCK character grid receipt mismatch.'
     }
+    $counterLine=@($lines|Where-Object {$_ -match '^PACKAGE_COUNTER_STRAFE_OK(?:\s|$)'})
+    if($counterLine.Count -ne 1 -or $counterLine[0] -cne 'PACKAGE_COUNTER_STRAFE_OK speed=300 release_frames=16 release_ms=266.67 reverse_frames=8 reverse_ms=133.33'){
+        throw 'PCK counter-strafe timing receipt mismatch.'
+    }
+    $result.counter_strafe=$counterLine[0]
     $progress=$lines[$progressIndexes.PACKAGE_PROGRESS_20_OK].Substring('PACKAGE_PROGRESS_20_OK '.Length)|ConvertFrom-Json
     if($progress.controlled -ne $true -or $progress.full_survival_pilot -ne $false -or $progress.first -ne 1 -or $progress.last -ne 20 -or $progress.count -ne 20 -or $progress.final_shop -ne $true){
         throw 'PCK controlled W1-W20 receipt mismatch.'

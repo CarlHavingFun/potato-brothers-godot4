@@ -267,6 +267,71 @@ func _run() -> void:
 	if not await save_viewport("combat-after5s"):
 		finish()
 		return
+	# Measure the exported PCK's real player actor, not only the source-level rule.
+	# The player is paused only after the combat viewport was captured. Temporarily
+	# detach only this actor from world hitstop/clamping and collision so a hitstop
+	# latched on the final rendered frame cannot randomize the synchronous timing.
+	var real_player := world.player_actor as GogoPlayerActor
+	var original_combat_world := real_player.combat_world
+	var original_collision_mask := real_player.collision_mask
+	var original_position := real_player.global_position
+	var original_physics_processing := real_player.is_physics_processing()
+	real_player.set_physics_process(false)
+	real_player.combat_world = null
+	real_player.collision_mask = 0
+	for action in [&"move_left", &"move_right", &"move_up", &"move_down"]:
+		Input.action_release(action)
+	var movement_speed := float(real_player.player_state.final_stats.get(&"movement_speed", 0.0))
+	var counter_strafe_brake := float(real_player.player_state.final_stats.get(&"counter_strafe_brake", 0.0))
+	check(is_equal_approx(movement_speed, 300.0) and is_zero_approx(counter_strafe_brake),
+		"actual NiKo baseline counter-strafe fixture")
+	if not failures.is_empty():
+		finish()
+		return
+	real_player.global_position = world.arena_rect.get_center()
+	real_player.velocity = Vector2(movement_speed, 0.0)
+	var release_frames := -1
+	var release_first_velocity := -1.0
+	for frame in 60:
+		real_player._physics_process(1.0 / 60.0)
+		if frame == 0:
+			release_first_velocity = real_player.velocity.x
+		if real_player.velocity.is_zero_approx():
+			release_frames = frame + 1
+			break
+	check(release_first_velocity > 0.0 and release_first_velocity < movement_speed,
+		"release braking is neither absent nor an instant stop")
+	check(release_frames == 16, "300-speed release braking stops in exactly 16 frames")
+	real_player.global_position = world.arena_rect.get_center()
+	real_player.velocity = Vector2(movement_speed, 0.0)
+	Input.action_press(&"move_left")
+	var reverse_frames := -1
+	var reverse_first_velocity := -1.0
+	var reverse_crossed_zero := false
+	for frame in 60:
+		real_player._physics_process(1.0 / 60.0)
+		if frame == 0:
+			reverse_first_velocity = real_player.velocity.x
+		if real_player.velocity.x < 0.0:
+			reverse_crossed_zero = true
+			break
+		if real_player.velocity.is_zero_approx():
+			reverse_frames = frame + 1
+			break
+	Input.action_release(&"move_left")
+	real_player.velocity = Vector2.ZERO
+	real_player.global_position = original_position
+	real_player.collision_mask = original_collision_mask
+	real_player.combat_world = original_combat_world
+	real_player.set_physics_process(original_physics_processing)
+	check(reverse_first_velocity > 0.0 and reverse_first_velocity < movement_speed,
+		"reverse braking is neither absent nor an instant direction flip")
+	check(not reverse_crossed_zero and reverse_frames == 8,
+		"300-speed reverse braking reaches zero in exactly 8 frames without crossing")
+	if not failures.is_empty():
+		finish()
+		return
+	print("PACKAGE_COUNTER_STRAFE_OK speed=300 release_frames=16 release_ms=266.67 reverse_frames=8 reverse_ms=133.33")
 	print("PACKAGE_ROUTE_OK menu>character_select[task>character>weapon>difficulty;same-host]>combat elapsed=%.2f input=.pressed.emit/action_input os_input=false" % world.wave_runtime.elapsed)
 	# Deliberately forced shop transition is a route/resource check, not wave-clear evidence.
 	check(app.current_session.transition(&"shop") == OK, "fixture shop transition")
