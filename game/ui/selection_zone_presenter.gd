@@ -50,8 +50,9 @@ func build(
 		_button.text = "任务 · 无可用任务"
 		_button.tooltip_text = "内容快照中没有可用区域"
 	else:
-		_sync_selected_tooltip(0)
-		_observe_selected_icon(0)
+		_button.select(-1)
+		_button.text = "任务 · 未选择"
+		_button.tooltip_text = "请选择任务区域"
 	_button.item_selected.connect(_activate)
 	set_enabled(true)
 	return _button

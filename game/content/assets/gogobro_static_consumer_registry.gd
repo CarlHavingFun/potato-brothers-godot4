@@ -75,7 +75,7 @@ static func observe_visible_option_icon(
 	option: OptionButton,
 	scene_path: String,
 	node_path: String,
-	integer_display_scale := Vector2i.ONE,
+	expected_rendered_size: Vector2 = Vector2.ZERO,
 	source_kind: StringName = &""
 ) -> bool:
 	if (
@@ -87,17 +87,29 @@ static func observe_visible_option_icon(
 		or option.selected < 0
 		or option.selected >= option.item_count
 		or option.get_item_icon(option.selected) != handle.texture
-		or integer_display_scale != Vector2i.ONE
 		or not _is_allowed_scene(scene_path)
 		or node_path.strip_edges().is_empty()
 		or not _has_verified_provenance(option, scene_path, node_path)
 	):
 		return false
-	return current().observe(
+	var texture_size := Vector2(handle.texture.get_width(), handle.texture.get_height())
+	var rendered_size := _option_icon_rendered_size(option, texture_size)
+	if (
+		not rendered_size.is_finite()
+		or rendered_size.x <= 0.0
+		or rendered_size.y <= 0.0
+		or (
+			expected_rendered_size != Vector2.ZERO
+			and not rendered_size.is_equal_approx(expected_rendered_size)
+		)
+	):
+		return false
+	return current()._observe_rendered(
 		handle,
 		scene_path,
 		node_path,
-		integer_display_scale,
+		rendered_size,
+		Vector2(rendered_size.x / texture_size.x, rendered_size.y / texture_size.y),
 		source_kind,
 		true
 	)
@@ -111,6 +123,58 @@ func observe(
 	source_kind: StringName = &"",
 	visible_texture: bool = false
 ) -> bool:
+	return _append_record(
+		handle,
+		scene_path,
+		node_path,
+		integer_display_scale,
+		Vector2.ZERO,
+		Vector2.ZERO,
+		source_kind,
+		visible_texture
+	)
+
+
+func _observe_rendered(
+	handle: GogoStaticAssetHandle,
+	scene_path: String,
+	node_path: String,
+	rendered_size_px: Vector2,
+	display_scale: Vector2,
+	source_kind: StringName,
+	visible_texture: bool
+) -> bool:
+	if (
+		not rendered_size_px.is_finite()
+		or rendered_size_px.x <= 0.0
+		or rendered_size_px.y <= 0.0
+		or not display_scale.is_finite()
+		or display_scale.x <= 0.0
+		or display_scale.y <= 0.0
+	):
+		return false
+	return _append_record(
+		handle,
+		scene_path,
+		node_path,
+		Vector2i.ZERO,
+		rendered_size_px,
+		display_scale,
+		source_kind,
+		visible_texture
+	)
+
+
+func _append_record(
+	handle: GogoStaticAssetHandle,
+	scene_path: String,
+	node_path: String,
+	integer_display_scale: Vector2i,
+	rendered_size_px: Vector2,
+	display_scale: Vector2,
+	source_kind: StringName,
+	visible_texture: bool
+) -> bool:
 	if (
 		handle == null
 		or handle.texture == null
@@ -123,7 +187,12 @@ func observe(
 	var resolved_source := source_kind if not source_kind.is_empty() else handle.source_kind
 	if resolved_source.is_empty():
 		resolved_source = &"approved_shipping"
-	var key := "%s|%s|%s|%s|%s|%s|%s" % [
+	var measurement_key := (
+		"rendered:%s:%s" % [rendered_size_px, display_scale]
+		if rendered_size_px != Vector2.ZERO
+		else "integer:%s" % integer_display_scale
+	)
+	var key := "%s|%s|%s|%s|%s|%s|%s|%s" % [
 		handle.asset_id,
 		handle.role,
 		handle.selector,
@@ -131,21 +200,27 @@ func observe(
 		node_path,
 		resolved_source,
 		visible_texture,
+		measurement_key,
 	]
 	if _keys.has(key):
 		return true
 	_keys[key] = true
-	_records.append({
+	var record := {
 		"asset_id": handle.asset_id,
 		"role": handle.role,
 		"selector": handle.selector,
 		"scene": scene_path,
 		"node": node_path,
 		"texture_size": Vector2i(handle.texture.get_width(), handle.texture.get_height()),
-		"integer_display_scale": integer_display_scale,
 		"source_kind": resolved_source,
 		"visible_texture": visible_texture,
-	})
+	}
+	if rendered_size_px != Vector2.ZERO:
+		record["rendered_size_px"] = rendered_size_px
+		record["display_scale"] = display_scale
+	else:
+		record["integer_display_scale"] = integer_display_scale
+	_records.append(record)
 	return true
 
 
@@ -183,6 +258,18 @@ static func _canvas_texture(canvas_item: CanvasItem) -> Texture2D:
 		if String(property.get("name", "")) == "texture":
 			return canvas_item.get("texture") as Texture2D
 	return null
+
+
+static func _option_icon_rendered_size(option: OptionButton, texture_size: Vector2) -> Vector2:
+	if texture_size.x <= 0.0 or texture_size.y <= 0.0:
+		return Vector2.ZERO
+	var icon_max_width := option.get_theme_constant(&"icon_max_width")
+	if icon_max_width <= 0 or texture_size.x <= float(icon_max_width):
+		return texture_size.round()
+	var scale := float(icon_max_width) / texture_size.x
+	# Button::_fit_icon_size() rounds the scaled size before draw_texture_rect(),
+	# so preserve the actual logical draw rect rather than an ideal aspect ratio.
+	return (texture_size * scale).round()
 
 
 static func _has_verified_provenance(

@@ -137,6 +137,11 @@ static func _validate_observation(
 	var source_kind := StringName(String(observation.get("source_kind", "")))
 	var texture_size := _vector2i(observation.get("texture_size"))
 	var integer_scale := _vector2i(observation.get("integer_display_scale"))
+	var rendered_size := _vector2(observation.get("rendered_size_px"))
+	var display_scale := _vector2(observation.get("display_scale"))
+	var has_rendered_measurement := (
+		observation.has("rendered_size_px") or observation.has("display_scale")
+	)
 	if not expected_ids.has(asset_id):
 		return {"valid": false, "reason": &"unknown_asset"}
 	if (
@@ -152,7 +157,19 @@ static func _validate_observation(
 		return {"valid": false, "reason": &"source_kind_invalid"}
 	if texture_size.x <= 0 or texture_size.y <= 0:
 		return {"valid": false, "reason": &"texture_size_invalid"}
-	if integer_scale.x <= 0 or integer_scale.y <= 0:
+	if has_rendered_measurement:
+		if (
+			not observation.has("rendered_size_px")
+			or not observation.has("display_scale")
+			or not rendered_size.is_finite()
+			or rendered_size.x <= 0.0
+			or rendered_size.y <= 0.0
+			or not display_scale.is_finite()
+			or display_scale.x <= 0.0
+			or display_scale.y <= 0.0
+		):
+			return {"valid": false, "reason": &"rendered_measurement_invalid"}
+	elif integer_scale.x <= 0 or integer_scale.y <= 0:
 		return {"valid": false, "reason": &"integer_display_scale_invalid"}
 	if snapshot == null:
 		return {"valid": false, "reason": &"snapshot_missing"}
@@ -161,22 +178,28 @@ static func _validate_observation(
 		return {"valid": false, "reason": &"snapshot_handle_missing"}
 	if Vector2i(handle.texture.get_width(), handle.texture.get_height()) != texture_size:
 		return {"valid": false, "reason": &"texture_size_mismatch"}
+	if has_rendered_measurement:
+		var expected_rendered_size := Vector2(texture_size) * display_scale
+		if not expected_rendered_size.is_equal_approx(rendered_size):
+			return {"valid": false, "reason": &"rendered_measurement_mismatch"}
 	if not handle.source_kind.is_empty() and handle.source_kind != source_kind:
 		return {"valid": false, "reason": &"source_kind_mismatch"}
-	return {
-		"valid": true,
-		"normalized": {
-			"asset_id": asset_id,
-			"role": role,
-			"selector": selector,
-			"scene": scene,
-			"node": node,
-			"texture_size": [texture_size.x, texture_size.y],
-			"integer_display_scale": [integer_scale.x, integer_scale.y],
-			"source_kind": source_kind,
-			"visible_texture": bool(observation.get("visible_texture", false)),
-		},
+	var normalized := {
+		"asset_id": asset_id,
+		"role": role,
+		"selector": selector,
+		"scene": scene,
+		"node": node,
+		"texture_size": [texture_size.x, texture_size.y],
+		"source_kind": source_kind,
+		"visible_texture": bool(observation.get("visible_texture", false)),
 	}
+	if has_rendered_measurement:
+		normalized["rendered_size_px"] = [rendered_size.x, rendered_size.y]
+		normalized["display_scale"] = [display_scale.x, display_scale.y]
+	else:
+		normalized["integer_display_scale"] = [integer_scale.x, integer_scale.y]
+	return {"valid": true, "normalized": normalized}
 
 
 static func _preferred_source(observations: Array) -> StringName:
@@ -205,3 +228,17 @@ static func _vector2i(value: Variant) -> Vector2i:
 		if values[0] is int and values[1] is int:
 			return Vector2i(int(values[0]), int(values[1]))
 	return Vector2i.ZERO
+
+
+static func _vector2(value: Variant) -> Vector2:
+	if value is Vector2:
+		return value as Vector2
+	if value is Vector2i:
+		return Vector2(value as Vector2i)
+	if value is Array and (value as Array).size() == 2:
+		var values := value as Array
+		var first_is_number := values[0] is int or values[0] is float
+		var second_is_number := values[1] is int or values[1] is float
+		if first_is_number and second_is_number:
+			return Vector2(float(values[0]), float(values[1]))
+	return Vector2.ZERO
