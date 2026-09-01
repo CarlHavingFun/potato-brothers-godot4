@@ -100,7 +100,10 @@ func _select_zone(content_id: StringName) -> void:
 	if app == null or app.content_snapshot == null:
 		return
 	var definition := app.content_snapshot.definition(content_id, &"zone") as GogoZoneDefinition
-	if definition == null:
+	if (
+		definition == null
+		or GogoWaveResolver.validate_zone(app.content_snapshot, definition) != OK
+	):
 		return
 	app.selection_draft["zone_id"] = definition.content_id
 	_zones.apply_selection(definition.content_id)
@@ -309,7 +312,13 @@ func _configuration_is_valid() -> bool:
 	var character := _selected_character(app)
 	var weapon := app.content_snapshot.definition(app.selection_draft.get("weapon_id", &""), &"weapon") as GogoWeaponDefinition
 	var zone := app.content_snapshot.definition(app.selection_draft.get("zone_id", &""), &"zone") as GogoZoneDefinition
-	return character != null and weapon != null and zone != null and character.allows_weapon(weapon)
+	return (
+		character != null
+		and weapon != null
+		and zone != null
+		and character.allows_weapon(weapon)
+		and GogoWaveResolver.validate_zone(app.content_snapshot, zone) == OK
+	)
 
 
 func _sync_selection() -> void:

@@ -3,6 +3,7 @@ extends GdUnitTestSuite
 
 const CHARACTER_SCREEN := preload("res://game/ui/character_select_screen.tscn")
 const SECOND_ZONE_ID := &"gogobro.test:zone/night_training"
+const INVALID_ZONE_ID := &"gogobro.test:zone/invalid_empty"
 
 
 func test_task_option_lists_only_real_zones_inline_without_creating_a_session() -> void:
@@ -200,6 +201,33 @@ func test_snapshot_without_zones_never_exposes_a_dead_start_action() -> void:
 	assert_object(app.current_session).is_null()
 
 
+func test_invalid_zone_graph_is_not_listed_and_never_unlocks_a_dead_start_action() -> void:
+	var fixture := await _fixture(_invalid_zone_pack(), INVALID_ZONE_ID)
+	var app := fixture.app as AppKernel
+	var screen := fixture.screen as Control
+	var option := screen.get_node("TaskOptionButton") as OptionButton
+	assert_int(app.content_snapshot.all(&"zone").size()).is_equal(2)
+	assert_int(option.item_count).is_equal(1)
+	assert_int(_item_index(option, INVALID_ZONE_ID)).is_equal(-1)
+	assert_str(option.text).is_equal("任务 · 未选择")
+	assert_str(String(app.selection_draft.get("zone_id", &""))).is_equal(String(INVALID_ZONE_ID))
+	(screen.get_node("RosterStrip/NikoCell") as Button).pressed.emit()
+	await _settle()
+	var weapon_candidates := screen.find_children("WeaponOption*", "Button", true, false).filter(
+		func(button: Button) -> bool: return button.visible and not button.disabled
+	)
+	assert_int(weapon_candidates.size()).is_greater(0)
+	if weapon_candidates.is_empty():
+		return
+	(weapon_candidates.front() as Button).pressed.emit()
+	await _settle()
+	assert_bool((screen.get_node("DifficultyStage") as Control).visible).is_false()
+	assert_bool(screen.find_children("DifficultyOption*", "Button", true, false).all(
+		func(button: Button) -> bool: return button.disabled or not button.visible
+	)).is_true()
+	assert_object(app.current_session).is_null()
+
+
 func _fixture(
 	extra_pack: GogoContentPackDefinition = null,
 	initial_zone_id: StringName = &"",
@@ -255,6 +283,18 @@ func _second_zone_pack(with_icon: bool = true) -> GogoContentPackDefinition:
 		zone.wave_ids.append(wave_id)
 	var pack := GogoContentPackDefinition.new()
 	pack.pack_id = &"gogobro.test.task_zone"
+	pack.pack_kind = &"core"
+	pack.definitions.append(zone)
+	return pack
+
+
+func _invalid_zone_pack() -> GogoContentPackDefinition:
+	var zone := GogoZoneDefinition.new()
+	zone.content_id = INVALID_ZONE_ID
+	zone.display_name = "损坏任务"
+	zone.icon_asset_id = &"zone_thumbnail"
+	var pack := GogoContentPackDefinition.new()
+	pack.pack_id = &"gogobro.test.invalid_task_zone"
 	pack.pack_kind = &"core"
 	pack.definitions.append(zone)
 	return pack

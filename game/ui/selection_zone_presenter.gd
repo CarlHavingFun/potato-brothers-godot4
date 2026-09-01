@@ -43,6 +43,11 @@ func build(
 	parent.add_child(_button)
 	_apply_popup_skin(rect)
 	for definition: GogoZoneDefinition in app.content_snapshot.all(&"zone"):
+		# A task is a launchable wave graph, not merely a registered zone label.
+		# Keep malformed installed/mod content out of the selector so it cannot
+		# expose a Start action that GameSession must reject afterwards.
+		if GogoWaveResolver.validate_zone(app.content_snapshot, definition) != OK:
+			continue
 		var icon := _screen.resolve_content_icon(definition)
 		var global_handle: GogoStaticAssetHandle
 		if icon == null and not definition.icon_asset_id.is_empty():
