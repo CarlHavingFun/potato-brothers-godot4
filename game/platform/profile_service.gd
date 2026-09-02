@@ -195,7 +195,9 @@ func _atomic_write(payload: Dictionary) -> Error:
 	if check.error != OK:
 		return _reject(check)
 	# Validate the ACTUAL wire representation before directory/temp/backup operations.
-	var text := JSON.stringify(payload, "\t", true, true)
+	var encoded := JSON_CODEC.encode(payload, _numeric_domain)
+	if encoded.error != OK: return _reject(encoded)
+	var text: String = encoded.text
 	var wire_check := _validate_wire(text, payload)
 	if wire_check.error != OK: return _reject(wire_check)
 	last_error = ""
@@ -252,7 +254,7 @@ func _validate_wire(text: String, expected: Dictionary) -> Dictionary:
 	if decoded.error != OK: return decoded
 	var check := _validate_profile_payload(decoded.value)
 	if check.error != OK: return check
-	return JSON_CODEC.compare_integers(expected, decoded.value)
+	return JSON_CODEC.compare_exact_checkpoint_numbers(expected, decoded.value, _numeric_domain)
 
 
 static func _numeric_domain(segments: Array) -> String:

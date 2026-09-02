@@ -703,6 +703,24 @@ func test_handwritten_wire_retains_int64_extensions_seed_and_finite_float_domain
 	assert_int(reloaded.profile_data.extension[0]).is_equal(9007199254740993)
 
 
+func test_profile_save_roundtrip_preserves_adjacent_double_exactly() -> void:
+	var state := _state()
+	# Construct the exact binary64 produced by the real wave-22 economy accumulator.
+	# A decimal literal is not suitable here because Godot's parser rounds this
+	# particular value one ULP upward before the test can exercise profile JSON.
+	var expected_remainder := PackedByteArray([0x00, 0x6a, 0x14, 0xae, 0x47, 0xe1, 0xca, 0x3f]).decode_double(0)
+	state.player().economy_material_remainder = expected_remainder
+	var service := ProfileService.new()
+	assert_int(_load(service)).is_equal(OK)
+	var save_error := service.save_checkpoint(state)
+	assert_int(save_error).is_equal(OK)
+	var reloaded := ProfileService.new()
+	assert_int(_load(reloaded)).is_equal(OK)
+	if not reloaded.profile_data.has("run_checkpoint"): return
+	var actual_remainder: float = reloaded.profile_data.run_checkpoint.players[0].economy_material_remainder
+	assert_array(var_to_bytes(actual_remainder)).is_equal(var_to_bytes(expected_remainder))
+
+
 func test_wire_integer_domains_reject_rounded_fractional_tokens_before_publishing() -> void:
 	for token in ["1.00000000000000001", "9007199254740992.1", "9223372036854775808", "1e100", "true", '"1"']:
 		_write_text(_handwritten_wire(token))

@@ -4,6 +4,7 @@ extends RefCounted
 # Pure reader: keys/indices remain structured until diagnostics are formatted.
 const MAX_DEPTH := 128
 const MAX_TEXT_LENGTH := 8 * 1024 * 1024
+const FLOAT_TAG := "@gogobro:f64:"
 var _text := ""
 var _offset := 0
 var _domain := Callable()
@@ -21,6 +22,17 @@ static func decode(text: String, domain: Callable = Callable()) -> Dictionary:
 	if reader._offset != text.length(): reader._fail([], "trailing JSON input")
 	if not reader._failure.is_empty(): return reader._failure
 	return {"value": value, "error": OK, "path": "", "message": ""}
+
+
+static func encode(value: Variant, domain: Callable = Callable()) -> Dictionary:
+	var prepared := _prepare_exact_floats(value, domain, [], 0)
+	if prepared.error != OK: return prepared
+	return {
+		"text": JSON.stringify(prepared.value, "\t", true, true),
+		"error": OK,
+		"path": "",
+		"message": "",
+	}
 
 
 static func compare_integers(original: Variant, decoded: Variant, path: String = "$", depth: int = 0) -> Dictionary:
@@ -43,6 +55,76 @@ static func compare_integers(original: Variant, decoded: Variant, path: String =
 	return {"error": OK, "path": "", "message": ""}
 
 
+static func compare_exact_checkpoint_numbers(
+	original: Variant,
+	decoded: Variant,
+	domain: Callable,
+	segments: Array = [],
+	path: String = "$",
+	depth: int = 0
+) -> Dictionary:
+	if depth > MAX_DEPTH: return _error(path, "JSON nesting exceeds reader limit")
+	if original is Dictionary:
+		if not decoded is Dictionary or original.size() != decoded.size(): return _error(path, "encoded object shape changed")
+		for key in original:
+			if not decoded.has(key): return _error(path, "encoded object key changed")
+			var check := compare_exact_checkpoint_numbers(
+				original[key], decoded[key], domain, segments + [key], path + "." + str(key), depth + 1
+			)
+			if check.error != OK: return check
+	elif original is Array:
+		if not decoded is Array or original.size() != decoded.size(): return _error(path, "encoded array shape changed")
+		for index in original.size():
+			var check := compare_exact_checkpoint_numbers(
+				original[index], decoded[index], domain, segments + [index], path + "[%d]" % index, depth + 1
+			)
+			if check.error != OK: return check
+	elif typeof(original) == TYPE_INT:
+		if typeof(decoded) != TYPE_INT or original != decoded: return _error(path, "encoded integer changed")
+	elif typeof(original) == TYPE_FLOAT:
+		if not is_finite(original): return _error(path, "nonfinite number")
+		var numeric_domain := String(domain.call(segments)) if domain.is_valid() else ""
+		if numeric_domain == "float" and (
+			typeof(decoded) != TYPE_FLOAT or var_to_bytes(original) != var_to_bytes(decoded)
+		):
+			return _error(path, "encoded float changed from %s to %s" % [var_to_bytes(original), var_to_bytes(decoded)])
+	return {"error": OK, "path": "", "message": ""}
+
+
+static func _prepare_exact_floats(value: Variant, domain: Callable, segments: Array, depth: int) -> Dictionary:
+	if depth > MAX_DEPTH: return _error("$", "JSON nesting exceeds reader limit")
+	if value is Dictionary:
+		var object := {}
+		for key in value:
+			var child := _prepare_exact_floats(value[key], domain, segments + [key], depth + 1)
+			if child.error != OK: return child
+			object[key] = child.value
+		return {"value": object, "error": OK, "path": "", "message": ""}
+	if value is Array:
+		var array := []
+		for index in value.size():
+			var child := _prepare_exact_floats(value[index], domain, segments + [index], depth + 1)
+			if child.error != OK: return child
+			array.append(child.value)
+		return {"value": array, "error": OK, "path": "", "message": ""}
+	if typeof(value) == TYPE_FLOAT and domain.is_valid() and String(domain.call(segments)) == "float":
+		if not is_finite(value): return _error("$", "nonfinite number")
+		return {"value": FLOAT_TAG + _float_hex(value), "error": OK, "path": "", "message": ""}
+	return {"value": value, "error": OK, "path": "", "message": ""}
+
+
+static func _float_hex(value: float) -> String:
+	var encoded := PackedByteArray()
+	encoded.resize(8)
+	encoded.encode_double(0, value)
+	var result := ""
+	var digits := "0123456789abcdef"
+	for index in encoded.size():
+		var byte := int(encoded[index])
+		result += digits.substr(byte >> 4, 1) + digits.substr(byte & 15, 1)
+	return result
+
+
 func _value(segments: Array, depth: int) -> Variant:
 	_space()
 	if not _failure.is_empty(): return null
@@ -50,7 +132,13 @@ func _value(segments: Array, depth: int) -> Variant:
 	var token := _peek()
 	if token == "{": return _object(segments, depth)
 	if token == "[": return _array(segments, depth)
-	if token == '"': return _string(segments)
+	if token == '"':
+		var decoded_string: Variant = _string(segments)
+		if not _failure.is_empty(): return null
+		var numeric_domain := String(_domain.call(segments)) if _domain.is_valid() else ""
+		if numeric_domain == "float" and String(decoded_string).begins_with(FLOAT_TAG):
+			return _tagged_float(String(decoded_string), segments)
+		return decoded_string
 	for pair in [["true", true], ["false", false], ["null", null]]:
 		if _text.substr(_offset, pair[0].length()) == pair[0]:
 			_offset += pair[0].length()
@@ -191,6 +279,20 @@ func _number(segments: Array) -> Variant:
 	if decimal_order > 308: return _fail(segments, "nonfinite number")
 	if decimal_order < -324: return -0.0 if negative else 0.0
 	var value := _text.substr(start, _offset - start).to_float()
+	if not is_finite(value): return _fail(segments, "nonfinite number")
+	return value
+
+
+func _tagged_float(token: String, segments: Array) -> Variant:
+	var hex := token.trim_prefix(FLOAT_TAG)
+	if hex.length() != 16: return _fail(segments, "invalid exact float tag")
+	var bytes := PackedByteArray()
+	for offset in range(0, hex.length(), 2):
+		var high := "0123456789abcdef".find(hex.substr(offset, 1).to_lower())
+		var low := "0123456789abcdef".find(hex.substr(offset + 1, 1).to_lower())
+		if high < 0 or low < 0: return _fail(segments, "invalid exact float tag")
+		bytes.append(high * 16 + low)
+	var value := bytes.decode_double(0)
 	if not is_finite(value): return _fail(segments, "nonfinite number")
 	return value
 
