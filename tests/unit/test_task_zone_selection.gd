@@ -99,7 +99,7 @@ func test_single_real_task_uses_a_noninteractive_current_task_summary() -> void:
 				return rejection.get("reason", &"") == &"rendered_measurement_mismatch"
 		)).is_true()
 	assert_bool((screen.get_node("RosterStrip") as Control).visible).is_true()
-	assert_int((screen.get_node("RosterStrip") as GridContainer).get_child_count()).is_equal(24)
+	assert_int((screen.get_node("RosterStrip") as GridContainer).get_child_count()).is_equal(32)
 	assert_bool((screen.get_node("WeaponStage") as Control).visible).is_false()
 	assert_bool((screen.get_node("DifficultyStage") as Control).visible).is_false()
 	assert_int(screen.find_children("UnavailableZoneSlot*", "Button", true, false).size()).is_equal(0)

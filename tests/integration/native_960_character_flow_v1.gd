@@ -47,7 +47,7 @@ func test_native_960_character_same_page_flow_waits_for_root_observation_ack(
 	var roster := screen.get_node_or_null("RosterStrip") as GridContainer
 	var niko := screen.get_node_or_null("RosterStrip/NikoCell") as Button
 	var change := screen.get_node_or_null("ChangeCharacterButton") as Button
-	if not _require(_assert_character_picker(screen, roster, niko, change), "initial 8x3 character picker"):
+	if not _require(_assert_character_picker(screen, roster, niko, change), "initial 8x4 character picker"):
 		return
 	if not _require(root_window.gui_get_focus_owner() == niko, "initial Niko focus"):
 		return
@@ -104,7 +104,7 @@ func test_native_960_character_same_page_flow_waits_for_root_observation_ack(
 		and not difficulty_stage.visible
 		and not change.visible and change.disabled
 		and root_window.gui_get_focus_owner() == niko
-		and _unavailable_character_count(roster) == 23,
+		and _unavailable_character_count(roster) == 31,
 		"reopened character picker preserves draft and Niko focus"
 	):
 		return
@@ -303,13 +303,28 @@ func _assert_character_picker(
 ) -> bool:
 	return (
 		screen != null
-		and roster != null and roster.visible and roster.columns == 8 and roster.get_child_count() == 24
+		and roster != null and roster.visible and roster.columns == 8 and roster.get_child_count() == 32
+		and _fits_character_output(roster)
 		and niko != null and niko.visible and not niko.disabled
 		and niko.get_meta(&"content_id", &"") == NikoContentFactory.CHARACTER_ID
-		and _unavailable_character_count(roster) == 23
+		and _unavailable_character_count(roster) == 31
 		and change != null and not change.visible and change.disabled
 		and not (screen.get_node("WeaponStage") as Control).visible
 		and not (screen.get_node("DifficultyStage") as Control).visible
+	)
+
+
+func _fits_character_output(control: Control) -> bool:
+	if control == null:
+		return false
+	var logical_rect := control.get_global_rect()
+	var client_rect := Rect2(
+		logical_rect.position * EXPECTED_SCALE,
+		logical_rect.size * EXPECTED_SCALE
+	)
+	return (
+		Rect2(Vector2.ZERO, Vector2(LOGICAL_SIZE)).encloses(logical_rect)
+		and Rect2(Vector2.ZERO, Vector2(CLIENT_SIZE)).encloses(client_rect)
 	)
 
 

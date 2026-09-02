@@ -182,7 +182,7 @@ func test_escape_uses_the_same_progressive_back_rule_and_focus_restoration() -> 
 	assert_object(app.current_session).is_null()
 
 
-func test_initial_picker_is_eight_by_three_with_one_real_niko_and_twenty_three_unavailable_slots() -> void:
+func test_initial_picker_is_eight_by_four_with_one_real_niko_and_thirty_one_unavailable_slots() -> void:
 	var fixture := await _fixture()
 	var app := fixture.app as AppKernel
 	var host := fixture.host as Control
@@ -196,11 +196,12 @@ func test_initial_picker_is_eight_by_three_with_one_real_niko_and_twenty_three_u
 	if roster == null or niko == null or change == null:
 		return
 	assert_int(roster.columns).is_equal(8)
-	assert_int(roster.get_child_count()).is_equal(24)
+	assert_int(roster.get_child_count()).is_equal(32)
+	assert_bool(roster.size.is_equal_approx(Vector2(900, 472))).is_true()
 	assert_int(int(ProjectSettings.get_setting("display/window/size/viewport_width"))).is_equal(1280)
 	assert_int(int(ProjectSettings.get_setting("display/window/size/viewport_height"))).is_equal(720)
 	assert_str(String(ProjectSettings.get_setting("display/window/stretch/mode"))).is_equal("canvas_items")
-	assert_str((screen.get_node("RosterCaption") as Label).text).contains("已解锁 1 / 24")
+	assert_str((screen.get_node("RosterCaption") as Label).text).contains("已解锁 1 / 32")
 	assert_bool(roster.visible).is_true()
 	assert_bool(change.visible).is_false()
 	assert_bool((screen.get_node("WeaponStage") as Control).visible).is_false()
@@ -250,7 +251,7 @@ func test_initial_picker_is_eight_by_three_with_one_real_niko_and_twenty_three_u
 		assert_bool((screen.get_node("DifficultyStage") as Control).visible).is_false()
 		assert_object(app.current_session).is_null()
 		assert_bool(get_viewport().gui_get_focus_owner() != cell).is_true()
-	assert_array(unavailable_slots).is_equal(range(2, 25))
+	assert_array(unavailable_slots).is_equal(range(2, 33))
 	for output_size in [Vector2(1280, 720), Vector2(960, 540)]:
 		_assert_scaled_inside_output(roster, Vector2(1280, 720), output_size)
 

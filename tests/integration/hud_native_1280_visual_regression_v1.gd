@@ -61,7 +61,7 @@ func test_capture_real_main_character_shop_and_combat_pause_at_1280() -> void:
 	var roster := character_select.get_node("RosterStrip") as GridContainer
 	assert_bool(_fits_capture(roster)).is_true()
 	assert_int(roster.columns).is_equal(8)
-	assert_int(roster.get_child_count()).is_equal(24)
+	assert_int(roster.get_child_count()).is_equal(32)
 	var character_cell := character_select.get_node("RosterStrip/NikoCell") as Button
 	assert_str(String(character_cell.get_meta(&"content_id", &""))).is_equal(
 		String(NikoContentFactory.CHARACTER_ID)
@@ -83,7 +83,7 @@ func test_capture_real_main_character_shop_and_combat_pause_at_1280() -> void:
 		assert_bool(cell.has_meta(&"content_id")).is_false()
 		assert_bool(cell.has_meta(&"definition")).is_false()
 		assert_int(cell.get_signal_connection_list(&"pressed").size()).is_equal(0)
-	assert_int(unavailable_count).is_equal(23)
+	assert_int(unavailable_count).is_equal(31)
 	var change_character := character_select.get_node("ChangeCharacterButton") as Button
 	assert_bool(_fits_capture(change_character)).is_true()
 	assert_bool(change_character.visible).is_false()

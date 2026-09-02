@@ -303,7 +303,7 @@ func test_real_selection_shop_and_upgrade_routes_use_structured_setup_consumers(
 	add_child(character_screen)
 	var roster := character_screen.get_node("RosterStrip") as GridContainer
 	assert_int(roster.columns).is_equal(8)
-	assert_int(roster.get_child_count()).is_equal(24)
+	assert_int(roster.get_child_count()).is_equal(32)
 	assert_str(String(
 		(character_screen.get_node("RosterStrip/NikoCell") as Button).get_meta(&"content_id", &"")
 	)).is_equal(String(NikoContentFactory.CHARACTER_ID))
@@ -320,7 +320,7 @@ func test_real_selection_shop_and_upgrade_routes_use_structured_setup_consumers(
 		assert_bool(cell.has_meta(&"content_id")).is_false()
 		assert_bool(cell.has_meta(&"definition")).is_false()
 		assert_int(cell.get_signal_connection_list(&"pressed").size()).is_equal(0)
-	assert_int(unavailable_count).is_equal(23)
+	assert_int(unavailable_count).is_equal(31)
 	assert_object((character_screen.get_node("NikoDetail/Preview") as TextureRect).texture).is_not_null()
 	assert_int((character_screen.get_node("NikoDetail/Preview") as TextureRect).texture_filter).is_equal(
 		CanvasItem.TEXTURE_FILTER_NEAREST

@@ -208,17 +208,17 @@ func test_capture_actual_menu_and_selection_routes_at_1280() -> void:
 		and character_screen.get_node_or_null("RosterCaption") is Label
 		and roster != null
 		and roster.columns == 8
-		and roster.get_child_count() == 24
+		and roster.get_child_count() == 32
 		and niko_cell != null
 		and niko_cell.get_meta(&"content_id", &"") == NikoContentFactory.CHARACTER_ID
-		and unavailable_count == 23
+		and unavailable_count == 31
 		and unavailable_contract
 		and change_character != null
 		and not change_character.visible
 		and change_character.disabled
 		and not (character_screen.get_node("WeaponStage") as Control).visible
 		and not (character_screen.get_node("DifficultyStage") as Control).visible,
-		"eight-by-three Niko plus unavailable character picker"
+		"eight-by-four Niko plus unavailable character picker"
 	):
 		return
 	if not _require(

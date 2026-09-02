@@ -108,11 +108,11 @@ func _run() -> void:
 		"single-task summary and same-host later stages exist")
 	check(niko_preview != null and niko_preview.texture != null, "NiKo preview loaded")
 	check(niko_cell != null and niko_cell.is_visible_in_tree() and not niko_cell.disabled, "actual NiKo choice")
-	check(roster != null and roster.columns == 8 and roster.get_child_count() == 24, "exact 8x3 character roster")
-	if roster != null and roster.get_child_count() == 24:
+	check(roster != null and roster.columns == 8 and roster.get_child_count() == 32, "exact 8x4 character roster")
+	if roster != null and roster.get_child_count() == 32:
 		check(roster.get_child(0) == niko_cell and niko_cell.focus_mode != Control.FOCUS_NONE
 			and niko_cell.has_meta(&"content_id"), "NiKo is the only live first roster cell")
-		for index in range(1, 24):
+		for index in range(1, 32):
 			var placeholder := roster.get_child(index) as Button
 			var slot_index := placeholder.get_node_or_null("SlotIndex") as Label if placeholder != null else null
 			var glyph := placeholder.get_node_or_null("Glyph") as Label if placeholder != null else null
@@ -177,7 +177,7 @@ func _run() -> void:
 	niko_cell.grab_focus()
 	await settle()
 	check(niko_cell.has_focus() and not niko_cell.disabled, "character roster remains actionable after task choice")
-	print("PACKAGE_CHARACTER_GRID_OK columns=8 rows=3 live=1 placeholders=23")
+	print("PACKAGE_CHARACTER_GRID_OK columns=8 rows=4 live=1 placeholders=31")
 	check(not weapon_stage.visible and not difficulty_stage.visible, "character-only hides later stages")
 	if not failures.is_empty() or not await save_viewport("character-only"):
 		finish()

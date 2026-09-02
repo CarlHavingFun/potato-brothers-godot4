@@ -704,7 +704,7 @@ func test_character_setup_has_exactly_one_real_niko_cell_and_first_frame_detail(
 		^"RosterStrip/UnavailableCharacterSlot02/SlotIndex",
 		^"RosterStrip/UnavailableCharacterSlot02/Glyph",
 		^"RosterStrip/UnavailableCharacterSlot02/Status",
-		^"RosterStrip/UnavailableCharacterSlot24",
+		^"RosterStrip/UnavailableCharacterSlot32",
 		^"ChangeCharacterButton",
 	]
 	for path in required_paths:
@@ -713,8 +713,8 @@ func test_character_setup_has_exactly_one_real_niko_cell_and_first_frame_detail(
 	if roster == null:
 		return
 	assert_int(roster.columns).is_equal(8)
-	assert_int(roster.get_child_count()).is_equal(24)
-	assert_str((screen.get_node("RosterCaption") as Label).text).is_equal("角色档案 · 已解锁 1 / 24")
+	assert_int(roster.get_child_count()).is_equal(32)
+	assert_str((screen.get_node("RosterCaption") as Label).text).is_equal("角色档案 · 已解锁 1 / 32")
 	var niko_cell := roster.get_node("NikoCell") as Button
 	assert_str(String(niko_cell.get_meta(&"content_id", &""))).is_equal(String(NIKO_ID))
 	assert_bool(niko_cell.focus_mode == Control.FOCUS_ALL).is_true()
@@ -741,7 +741,7 @@ func test_character_setup_has_exactly_one_real_niko_cell_and_first_frame_detail(
 		assert_bool(slot.has_meta(&"character_definition")).is_false()
 		assert_int(slot.get_signal_connection_list(&"pressed").size()).is_equal(0)
 		slot.pressed.emit()
-	assert_int(unavailable_count).is_equal(23)
+	assert_int(unavailable_count).is_equal(31)
 	assert_dict(app.selection_draft).is_equal(draft_before)
 	assert_object(app.current_session).is_null()
 	var preview := screen.get_node("NikoDetail/Preview") as TextureRect
@@ -766,7 +766,7 @@ func test_character_setup_has_exactly_one_real_niko_cell_and_first_frame_detail(
 	assert_int(_authored_panel_container_count(screen)).is_equal(0)
 	assert_bool(
 		(screen.get_node("RosterStrip") as Control).get_rect().is_equal_approx(
-			Rect2(348, 140, 900, 360)
+			Rect2(348, 140, 900, 472)
 		)
 	).is_true()
 	assert_bool(
