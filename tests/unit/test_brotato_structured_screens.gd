@@ -1,6 +1,14 @@
 extends GdUnitTestSuite
 
 
+class IsolatedProfileService extends ProfileService:
+	func _atomic_write(payload: Dictionary) -> Error:
+		# Route/UI fixtures still exercise the production validation/save call,
+		# but keep checkpoint persistence detached from the process user profile.
+		profile_data = payload.duplicate(true)
+		return OK
+
+
 const STAT_LIST_PATH := "res://game/ui/stat_list_presenter.gd"
 const LOADOUT_STRIP_PATH := "res://game/ui/loadout_strip_presenter.gd"
 const HUD_SKIN_PATH := "res://game/ui/hud_skin.gd"
@@ -1735,6 +1743,7 @@ func test_upgrade_reroll_counter_resets_on_entry_and_loads_legacy_saves_as_zero(
 	assert_int(session.run_state.upgrade_reroll_count).is_equal(0)
 	var serialized := session.run_state.to_dictionary()
 	serialized.schema_version = 1
+	serialized.erase("rng_state")
 	serialized.players[0].erase("weapons")
 	serialized.players[0].erase("next_weapon_instance_id")
 	serialized.players[0].weapon_ids = session.run_state.player().weapon_ids.map(func(id: StringName) -> String: return String(id))
@@ -1872,6 +1881,8 @@ func _setup_route_fixture() -> Dictionary:
 	app.content_snapshot = GogoContentRegistry.new().build_snapshot(
 		ValidationContentFactory.create_packs(true)
 	)
+	app.profile_service = IsolatedProfileService.new()
+	app.profile_service.publish_content_context(app.content_snapshot)
 	var host := Node.new()
 	host.name = "SetupRouteHost"
 	var flow := SceneFlow.new()

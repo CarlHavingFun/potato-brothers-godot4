@@ -93,6 +93,70 @@ func start(config: SessionConfig, snapshot: ContentSnapshot) -> Error:
 	run_state = next_run_state
 	content_snapshot = snapshot
 	rng.seed = config.seed
+	run_state.rng_state = rng.state
+	_started_once = true
+	state_changed.emit()
+	return OK
+
+
+func prepare_checkpoint() -> Error:
+	if not _started_once or run_state == null or content_snapshot == null:
+		return ERR_UNAVAILABLE
+	run_state.schema_version = GogoRunState.SCHEMA_VERSION
+	run_state.rng_state = rng.state
+	var parsed := GogoRunState.parse_dictionary(run_state.to_dictionary(), content_snapshot)
+	return parsed.error
+
+
+func restore_from_checkpoint(state: GogoRunState, snapshot: ContentSnapshot) -> Error:
+	if _started_once or run_state != null:
+		return ERR_ALREADY_IN_USE
+	if state == null or snapshot == null:
+		return ERR_INVALID_PARAMETER
+	# Reparse into a detached candidate even when the caller already parsed it.
+	# This makes publication contingent on the current content snapshot and keeps
+	# a caller-owned Resource from becoming live mutable session state.
+	var parsed := GogoRunState.parse_dictionary(state.to_dictionary(), snapshot)
+	if parsed.error != OK:
+		return parsed.error
+	var candidate := parsed.state as GogoRunState
+	if (
+		candidate == null
+		or candidate.ended
+		or candidate.won
+		or candidate.phase not in [&"combat", &"upgrade", &"shop"]
+		or candidate.players.size() != 1
+	):
+		return ERR_INVALID_DATA
+	var player := candidate.player()
+	if player == null or player.player_index != 0 or player.current_health <= 0.0:
+		return ERR_INVALID_DATA
+	if (
+		(candidate.phase == &"upgrade" and candidate.pending_upgrade_count <= 0)
+		or (candidate.phase in [&"combat", &"shop"] and candidate.pending_upgrade_count != 0)
+	):
+		return ERR_INVALID_DATA
+	var difficulty := snapshot.definition(candidate.difficulty_id, &"difficulty") as GogoDifficultyDefinition
+	var zone := snapshot.definition(candidate.zone_id, &"zone") as GogoZoneDefinition
+	if (
+		difficulty == null
+		or zone == null
+		or candidate.total_waves != zone.wave_ids.size()
+		or GogoWaveResolver.validate_zone(snapshot, zone, difficulty.spawn_multiplier) != OK
+	):
+		return ERR_INVALID_DATA
+	# Combat checkpoints restart the authored wave boundary. They never claim to
+	# reconstruct entities, timers, pickups, or damage from an arbitrary mid-wave.
+	if candidate.phase == &"combat":
+		var probe := GameSession.new()
+		probe.run_state = candidate
+		probe.content_snapshot = snapshot
+		if GogoWaveResolver.resolve(probe) == null:
+			return ERR_INVALID_DATA
+	run_state = candidate
+	content_snapshot = snapshot
+	rng.seed = candidate.run_seed
+	rng.state = candidate.rng_state
 	_started_once = true
 	state_changed.emit()
 	return OK

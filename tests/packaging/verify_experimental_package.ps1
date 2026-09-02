@@ -312,7 +312,11 @@ try{
     if($wireLine.Count -ne 1){throw 'PCK wire receipt is missing.'}
     $wire=$wireLine[0].Substring('PACKAGE_PROFILE_WIRE_OK '.Length)|ConvertFrom-Json
     Preserve-SyntheticProfile
-    if(-not $result.profile_artifact -or $wire.profile_sha256 -cne $result.profile_artifact.sha256 -or $wire.pre_wire_sha256 -notmatch '^[A-F0-9]{64}$' -or $wire.run_seed_exact -cne '9007199254740993'){throw 'PCK wire profile/hash/int64 receipt mismatch.'}
+    if(-not $result.profile_artifact -or $wire.profile_sha256 -cne $result.profile_artifact.sha256 -or
+        $wire.pre_wire_sha256 -notmatch '^[A-F0-9]{64}$' -or $wire.run_seed_exact -cne '9007199254740993' -or
+        $wire.rng_state_exact -notmatch '^-?[0-9]+$' -or $wire.profile_schema -ne 1 -or $wire.checkpoint_schema -ne 3){
+        throw 'PCK wire profile/hash/schema3/int64 receipt mismatch.'
+    }
     foreach($field in @('profile','temporary','backup')){if($wire.profile_presence.$field -isnot [bool] -or $wire.profile_presence.$field -ne $result.profile_presence[$field]){throw 'PCK wire three-file presence mismatch.'}}
     $result.profile_wire=$wire
     $progressMarkers=@('PACKAGE_TASK_ZONE_OK','PACKAGE_CHARACTER_GRID_OK','PACKAGE_PROGRESS_20_OK','PACKAGE_ENDLESS_21_22_OK','PACKAGE_PROFILE_READBACK_OK')

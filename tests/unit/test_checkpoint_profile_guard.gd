@@ -24,6 +24,11 @@ class FailingStaticService extends GogoStaticAssetRuntimeService:
 	func activate_staged(route: StringName, session: GameSession) -> Error:
 		return ERR_CANT_CREATE if fail_activate else super.activate_staged(route, session)
 
+class RejectingCheckpointProfile extends ProfileService:
+	func save_checkpoint(_state: GogoRunState) -> Error:
+		last_error = "synthetic checkpoint rejection"
+		return ERR_CANT_CREATE
+
 var _content: ContentSnapshot
 
 
@@ -56,7 +61,7 @@ func test_absent_file_and_absent_checkpoint_load_without_file_operations() -> vo
 	assert_int(service.directory_attempts).is_equal(0)
 
 
-# Catches accepting null/empty/wrong checkpoint, lossy v1 ranks, or invalid schema2.
+# Catches accepting null/empty/wrong checkpoint, lossy v1 ranks, or invalid schema3.
 func test_real_file_invalid_checkpoints_preserve_memory_bytes_and_latch() -> void:
 	var ambiguous := _legacy()
 	ambiguous.players[0].weapon_levels = {String(RANGED): 2}
@@ -105,7 +110,7 @@ func test_json_envelope_and_read_errors_are_fail_closed() -> void:
 	_assert_failed_read_preserved()
 
 
-func test_valid_v1_load_is_readonly_and_keeps_raw_checkpoint_while_v2_validates() -> void:
+func test_valid_v1_load_is_readonly_and_keeps_raw_checkpoint_while_schema3_validates() -> void:
 	for checkpoint in [_legacy(), _state().to_dictionary()]:
 		var payload := _envelope()
 		payload.run_checkpoint = checkpoint
@@ -118,6 +123,60 @@ func test_valid_v1_load_is_readonly_and_keeps_raw_checkpoint_while_v2_validates(
 		assert_int(service.writer_attempts).is_equal(0)
 		assert_int(service.directory_attempts).is_equal(0)
 		if _guard_api(service): assert_bool(service.call("is_write_blocked")).is_false()
+
+
+func test_profile_guard_enforces_only_initialized_current_wave_shop_cache_shape_and_phase() -> void:
+	var current := _state().to_dictionary()
+	current.shop_offer_wave = current.current_wave
+	current.shop_offer_ids = ["", "", "", ""]
+	current.shop_offer_initialized = true
+	var ended_settlement := current.duplicate(true)
+	ended_settlement.phase = "settlement"
+	ended_settlement.ended = true
+	var uninitialized_same_wave := current.duplicate(true)
+	uninitialized_same_wave.shop_offer_initialized = false
+	uninitialized_same_wave.shop_offer_ids = []
+	uninitialized_same_wave.phase = "combat"
+	var previous_wave := current.duplicate(true)
+	previous_wave.current_wave = 2
+	previous_wave.phase = "combat"
+	previous_wave.shop_offer_wave = 1
+	previous_wave.shop_offer_ids = [String(RANGED), ""]
+	for checkpoint in [current, ended_settlement, uninitialized_same_wave, previous_wave]:
+		_clean_synthetic()
+		var payload := _envelope()
+		payload.run_checkpoint = checkpoint
+		_write(payload)
+		var disk_before := _disk()
+		var service := ObservedProfile.new()
+		assert_int(_load(service)).is_equal(OK)
+		_assert_small_fixture_semantics(service.profile_data, payload)
+		var parsed := service.parse_checkpoint()
+		assert_int(parsed.error).is_equal(OK)
+		assert_dict(_disk()).is_equal(disk_before)
+		assert_int(service.writer_attempts).is_zero()
+		assert_int(service.directory_attempts).is_zero()
+
+	var partial := current.duplicate(true)
+	partial.shop_offer_ids = ["", "", ""]
+	var wrong_phase := current.duplicate(true)
+	wrong_phase.phase = "combat"
+	for pair in [[partial, "run_checkpoint.shop_offer_ids"], [wrong_phase, "run_checkpoint.phase"]]:
+		_clean_synthetic()
+		var payload := _envelope()
+		payload.run_checkpoint = pair[0]
+		var original := payload.duplicate(true)
+		_write(payload)
+		var service := ObservedProfile.new()
+		service.profile_data["sentinel"] = {"before": [7]}
+		var before := _snapshot(service)
+		assert_int(_load(service)).is_not_equal(OK)
+		assert_dict(_snapshot(service)).is_equal(before)
+		assert_dict(payload).is_equal(original)
+		assert_str(service.checkpoint_diagnostic().path).is_equal(pair[1])
+		assert_bool(service.is_write_blocked()).is_true()
+		assert_int(service.writer_attempts).is_zero()
+		assert_int(service.directory_attempts).is_zero()
 
 
 # Each upper entrance must reject BEFORE writer dispatch; direct dispatch is one attempt, zero I/O.
@@ -205,8 +264,39 @@ func test_invalid_incoming_state_and_candidate_reject_without_latching_then_vali
 	assert_int(service.save_checkpoint(_state())).is_equal(OK)
 	assert_int(service.directory_attempts).is_equal(1)
 	assert_int(service.writer_attempts).is_equal(2)
-	assert_int(int(service.profile_data.run_checkpoint.schema_version)).is_equal(2)
+	assert_int(int(service.profile_data.run_checkpoint.schema_version)).is_equal(3)
 	assert_bool(FileAccess.file_exists(ProfileService.PROFILE_PATH)).is_true()
+
+
+func test_parse_checkpoint_is_detached_read_only_and_absence_is_explicit() -> void:
+	var absent := ProfileService.new()
+	assert_int(_load(absent)).is_equal(OK)
+	var absent_before := _snapshot(absent)
+	var diagnostic_before := absent.checkpoint_diagnostic()
+	var missing := absent.parse_checkpoint()
+	assert_int(missing.error).is_equal(ERR_DOES_NOT_EXIST)
+	assert_object(missing.state).is_null()
+	assert_dict(_snapshot(absent)).is_equal(absent_before)
+	assert_dict(absent.checkpoint_diagnostic()).is_equal(diagnostic_before)
+
+	var service := ProfileService.new()
+	assert_int(_load(service)).is_equal(OK)
+	assert_int(service.save_checkpoint(_state())).is_equal(OK)
+	var before := _snapshot(service)
+	var profile_bytes := var_to_bytes(service.profile_data)
+	var first := service.parse_checkpoint()
+	var second := service.parse_checkpoint()
+	assert_int(first.error).is_equal(OK)
+	assert_int(second.error).is_equal(OK)
+	assert_bool(first.state != second.state).is_true()
+	if first.error != OK or second.error != OK:
+		return
+	first.state.player().materials = 999999
+	first.state.player().base_stats[&"detached_probe"] = 1.0
+	assert_int(second.state.player().materials).is_not_equal(999999)
+	assert_bool(second.state.player().base_stats.has(&"detached_probe")).is_false()
+	assert_array(var_to_bytes(service.profile_data)).is_equal(profile_bytes)
+	assert_dict(_snapshot(service)).is_equal(before)
 
 
 # Catches a successful legal int64 save that cannot be reloaded losslessly through actual JSON.
@@ -357,6 +447,72 @@ func test_healthy_absent_and_valid_profile_boot_allow_configuration_and_single_s
 		app.session_created.connect(func(_session: GameSession) -> void: created[0] += 1)
 		assert_int(app.create_session_from_draft()).is_equal(OK)
 		assert_int(created[0]).is_equal(1)
+
+
+func test_new_session_checkpoint_failure_publishes_no_session_or_signal() -> void:
+	var stale := _state()
+	stale.current_wave = 7
+	var payload := _envelope()
+	payload.run_checkpoint = stale.to_dictionary()
+	_write(payload)
+	var app := _kernel()
+	app.profile_service = RejectingCheckpointProfile.new()
+	assert_int(app.boot().status).is_equal(BootResult.Status.OK)
+	_draft(app)
+	var created := [0]
+	app.session_created.connect(func(_session: GameSession) -> void: created[0] += 1)
+	var before := _snapshot(app.profile_service)
+	assert_int(app.create_session_from_draft()).is_equal(ERR_CANT_CREATE)
+	assert_object(app.current_session).is_null()
+	assert_int(created[0]).is_equal(0)
+	assert_dict(_snapshot(app.profile_service)).is_equal(before)
+	assert_int(app.boot_result.status).is_equal(BootResult.Status.SAVE_ERROR)
+	var reader := ProfileService.new()
+	assert_int(reader.load_profile(app.content_snapshot)).is_equal(OK)
+	var preserved: Dictionary = reader.parse_checkpoint()
+	assert_int(preserved.error).is_equal(OK)
+	if preserved.error == OK:
+		assert_int(preserved.state.current_wave).is_equal(7)
+
+
+func test_new_session_without_profile_context_fails_closed_before_publication() -> void:
+	var app := _kernel()
+	app.content_snapshot = _content
+	_draft(app)
+	var created := [0]
+	app.session_created.connect(func(_session: GameSession) -> void: created[0] += 1)
+	var before := _disk()
+	assert_int(app.create_session_from_draft()).is_not_equal(OK)
+	assert_object(app.current_session).is_null()
+	assert_int(created[0]).is_zero()
+	assert_dict(_disk()).is_equal(before)
+	assert_int(app.boot_result.status).is_equal(BootResult.Status.SAVE_ERROR)
+
+
+func test_resume_route_failure_balances_publication_with_close_and_rolls_back() -> void:
+	var app := _kernel()
+	assert_int(app.boot().status).is_equal(BootResult.Status.OK)
+	var state := _state()
+	assert_int(app.profile_service.save_checkpoint(state)).is_equal(OK)
+	var expected: Dictionary = app.profile_service.parse_checkpoint()
+	assert_int(expected.error).is_equal(OK)
+	app.scene_flow = null
+	var created := [0]
+	var closed := [0]
+	var published: Array[GameSession] = []
+	app.session_created.connect(func(session: GameSession) -> void:
+		created[0] += 1
+		published.append(session)
+	)
+	app.session_closed.connect(func() -> void: closed[0] += 1)
+	assert_int(app.resume_checkpoint()).is_equal(ERR_UNCONFIGURED)
+	assert_object(app.current_session).is_null()
+	assert_int(created[0]).is_equal(1)
+	assert_int(closed[0]).is_equal(1)
+	assert_int(published.size()).is_equal(1)
+	if not published.is_empty() and expected.error == OK:
+		assert_dict(published[0].run_state.to_dictionary()).is_equal(expected.state.to_dictionary())
+		assert_int(published[0].rng.state).is_equal(expected.state.rng_state)
 
 
 func test_newly_invalid_current_profile_exposes_kernel_save_error() -> void:
@@ -566,6 +722,16 @@ func test_wire_integer_domains_reject_rounded_fractional_tokens_before_publishin
 		assert_int(_load(service)).is_equal(OK)
 		if service.profile_data.has("run_checkpoint"):
 			assert_int(service.profile_data.run_checkpoint.players[0].materials).is_equal(9007199254740993 if token.begins_with("9007") else 9223372036854775807)
+	_clean_synthetic()
+	var schema3 := ProfileService.new()
+	assert_int(_load(schema3)).is_equal(OK)
+	assert_int(schema3.save_checkpoint(_state())).is_equal(OK)
+	var source := FileAccess.get_file_as_string(ProfileService.PROFILE_PATH)
+	var rng_value: int = schema3.profile_data.run_checkpoint.rng_state
+	var rng_token := '"rng_state": %d' % rng_value
+	for replacement in ['"rng_state": 1.00000000000000001', '"rng_state": 9223372036854775808']:
+		_write_text(source.replace(rng_token, replacement))
+		_assert_failed_read_preserved()
 
 
 func test_structured_numeric_paths_do_not_confuse_dotted_escaped_or_numeric_string_keys() -> void:

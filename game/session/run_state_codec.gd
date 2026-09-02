@@ -3,7 +3,7 @@ extends RefCounted
 
 const GogoWeaponInventory := preload("res://game/session/weapon_inventory.gd")
 const INT64_MAX := 9223372036854775807
-const RUN_FIELDS := ["schema_version", "run_seed", "current_wave", "total_waves", "phase", "zone_id", "difficulty_id", "won", "ended", "endless", "players", "locked_shop_offer_ids", "shop_offer_wave", "shop_offer_ids", "shop_offer_initialized", "shop_offer_initialization_id", "reroll_count", "upgrade_reroll_count", "pending_upgrade_count", "elapsed_seconds"]
+const RUN_FIELDS := ["schema_version", "run_seed", "rng_state", "current_wave", "total_waves", "phase", "zone_id", "difficulty_id", "won", "ended", "endless", "players", "locked_shop_offer_ids", "shop_offer_wave", "shop_offer_ids", "shop_offer_initialized", "shop_offer_initialization_id", "reroll_count", "upgrade_reroll_count", "pending_upgrade_count", "elapsed_seconds"]
 const PLAYER_FIELDS := ["player_index", "character_id", "level", "xp", "xp_to_next_level", "materials", "economy_material_remainder", "current_health", "max_health", "base_stats", "final_stats", "weapons", "next_weapon_instance_id", "item_ids", "upgrade_ids"]
 const V1_RUN_DEFAULTS := {"endless": false, "locked_shop_offer_ids": [], "shop_offer_wave": 0, "shop_offer_ids": [], "shop_offer_initialized": false, "shop_offer_initialization_id": 0, "reroll_count": 0, "upgrade_reroll_count": 0, "pending_upgrade_count": 0, "elapsed_seconds": 0.0}
 const V1_PLAYER_DEFAULTS := {"economy_material_remainder": 0.0, "weapon_levels": {}}
@@ -13,10 +13,14 @@ static func parse(data: Variant, snapshot: ContentSnapshot) -> Dictionary:
 	if snapshot == null: return _error("$", "content snapshot is required")
 	if not data is Dictionary: return _error("$", "expected run object")
 	if not data.has("schema_version"): return _error("schema_version", "required field")
-	var version_check := checked_integer(data.schema_version, 1, 2, "schema_version")
+	var version_check := checked_integer(data.schema_version, 1, GogoRunState.SCHEMA_VERSION, "schema_version")
 	if version_check.error != OK: return version_check
-	var legacy: bool = version_check.value == 1
-	var shape := _object(data, RUN_FIELDS, V1_RUN_DEFAULTS if legacy else {}, "")
+	var version: int = version_check.value
+	var legacy: bool = version == 1
+	var fields := RUN_FIELDS.duplicate()
+	if version < 3:
+		fields.erase("rng_state")
+	var shape := _object(data, fields, V1_RUN_DEFAULTS if legacy else {}, "")
 	if shape.error != OK: return shape
 	var values: Dictionary = shape.value
 	for key in ["run_seed", "current_wave", "total_waves", "shop_offer_wave", "shop_offer_initialization_id", "reroll_count", "upgrade_reroll_count", "pending_upgrade_count"]:
@@ -24,6 +28,15 @@ static func parse(data: Variant, snapshot: ContentSnapshot) -> Dictionary:
 		var checked := checked_integer(values[key], minimum, INT64_MAX, key)
 		if checked.error != OK: return checked
 		values[key] = checked.value
+	if version < 3:
+		# Legacy checkpoints never stored generator progress. This deterministic
+		# seed boundary is compatibility only, not a claim of the old random stream.
+		var fallback_rng := RandomNumberGenerator.new()
+		fallback_rng.seed = values.run_seed
+		values["rng_state"] = fallback_rng.state
+	var rng_check := checked_integer(values.rng_state, -9223372036854775808, INT64_MAX, "rng_state")
+	if rng_check.error != OK: return rng_check
+	values.rng_state = rng_check.value
 	for key in ["won", "ended", "endless", "shop_offer_initialized"]:
 		if not values[key] is bool: return _error(key, "expected boolean")
 	if not _is_text(values.phase) or not String(values.phase) in ["selection", "combat", "upgrade", "shop", "settlement"]:
@@ -44,6 +57,11 @@ static func parse(data: Variant, snapshot: ContentSnapshot) -> Dictionary:
 		var checked := _references(values[key], snapshot, [&"item", &"weapon"], key, 4, key == "shop_offer_ids", key == "locked_shop_offer_ids")
 		if checked.error != OK: return checked
 		values[key] = checked.value
+	if values.shop_offer_initialized and values.shop_offer_wave == values.current_wave:
+		if values.shop_offer_ids.size() != 4:
+			return _error("shop_offer_ids", "initialized current-wave cache requires exactly four slots")
+		if values.phase != "shop" and not (values.ended and values.phase == "settlement"):
+			return _error("phase", "initialized current-wave cache requires shop or ended settlement")
 	if not values.players is Array or values.players.is_empty(): return _error("players", "expected nonempty player array")
 	var players: Array[SessionPlayerState] = []
 	var indices := {}

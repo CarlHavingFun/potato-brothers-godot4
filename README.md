@@ -9,10 +9,10 @@ GOGOBRO 是一个使用 Godot 4.7.1 独立重写的俯视角生存动作游戏�
 ```text
 主菜单 → 角色选择 → 武器选择 → 难度选择
        → 战斗 → 升级 → 商店 → 下一波
-       → 五波胜利/失败结算 → 主菜单
+       → authored zone 最终波胜利/失败结算 → 主菜单
 ```
 
-验证内容全部由 `ValidationContentFactory` 创建，包含 1 个占位角色、2 把武器、3 类敌人、6 个物品、6 个升级、1 个区域、1 个难度和 5 个波次。运行时不依赖旧工程的资产或存档。
+验证内容全部由 `ValidationContentFactory` 及独立内容包创建，当前闭环使用 NiKo、多类武器/敌人/物品/升级、1 个区域、1 个难度和 20 个 authored 波次。运行时不依赖旧工程的资产或存档。
 
 ## 架构
 
@@ -28,13 +28,13 @@ GOGOBRO 是一个使用 Godot 4.7.1 独立重写的俯视角生存动作游戏�
 
 角色包和武器包彼此独立，可分开启用、禁用、更新和替换。变化先进入 `ContentPackCatalog`，只允许在主菜单且无活动会话时原子生成新 `ContentSnapshot`；进行中的一局永远使用启动时冻结的快照。
 
-新存档 schema 从 1 开始，写入独立的 `user://GOGOBRO/`，不读取旧存档。检查点采用临时文件写入、重读验证、备份和替换流程。
+外层 profile schema 为 1，局内 checkpoint 当前写 schema 3，并兼容读取 checkpoint schema 1/2（旧版不承诺精确还原随机流）。存档写入独立的 `user://GOGOBRO/`，不读取其他游戏或旧路径。检查点采用临时文件写入、重读验证、备份和替换流程。
 
 ## 开发工具
 
 `addons/`、`tools/` 和 `mcp_commands/` 保留 FrameKit、视频精灵工作台、sprite-gen/Godot 导入、MCP 与 GdUnit4。源视频及全量候选帧必须留在项目外，只有挑选后的资源可以进入游戏目录。
 
-运行唯一的五波确定性闭环：
+运行当前 authored zone 全波次确定性闭环：
 
 ```powershell
 Godot_v4.7.1-stable_win64_console.exe --headless --path . `

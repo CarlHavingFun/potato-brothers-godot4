@@ -1,10 +1,11 @@
 class_name GogoRunState
 extends Resource
 
-const SCHEMA_VERSION := 2
+const SCHEMA_VERSION := 3
 
 @export var schema_version: int = SCHEMA_VERSION
 @export var run_seed: int = 1
+@export var rng_state: int = 0
 @export var current_wave: int = 1
 @export var total_waves: int = 20
 @export var phase: StringName = &"selection"
@@ -78,6 +79,7 @@ func to_dictionary() -> Dictionary:
 	return {
 		"schema_version": schema_version,
 		"run_seed": run_seed,
+		"rng_state": rng_state,
 		"current_wave": current_wave,
 		"total_waves": total_waves,
 		"phase": String(phase),

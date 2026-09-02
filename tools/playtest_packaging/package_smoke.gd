@@ -815,8 +815,10 @@ func profile_wire() -> bool:
 	check(reader.profile_data.has("run_checkpoint"), "checkpoint present")
 	if not failures.is_empty(): return false
 	var raw: Dictionary = reader.profile_data.run_checkpoint
-	check(reader.profile_data.schema_version == 1 and raw.schema_version == 2, "two schema layers")
+	check(reader.profile_data.schema_version == 1 and raw.schema_version == 3, "two schema layers")
 	check(typeof(raw.run_seed) == TYPE_INT and raw.run_seed == 9007199254740993, "exact int64 wire")
+	check(typeof(raw.rng_state) == TYPE_INT and raw.rng_state == candidate.state.rng_state,
+		"exact schema3 RNG wire")
 	var decoded: Dictionary = run_codec.parse(raw, app.content_snapshot)
 	check(decoded.error == OK, "readback strict parse")
 	if not failures.is_empty(): return false
@@ -825,7 +827,8 @@ func profile_wire() -> bool:
 	if failures.is_empty():
 		print("PACKAGE_PROFILE_WIRE_OK " + JSON.stringify({"pre_wire_sha256": pre_sha,
 			"profile_sha256": FileAccess.get_sha256("user://GOGOBRO/profile.json").to_upper(), "profile_presence": profile_presence(),
-			"run_seed_exact": str(raw.run_seed), "profile_schema": reader.profile_data.schema_version, "checkpoint_schema": raw.schema_version,
+			"run_seed_exact": str(raw.run_seed), "rng_state_exact": str(raw.rng_state),
+			"profile_schema": reader.profile_data.schema_version, "checkpoint_schema": raw.schema_version,
 			"text": FileAccess.get_file_as_string("user://GOGOBRO/profile.json")}))
 	return failures.is_empty()
 

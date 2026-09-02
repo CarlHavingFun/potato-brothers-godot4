@@ -1,5 +1,11 @@
 extends GdUnitTestSuite
 
+class IsolatedProfileService extends ProfileService:
+	func _atomic_write(payload: Dictionary) -> Error:
+		profile_data = payload.duplicate(true)
+		return OK
+
+
 const CHARACTER_SCREEN := preload("res://game/ui/character_select_screen.tscn")
 const AK := &"gogobro.preview:weapon/wood_stock_assault_rifle"
 
@@ -412,6 +418,10 @@ func _fixture(initial_draft: Dictionary = {}) -> Dictionary:
 	var app := auto_free(AppKernel.new()) as AppKernel
 	app.add_to_group(&"gogobro_app")
 	app.content_snapshot = GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs(true))
+	# This lightweight fixture intentionally skips boot, so publish its isolated
+	# test content context explicitly before any start can persist W1.
+	app.profile_service = IsolatedProfileService.new()
+	app.profile_service.publish_content_context(app.content_snapshot)
 	add_child(app)
 	var host := Control.new()
 	host.size = Vector2(1280, 720)

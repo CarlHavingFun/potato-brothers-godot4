@@ -254,6 +254,7 @@ func test_optional_endless_and_shop_state_round_trip_and_legacy_defaults() -> vo
 	var session := _session()
 	var legacy_payload := session.run_state.to_dictionary()
 	legacy_payload.schema_version = 1
+	legacy_payload.erase("rng_state")
 	legacy_payload.total_waves = 5
 	legacy_payload.players[0].erase("weapons")
 	legacy_payload.players[0].erase("next_weapon_instance_id")

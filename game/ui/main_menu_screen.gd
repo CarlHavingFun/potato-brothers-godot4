@@ -20,6 +20,9 @@ func _ready() -> void:
 	actions.add_theme_constant_override(&"separation", 10)
 	body.add_child(actions)
 	var buttons: Array[Control] = []
+	var app := AppContext.kernel(self)
+	if app != null and app.can_resume_checkpoint():
+		buttons.append(ui_button(actions, "ContinueButton", "继续游戏 · 从最近波次边界恢复", Rect2(0, 0, 360, 64), _continue_run))
 	buttons.append(ui_button(actions, "StartButton", "开始新游戏", Rect2(0, 0, 360, 64), _start_new_run))
 	for spec in [["ProfileButton", "档案"], ["CodexButton", "图鉴"], ["SettingsButton", "设置"]]:
 		buttons.append(ui_button(actions, spec[0], spec[1], Rect2(0, 0, 360, 64), _open_page.bind(spec[0])))
@@ -154,3 +157,15 @@ func _start_new_run() -> void:
 	var app := AppContext.kernel(self)
 	app.begin_selection()
 	app.route(FlowRoute.CHARACTER_SELECT)
+
+
+func _continue_run() -> void:
+	var app := AppContext.kernel(self)
+	if app == null:
+		return
+	var error := app.resume_checkpoint()
+	if error != OK:
+		app.route(FlowRoute.DIAGNOSTIC, {
+			"message": "无法继续游戏",
+			"details": ["仅支持从已保存的波次边界继续：" + error_string(error)],
+		})

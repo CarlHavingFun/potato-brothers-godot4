@@ -104,6 +104,27 @@ func checkpoint_diagnostic() -> Dictionary:
 	return _diagnostic.duplicate(true)
 
 
+func parse_checkpoint(content: ContentSnapshot = null) -> Dictionary:
+	if is_write_blocked():
+		return _invalid("run_checkpoint", "profile writes are blocked", ERR_FILE_CORRUPT)
+	var active_content := content if content != null else _content
+	if active_content == null:
+		return _invalid("run_checkpoint", "content snapshot is required", ERR_UNCONFIGURED)
+	if not profile_data.has("run_checkpoint"):
+		return _invalid("run_checkpoint", "checkpoint does not exist", ERR_DOES_NOT_EXIST)
+	# The parser receives a deep detached candidate. Callers may restore or mutate
+	# it without publishing changes into the loaded profile or touching disk.
+	var raw: Variant = _detached(profile_data.get("run_checkpoint"))
+	var parsed := GogoRunState.parse_dictionary(raw, active_content)
+	if parsed.error != OK:
+		return _invalid(
+			"run_checkpoint" + ("." + String(parsed.path) if parsed.path != "$" else ""),
+			String(parsed.message),
+			parsed.error
+		)
+	return parsed
+
+
 func _validate_current_profile_before_mutation() -> Error:
 	if is_write_blocked():
 		return ERR_FILE_CORRUPT
@@ -239,7 +260,7 @@ static func _numeric_domain(segments: Array) -> String:
 		return "integer" if segments[0] in ["schema_version", "completed_runs", "best_wave"] else ""
 	if segments.is_empty() or segments[0] != "run_checkpoint": return ""
 	if segments.size() == 2:
-		if segments[1] in ["schema_version", "run_seed", "current_wave", "total_waves", "shop_offer_wave", "shop_offer_initialization_id", "reroll_count", "upgrade_reroll_count", "pending_upgrade_count"]: return "integer"
+		if segments[1] in ["schema_version", "run_seed", "rng_state", "current_wave", "total_waves", "shop_offer_wave", "shop_offer_initialization_id", "reroll_count", "upgrade_reroll_count", "pending_upgrade_count"]: return "integer"
 		return "float" if segments[1] == "elapsed_seconds" else ""
 	if segments.size() < 4 or segments[1] != "players" or not segments[2] is int: return ""
 	if segments.size() == 4:

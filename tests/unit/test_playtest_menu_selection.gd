@@ -1,5 +1,13 @@
 extends GdUnitTestSuite
 
+class IsolatedProfileService extends ProfileService:
+	func _atomic_write(payload: Dictionary) -> Error:
+		# UI fixtures exercise the production validation/save call without sharing a
+		# disk profile across test cases. Persistence itself has dedicated real-I/O tests.
+		profile_data = payload.duplicate(true)
+		return OK
+
+
 const ACTIONS := "ContentRoot/Body/MenuActions/"
 const GROUP_IDS := [
 	["weapon.training_blade:weapon/training_blade", "gogobro.preview:weapon/community_tapper"],
@@ -575,13 +583,16 @@ func _check_nonterminal_profile_case() -> void:
 	app.close_session(true)
 	assert_object(app.current_session).is_null()
 	assert_int(app.profile_service.profile_data.completed_runs).is_zero()
-	assert_int(app.profile_service.profile_data.best_wave).is_zero()
-	for path in [ProfileService.PROFILE_PATH, ProfileService.TEMP_PATH, ProfileService.BACKUP_PATH]:
-		assert_bool(FileAccess.file_exists(path)).is_false()
+	assert_int(app.profile_service.profile_data.best_wave).is_equal(1)
+	assert_bool(FileAccess.file_exists(ProfileService.PROFILE_PATH)).is_true()
+	assert_bool(FileAccess.file_exists(ProfileService.TEMP_PATH)).is_false()
+	assert_bool(FileAccess.file_exists(ProfileService.BACKUP_PATH)).is_false()
+	assert_int(app.profile_service.profile_data.run_checkpoint.current_wave).is_equal(1)
 	app.profile_service = ProfileService.new()
 	assert_int(app.profile_service.load_profile(app.content_snapshot)).is_equal(OK)
 	assert_int(app.profile_service.profile_data.completed_runs).is_zero()
-	assert_int(app.profile_service.profile_data.best_wave).is_zero()
+	assert_int(app.profile_service.profile_data.best_wave).is_equal(1)
+	assert_int(app.profile_service.profile_data.run_checkpoint.current_wave).is_equal(1)
 	var menu := fixture.host.get_child(0) as Control
 	var button := menu.get_node_or_null(ACTIONS + "ProfileButton") as Button
 	assert_object(button).is_not_null()
@@ -589,7 +600,7 @@ func _check_nonterminal_profile_case() -> void:
 		return
 	button.pressed.emit()
 	assert_str((menu.get_node("MenuPage/CompletedRuns") as Label).text).is_equal("已记录局数  0")
-	assert_str((menu.get_node("MenuPage/BestWave") as Label).text).is_equal("最高波次  0")
+	assert_str((menu.get_node("MenuPage/BestWave") as Label).text).is_equal("最高波次  1")
 	print("ORACLE_PROFILE_NONTERMINAL wave=9 completed_runs=", app.profile_service.profile_data.completed_runs, " best_wave=", app.profile_service.profile_data.best_wave, " profile_exists=", FileAccess.file_exists(ProfileService.PROFILE_PATH))
 
 func _check_terminal_profile_case() -> void:
@@ -751,6 +762,11 @@ func _fixture(profile_case: bool = false) -> Dictionary:
 		_profile_case_app = app
 	app.add_to_group(&"gogobro_app")
 	app.content_snapshot = GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs(true))
+	if not profile_case:
+		# Presentation fixtures do not boot, but a successful start still exercises
+		# the production fail-closed W1 save against an explicit isolated provider.
+		app.profile_service = IsolatedProfileService.new()
+		app.profile_service.publish_content_context(app.content_snapshot)
 	add_child(app)
 	var host := Control.new()
 	host.size = Vector2(1280, 720)

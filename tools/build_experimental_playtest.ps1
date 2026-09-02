@@ -542,7 +542,7 @@ WASD 移动，Esc 暂停；战斗自动攻击。此版本使用开发预览素�
 存档与设置仅保存在本包的 `profile`，与主项目、工作树和其他试玩包独立。
 这是实验 debug 快照，不是正式成品；原生晚波/无尽平衡尚未签收。当前 20 波内容不等于完整游戏完成声明。
 未启用 Top20 候选道具包；早期武器保底已包含在当前实验范围内。
-包含逐把武器 I–IV 品质、同内容同品质二合一、按实例出售与品质伤害；运行中 checkpoint 使用 schema2，外层 profile 仍为 schema1。
+包含逐把武器 I–IV 品质、同内容同品质二合一、按实例出售与品质伤害；运行中 checkpoint 使用 schema3，外层 profile 仍为 schema1。
 本包的计划验证范围为：配置完整引擎加载此 PCK 的资源、路线及品质/存档连接；实际结果以独立验证证据为准。品质组合为受控库存/金币 fixture，不代表自然购入、整局通关或平衡验收。
 导出 EXE/启动器本轮仅做静态产物与来源校验，未实际启动验收。
 无窗口启动/资源/路由/短战斗检查不代表人工画面验收、20 波或无尽整局通关验收。
@@ -583,7 +583,7 @@ $manifest = [ordered]@{
     }
     build_guard=[ordered]@{path=$buildGuard;sha256=$guardHash;version_info_assurance='version-info-early';import_export_assurance='plugin-entry';assurance_limits='Plugin entry is not before EditorNode or arbitrary project code.';plugin_sha256=$rawExporterPreHash;real_toy_status='unverified until separately authorized two-stage toy probe';phases=$phaseEvidence.ToArray()}
     debug_template=[ordered]@{source_path=$DebugTemplatePath;source_pre_sha256=$templatePreHash;copy_path=$templateCopy;copy_sha256=(Get-FileHash -LiteralPath $templateCopy).Hash;source_post_sha256=$templatePostHash}
-    scope=@('NiKo', '12 weapons', '20 waves', '21+ endless flow', 'early weapon guarantee', 'menu/shop/combat', 'experimental debug/development preview','per-instance weapon quality I-IV','same-content same-quality merge','per-instance sale and damage','run checkpoint schema2 with validated profile wire')
+    scope=@('NiKo', '12 weapons', '20 waves', '21+ endless flow', 'early weapon guarantee', 'menu/shop/combat', 'experimental debug/development preview','per-instance weapon quality I-IV','same-content same-quality merge','per-instance sale and damage','run checkpoint schema3 with validated profile wire')
     acceptance_limits=@('OS automation unverified', 'overall feel pending playtest','exported EXE startup unverified','PCK smoke uses controlled quality fixture')
     exclusions=@('Top20 candidates', 'native late-wave/endless balance not signed', 'reports', 'test caches', 'raw generation', 'private ledgers')
     launch_command='Launch-Experimental.cmd'; profile='profile/AppData/GOGOBRO'; build_logs=$buildRoot

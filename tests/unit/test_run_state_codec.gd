@@ -7,7 +7,7 @@ const MAX_ID := 9007199254740991
 func test_profile_json_roundtrip_restores_runtime_stat_dictionary_exactly() -> void:
 	# A raw pass-through of decoded stats leaves String keys and integral number
 	# variants behind; both are observable at the strict whole-checkpoint boundary.
-	var expected := _v2()
+	var expected := _v3()
 	expected.run_seed = 9007199254740993
 	expected.players[0].base_stats = {&"max_health": 20.0, &"movement_speed": 300.0, &"pickup_range": 115.0, &"armor": 0.0}
 	expected.players[0].final_stats = {&"max_health": 20.0, &"movement_speed": 300.0, &"pickup_range": 115.0, &"armor": 0.0, &"critical_chance": 0.0}
@@ -40,7 +40,7 @@ func test_stat_dictionary_equality_characterizes_single_representation_changes()
 
 
 func test_profile_json_stat_roundtrip_keeps_fractional_negative_zero_lookup_and_input_detached() -> void:
-	var expected := _v2()
+	var expected := _v3()
 	expected.players[0].base_stats = {&"health_regen": -1.25, &"armor": 0.0, &"movement_speed": 300.5}
 	expected.players[0].final_stats = {&"critical_chance": 0.0, &"damage_multiplier": 1.125}
 	var decoded := ProfileService.JSON_CODEC.decode(JSON.stringify({"run_checkpoint": expected}, "", true, true), ProfileService._numeric_domain)
@@ -66,7 +66,7 @@ func test_profile_json_stat_roundtrip_keeps_fractional_negative_zero_lookup_and_
 
 
 func test_profile_json_stat_normalization_preserves_int64_values_not_exactly_representable_as_float() -> void:
-	var source := _v2()
+	var source := _v3()
 	source.players[0].base_stats = {
 		&"positive_safe": 9007199254740992,
 		&"negative_safe": -9007199254740992,
@@ -98,36 +98,36 @@ func test_profile_json_stat_normalization_preserves_int64_values_not_exactly_rep
 func test_stat_normalization_keeps_boolean_nonfinite_and_nontext_keys_rejected() -> void:
 	for pair in [["base_stats", {&"damage": true}], ["base_stats", {&"damage": INF}],
 		["final_stats", {&"damage": NAN}], ["final_stats", {1: 2.0}]]:
-		var data := _v2()
+		var data := _v3()
 		data.players[0][pair[0]] = pair[1]
 		_reject(data, "players[0]." + pair[0])
 
 
 func test_weapon_shape_errors_name_the_exact_missing_or_unknown_field() -> void:
 	for key in ["instance_id", "content_id", "quality"]:
-		var data := _v2()
+		var data := _v3()
 		data.players[0].weapons[0].erase(key)
 		assert_str(_parse(data).path).is_equal("players[0].weapons[0]." + key)
-	var data := _v2()
+	var data := _v3()
 	data.players[0].weapons[0].extra = 1
 	assert_str(_parse(data).path).is_equal("players[0].weapons[0].extra")
 
 
 func test_serializer_preserves_invalid_candidates_as_rejectable_data_without_throwing() -> void:
-	var state := _parse(_v2()).state as GogoRunState
+	var state := _parse(_v3()).state as GogoRunState
 	state.players.append(null)
 	_reject(state.to_dictionary(), "players[1]")
 	state.players.remove_at(1)
 	state.player().weapon_inventory = null
 	_reject(state.to_dictionary(), "players[0].")
-	state = _parse(_v2()).state as GogoRunState
+	state = _parse(_v3()).state as GogoRunState
 	var malformed: Array[Dictionary] = [{"instance_id": 1, "quality": 1}]
 	state.player().weapon_inventory.set("_records", malformed)
 	_reject(state.to_dictionary(), "players[0].weapons[0]")
 
 
 func test_explicit_context_is_mandatory_and_detached_parse_keeps_owned_order_and_duplicates() -> void:
-	var payload := _v2()
+	var payload := _v3()
 	assert_int(GogoRunState.parse_dictionary(payload, null).error).is_not_equal(OK)
 	assert_object(GogoRunState.from_dictionary(payload, null)).is_null()
 	payload.players[0].character_id = ValidationContentFactory.CHARACTER_ID
@@ -143,7 +143,7 @@ func test_explicit_context_is_mandatory_and_detached_parse_keeps_owned_order_and
 	assert_bool(state.player().base_stats.has("after_parse")).is_false()
 
 
-func test_schema_two_roundtrip_preserves_holes_prior_cache_and_non_reused_ids() -> void:
+func test_schema_two_migrates_rng_and_preserves_holes_prior_cache_and_non_reused_ids() -> void:
 	var data := _v2()
 	data.current_wave = 20
 	data.shop_offer_wave = 19
@@ -157,7 +157,13 @@ func test_schema_two_roundtrip_preserves_holes_prior_cache_and_non_reused_ids() 
 	assert_int(result.error).is_equal(OK)
 	if result.state == null: return
 	var state := result.state as GogoRunState
-	assert_dict(state.to_dictionary()).is_equal(data)
+	var fallback := RandomNumberGenerator.new()
+	fallback.seed = data.run_seed
+	assert_int(state.schema_version).is_equal(3)
+	assert_int(state.rng_state).is_equal(fallback.state)
+	for key in data:
+		if key != "schema_version":
+			assert_that(state.to_dictionary()[key]).is_equal(data[key])
 	var session := GameSession.new()
 	session.content_snapshot = _content()
 	session.run_state = state
@@ -193,13 +199,34 @@ func test_schema_two_requires_every_field_and_rejects_unknown_keys() -> void:
 		_reject(data, "extra" if location == "run" else ("players[0].extra" if location == "player" else "players[0].weapons[0]"))
 
 
+func test_schema_three_requires_exact_rng_state_and_older_schemas_reject_future_field() -> void:
+	var missing := _v3()
+	missing.erase("rng_state")
+	_reject(missing, "rng_state")
+	for bad in [true, "1", 1.25, INF, NAN, 9223372036854775808.0, -9223372036854777856.0]:
+		var data := _v3()
+		data.rng_state = bad
+		_reject(data, "rng_state")
+	for exact in [-9223372036854775808, 0, 9007199254740993, 9223372036854775807]:
+		var data := _v3()
+		data.rng_state = exact
+		var parsed := _parse(data)
+		assert_int(parsed.error).is_equal(OK)
+		if parsed.error == OK:
+			assert_int(parsed.state.rng_state).is_equal(exact)
+	for version in [1, 2]:
+		var older := _v1() if version == 1 else _v2()
+		older.rng_state = 1
+		_reject(older, "rng_state")
+
+
 func test_schema_two_rejects_wrong_containers_elements_and_references() -> void:
 	for raw in [null, [], 7, true, "checkpoint"]: _reject(raw, "$")
 	for pair in [["players", {}], ["players", []], ["players", [null]], ["locked_shop_offer_ids", {}], ["shop_offer_ids", {}],
 		["locked_shop_offer_ids", [String(RANGED), String(RANGED)]], ["locked_shop_offer_ids", [""]],
 		["shop_offer_ids", [true]], ["shop_offer_ids", [String(ValidationContentFactory.CHARACTER_ID)]],
 		["zone_id", ""], ["zone_id", String(RANGED)], ["difficulty_id", 1], ["phase", "bogus"],
-		["schema_version", 3], ["won", 1], ["ended", "false"], ["endless", 0], ["shop_offer_initialized", []]]:
+		["schema_version", 4], ["won", 1], ["ended", "false"], ["endless", 0], ["shop_offer_initialized", []]]:
 		var data := _v2()
 		data[pair[0]] = pair[1]
 		_reject(data, pair[0])
@@ -215,43 +242,92 @@ func test_schema_two_rejects_wrong_containers_elements_and_references() -> void:
 		_reject(data, key)
 
 
+func test_initialized_current_wave_shop_cache_requires_exact_four_slots_and_safe_phase() -> void:
+	var current := _v3()
+	current.shop_offer_wave = current.current_wave
+	current.shop_offer_initialized = true
+	for partial_slots in [[], [""], ["", "", ""]]:
+		var partial := current.duplicate(true)
+		partial.shop_offer_ids = partial_slots
+		_reject(partial, "shop_offer_ids")
+
+	current.shop_offer_ids = ["", "", "", ""]
+	var parsed := _parse(current)
+	assert_int(parsed.error).is_equal(OK)
+	if parsed.error == OK:
+		assert_array((parsed.state as GogoRunState).shop_offer_ids).is_equal([&"", &"", &"", &""])
+	for unsafe_phase in ["selection", "combat", "upgrade", "settlement"]:
+		var unsafe := current.duplicate(true)
+		unsafe.phase = unsafe_phase
+		_reject(unsafe, "phase")
+
+	var ended_settlement := current.duplicate(true)
+	ended_settlement.phase = "settlement"
+	ended_settlement.ended = true
+	assert_int(_parse(ended_settlement).error).is_equal(OK)
+	var uninitialized_same_wave := current.duplicate(true)
+	uninitialized_same_wave.shop_offer_initialized = false
+	uninitialized_same_wave.shop_offer_ids = []
+	uninitialized_same_wave.phase = "combat"
+	var uninitialized_result := _parse(uninitialized_same_wave)
+	assert_int(uninitialized_result.error).is_equal(OK)
+	if uninitialized_result.error == OK:
+		assert_array((uninitialized_result.state as GogoRunState).shop_offer_ids).is_empty()
+
+
+func test_previous_wave_shop_cache_keeps_bounded_partial_slots_in_later_combat() -> void:
+	var previous := _v3()
+	previous.current_wave = 2
+	previous.phase = "combat"
+	previous.shop_offer_wave = 1
+	previous.shop_offer_ids = [String(RANGED), ""]
+	previous.shop_offer_initialized = true
+	var parsed := _parse(previous)
+	assert_int(parsed.error).is_equal(OK)
+	if parsed.error == OK:
+		var state := parsed.state as GogoRunState
+		assert_int(state.shop_offer_wave).is_equal(1)
+		assert_array(state.shop_offer_ids).is_equal([RANGED, &""])
+		assert_str(String(state.phase)).is_equal("combat")
+
+
 func test_integer_validation_precedes_conversion_for_all_counter_fields() -> void:
-	for key in ["schema_version", "run_seed", "current_wave", "total_waves", "shop_offer_wave", "shop_offer_initialization_id", "reroll_count", "upgrade_reroll_count", "pending_upgrade_count"]:
+	for key in ["schema_version", "run_seed", "rng_state", "current_wave", "total_waves", "shop_offer_wave", "shop_offer_initialization_id", "reroll_count", "upgrade_reroll_count", "pending_upgrade_count"]:
 		for bad in [true, "1", 1.25, INF, NAN, 9223372036854775808.0, -9223372036854777856.0]:
-			var data := _v2()
+			var data := _v3()
 			data[key] = bad
 			_reject(data, key)
 	for key in ["player_index", "xp", "materials", "level", "xp_to_next_level", "next_weapon_instance_id"]:
 		for bad in [false, "1", 1.5, INF, NAN, 9223372036854775808.0]:
-			var data := _v2()
+			var data := _v3()
 			data.players[0][key] = bad
 			_reject(data, "players[0]." + key)
 	for key in ["instance_id", "quality"]:
 		for bad in [true, "1", 1.5, INF, NAN, 9223372036854775808.0, 0, -1]:
-			var data := _v2()
+			var data := _v3()
 			data.players[0].weapons[0][key] = bad
 			_reject(data, "players[0].weapons[0]." + key)
 
 
 func test_inventory_boundaries_and_later_player_failure_never_publish_partial_state() -> void:
 	for pair in [["instance_id", MAX_ID], ["quality", 5], ["content_id", "missing"], ["content_id", 1]]:
-		var data := _v2()
+		var data := _v3()
 		data.players[0].weapons[0][pair[0]] = pair[1]
 		_reject(data, "players[0].weapons[0]." + pair[0])
 	for next_id in [0, -1, 1, MAX_ID + 1]:
-		var data := _v2()
+		var data := _v3()
 		data.players[0].next_weapon_instance_id = next_id
 		_reject(data, "players[0].")
-	var duplicate := _v2()
+	var duplicate := _v3()
 	duplicate.players[0].weapons.append(duplicate.players[0].weapons[0].duplicate())
 	_reject(duplicate, "players[0].weapons[1].instance_id")
-	var overfull := _v2()
+	var overfull := _v3()
 	overfull.players[0].weapons = []
 	overfull.players[0].next_weapon_instance_id = 8
 	for id in range(1, 8): overfull.players[0].weapons.append({"instance_id": id, "content_id": String(RANGED), "quality": 1})
 	_reject(overfull, "players[0].weapons")
 	for duplicate_index in [false, true]:
-		var data := _v2()
+		var data := _v3()
 		data.players.append(data.players[0].duplicate(true))
 		data.players[1].player_index = 0 if duplicate_index else 1
 		if not duplicate_index: data.players[1].current_health = -1
@@ -262,21 +338,22 @@ func test_numeric_and_state_relations_are_checked_without_clamping() -> void:
 	for pair in [["current_wave", 0], ["total_waves", 0], ["shop_offer_wave", -1], ["reroll_count", -1],
 		["elapsed_seconds", -0.1], ["elapsed_seconds", INF], ["elapsed_seconds", true],
 		["won", true], ["ended", true], ["endless", true], ["current_wave", 21], ["shop_offer_wave", 2]]:
-		var data := _v2()
+		var data := _v3()
 		data[pair[0]] = pair[1]
 		_reject(data, "")
 	for pair in [["player_index", -1], ["materials", -1], ["level", 0], ["xp_to_next_level", 0], ["xp", 20],
 		["current_health", -1], ["current_health", 21], ["max_health", 0], ["max_health", INF],
 		["economy_material_remainder", -0.1], ["economy_material_remainder", 1], ["economy_material_remainder", true],
 		["current_health", "10"], ["current_health", NAN]]:
-		var data := _v2()
+		var data := _v3()
 		data.players[0][pair[0]] = pair[1]
 		_reject(data, "players[0].")
 
 
 func test_valid_integral_floats_zero_weapons_and_int64_endless_are_accepted() -> void:
-	var data := _v2()
-	for key in ["schema_version", "run_seed", "current_wave", "total_waves", "shop_offer_wave", "shop_offer_initialization_id", "reroll_count", "upgrade_reroll_count", "pending_upgrade_count"]:
+	var data := _v3()
+	data.rng_state = 8
+	for key in ["schema_version", "run_seed", "rng_state", "current_wave", "total_waves", "shop_offer_wave", "shop_offer_initialization_id", "reroll_count", "upgrade_reroll_count", "pending_upgrade_count"]:
 		data[key] = float(data[key])
 	for key in ["player_index", "xp", "materials", "level", "xp_to_next_level", "next_weapon_instance_id"]:
 		data.players[0][key] = float(data.players[0][key])
@@ -284,14 +361,14 @@ func test_valid_integral_floats_zero_weapons_and_int64_endless_are_accepted() ->
 	data.players[0].weapons[0].quality = 1.0
 	assert_int(_parse(data).error).is_equal(OK)
 	for wave in [21, MAX_ID + 1, 9223372036854775807]:
-		data = _v2()
+		data = _v3()
 		data.current_wave = wave
 		data.endless = true
 		data.run_seed = -9223372036854775808
 		data.players[0].weapons = []
 		data.players[0].next_weapon_instance_id = MAX_ID
 		assert_int(_parse(data).error).is_equal(OK)
-	data = _v2()
+	data = _v3()
 	data.players[0].weapons[0].instance_id = MAX_ID - 1
 	data.players[0].next_weapon_instance_id = MAX_ID
 	assert_int(_parse(data).error).is_equal(OK)
@@ -307,7 +384,10 @@ func test_v1_only_declared_defaults_and_owned_quality_one_migrate() -> void:
 		assert_int(result.error).is_equal(OK)
 		if result.state == null: continue
 		var saved: Dictionary = result.state.to_dictionary()
-		assert_int(saved.schema_version).is_equal(2)
+		assert_int(saved.schema_version).is_equal(3)
+		var fallback := RandomNumberGenerator.new()
+		fallback.seed = data.run_seed
+		assert_int(saved.rng_state).is_equal(fallback.state)
 		assert_int(saved.total_waves).is_equal(5)
 		assert_bool(saved.endless).is_false()
 		assert_array(saved.shop_offer_ids).is_empty()
@@ -357,6 +437,15 @@ func _v2() -> Dictionary:
 	data.players[0].weapons = [{"instance_id": 1, "content_id": String(RANGED), "quality": 1}]
 	data.players[0].next_weapon_instance_id = 2
 	data.players[0].economy_material_remainder = 0.0
+	return data
+
+
+func _v3() -> Dictionary:
+	var data := _v2()
+	data.schema_version = 3
+	var seeded := RandomNumberGenerator.new()
+	seeded.seed = data.run_seed
+	data.rng_state = seeded.state
 	return data
 
 

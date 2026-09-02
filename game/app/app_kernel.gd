@@ -95,6 +95,8 @@ func begin_selection() -> void:
 
 
 func create_session_from_draft() -> Error:
+	if current_session != null:
+		return ERR_ALREADY_IN_USE
 	if profile_service.is_write_blocked():
 		_publish_save_error("存档校验失败")
 		return ERR_FILE_CORRUPT
@@ -108,6 +110,16 @@ func create_session_from_draft() -> Error:
 	candidate.static_asset_snapshot = static_asset_service.active_snapshot()
 	var error := candidate.start(config, content_snapshot)
 	if error != OK:
+		return error
+	error = candidate.prepare_checkpoint()
+	if error != OK:
+		return error
+	# Replacing any stale run is part of creating a new session, not a best-effort
+	# follow-up. An unconfigured or unwritable profile therefore fails closed before
+	# the candidate can become observable.
+	error = profile_service.save_checkpoint(candidate.run_state)
+	if error != OK:
+		_publish_save_error("新局存档失败")
 		return error
 	current_session = candidate
 	_settlement_recorded = false
@@ -145,10 +157,63 @@ func _record_settlement_once() -> void:
 func save_checkpoint() -> Error:
 	if current_session == null or current_session.run_state == null:
 		return ERR_UNAVAILABLE
-	var error := profile_service.save_checkpoint(current_session.run_state)
+	var error := current_session.prepare_checkpoint()
+	if error == OK:
+		error = profile_service.save_checkpoint(current_session.run_state)
 	if error != OK:
 		_publish_save_error("存档保存失败")
 	return error
+
+
+func can_resume_checkpoint() -> bool:
+	return current_session == null and _checkpoint_candidate().error == OK
+
+
+func resume_checkpoint() -> Error:
+	if current_session != null:
+		return ERR_ALREADY_IN_USE
+	var prepared := _checkpoint_candidate()
+	if prepared.error != OK:
+		return prepared.error
+	var candidate := prepared.session as GameSession
+	current_session = candidate
+	_settlement_recorded = false
+	candidate.run_ended.connect(_on_session_run_ended)
+	# Observers must see the exact detached disk state before a routed scene's
+	# synchronous _ready() can consume RNG or initialize a phase cache.
+	session_created.emit(candidate)
+	var route_error := route(prepared.route)
+	if route_error != OK:
+		candidate.run_ended.disconnect(_on_session_run_ended)
+		current_session = null
+		session_closed.emit()
+		return route_error
+	return OK
+
+
+func _checkpoint_candidate() -> Dictionary:
+	if profile_service.is_write_blocked():
+		return {"error": ERR_FILE_CORRUPT, "session": null, "route": &""}
+	if content_snapshot == null:
+		return {"error": ERR_UNCONFIGURED, "session": null, "route": &""}
+	var parsed := profile_service.parse_checkpoint(content_snapshot)
+	if parsed.error != OK:
+		return {"error": parsed.error, "session": null, "route": &""}
+	var candidate := GameSession.new()
+	candidate.static_asset_snapshot = static_asset_service.active_snapshot()
+	var restore_error := candidate.restore_from_checkpoint(parsed.state, content_snapshot)
+	if restore_error != OK:
+		return {"error": restore_error, "session": null, "route": &""}
+	var routes := {
+		&"combat": FlowRoute.COMBAT,
+		&"upgrade": FlowRoute.UPGRADE,
+		&"shop": FlowRoute.SHOP,
+	}
+	return {
+		"error": OK,
+		"session": candidate,
+		"route": routes[candidate.run_state.phase],
+	}
 
 
 func _publish_save_error(message: String) -> void:
