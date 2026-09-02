@@ -269,8 +269,9 @@ static func _numeric_domain(segments: Array) -> String:
 		if segments[3] in ["player_index", "level", "xp", "xp_to_next_level", "materials", "next_weapon_instance_id"]: return "integer"
 		return "float" if segments[3] in ["current_health", "max_health", "economy_material_remainder"] else ""
 	if segments.size() == 5:
-		if segments[3] == "weapon_levels" and segments[4] is String: return "integer"
-		if segments[3] in ["base_stats", "final_stats"] and segments[4] is String: return "float"
+		var has_text_key := segments[4] is String or segments[4] is StringName
+		if segments[3] == "weapon_levels" and has_text_key: return "integer"
+		if segments[3] in ["base_stats", "final_stats"] and has_text_key: return "float"
 	if segments.size() == 6 and segments[3] == "weapons" and segments[4] is int and segments[5] in ["instance_id", "quality"]: return "integer"
 	return ""
 

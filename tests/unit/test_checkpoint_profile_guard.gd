@@ -709,7 +709,9 @@ func test_profile_save_roundtrip_preserves_adjacent_double_exactly() -> void:
 	# A decimal literal is not suitable here because Godot's parser rounds this
 	# particular value one ULP upward before the test can exercise profile JSON.
 	var expected_remainder := PackedByteArray([0x00, 0x6a, 0x14, 0xae, 0x47, 0xe1, 0xca, 0x3f]).decode_double(0)
+	var expected_string_name_stat := PackedByteArray([0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x27, 0x40]).decode_double(0)
 	state.player().economy_material_remainder = expected_remainder
+	state.player().final_stats[&"health_regen"] = expected_string_name_stat
 	var service := ProfileService.new()
 	assert_int(_load(service)).is_equal(OK)
 	var save_error := service.save_checkpoint(state)
@@ -719,6 +721,8 @@ func test_profile_save_roundtrip_preserves_adjacent_double_exactly() -> void:
 	if not reloaded.profile_data.has("run_checkpoint"): return
 	var actual_remainder: float = reloaded.profile_data.run_checkpoint.players[0].economy_material_remainder
 	assert_array(var_to_bytes(actual_remainder)).is_equal(var_to_bytes(expected_remainder))
+	var actual_string_name_stat: float = reloaded.profile_data.run_checkpoint.players[0].final_stats.health_regen
+	assert_array(var_to_bytes(actual_string_name_stat)).is_equal(var_to_bytes(expected_string_name_stat))
 
 
 func test_wire_integer_domains_reject_rounded_fractional_tokens_before_publishing() -> void:
