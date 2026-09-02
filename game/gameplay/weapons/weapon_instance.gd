@@ -434,18 +434,25 @@ func _melee_target_key(target: Node2D) -> StringName:
 	return StringName("instance/%d" % target.get_instance_id())
 
 
-func _valid_melee_contact_target(candidate: Node2D) -> Node2D:
-	if candidate == null or not is_instance_valid(candidate) or candidate.is_queued_for_deletion():
+func _valid_melee_contact_target(candidate: Variant) -> Node2D:
+	if candidate == null:
 		return null
-	if _attack_range_origin().distance_squared_to(candidate.global_position) > stats.attack_range * stats.attack_range:
+	if not is_instance_valid(candidate):
 		return null
-	if candidate is GogoEnemyActor:
-		var enemy := candidate as GogoEnemyActor
+	if not candidate is Node2D:
+		return null
+	var target := candidate as Node2D
+	if target.is_queued_for_deletion():
+		return null
+	if _attack_range_origin().distance_squared_to(target.global_position) > stats.attack_range * stats.attack_range:
+		return null
+	if target is GogoEnemyActor:
+		var enemy := target as GogoEnemyActor
 		if enemy.defeated_once or not enemy.can_receive_weapon_contact():
 			return null
 		if owner_actor != null and owner_actor.combat_world != null:
 			return enemy if owner_actor.combat_world.is_active_enemy(enemy) else null
-	return candidate
+	return target
 
 
 func _update_melee_aim(target: Node2D) -> void:

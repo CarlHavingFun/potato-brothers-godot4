@@ -183,6 +183,47 @@ func test_cooldown_preserves_bounded_overshoot_without_reacquire_burst() -> void
 	assert_float(weapon.cooldown_remaining).is_equal(0.0)
 
 
+func test_melee_windup_rejects_target_freed_after_queue_free_and_finishes_cycle() -> void:
+	var fixture := _melee_lifecycle_fixture()
+	var world := fixture.world as CombatWorld
+	var weapon := fixture.weapon as GogoWeaponInstance
+	var stats := fixture.stats as GogoWeaponRuntimeStats
+	var enemy := _melee_lifecycle_enemy(world, 40.0, 1.0)
+
+	weapon._physics_process(0.0)
+	assert_int(weapon.melee_phase).is_equal(GogoWeaponInstance.MeleePhase.WINDUP)
+	assert_bool(enemy.take_damage(1.0)).is_true()
+	assert_bool(enemy.is_queued_for_deletion()).is_true()
+	assert_int(world.active_enemy_count()).is_zero()
+	assert_object(weapon._valid_melee_contact_target(enemy)).is_null()
+
+	await get_tree().process_frame
+	weapon._physics_process(stats.cooldown_seconds + 0.001)
+
+	assert_int(weapon.melee_sequence).is_zero()
+	assert_int(weapon.melee_phase).is_equal(GogoWeaponInstance.MeleePhase.READY)
+	assert_object(weapon.get("_melee_target")).is_null()
+
+
+func test_melee_contact_still_uses_world_active_enemy_registry() -> void:
+	var fixture := _melee_lifecycle_fixture()
+	var world := fixture.world as CombatWorld
+	var weapon := fixture.weapon as GogoWeaponInstance
+	var stats := fixture.stats as GogoWeaponRuntimeStats
+	var enemy := _melee_lifecycle_enemy(world, 40.0, 100.0)
+
+	assert_int(world.active_enemy_count()).is_equal(1)
+	assert_object(world.active_enemy_at(0)).is_same(enemy)
+	assert_object(world.nearest_active_enemy(Vector2.ZERO, stats.attack_range)).is_same(enemy)
+	weapon._physics_process(0.0)
+	weapon._physics_process(stats.cooldown_seconds + 0.001)
+
+	assert_float(enemy.current_health).is_equal(93.0)
+	assert_int(weapon.melee_sequence).is_equal(1)
+	assert_int(weapon.melee_phase).is_equal(GogoWeaponInstance.MeleePhase.READY)
+	assert_int(world.active_enemy_count()).is_equal(1)
+
+
 func test_enemy_defeat_signal_is_committed_exactly_once_before_deferred_free() -> void:
 	var enemy := auto_free(GogoEnemyActor.new()) as GogoEnemyActor
 	add_child(enemy)
@@ -846,6 +887,55 @@ func _configured_enemy(x_position: float) -> GogoEnemyActor:
 	enemy.configure(definition, null, difficulty)
 	add_child(enemy)
 	enemy.global_position = Vector2(x_position, 0.0)
+	return enemy
+
+
+func _melee_lifecycle_fixture() -> Dictionary:
+	var session := GameSession.new()
+	var run_state := GogoRunState.new()
+	run_state.players.append(SessionPlayerState.new())
+	session.run_state = run_state
+	var world := auto_free(CombatWorld.new()) as CombatWorld
+	add_child(world)
+	world.session = session
+	var owner := auto_free(GogoPlayerActor.new()) as GogoPlayerActor
+	owner.combat_world = world
+	var weapon := GogoWeaponInstance.new()
+	world.add_child(weapon)
+	var stats := GogoWeaponRuntimeStats.new()
+	stats.mode = GogoWeaponDefinition.Mode.MELEE
+	stats.attack_range = 100.0
+	stats.cooldown_seconds = 0.5
+	stats.damage = 7.0
+	stats.knockback = 0.0
+	stats.feedback_profile_id = &"heavy"
+	stats.damage_kind = &"melee"
+	stats.impact_kind = &"normal"
+	weapon.configure(stats, owner)
+	weapon.set_physics_process(false)
+	return {"world": world, "owner": owner, "weapon": weapon, "stats": stats}
+
+
+func _melee_lifecycle_enemy(
+	world: CombatWorld,
+	x_position: float,
+	max_health: float
+) -> GogoEnemyActor:
+	var definition := GogoEnemyDefinition.new()
+	definition.max_health = max_health
+	definition.xp_value = 0
+	definition.material_value = 0
+	var enemy := GogoEnemyActor.new()
+	enemy.configure(
+		definition,
+		null,
+		GogoDifficultyDefinition.new(),
+		world,
+		world.allocate_runtime_instance_id(&"enemy")
+	)
+	enemy.global_position = Vector2(x_position, 0.0)
+	world.enemy_layer.add_child(enemy)
+	assert_bool(world.register_active_enemy(enemy)).is_true()
 	return enemy
 
 
