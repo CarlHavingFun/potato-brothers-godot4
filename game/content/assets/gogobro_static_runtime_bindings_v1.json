@@ -1,7 +1,7 @@
 {
   "schema_version": "gogobro-static-runtime-bindings-v1",
   "kind": "shipping_runtime_bindings",
-  "canonical_registry_sha256": "C830BC27EA64A1FCCF869A7E9167F6E52F7F32D2D08F3E907F9E69237B83C63F",
+  "canonical_registry_sha256": "88EE8F3D6C488D345F2EBA9E1F5EF2207FC66AA01ECABA7E2E4B0ECB825A43D1",
   "expected_noncharacter_units": 70,
   "units": [
     {
@@ -3339,12 +3339,12 @@
       "declared_runtime_state": "requested_active",
       "approval_status": "approved",
       "shipping": {
-        "resource_path": "res://game/assets/gogobro_static/world/community_server_floor.png",
-        "sha256": "21E66402E309A8212AB59263E36FB32E842EEFADC18BE675860DF359F7AF58CC",
-        "rgba8_sha256": "797654951B0438479D1158629CA3EE89F63B345AAD4DBDEE99A6365A3DF595AF",
+        "resource_path": "res://game/assets/gogobro_static/world/community_server_floor_training_ground_v2_2048x1536_rgba8.png",
+        "sha256": "AFD075592C1C7E6EC5423E2C63E09454C7222F4DAD23FFAD841B3F96708A0EEC",
+        "rgba8_sha256": "C7641010C8FF6CD45C703C605FF734E6AF49F65937B3E6794BB9BF9ABB427917",
         "pixel_size": [
-          1254,
-          1254
+          2048,
+          1536
         ],
         "texture_filter": "nearest",
         "mipmaps": false
@@ -3355,22 +3355,22 @@
           "role": "world_sprite",
           "selector": "",
           "display_size_px": [
-            418,
-            418
+            2048,
+            1536
           ],
           "display_scale": [
-            0.3333333333333333,
-            0.3333333333333333
+            1.0,
+            1.0
           ],
           "pivot_px": [
-            209,
-            209
+            1024,
+            768
           ],
           "atlas_rect_px": [
             0,
             0,
-            1254,
-            1254
+            2048,
+            1536
           ],
           "anchors_px": {},
           "consumers": [
@@ -4866,9 +4866,9 @@
       "declared_runtime_state": "requested_active",
       "approval_status": "approved",
       "shipping": {
-        "resource_path": "res://game/assets/gogobro_static/ui/zone_thumbnail.png",
-        "sha256": "6856B72C4594AFB44E2F82CA050F879E5C45FDFEDC02FFC2D1B13D4CB0D32531",
-        "rgba8_sha256": "B48C968EBC21B988AFB96BB2C0235877E8B86A1394BDC67DCA763C8F58690F5C",
+        "resource_path": "res://game/assets/gogobro_static/ui/zone_thumbnail_training_ground_v2_256x144_rgba8.png",
+        "sha256": "FB341F882F46D9EAD7C3D1601814481B9F4A090156B4DEFD5726569A98746584",
+        "rgba8_sha256": "86A91AAB941868EB6EEF590D819FFD80199EB8174391FA1A7CBC721D198B3A7F",
         "pixel_size": [
           256,
           144

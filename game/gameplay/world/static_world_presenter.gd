@@ -31,6 +31,7 @@ const DECOR_RUNTIME_NAMES := {
 	&"decor_variant_06": &"decor_visual_variant_06",
 }
 const GRID_SIZE := 64
+const ARENA_BACKGROUND_SIZE := Vector2i(2048, 1536)
 const PLAYER_CLEAR_RADIUS := 240.0
 const CAPTURE_CENTER_HALF_SIZE := Vector2(176.0, 112.0)
 const PROP_EDGE_INSET := 96.0
@@ -167,6 +168,9 @@ func apply_capture_safe_layout(
 					Vector2(record.get("display_size_px", Vector2i.ZERO))
 				)
 				record["position"] = Vector2i((record.world_rect as Rect2).get_center())
+				var floor_evidence := record.world_rect as Rect2
+				if floor_evidence.has_area():
+					used_rects.append(floor_evidence)
 			&"arena_boundary_border":
 				record["world_rect"] = _boundary_evidence_rect(
 					visible_world_rect,
@@ -196,35 +200,27 @@ func _build_floor() -> void:
 	if handle == null:
 		_issue(&"community_server_floor")
 		return
-	var tile_size := Vector2(handle.display_size_px)
-	if tile_size.x <= 0.0 or tile_size.y <= 0.0:
-		_issue(&"community_server_floor")
+	var display_size := Vector2(handle.display_size_px)
+	if (
+		display_size.x <= 0.0
+		or display_size.y <= 0.0
+		or handle.display_size_px != ARENA_BACKGROUND_SIZE
+	):
+		_issues.append({
+			"code": &"invalid_world_asset_layout",
+			"message": "Arena background must be the exact 2048x1536 single-sprite asset.",
+			"asset_id": &"community_server_floor",
+		})
 		return
-	var instance := MultiMeshInstance2D.new()
+	var instance := Sprite2D.new()
 	instance.name = "community_server_floor"
 	instance.texture = handle.texture
 	instance.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	instance.self_modulate = FLOOR_MODULATE
-	var columns := ceili(_arena_rect.size.x / tile_size.x)
-	var rows := ceili(_arena_rect.size.y / tile_size.y)
-	var mesh := QuadMesh.new()
-	mesh.size = tile_size
-	var multi_mesh := MultiMesh.new()
-	multi_mesh.transform_format = MultiMesh.TRANSFORM_2D
-	multi_mesh.mesh = mesh
-	multi_mesh.instance_count = columns * rows
-	var index := 0
-	for row in rows:
-		for column in columns:
-			var tile_center := _arena_rect.position + Vector2(
-				(float(column) + 0.5) * tile_size.x,
-				(float(row) + 0.5) * tile_size.y
-			)
-			multi_mesh.set_instance_transform_2d(index, Transform2D(0.0, tile_center.round()))
-			index += 1
-	instance.multimesh = multi_mesh
+	instance.centered = true
+	instance.position = _arena_rect.get_center().round()
 	_floor_layer.add_child(instance)
-	_record(handle, instance, Vector2i(_arena_rect.position))
+	_record(handle, instance, Vector2i(instance.position))
 
 
 func _build_boundary() -> void:
@@ -482,14 +478,23 @@ func _floor_evidence_rect(
 	visible_rect: Rect2,
 	exclusions: Array[Rect2],
 	occupied: Array[Rect2],
-	tile_size: Vector2
+	_display_size: Vector2
 ) -> Rect2:
 	var inset := Vector2(GRID_SIZE, GRID_SIZE)
 	var interior := Rect2(
 		visible_rect.position + inset,
 		visible_rect.size - inset * 2.0
 	)
-	return _find_safe_rect(tile_size, interior, exclusions, occupied, GRID_SIZE)
+	# The floor is one arena-sized Sprite2D. Evidence needs only a visible,
+	# unobstructed sample of that texture; treating the whole sprite as a movable
+	# tile would misrepresent the production mount and cannot fit a camera view.
+	return _find_safe_rect(
+		Vector2(GRID_SIZE, GRID_SIZE),
+		interior,
+		exclusions,
+		occupied,
+		GRID_SIZE
+	)
 
 
 func _boundary_evidence_rect(

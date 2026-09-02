@@ -5,6 +5,8 @@ const PREVIEW_SERVICE_PATH := "res://game/content/assets/gogobro_static_candidat
 const SHIPPING_MANIFEST_PATH := "res://game/content/assets/gogobro_static_runtime_bindings_v1.json"
 const REGISTRY_PATH := "res://game/content/assets/gogobro_static_assets_v1.json"
 const SHIPPING_ROOT := "res://game/assets/gogobro_static/"
+const CANDIDATE_MANIFEST_PATH := "res://game/content/assets/gogobro_static_candidate_preview_v1.json"
+const CANDIDATE_ASSET_ROOT := "res://game/assets/gogobro_static_preview/"
 
 
 func test_development_overlay_adds_independent_butterfly_glock_and_ak_candidates() -> void:
@@ -62,6 +64,105 @@ func test_development_overlay_adds_independent_butterfly_glock_and_ak_candidates
 	assert_str(String(preview.state_for_asset(&"warmup_shiv"))).is_equal("preview_ready")
 	assert_str(String(preview.state_for_asset(&"service_pistol"))).is_equal("preview_ready")
 	assert_object(preview.resolve_asset(&"service_carbine", &"world_sprite")).is_null()
+
+
+func test_development_overlay_keeps_exact_art_v2_shipping_floor_and_task_handles() -> void:
+	var service_script := load(PREVIEW_SERVICE_PATH) as Script
+	assert_object(service_script).is_not_null()
+	if service_script == null:
+		return
+	var shipping := GogoStaticAssetRuntimeService.new()
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	assert_int(shipping.stage(content)).is_equal(OK)
+	assert_int(shipping.activate_staged(&"", null)).is_equal(OK)
+	var base := shipping.active_snapshot()
+	var preview := service_script.new().call("build_overlay", base, content) as GogoStaticAssetSnapshot
+	assert_object(preview).is_not_null()
+	if preview == null:
+		return
+	var contracts := {
+		&"community_server_floor": {
+			"role": &"world_sprite",
+			"path": "res://game/assets/gogobro_static/world/community_server_floor_training_ground_v2_2048x1536_rgba8.png",
+			"sha256": "AFD075592C1C7E6EC5423E2C63E09454C7222F4DAD23FFAD841B3F96708A0EEC",
+			"size": Vector2i(2048, 1536),
+		},
+		&"zone_thumbnail": {
+			"role": &"ui_texture",
+			"path": "res://game/assets/gogobro_static/ui/zone_thumbnail_training_ground_v2_256x144_rgba8.png",
+			"sha256": "FB341F882F46D9EAD7C3D1601814481B9F4A090156B4DEFD5726569A98746584",
+			"size": Vector2i(256, 144),
+		},
+	}
+	for asset_id: StringName in contracts:
+		var contract := contracts[asset_id] as Dictionary
+		var base_handle := base.resolve_asset(asset_id, contract.role)
+		var preview_handle := preview.resolve_asset(asset_id, contract.role)
+		assert_object(base_handle).is_not_null()
+		assert_object(preview_handle).is_same(base_handle)
+		assert_object(preview.resolve_global(asset_id)).is_same(base_handle)
+		if preview_handle == null:
+			continue
+		assert_str(String(preview_handle.source_kind)).is_equal("approved_shipping")
+		assert_str(FileAccess.get_sha256(contract.path).to_upper()).is_equal(contract.sha256)
+		assert_vector(preview_handle.display_size_px).is_equal(contract.size)
+		assert_vector(preview_handle.display_scale).is_equal(Vector2.ONE)
+		assert_vector(preview_handle.texture.get_size()).is_equal(Vector2(contract.size))
+		assert_str(String(preview.state_for_asset(asset_id))).is_equal("ready")
+
+
+func test_development_overlay_rejects_duplicate_art_v2_passthrough_ids() -> void:
+	var service_script := load(PREVIEW_SERVICE_PATH) as Script
+	assert_object(service_script).is_not_null()
+	if service_script == null:
+		return
+	var shipping := GogoStaticAssetRuntimeService.new()
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	assert_int(shipping.stage(content)).is_equal(OK)
+	assert_int(shipping.activate_staged(&"", null)).is_equal(OK)
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(CANDIDATE_MANIFEST_PATH))
+	assert_bool(parsed is Dictionary).is_true()
+	if not parsed is Dictionary:
+		return
+	for target_asset_id in ["community_server_floor", "zone_thumbnail"]:
+		var manifest := (parsed as Dictionary).duplicate(true)
+		var units := manifest.units as Array
+		var target: Dictionary = {}
+		for unit: Dictionary in units:
+			if String(unit.get("asset_id", "")) == target_asset_id:
+				target = unit.duplicate(true)
+				break
+		assert_bool(target.is_empty()).is_false()
+		if target.is_empty():
+			continue
+		var replaced := false
+		for index in units.size():
+			var candidate := units[index] as Dictionary
+			if (
+				String(candidate.get("asset_id", "")) != target_asset_id
+				and String(candidate.get("category", "")) == String(target.get("category", ""))
+			):
+				units[index] = target.duplicate(true)
+				replaced = true
+				break
+		assert_bool(replaced).is_true()
+		if not replaced:
+			continue
+		var preview_service: RefCounted = service_script.new()
+		var preview := preview_service.call(
+			"build_overlay",
+			shipping.active_snapshot(),
+			content,
+			CANDIDATE_MANIFEST_PATH,
+			CANDIDATE_ASSET_ROOT,
+			manifest
+		) as GogoStaticAssetSnapshot
+		assert_object(preview).is_null()
+		var errors := preview_service.get("last_errors") as Array
+		assert_bool(errors.any(
+			func(error: Dictionary) -> bool:
+				return error.get("code", &"") == &"candidate_preview_asset_id_invalid"
+		)).is_true()
 
 
 func test_promoted_liner_and_helmet_keep_distinct_preview_overlay_handles() -> void:

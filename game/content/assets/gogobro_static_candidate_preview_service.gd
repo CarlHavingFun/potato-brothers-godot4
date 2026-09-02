@@ -32,6 +32,16 @@ const REQUIRED_VARIANT_SELECTORS := {
 	"card_and_rarity_frame_kit": ["common", "uncommon", "rare", "legendary"],
 	"four_state_button": ["normal", "hover", "pressed", "disabled"],
 }
+const ART_V2_SHIPPING_PASSTHROUGH := {
+	&"community_server_floor": {
+		"role": &"world_sprite",
+		"display_size_px": Vector2i(2048, 1536),
+	},
+	&"zone_thumbnail": {
+		"role": &"ui_texture",
+		"display_size_px": Vector2i(256, 144),
+	},
+}
 
 var last_errors: Array[Dictionary] = []
 
@@ -40,16 +50,19 @@ func build_overlay(
 	base_snapshot: GogoStaticAssetSnapshot,
 	content: ContentSnapshot,
 	manifest_path: String = MANIFEST_PATH,
-	asset_root: String = ASSET_ROOT
+	asset_root: String = ASSET_ROOT,
+	manifest_override: Variant = null
 ) -> GogoStaticAssetSnapshot:
 	last_errors.clear()
 	if base_snapshot == null or content == null:
 		_issue(&"candidate_preview_invalid_parameter", "Preview requires a base snapshot and content snapshot.")
 		return null
-	if not FileAccess.file_exists(manifest_path):
-		_issue(&"candidate_preview_manifest_missing", "Candidate preview manifest is missing.")
-		return null
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(manifest_path))
+	var parsed: Variant = manifest_override
+	if parsed == null:
+		if not FileAccess.file_exists(manifest_path):
+			_issue(&"candidate_preview_manifest_missing", "Candidate preview manifest is missing.")
+			return null
+		parsed = JSON.parse_string(FileAccess.get_file_as_string(manifest_path))
 	if not parsed is Dictionary:
 		_issue(&"candidate_preview_manifest_invalid", "Candidate preview manifest is not valid JSON.")
 		return null
@@ -76,6 +89,7 @@ func build_overlay(
 	var zone_bindings: Dictionary = {}
 	var global_bindings: Dictionary = {}
 	var category_counts: Dictionary = {}
+	var seen_asset_ids: Dictionary = {}
 	var normalized_root := _normalized_root(asset_root)
 	for unit_variant: Variant in units:
 		if not unit_variant is Dictionary:
@@ -84,9 +98,10 @@ func build_overlay(
 		var unit := unit_variant as Dictionary
 		var asset_id := StringName(String(unit.get("asset_id", "")))
 		var category := String(unit.get("category", ""))
-		if asset_id.is_empty() or states.has(asset_id) or asset_id == &"service_carbine":
+		if asset_id.is_empty() or seen_asset_ids.has(asset_id) or asset_id == &"service_carbine":
 			_issue(&"candidate_preview_asset_id_invalid", "Candidate preview IDs must be unique and allowed.", asset_id)
 			continue
+		seen_asset_ids[asset_id] = true
 		if not EXPECTED_CATEGORY_COUNTS.has(category):
 			_issue(&"candidate_preview_category_invalid", "Candidate preview category is invalid.", asset_id)
 			continue
@@ -94,6 +109,13 @@ func build_overlay(
 		var expected_role: StringName = CATEGORY_ROLE[category]
 		if StringName(String(unit.get("role", ""))) != expected_role:
 			_issue(&"candidate_preview_role_invalid", "Candidate preview role does not match its category.", asset_id)
+			continue
+		# The historical candidate manifest remains immutable evidence, but these
+		# exact two logical IDs now ship approved art-v2 textures. A development
+		# overlay must retain the already-validated shipping handles instead of
+		# replacing them with the superseded candidate pixels.
+		if ART_V2_SHIPPING_PASSTHROUGH.has(asset_id):
+			_validate_art_v2_shipping_passthrough(base_snapshot, asset_id, expected_role)
 			continue
 		var path := _normalized_path(String(unit.get("resource_path", "")))
 		if not path.begins_with(normalized_root) or path.contains("..") or not FileAccess.file_exists(path):
@@ -178,6 +200,36 @@ func build_overlay(
 		zone_bindings,
 		global_bindings
 	)
+
+
+func _validate_art_v2_shipping_passthrough(
+	base_snapshot: GogoStaticAssetSnapshot,
+	asset_id: StringName,
+	role: StringName
+) -> void:
+	var contract := ART_V2_SHIPPING_PASSTHROUGH.get(asset_id, {}) as Dictionary
+	var expected_role := contract.get("role", &"") as StringName
+	var expected_size := contract.get("display_size_px", Vector2i.ZERO) as Vector2i
+	var handle := base_snapshot.resolve_asset(asset_id, role)
+	var global_handle := base_snapshot.resolve_global(asset_id)
+	if (
+		role != expected_role
+		or handle == null
+		or global_handle != handle
+		or handle.source_kind != &"approved_shipping"
+		or handle.display_size_px != expected_size
+		or handle.display_scale != Vector2.ONE
+		or handle.pivot_px != expected_size / 2
+		or handle.atlas_rect_px != Rect2i(Vector2i.ZERO, expected_size)
+		or handle.texture == null
+		or Vector2i(handle.texture.get_size()) != expected_size
+		or base_snapshot.state_for_asset(asset_id) != &"ready"
+	):
+		_issue(
+			&"candidate_preview_art_v2_passthrough_invalid",
+			"Development preview requires the exact approved art-v2 shipping handle.",
+			asset_id
+		)
 
 
 func _bind_content_icons(

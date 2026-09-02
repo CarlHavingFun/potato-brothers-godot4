@@ -101,6 +101,17 @@ const OBSOLETE_SINGLE_CANDIDATE_FIELDS := ["candidate_id", "candidate_provenance
 const REQUIRED_CANDIDATE_HISTORY_ASSET_IDS := ["smoke_shell_helmet"]
 const APPROVAL_EVENT_FIELDS := ["candidate_id", "decision", "authority", "approved_at_utc"]
 const EXPLICIT_USER_APPROVAL_AUTHORITY := "explicit_user_approval_in_current_task"
+const USER_AUTHORIZED_SUPERVISOR_VISUAL_JUDGMENT_AUTHORITY := (
+	"user_authorized_supervisor_ordinary_visual_judgment"
+)
+const ALLOWED_APPROVAL_AUTHORITIES := [
+	EXPLICIT_USER_APPROVAL_AUTHORITY,
+	USER_AUTHORIZED_SUPERVISOR_VISUAL_JUDGMENT_AUTHORITY,
+]
+const SUPERVISOR_VISUAL_JUDGMENT_SCOPED_PATHS := {
+	"community_server_floor": "res://game/assets/gogobro_static/world/community_server_floor_training_ground_v2_2048x1536_rgba8.png",
+	"zone_thumbnail": "res://game/assets/gogobro_static/ui/zone_thumbnail_training_ground_v2_256x144_rgba8.png",
+}
 const SHIPPING_APPROVAL_EVIDENCE_SCHEMA := "gogobro-static-shipping-approval-v1"
 const SHIPPING_APPROVAL_EVIDENCE_FIELDS := [
 	"schema_version",
@@ -179,6 +190,14 @@ static func load_registry(path: String = REGISTRY_PATH) -> Dictionary:
 	_normalize_candidate_artifact_byte_sizes(registry)
 	errors.append_array(validate_registry(registry))
 	return {"registry": registry, "errors": errors}
+
+
+static func is_allowed_approval_authority(authority: String) -> bool:
+	return ALLOWED_APPROVAL_AUTHORITIES.has(authority)
+
+
+static func is_allowed_candidate_approval_authority(authority: String) -> bool:
+	return authority == EXPLICIT_USER_APPROVAL_AUTHORITY
 
 
 static func _has_invalid_byte_literals(raw_json: String) -> bool:
@@ -500,13 +519,13 @@ static func _validate_approval_history(
 		errors.append("approved candidate must preserve prior review decision")
 	if str(active_candidate.get("harmony_verdict", "")) != "harmony_pass":
 		errors.append("approved candidate must have harmony_pass evidence")
-	if str(event.get("authority", "")) != EXPLICIT_USER_APPROVAL_AUTHORITY:
-		errors.append("approval decision must cite explicit user authority")
+	if not is_allowed_candidate_approval_authority(str(event.get("authority", ""))):
+		errors.append("candidate approval decision must cite explicit per-image user authority")
 	if not _is_rfc3339_utc(str(event.get("approved_at_utc", ""))):
 		errors.append("approval decision approved_at_utc must be RFC 3339 UTC")
 
 
-static func has_explicit_shipping_approval_evidence(
+static func has_authorized_shipping_approval_evidence(
 	unit: Dictionary,
 	shipping_sha256: String,
 	rgba8_sha256: String,
@@ -579,8 +598,11 @@ static func _shipping_approval_evidence_errors(
 		errors.append("shipping approval evidence schema is invalid")
 	if str(evidence.get("decision", "")) != "approved":
 		errors.append("shipping approval evidence decision must be approved")
-	if str(evidence.get("authority", "")) != EXPLICIT_USER_APPROVAL_AUTHORITY:
+	var authority := str(evidence.get("authority", ""))
+	if not is_allowed_approval_authority(authority):
 		errors.append("shipping approval evidence authority is invalid")
+	elif not _shipping_authority_is_scoped(unit, authority):
+		errors.append("shipping approval evidence authority scope is invalid")
 	if not _is_rfc3339_utc(str(evidence.get("approved_at_utc", ""))):
 		errors.append("shipping approval evidence approved_at_utc must be RFC 3339 UTC")
 	for evidence_hash_field: String in ["approval_record_sha256", "source_contract_sha256", "review_board_sha256"]:
@@ -675,6 +697,21 @@ static func _shipping_approval_evidence_errors(
 					if declared_selectors != binding_selectors or binding_selectors.is_empty():
 						errors.append("selector_set scope must exactly match runtime binding selectors")
 	return errors
+
+
+static func _shipping_authority_is_scoped(unit: Dictionary, authority: String) -> bool:
+	var asset_id := str(unit.get("asset_id", ""))
+	var has_supervisor_scope := SUPERVISOR_VISUAL_JUDGMENT_SCOPED_PATHS.has(asset_id)
+	if authority == EXPLICIT_USER_APPROVAL_AUTHORITY:
+		return not has_supervisor_scope
+	if authority != USER_AUTHORIZED_SUPERVISOR_VISUAL_JUDGMENT_AUTHORITY:
+		return false
+	if not has_supervisor_scope:
+		return false
+	var paths_variant: Variant = unit.get("intended_file_paths")
+	if not paths_variant is Array:
+		return false
+	return paths_variant == [SUPERVISOR_VISUAL_JUDGMENT_SCOPED_PATHS[asset_id]]
 
 
 static func _dictionary_has_exact_fields(value: Dictionary, fields: Array) -> bool:

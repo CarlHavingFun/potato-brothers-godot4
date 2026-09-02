@@ -268,7 +268,17 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	):
 		return
 	var upstream_audio_evidence: Dictionary = {}
-	if not _require(world.static_world_presenter != null and world.static_world_presenter.issues().is_empty(), "static world presenter"):
+	var presenter_issues: Array = (
+		world.static_world_presenter.issues()
+		if world.static_world_presenter != null
+		else [{"code": "missing_static_world_presenter"}]
+	)
+	if not presenter_issues.is_empty():
+		print("FULL_STATIC_ASSETS_COMBAT_PRESENTER_ISSUES " + JSON.stringify(presenter_issues))
+	if not _require(
+		world.static_world_presenter != null and presenter_issues.is_empty(),
+		"static world presenter issues=" + JSON.stringify(presenter_issues)
+	):
 		return
 	var world_to_screen := world.get_global_transform_with_canvas()
 	var world_hud_exclusions := _transform_rects(
@@ -278,6 +288,17 @@ func test_capture_actual_six_weapon_combat_and_coverage() -> void:
 	# Gameplay intentionally starts with no ambiguous noninteractive crates,
 	# racks, beacons or devices. Asset-coverage silhouettes are mounted only by
 	# this explicit validation hook and never by the ordinary combat route.
+	if not _require(
+		world.static_world_presenter.get_node("Props").get_child_count() == 0,
+		"ordinary combat starts with zero noninteractive props"
+	):
+		return
+	var ordinary_presenter_records: Array = world.static_world_presenter.consumer_records()
+	if not _require(
+		ordinary_presenter_records.size() == 2,
+		"ordinary combat mounts only the arena background and hidden fallback boundary"
+	):
+		return
 	world.static_world_presenter.mount_validation_props(config.seed, true)
 	var presenter_evidence: Array = world.static_world_presenter.apply_capture_safe_layout(
 		world.arena_rect,

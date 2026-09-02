@@ -494,7 +494,65 @@ func test_loader_rejects_forged_or_non_append_only_human_approval_transitions() 
 	_assert_fixture_error(review_with_approval, "review unit must not contain approval_history")
 
 
-func test_loader_requires_exact_human_approval_evidence() -> void:
+func test_approval_authority_allowlist_is_exact_and_closed() -> void:
+	assert_bool(Registry.is_allowed_approval_authority(
+		"explicit_user_approval_in_current_task"
+	)).is_true()
+	assert_bool(Registry.is_allowed_approval_authority(
+		"user_authorized_supervisor_ordinary_visual_judgment"
+	)).is_true()
+	assert_bool(Registry.is_allowed_candidate_approval_authority(
+		"explicit_user_approval_in_current_task"
+	)).is_true()
+	assert_bool(Registry.is_allowed_candidate_approval_authority(
+		"user_authorized_supervisor_ordinary_visual_judgment"
+	)).is_false()
+	for rejected in [
+		"assistant_self_approval",
+		"user_authorized_supervisor_ordinary_visual_judgment ",
+		"USER_AUTHORIZED_SUPERVISOR_ORDINARY_VISUAL_JUDGMENT",
+		"",
+	]:
+		assert_bool(Registry.is_allowed_approval_authority(rejected)).is_false()
+
+	var delegated_candidate := _canonical_registry()
+	_approval_event(_smoke_shell_helmet(delegated_candidate))["authority"] = (
+		"user_authorized_supervisor_ordinary_visual_judgment"
+	)
+	_assert_fixture_error(
+		delegated_candidate,
+		"candidate approval decision must cite explicit per-image user authority"
+	)
+
+	var invalid_shipping := _canonical_registry()
+	var invalid_unit := _unit_by_asset_id(invalid_shipping, "zone_thumbnail")
+	(invalid_unit.get("shipping_approval_evidence", {}) as Dictionary)["authority"] = (
+		"assistant_self_approval"
+	)
+	_assert_fixture_error(invalid_shipping, "shipping approval evidence authority is invalid")
+
+	var widened_shipping_scope := _canonical_registry()
+	var unrelated_unit := _unit_by_asset_id(widened_shipping_scope, "community_tapper")
+	(unrelated_unit.get("shipping_approval_evidence", {}) as Dictionary)["authority"] = (
+		"user_authorized_supervisor_ordinary_visual_judgment"
+	)
+	_assert_fixture_error(
+		widened_shipping_scope,
+		"shipping approval evidence authority scope is invalid"
+	)
+
+	var false_explicit_claim := _canonical_registry()
+	var art_unit := _unit_by_asset_id(false_explicit_claim, "zone_thumbnail")
+	(art_unit.get("shipping_approval_evidence", {}) as Dictionary)["authority"] = (
+		"explicit_user_approval_in_current_task"
+	)
+	_assert_fixture_error(
+		false_explicit_claim,
+		"shipping approval evidence authority scope is invalid"
+	)
+
+
+func test_loader_requires_exact_authorized_approval_evidence() -> void:
 	var missing_history := _canonical_registry()
 	_smoke_shell_helmet(missing_history).erase("approval_history")
 	_assert_fixture_error(missing_history, "approved unit missing approval_history")
@@ -505,7 +563,10 @@ func test_loader_requires_exact_human_approval_evidence() -> void:
 
 	var wrong_authority := _canonical_registry()
 	_approval_event(_smoke_shell_helmet(wrong_authority))["authority"] = "assistant_self_approval"
-	_assert_fixture_error(wrong_authority, "approval decision must cite explicit user authority")
+	_assert_fixture_error(
+		wrong_authority,
+		"candidate approval decision must cite explicit per-image user authority"
+	)
 
 	for invalid_timestamp in ["2026-08-24", "2026-08-24T12:04:47+08:00", "2026-99-99T99:99:99Z"]:
 		var malformed_time := _canonical_registry()

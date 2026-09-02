@@ -86,6 +86,18 @@ func test_canonical_shipping_manifest_activates_all_seventy_approved_static_unit
 	assert_object(snapshot.resolve_global(&"difficulty_badge_kit", &"standard")).is_not_null()
 	assert_object(snapshot.resolve_asset(&"projectile_hit_kit", &"projectile_sprite", &"rifle_round")).is_not_null()
 	assert_object(snapshot.resolve_asset(&"projectile_hit_kit", &"impact_sprite", &"static_pierce_mark")).is_not_null()
+	var floor := snapshot.resolve_asset(&"community_server_floor", &"world_sprite")
+	assert_object(floor).is_not_null()
+	assert_vector(floor.display_size_px).is_equal(Vector2i(2048, 1536))
+	assert_vector(floor.display_scale).is_equal(Vector2.ONE)
+	assert_vector(floor.texture.get_size()).is_equal(Vector2(2048, 1536))
+	assert_bool(floor.atlas_rect_px == Rect2i(0, 0, 2048, 1536)).is_true()
+	var task_art := snapshot.resolve_asset(&"zone_thumbnail", &"ui_texture")
+	assert_object(task_art).is_not_null()
+	assert_vector(task_art.display_size_px).is_equal(Vector2i(256, 144))
+	assert_vector(task_art.display_scale).is_equal(Vector2.ONE)
+	assert_vector(task_art.texture.get_size()).is_equal(Vector2(256, 144))
+	assert_bool(task_art.atlas_rect_px == Rect2i(0, 0, 256, 144)).is_true()
 
 
 func test_manifest_count_rejects_near_integer_json_number() -> void:

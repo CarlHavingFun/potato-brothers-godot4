@@ -313,10 +313,10 @@ func _load_active_unit(
 		_append_issue(issues, &"shipping_binding_entries_missing", "Requested active unit must provide at least one binding entry.", asset_id)
 	var registry_bindings_variant: Variant = registry_unit.get("runtime_bindings")
 	if not registry_bindings_variant is Array or registry_bindings_variant != bindings_variant:
-		_append_issue(issues, &"shipping_binding_registry_metadata_mismatch", "Shipping bindings must exactly match the human-approved canonical runtime metadata.", asset_id)
+		_append_issue(issues, &"shipping_binding_registry_metadata_mismatch", "Shipping bindings must exactly match the authorized canonical runtime metadata.", asset_id)
 	if (
 		bindings_variant is Array
-		and not _has_explicit_approval_evidence(
+		and not _has_authorized_approval_evidence(
 			registry_unit,
 			declared_sha256,
 			declared_rgba8_sha256,
@@ -324,7 +324,7 @@ func _load_active_unit(
 			bindings_variant as Array
 		)
 	):
-		_append_issue(issues, &"shipping_binding_approval_evidence_invalid", "Canonical registry lacks explicit human approval tied to these exact bytes, pixels, dimensions, and runtime bindings.", asset_id)
+		_append_issue(issues, &"shipping_binding_approval_evidence_invalid", "Canonical registry lacks authorized approval tied to these exact bytes, pixels, dimensions, and runtime bindings.", asset_id)
 	if not issues.is_empty():
 		return {"issues": issues}
 
@@ -596,14 +596,14 @@ func _registry_unit_map(registry: Dictionary, issues: Array[Dictionary]) -> Dict
 	return result
 
 
-static func _has_explicit_approval_evidence(
+static func _has_authorized_approval_evidence(
 	registry_unit: Dictionary,
 	shipping_sha256: String,
 	rgba8_sha256: String,
 	pixel_size: Vector2i,
 	runtime_bindings: Array
 ) -> bool:
-	if STATIC_ASSET_REGISTRY.has_explicit_shipping_approval_evidence(
+	if STATIC_ASSET_REGISTRY.has_authorized_shipping_approval_evidence(
 		registry_unit,
 		shipping_sha256,
 		rgba8_sha256,
@@ -676,7 +676,9 @@ static func _has_explicit_approval_evidence(
 	if (
 		String(event.get("candidate_id", "")) != active_candidate_id
 		or String(event.get("decision", "")) != "approved"
-		or String(event.get("authority", "")) != "explicit_user_approval_in_current_task"
+		or not STATIC_ASSET_REGISTRY.is_allowed_candidate_approval_authority(
+			String(event.get("authority", ""))
+		)
 	):
 		return false
 	var timestamp_pattern := RegEx.new()

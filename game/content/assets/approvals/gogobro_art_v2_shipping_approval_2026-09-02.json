@@ -1,0 +1,132 @@
+{
+  "schema_version": "gogobro-supervised-art-shipping-approval-v1",
+  "decision": "approved",
+  "authority": "user_authorized_supervisor_ordinary_visual_judgment",
+  "approved_at_utc": "2026-09-01T23:04:01Z",
+  "per_image_explicit_user_approval": false,
+  "delegation_basis": {
+    "goal": "gobro-art-v2-20260902",
+    "statement": "The user authorized the supervisor to make ordinary visual choices for this goal; this is not per-image explicit approval.",
+    "logical_asset_ids": [
+      "community_server_floor",
+      "zone_thumbnail"
+    ],
+    "versioned_shipping_paths": [
+      "res://game/assets/gogobro_static/ui/zone_thumbnail_training_ground_v2_256x144_rgba8.png",
+      "res://game/assets/gogobro_static/world/community_server_floor_training_ground_v2_2048x1536_rgba8.png"
+    ],
+    "raw_provenance_paths": [
+      "res://game/assets/gogobro_static/ui/zone_thumbnail_training_ground_v2_1672x941.png",
+      "res://game/assets/gogobro_static/world/community_server_floor_training_ground_v2_1448x1086.png"
+    ]
+  },
+  "units": [
+    {
+      "asset_id": "community_server_floor",
+      "binding_key": "community_server_floor|world_sprite|",
+      "authority": "user_authorized_supervisor_ordinary_visual_judgment",
+      "per_image_explicit_user_approval": false,
+      "delegation_basis": "gobro-art-v2-20260902 ordinary visual choice authorization",
+      "source": {
+        "thread_id": "01a05797-4ca9-7ed2-9a85-134105673148",
+        "tool_call_ordinal": 21263,
+        "raw_filename": "exec-392ba628-94e8-4c08-80af-77ae96296fd5.png",
+        "raw_resource_path": "res://game/assets/gogobro_static/world/community_server_floor_training_ground_v2_1448x1086.png",
+        "sha256": "FA7EF4C76185BC321F182D0838701AB4BB171E72CD936A3CC45296A62F3C70AA",
+        "pixel_size": [1448, 1086]
+      },
+      "prompt": {
+        "path": "res://game/content/assets/approvals/community_server_floor_training_ground_v2_prompt.md",
+        "sha256": "D128E9F125951CBF738732892AA4A787A4929B524A20AC6F8547FEE0851ED47F"
+      },
+      "source_contract": {
+        "path": "res://game/content/assets/approvals/community_server_floor_training_ground_v2_source_contract.md",
+        "sha256": "243912DAC8D47EDCFA9800E88CF67552592674F8D0AE5E8A879BF87BE5DC7436"
+      },
+      "visual_review": {
+        "path": "res://game/content/assets/approvals/community_server_floor_training_ground_v2_visual_review.md",
+        "sha256": "BE3AF83D035DC147F98162CD4DD43A7D8EE16542E3E0839C0873FF9C768F38F9"
+      },
+      "processing": {
+        "tool": "Pillow",
+        "version": "12.2.0",
+        "algorithm": "Image.Resampling.LANCZOS",
+        "color_mode": "RGBA8",
+        "crop": "none",
+        "png_optimize": false,
+        "png_compress_level": 9,
+        "double_encode_identical": true
+      },
+      "shipping_texture": {
+        "resource_path": "res://game/assets/gogobro_static/world/community_server_floor_training_ground_v2_2048x1536_rgba8.png",
+        "source_sha256": "FA7EF4C76185BC321F182D0838701AB4BB171E72CD936A3CC45296A62F3C70AA",
+        "output_sha256": "AFD075592C1C7E6EC5423E2C63E09454C7222F4DAD23FFAD841B3F96708A0EEC",
+        "rgba8_sha256": "C7641010C8FF6CD45C703C605FF734E6AF49F65937B3E6794BB9BF9ABB427917",
+        "pixel_size": [2048, 1536],
+        "display_size_px": [2048, 1536],
+        "display_scale": [1.0, 1.0],
+        "texture_filter": "nearest",
+        "mipmaps": false,
+        "mount_count": 1,
+        "tiled": false
+      },
+      "scope": {
+        "kind": "whole_texture",
+        "runtime_role": "ordinary_combat_arena_background",
+        "ordinary_run_props": 0
+      }
+    },
+    {
+      "asset_id": "zone_thumbnail",
+      "binding_key": "zone_thumbnail|ui_texture|",
+      "authority": "user_authorized_supervisor_ordinary_visual_judgment",
+      "per_image_explicit_user_approval": false,
+      "delegation_basis": "gobro-art-v2-20260902 ordinary visual choice authorization",
+      "source": {
+        "thread_id": "01a05797-4ca9-7ed2-9a85-134105673148",
+        "tool_call_ordinal": 21240,
+        "raw_filename": "exec-ed6f3d07-e44b-4375-aece-7d5bb800156e.png",
+        "raw_resource_path": "res://game/assets/gogobro_static/ui/zone_thumbnail_training_ground_v2_1672x941.png",
+        "sha256": "47FA7559B0774D5E514D9149464B1BC76BBE9DC33058FB4B2959A1620CEC00F8",
+        "pixel_size": [1672, 941]
+      },
+      "prompt": {
+        "path": "res://game/content/assets/approvals/zone_thumbnail_training_ground_v2_prompt.md",
+        "sha256": "FF383EEEF175E2B58790C428080A7D2A9FCD4859E5628DB0005A0266B22DC7D0"
+      },
+      "source_contract": {
+        "path": "res://game/content/assets/approvals/zone_thumbnail_training_ground_v2_source_contract.md",
+        "sha256": "B24FE0218E596FF5BF8469778A4819FC7DAABD6BBC3311046DBA9F69B8D5931E"
+      },
+      "visual_review": {
+        "path": "res://game/content/assets/approvals/zone_thumbnail_training_ground_v2_visual_review.md",
+        "sha256": "39ADF16532A41E71FC1F95BA5835AD54ED4E43FA6B7D23FE673116F7914EA3B1"
+      },
+      "processing": {
+        "tool": "Pillow",
+        "version": "12.2.0",
+        "algorithm": "Image.Resampling.LANCZOS",
+        "color_mode": "RGBA8",
+        "crop": "none",
+        "png_optimize": false,
+        "png_compress_level": 9,
+        "double_encode_identical": true
+      },
+      "shipping_texture": {
+        "resource_path": "res://game/assets/gogobro_static/ui/zone_thumbnail_training_ground_v2_256x144_rgba8.png",
+        "source_sha256": "47FA7559B0774D5E514D9149464B1BC76BBE9DC33058FB4B2959A1620CEC00F8",
+        "output_sha256": "FB341F882F46D9EAD7C3D1601814481B9F4A090156B4DEFD5726569A98746584",
+        "rgba8_sha256": "86A91AAB941868EB6EEF590D819FFD80199EB8174391FA1A7CBC721D198B3A7F",
+        "pixel_size": [256, 144],
+        "display_size_px": [256, 144],
+        "display_scale": [1.0, 1.0],
+        "texture_filter": "nearest",
+        "mipmaps": false
+      },
+      "scope": {
+        "kind": "whole_texture",
+        "runtime_role": "training_ground_task_art"
+      }
+    }
+  ]
+}

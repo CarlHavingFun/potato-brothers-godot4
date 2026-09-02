@@ -43,6 +43,13 @@ func test_ordinary_world_omits_misleading_noninteractive_props() -> void:
 		return
 	var presenter := _build_presenter(9137, true, [], false, Rect2(Vector2.ZERO, Vector2(2048, 1536)), false)
 	assert_int(presenter.get_node("Props").get_child_count()).is_equal(0)
+	assert_int(presenter.get_node("Floor").get_child_count()).is_equal(1)
+	var floor := presenter.get_node("Floor/community_server_floor") as Sprite2D
+	assert_object(floor).is_not_null()
+	assert_bool(floor.centered).is_true()
+	assert_vector(floor.position).is_equal(Vector2(1024, 768))
+	assert_vector(floor.scale).is_equal(Vector2.ONE)
+	assert_vector(floor.texture.get_size()).is_equal(Vector2(2048, 1536))
 	var records: Array = presenter.call("consumer_records")
 	assert_int(records.size()).is_equal(2)
 	assert_array(records.map(func(record: Dictionary) -> StringName: return record.asset_id)).contains_exactly([
@@ -97,9 +104,13 @@ func test_boundary_evidence_is_noninteractive_and_hidden_from_gameplay() -> void
 	if not FileAccess.file_exists(PRESENTER_PATH):
 		return
 	var presenter := _build_presenter(9137, true, [], false, CAPTURE_VIEW_RECT)
-	var floor := presenter.get_node("Floor/community_server_floor") as MultiMeshInstance2D
+	var floor := presenter.get_node("Floor/community_server_floor") as Sprite2D
 	var boundary := presenter.get_node("Boundary/arena_boundary_border_corners") as MultiMeshInstance2D
-	assert_int(floor.multimesh.instance_count).is_equal(240)
+	assert_object(floor).is_not_null()
+	assert_vector(floor.texture.get_size()).is_equal(Vector2(2048, 1536))
+	assert_vector(floor.scale).is_equal(Vector2.ONE)
+	assert_vector(floor.position).is_equal(CAPTURE_VIEW_RECT.get_center())
+	assert_int(presenter.get_node("Floor").get_child_count()).is_equal(1)
 	assert_int(boundary.multimesh.instance_count).is_equal(4)
 	assert_bool(boundary.visible).is_false()
 	assert_float(boundary.self_modulate.a).is_zero()
@@ -192,6 +203,25 @@ func test_missing_floor_is_reported_without_blocking_other_props() -> void:
 	assert_str(String((issues[0] as Dictionary).asset_id)).is_equal("community_server_floor")
 
 
+func test_floor_rejects_non_shipping_dimensions_instead_of_tiling_them() -> void:
+	if not FileAccess.file_exists(PRESENTER_PATH):
+		return
+	var presenter := _build_presenter(
+		9137,
+		false,
+		[],
+		false,
+		Rect2(Vector2.ZERO, Vector2(2048, 1536)),
+		false,
+		Vector2i(64, 64)
+	)
+	assert_bool(presenter.has_node("Floor/community_server_floor")).is_false()
+	var issues: Array = presenter.call("issues")
+	assert_int(issues.size()).is_equal(1)
+	assert_str(String((issues[0] as Dictionary).code)).is_equal("invalid_world_asset_layout")
+	assert_str(String((issues[0] as Dictionary).asset_id)).is_equal("community_server_floor")
+
+
 func test_spawn_marker_completes_once_before_enemy_activation_callback() -> void:
 	if not FileAccess.file_exists(MARKER_PATH):
 		return
@@ -233,14 +263,15 @@ func _build_presenter(
 	missing: Array[StringName] = [],
 	include_decor_selectors: bool = false,
 	arena_rect: Rect2 = Rect2(Vector2.ZERO, Vector2(2048, 1536)),
-	mount_validation_props: bool = true
+	mount_validation_props: bool = true,
+	floor_size: Vector2i = Vector2i(2048, 1536)
 ) -> Node2D:
 	var presenter_script := load(PRESENTER_PATH) as GDScript
 	var presenter := auto_free(presenter_script.new()) as Node2D
 	add_child(presenter)
 	presenter.call(
 		"configure",
-		_snapshot(missing, include_decor_selectors),
+		_snapshot(missing, include_decor_selectors, floor_size),
 		arena_rect,
 		seed,
 		development_preview
@@ -252,14 +283,17 @@ func _build_presenter(
 
 func _snapshot(
 	missing: Array[StringName],
-	include_decor_selectors: bool = false
+	include_decor_selectors: bool = false,
+	floor_size: Vector2i = Vector2i(2048, 1536)
 ) -> GogoStaticAssetSnapshot:
 	var handles: Dictionary = {}
 	for asset_id in WORLD_ASSET_IDS:
 		if missing.has(asset_id):
 			continue
 		var size := Vector2i(64, 64)
-		if asset_id in [
+		if asset_id == &"community_server_floor":
+			size = floor_size
+		elif asset_id in [
 			&"arena_boundary_border",
 			&"spawn_marker",
 			&"experience_pickup",
