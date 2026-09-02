@@ -37,7 +37,7 @@
       },
       "prompt": {
         "path": "res://game/content/assets/approvals/community_server_floor_training_ground_v2_prompt.md",
-        "sha256": "D128E9F125951CBF738732892AA4A787A4929B524A20AC6F8547FEE0851ED47F"
+        "sha256": "8A61A5F71C42C8A751A29D733622317D1159614F174BE21F317A86D767E3CE4F"
       },
       "source_contract": {
         "path": "res://game/content/assets/approvals/community_server_floor_training_ground_v2_source_contract.md",
@@ -92,7 +92,7 @@
       },
       "prompt": {
         "path": "res://game/content/assets/approvals/zone_thumbnail_training_ground_v2_prompt.md",
-        "sha256": "FF383EEEF175E2B58790C428080A7D2A9FCD4859E5628DB0005A0266B22DC7D0"
+        "sha256": "984E9D9C834AD9F6ED74B9AA57D48471CAFD80CB0C7A9A7EA0D11B284CCF5A7E"
       },
       "source_contract": {
         "path": "res://game/content/assets/approvals/zone_thumbnail_training_ground_v2_source_contract.md",

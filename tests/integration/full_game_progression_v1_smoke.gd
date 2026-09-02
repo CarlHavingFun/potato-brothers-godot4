@@ -106,6 +106,11 @@ func test_actual_endless_button_preserves_build_rng_and_final_shop_cache() -> vo
 	player.materials = 137
 	app.route(FlowRoute.SHOP)
 	await get_tree().process_frame
+	# Schema 3 snapshots the live generator state only at an explicit checkpoint
+	# boundary. Synchronize the constructed fixture before comparing the endless
+	# transition so the assertion measures preservation rather than the expected
+	# stale-to-current checkpoint update.
+	assert_int(session.prepare_checkpoint()).is_equal(OK)
 	var before := session.run_state.to_dictionary()
 	var rng_state := session.rng.state
 	var button := _screen(app).get_node("EndlessButton") as Button

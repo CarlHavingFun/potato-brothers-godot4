@@ -22,7 +22,7 @@ ART_V2_APPROVAL_PATH = (
     "res://game/content/assets/approvals/"
     "gogobro_art_v2_shipping_approval_2026-09-02.json"
 )
-ART_V2_APPROVAL_SHA256 = "4AFA9324F76E86F24B32E2DF96BBB6C93913407F1C23F0339DEDA8B979F283F0"
+ART_V2_APPROVAL_SHA256 = "02E50A9FB29227B8FA1640A3C98738CA93FBABED7B57330BA6F0096AA05FB348"
 ART_V2_AUTHORITY = "user_authorized_supervisor_ordinary_visual_judgment"
 ART_V2_IDS = {"community_server_floor", "zone_thumbnail"}
 

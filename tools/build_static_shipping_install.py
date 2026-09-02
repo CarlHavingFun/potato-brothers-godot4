@@ -29,7 +29,7 @@ LEGACY_APPROVED_CANDIDATE_MANIFEST_SHA256 = (
 ART_V2_APPROVAL_PATH = (
     "game/content/assets/approvals/gogobro_art_v2_shipping_approval_2026-09-02.json"
 )
-ART_V2_APPROVAL_SHA256 = "4AFA9324F76E86F24B32E2DF96BBB6C93913407F1C23F0339DEDA8B979F283F0"
+ART_V2_APPROVAL_SHA256 = "02E50A9FB29227B8FA1640A3C98738CA93FBABED7B57330BA6F0096AA05FB348"
 ART_V2_AUTHORITY = "user_authorized_supervisor_ordinary_visual_judgment"
 ART_V2_OVERRIDE_PATHS = {
     "community_server_floor": {
@@ -50,7 +50,7 @@ ART_V2_OVERRIDE_PATHS = {
         "output_rgba8_sha256": "C7641010C8FF6CD45C703C605FF734E6AF49F65937B3E6794BB9BF9ABB427917",
         "output_size": [2048, 1536],
         "prompt": "res://game/content/assets/approvals/community_server_floor_training_ground_v2_prompt.md",
-        "prompt_sha256": "D128E9F125951CBF738732892AA4A787A4929B524A20AC6F8547FEE0851ED47F",
+        "prompt_sha256": "8A61A5F71C42C8A751A29D733622317D1159614F174BE21F317A86D767E3CE4F",
         "source_contract": "res://game/content/assets/approvals/community_server_floor_training_ground_v2_source_contract.md",
         "source_contract_sha256": "243912DAC8D47EDCFA9800E88CF67552592674F8D0AE5E8A879BF87BE5DC7436",
         "visual_review": "res://game/content/assets/approvals/community_server_floor_training_ground_v2_visual_review.md",
@@ -74,7 +74,7 @@ ART_V2_OVERRIDE_PATHS = {
         "output_rgba8_sha256": "86A91AAB941868EB6EEF590D819FFD80199EB8174391FA1A7CBC721D198B3A7F",
         "output_size": [256, 144],
         "prompt": "res://game/content/assets/approvals/zone_thumbnail_training_ground_v2_prompt.md",
-        "prompt_sha256": "FF383EEEF175E2B58790C428080A7D2A9FCD4859E5628DB0005A0266B22DC7D0",
+        "prompt_sha256": "984E9D9C834AD9F6ED74B9AA57D48471CAFD80CB0C7A9A7EA0D11B284CCF5A7E",
         "source_contract": "res://game/content/assets/approvals/zone_thumbnail_training_ground_v2_source_contract.md",
         "source_contract_sha256": "B24FE0218E596FF5BF8469778A4819FC7DAABD6BBC3311046DBA9F69B8D5931E",
         "visual_review": "res://game/content/assets/approvals/zone_thumbnail_training_ground_v2_visual_review.md",

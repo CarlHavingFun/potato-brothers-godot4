@@ -16,7 +16,7 @@ APPROVAL_PATH = (
     PROJECT_ROOT
     / "game/content/assets/approvals/gogobro_art_v2_shipping_approval_2026-09-02.json"
 )
-APPROVAL_SHA256 = "4AFA9324F76E86F24B32E2DF96BBB6C93913407F1C23F0339DEDA8B979F283F0"
+APPROVAL_SHA256 = "02E50A9FB29227B8FA1640A3C98738CA93FBABED7B57330BA6F0096AA05FB348"
 AUTHORITY = "user_authorized_supervisor_ordinary_visual_judgment"
 EXPECTED = {
     "community_server_floor": {
