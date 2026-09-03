@@ -8,6 +8,8 @@ const LEGACY_TEMP_PATH := "user://GOGOBRO/profile.tmp"
 const LEGACY_BACKUP_PATH := "user://GOGOBRO/profile.backup"
 const MIGRATION_TEMP_PATH := "user://profile.migrate.tmp"
 const PROFILE_LOCK_PATH := "user://profile.lock"
+const LEGACY_SENTINEL_DIRECTORY := "user://GOGOBRO/checkpoint-profile-guard-sentinel"
+const LEGACY_SENTINEL_PATH := LEGACY_SENTINEL_DIRECTORY + "/keep.txt"
 const PLAYABLE := [FlowRoute.MAIN_MENU, FlowRoute.CHARACTER_SELECT, FlowRoute.WEAPON_SELECT,
 	FlowRoute.DIFFICULTY_SELECT, FlowRoute.COMBAT, FlowRoute.SHOP, FlowRoute.UPGRADE, FlowRoute.SETTLEMENT]
 
@@ -320,6 +322,25 @@ func test_wrong_owner_readback_aborts_owned_acquisition_without_profile_mutation
 	assert_bool(service.is_write_blocked()).is_true()
 	assert_dict(_disk()).is_equal(before)
 	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(PROFILE_LOCK_PATH))).is_false()
+
+
+func test_cleanup_removes_only_owned_legacy_profile_files_and_preserves_shared_directory_sentinel() -> void:
+	_write_text(JSON.stringify(_envelope()), LEGACY_PROFILE_PATH)
+	_write_text("owned legacy temporary", LEGACY_TEMP_PATH)
+	_write_text("owned legacy backup", LEGACY_BACKUP_PATH)
+	assert_int(DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(LEGACY_SENTINEL_DIRECTORY))).is_equal(OK)
+	var sentinel := FileAccess.open(LEGACY_SENTINEL_PATH, FileAccess.WRITE)
+	assert_object(sentinel).is_not_null()
+	if sentinel != null:
+		sentinel.store_string("unrelated settings/log sentinel")
+		sentinel.close()
+	_clean_synthetic()
+	assert_bool(FileAccess.file_exists(LEGACY_PROFILE_PATH)).is_false()
+	assert_bool(FileAccess.file_exists(LEGACY_TEMP_PATH)).is_false()
+	assert_bool(FileAccess.file_exists(LEGACY_BACKUP_PATH)).is_false()
+	assert_str(FileAccess.get_file_as_string(LEGACY_SENTINEL_PATH)).is_equal("unrelated settings/log sentinel")
+	assert_int(DirAccess.remove_absolute(ProjectSettings.globalize_path(LEGACY_SENTINEL_PATH))).is_equal(OK)
+	assert_int(DirAccess.remove_absolute(ProjectSettings.globalize_path(LEGACY_SENTINEL_DIRECTORY))).is_equal(OK)
 
 
 # Catches accepting null/empty/wrong checkpoint, lossy v1 ranks, or invalid schema3.
@@ -1201,9 +1222,6 @@ func _clean_synthetic() -> void:
 		LEGACY_PROFILE_PATH, LEGACY_TEMP_PATH, LEGACY_BACKUP_PATH, MIGRATION_TEMP_PATH]:
 		if FileAccess.file_exists(path) or DirAccess.dir_exists_absolute(path):
 			assert_int(DirAccess.remove_absolute(ProjectSettings.globalize_path(path))).is_equal(OK)
-	var legacy_directory := ProjectSettings.globalize_path(LEGACY_PROFILE_PATH.get_base_dir())
-	if DirAccess.dir_exists_absolute(legacy_directory):
-		assert_int(DirAccess.remove_absolute(legacy_directory)).is_equal(OK)
 	var lock := ProjectSettings.globalize_path(PROFILE_LOCK_PATH)
 	if DirAccess.dir_exists_absolute(lock):
 		var owner := lock.path_join("owner")
