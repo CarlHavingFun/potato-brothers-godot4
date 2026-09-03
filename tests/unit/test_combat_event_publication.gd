@@ -210,7 +210,11 @@ func test_world_publishes_typed_and_legacy_hud_values_from_one_immutable_snapsho
 	player.xp = 12
 	player.xp_to_next_level = 45
 	player.materials = 88
-	player.weapon_ids.assign([&"w1", &"w2"])
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	var first_weapon := player.weapon_inventory.add_weapon(ValidationContentFactory.RANGED_ID, content, 1)
+	var second_weapon := player.weapon_inventory.add_weapon(ValidationContentFactory.MELEE_ID, content, 1)
+	assert_int(int(first_weapon.error)).is_equal(OK)
+	assert_int(int(second_weapon.error)).is_equal(OK)
 	player.item_ids.assign([&"i1"])
 	var world := auto_free(CombatWorld.new()) as CombatWorld
 	world.session = session
@@ -233,9 +237,12 @@ func test_world_publishes_typed_and_legacy_hud_values_from_one_immutable_snapsho
 	assert_int(snapshot.level).is_equal(4)
 	assert_int(snapshot.materials).is_equal(88)
 	assert_array(captured["legacy"]).is_equal([13.0, 21.0, 9.25, 1])
-	player.weapon_ids[0] = &"mutated"
+	assert_int(player.weapon_inventory.remove_weapon(int(first_weapon.instance_id))).is_equal(OK)
 	player.item_ids.clear()
-	assert_array(snapshot.weapon_ids).is_equal([&"w1", &"w2"])
+	assert_array(snapshot.weapon_ids).is_equal([
+		ValidationContentFactory.RANGED_ID,
+		ValidationContentFactory.MELEE_ID,
+	])
 	assert_array(snapshot.item_ids).is_equal([&"i1"])
 
 
@@ -325,16 +332,16 @@ func test_lethal_trace_defers_reserved_rewards_until_ordered_pickup_collection()
 	assert_bool(_death_was_inactive).is_true()
 	assert_bool(_death_was_inert).is_true()
 	assert_int(_death_reward_xp_before).is_equal(0)
-	assert_int(_death_reward_supply_before).is_equal(35)
+	assert_int(_death_reward_supply_before).is_equal(20)
 	assert_bool(_reentrant_damage_accepted).is_false()
 	assert_str(String(_reentrant_reward_duplicate)).is_equal(String(GameSession.REWARD_DUPLICATE))
 	assert_str(String(_reentrant_reward_collision)).is_equal(String(GameSession.REWARD_TOKEN_COLLISION))
 	assert_int(_legacy_reward_xp_after).is_zero()
-	assert_int(_legacy_reward_supply_after).is_equal(35)
+	assert_int(_legacy_reward_supply_after).is_equal(20)
 	assert_int(player.xp).is_zero()
-	assert_int(player.materials).is_equal(35)
+	assert_int(player.materials).is_equal(20)
 	assert_int(session.committed_reward_count()).is_equal(2)
-	assert_int(world.active_pickup_count()).is_equal(2)
+	assert_int(world.active_pickup_count()).is_equal(1)
 
 	world.collect_all_live_pickups()
 	assert_array(_trace).is_equal([
@@ -342,7 +349,7 @@ func test_lethal_trace_defers_reserved_rewards_until_ordered_pickup_collection()
 		"reward_experience", "pickup_experience", "reward_supply", "pickup_supply",
 	])
 	assert_int(player.xp).is_equal(4)
-	assert_int(player.materials).is_equal(37)
+	assert_int(player.materials).is_equal(22)
 	assert_int(world.active_pickup_count()).is_zero()
 
 	assert_int(_contact_payload.projectile_instance_id).is_equal(projectile.runtime_instance_id)

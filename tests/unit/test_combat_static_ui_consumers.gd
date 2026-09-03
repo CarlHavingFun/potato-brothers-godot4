@@ -60,15 +60,10 @@ func test_combat_hud_resolves_accent_hud_and_control_texture_consumers_at_neares
 	assert_object(shell).is_not_null()
 	if shell == null:
 		return
-	assert_object(shell.texture).is_same(
-		snapshot.resolve_global(&"combat_hud_shell").texture
-	)
-	assert_bool(shell.visible).is_true()
-	assert_bool(shell.is_visible_in_tree()).is_true()
-	assert_int(shell.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
-	assert_vector(shell.size).is_equal(Vector2(1280, 720))
-	var metric_style := (hud.get_node("TopLeft/Health") as Panel).get_theme_stylebox("panel") as StyleBoxFlat
-	assert_bool(metric_style.bg_color.is_equal_approx(GogoBrotatoCombatHud.METRIC_BACKING_COLOR)).is_true()
+	assert_object(shell.texture).is_null()
+	assert_bool(shell.visible).is_false()
+	var backing_style := (hud.get_node("TopLeft/Backing") as Panel).get_theme_stylebox("panel") as StyleBoxFlat
+	assert_bool(backing_style.bg_color.a > 0.0).is_true()
 	var shell_records := GogoStaticConsumerRegistry.current().records().filter(
 		func(record: Dictionary) -> bool:
 			return record.get("asset_id", &"") == &"combat_hud_shell"
@@ -76,8 +71,7 @@ func test_combat_hud_resolves_accent_hud_and_control_texture_consumers_at_neares
 	assert_int(shell_records.size()).is_equal(1)
 	if shell_records.size() == 1:
 		assert_str(String(shell_records[0].node)).is_equal("BrotatoHUD/Shell")
-		assert_bool(shell_records[0].get("visible_texture", false)).is_true()
-		assert_vector(shell_records[0].integer_display_scale).is_equal(Vector2i(4, 4))
+		assert_bool(shell_records[0].get("visible_texture", false)).is_false()
 	assert_bool(GogoStaticConsumerRegistry.current().records().any(func(record: Dictionary) -> bool:
 		return record.get("node", "") == "BrotatoHUD/MetricPalette"
 	)).is_false()

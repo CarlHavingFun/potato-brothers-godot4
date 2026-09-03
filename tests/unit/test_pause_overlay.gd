@@ -34,8 +34,26 @@ func test_pause_overlay_exposes_brotato_structure_and_real_loadout() -> void:
 		"PauseMenu/ReturnButton",
 	]:
 		assert_bool(overlay.has_node(path)).is_true()
-	assert_int(overlay.get_node("Loadout/Weapons").get_child_count()).is_equal(6)
-	assert_int(overlay.get_node("Loadout/Items").get_child_count()).is_equal(2)
+	var weapon_slots := overlay.get_node("Loadout/Weapons") as HBoxContainer
+	var owned_weapons := player.weapon_inventory.records()
+	assert_int(weapon_slots.get_child_count()).is_equal(owned_weapons.size())
+	for index in owned_weapons.size():
+		var slot := weapon_slots.get_child(index) as Button
+		var record := owned_weapons[index] as Dictionary
+		assert_bool(slot.has_meta(&"inventory_instance_id")).is_true()
+		assert_bool(slot.has_meta(&"content_id")).is_true()
+		assert_int(int(slot.get_meta(&"inventory_instance_id"))).is_equal(
+			int(record.get(&"instance_id", 0))
+		)
+		assert_str(String(slot.get_meta(&"content_id"))).is_equal(
+			String(record.get(&"content_id", &""))
+		)
+	var item_slots := overlay.get_node("Loadout/ItemsScroll/ItemsGrid") as GridContainer
+	assert_int(item_slots.get_child_count()).is_equal(player.item_ids.size())
+	for index in player.item_ids.size():
+		var slot := item_slots.get_child(index) as Control
+		assert_bool(slot.has_meta(&"content_id")).is_true()
+		assert_str(String(slot.get_meta(&"content_id"))).is_equal(String(player.item_ids[index]))
 	assert_int(overlay.get_node("StatsColumn/Rows").get_child_count()).is_greater(0)
 	assert_str((overlay.get_node("WaveProgress/Wave") as Label).text).contains("3 / 8")
 	assert_str((overlay.get_node("WaveProgress/Time") as Label).text).contains("18")
@@ -101,10 +119,11 @@ func _player_fixture() -> SessionPlayerState:
 		&"movement_speed": 100.0,
 	}
 	player.final_stats = player.base_stats.duplicate(true)
-	player.weapon_ids.assign([
-		ValidationContentFactory.RANGED_ID,
-		ValidationContentFactory.MELEE_ID,
-	])
+	var content := _content_fixture()
+	var ranged := player.weapon_inventory.add_weapon(ValidationContentFactory.RANGED_ID, content, 1)
+	var melee := player.weapon_inventory.add_weapon(ValidationContentFactory.MELEE_ID, content, 1)
+	assert_int(int(ranged.error)).is_equal(OK)
+	assert_int(int(melee.error)).is_equal(OK)
 	player.item_ids.assign([
 		&"gogobro.core:item/training_1",
 		&"gogobro.core:item/training_2",

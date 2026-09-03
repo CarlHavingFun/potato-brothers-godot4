@@ -73,11 +73,29 @@ func test_effect_records_and_draw_primitives_are_integer_pixel_blocks() -> void:
 		assert_bool(GogoCombatFeedbackPresenter.DIRECTIONS_8.has(effect.direction as Vector2i)).is_true()
 		assert_int(int(effect.size_px) % 2).is_equal(0)
 		assert_int(int(effect.size_px)).is_greater_equal(4)
-		assert_str(String(effect.visual_source)).is_equal("procedural_fallback")
+		if [&"muzzle", &"death"].has(effect.kind):
+			assert_str(String(effect.visual_source)).is_equal("static_asset_required")
+			assert_bool(effect.texture_size == Vector2i.ZERO).is_true()
+		else:
+			assert_str(String(effect.visual_source)).is_equal("procedural_fallback")
 
 	_assert_integer_primitives(presenter.debug_block_primitives())
+	for primitive: Dictionary in presenter.debug_block_primitives():
+		assert_bool([&"muzzle", &"death"].has(primitive.kind as StringName)).is_false()
 	presenter._physics_process(0.035)
 	_assert_integer_primitives(presenter.debug_block_primitives())
+
+
+func test_static_only_pickup_without_snapshot_has_no_procedural_blocks() -> void:
+	var presenter := auto_free(GogoCombatFeedbackPresenter.new()) as GogoCombatFeedbackPresenter
+	presenter.set_physics_process(false)
+
+	assert_bool(presenter.present_pickup_collected(6, Vector2i(80, 120), 2, 1)).is_true()
+	var effect := presenter.debug_effects()[0]
+	assert_str(String(effect.kind)).is_equal("pickup")
+	assert_str(String(effect.visual_source)).is_equal("static_asset_required")
+	assert_bool(effect.texture_size == Vector2i.ZERO).is_true()
+	assert_array(presenter.debug_block_primitives()).is_empty()
 
 
 func test_approved_impact_texture_replaces_the_procedural_contact_blocks_at_exact_size() -> void:
@@ -98,8 +116,8 @@ func test_approved_impact_texture_replaces_the_procedural_contact_blocks_at_exac
 	var effect := presenter.debug_effects()[0]
 	assert_str(String(effect.visual_source)).is_equal("static_asset")
 	assert_str(String(effect.visual_selector)).is_equal("static_critical_mark")
-	assert_bool(effect.texture_size == Vector2i(64, 64)).is_true()
-	assert_bool(effect.texture_pivot == Vector2i(32, 32)).is_true()
+	assert_bool(effect.texture_size == Vector2i(effect.size_px, effect.size_px)).is_true()
+	assert_bool(effect.texture_pivot == Vector2i(effect.size_px / 2, effect.size_px / 2)).is_true()
 	assert_array(presenter.debug_block_primitives()).is_empty()
 
 
@@ -134,7 +152,12 @@ func test_canonical_shipping_snapshot_drives_all_four_approved_impact_selectors(
 	for index in effects.size():
 		assert_str(String(effects[index].visual_source)).is_equal("static_asset")
 		assert_str(String(effects[index].visual_selector)).is_equal(String(expected_selectors[index]))
-		assert_bool(effects[index].texture_size == Vector2i(64, 64)).is_true()
+		assert_bool(effects[index].texture_size == Vector2i(
+			int(effects[index].size_px), int(effects[index].size_px)
+		)).is_true()
+		assert_bool(effects[index].texture_pivot == Vector2i(
+			int(effects[index].size_px) / 2, int(effects[index].size_px) / 2
+		)).is_true()
 	assert_array(presenter.debug_block_primitives()).is_empty()
 
 
@@ -189,11 +212,8 @@ func test_player_hit_uses_one_bounded_red_white_slot_and_camera_impulse() -> voi
 	assert_str(String(effect.event_key)).is_equal("player_hit/1")
 	assert_float(float(effect.duration)).is_equal_approx(0.10, 0.0001)
 	assert_int(int(effect.size_px)).is_equal(36)
-	var colors: Array[Color] = []
-	for primitive: Dictionary in presenter.debug_block_primitives():
-		colors.append(primitive.color as Color)
-	assert_bool(colors.has(Color("fff4f2"))).is_true()
-	assert_bool(colors.has(Color("ef3340"))).is_true()
+	assert_str(String(effect.visual_source)).is_equal("static_asset_required")
+	assert_array(presenter.debug_block_primitives()).is_empty()
 	assert_float(camera.visual_impulse_magnitude()).is_greater(0.0)
 
 
@@ -241,19 +261,19 @@ func test_world_bindings_present_lethal_trace_once_without_changing_gameplay() -
 	assert_int(world.feedback_presenter.active_effect_count(&"death")).is_equal(1)
 	assert_float(enemy.current_health).is_equal(0.0)
 	assert_int(session.run_state.players[0].xp).is_zero()
-	assert_int(session.run_state.players[0].materials).is_equal(35)
+	assert_int(session.run_state.players[0].materials).is_equal(20)
 	assert_int(session.committed_reward_count()).is_equal(2)
-	assert_int(world.active_pickup_count()).is_equal(2)
+	assert_int(world.active_pickup_count()).is_equal(1)
 	assert_float(Engine.time_scale).is_equal(original_time_scale)
 	assert_bool(get_tree().paused).is_equal(original_paused)
 	world.collect_all_live_pickups()
 	assert_int(session.run_state.players[0].xp).is_equal(4)
-	assert_int(session.run_state.players[0].materials).is_equal(37)
+	assert_int(session.run_state.players[0].materials).is_equal(22)
 	assert_int(world.active_pickup_count()).is_zero()
 
 	assert_bool(world.feedback_presenter.present_enemy_defeated(999, Vector2i(0, 0), 999, 999, 1)).is_true()
 	assert_int(session.run_state.players[0].xp).is_equal(4)
-	assert_int(session.run_state.players[0].materials).is_equal(37)
+	assert_int(session.run_state.players[0].materials).is_equal(22)
 	assert_int(session.committed_reward_count()).is_equal(2)
 
 
@@ -276,6 +296,9 @@ func test_nonlethal_melee_contact_is_presented_before_damage_without_fake_muzzle
 	var enemy := _enemy(world, world.allocate_runtime_instance_id(&"enemy"), 60.0, 100.0)
 
 	weapon._physics_process(0.0)
+	assert_array(_feedback_trace).is_empty()
+	assert_float(enemy.current_health).is_equal(100.0)
+	weapon._physics_process(weapon.debug_melee_seconds_until_contact() + 0.001)
 
 	assert_array(_feedback_trace).is_equal(["melee_contact"])
 	assert_int(_world_melee_count).is_equal(1)
@@ -284,7 +307,8 @@ func test_nonlethal_melee_contact_is_presented_before_damage_without_fake_muzzle
 	assert_int(session.committed_reward_count()).is_equal(0)
 	assert_int(world.feedback_presenter.active_effect_count(&"muzzle")).is_equal(0)
 	assert_int(world.feedback_presenter.active_effect_count(&"contact")).is_equal(1)
-	assert_float(world.debug_local_hitstop_remaining()).is_equal_approx(0.035, 0.0001)
+	assert_bool(enemy.is_target_locally_frozen()).is_true()
+	assert_float(enemy.debug_target_local_hitstop_remaining()).is_equal_approx(0.035, 0.0001)
 	var effect := world.feedback_presenter.debug_effects()[0]
 	assert_str(String(effect.event_key)).is_equal("melee/1/2/1")
 	assert_bool(effect.position == Vector2i(46, 0)).is_true()

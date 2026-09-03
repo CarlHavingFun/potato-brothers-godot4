@@ -21,7 +21,11 @@ func test_snapshot_copies_all_canonical_player_values_and_inventory_arrays() -> 
 	player.materials = 77
 	player.current_health = 17.0
 	player.max_health = 23.0
-	player.weapon_ids.assign([&"w1", &"w2"])
+	var content := _content_fixture()
+	var first_weapon := player.weapon_inventory.add_weapon(ValidationContentFactory.RANGED_ID, content, 1)
+	var second_weapon := player.weapon_inventory.add_weapon(ValidationContentFactory.MELEE_ID, content, 1)
+	assert_int(int(first_weapon.error)).is_equal(OK)
+	assert_int(int(second_weapon.error)).is_equal(OK)
 	player.item_ids.assign([&"i1"])
 	var snapshot: Variant = snapshot_script.create(player, 9.25, 4, 2.5)
 	assert_int(snapshot.level).is_equal(3)
@@ -37,11 +41,17 @@ func test_snapshot_copies_all_canonical_player_values_and_inventory_arrays() -> 
 	assert_float(snapshot.seconds).is_equal_approx(9.25, 0.0001)
 	assert_float(snapshot.wave_elapsed).is_equal_approx(2.5, 0.0001)
 	assert_int(snapshot.wave).is_equal(4)
-	assert_array(snapshot.weapon_ids).is_equal([&"w1", &"w2"])
+	assert_array(snapshot.weapon_ids).is_equal([
+		ValidationContentFactory.RANGED_ID,
+		ValidationContentFactory.MELEE_ID,
+	])
 	assert_array(snapshot.item_ids).is_equal([&"i1"])
-	player.weapon_ids[0] = &"mutated"
+	assert_int(player.weapon_inventory.remove_weapon(int(first_weapon.instance_id))).is_equal(OK)
 	player.item_ids.clear()
-	assert_array(snapshot.weapon_ids).is_equal([&"w1", &"w2"])
+	assert_array(snapshot.weapon_ids).is_equal([
+		ValidationContentFactory.RANGED_ID,
+		ValidationContentFactory.MELEE_ID,
+	])
 	assert_array(snapshot.item_ids).is_equal([&"i1"])
 
 
@@ -57,14 +67,7 @@ func test_hud_uses_native_1280_layout_without_full_screen_or_inventory_frames() 
 	player.xp = 8
 	player.xp_to_next_level = 30
 	player.materials = 91
-	player.weapon_ids.assign([
-		ValidationContentFactory.RANGED_ID,
-		ValidationContentFactory.MELEE_ID,
-		ValidationContentFactory.RANGED_ID,
-		ValidationContentFactory.MELEE_ID,
-		ValidationContentFactory.RANGED_ID,
-		ValidationContentFactory.MELEE_ID,
-	])
+	_add_fixture_weapons(player, _content_fixture(), 6)
 	for index in 10:
 		player.item_ids.append(StringName("gogobro.core:item/training_%d" % ((index % 6) + 1)))
 	var snapshot: Variant = snapshot_script.create(player, 9.25, 1, 1.0)
@@ -80,10 +83,8 @@ func test_hud_uses_native_1280_layout_without_full_screen_or_inventory_frames() 
 	assert_bool(hud.has_node("Backdrop")).is_false()
 	assert_bool(hud.has_node("Shell")).is_true()
 	var shell := hud.get_node("Shell") as TextureRect
-	assert_object(shell.texture).is_same(static_snapshot.resolve_global(
-		&"combat_hud_shell"
-	).texture)
-	assert_bool(shell.visible).is_true()
+	assert_object(shell.texture).is_null()
+	assert_bool(shell.visible).is_false()
 	assert_vector(shell.size).is_equal(Vector2(1280, 720))
 	assert_int(shell.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
 	assert_bool(hud.has_node("FullScreenOrnamentalFrame")).is_false()
@@ -100,10 +101,8 @@ func test_hud_uses_native_1280_layout_without_full_screen_or_inventory_frames() 
 	if hud.has_node("TopLeft/WaveMaterials/Value"):
 		assert_str((hud.get_node("TopLeft/WaveMaterials/Value") as Label).text).is_equal("+19")
 	assert_bool(hud.has_node("TopLeft/ShellAccent")).is_false()
-	var metric_style := (hud.get_node("TopLeft/Health") as Panel).get_theme_stylebox("panel") as StyleBoxFlat
-	assert_bool(metric_style.bg_color.is_equal_approx(
-		Color(0.055, 0.063, 0.067, 0.86)
-	)).is_true()
+	var backing_style := (hud.get_node("TopLeft/Backing") as Panel).get_theme_stylebox("panel") as StyleBoxFlat
+	assert_bool(backing_style.bg_color.a > 0.0).is_true()
 
 
 func test_hud_information_rectangles_are_ordered_clear_and_outside_the_play_center() -> void:
@@ -124,7 +123,7 @@ func test_hud_information_rectangles_are_ordered_clear_and_outside_the_play_cent
 	var wave := hud.get_node("TopCenter/Wave") as Label
 	assert_bool(wave.position.y < timer.position.y).is_true()
 	assert_bool(_local_rect(timer).intersects(_local_rect(wave))).is_false()
-	assert_int(timer.get_theme_font_size("font_size")).is_greater_equal(40)
+	assert_int(timer.get_theme_font_size("font_size")).is_equal(26)
 	assert_vector(timer.scale).is_equal(Vector2.ONE)
 
 	var health_icon := hud.get_node("TopLeft/Health/HealthIcon") as TextureRect
@@ -144,19 +143,19 @@ func test_hud_information_rectangles_are_ordered_clear_and_outside_the_play_cent
 		return
 	var level := hud.get_node("TopLeft/Experience/ExperienceBar/Level") as Label
 	assert_str(level.text).is_equal("LV.12")
-	assert_int(level.get_theme_font_size("font_size")).is_greater_equal(18)
+	assert_int(level.get_theme_font_size("font_size")).is_equal(14)
 	var experience_fill := (
 		(hud.get_node("TopLeft/Experience/ExperienceBar") as ProgressBar)
 		.get_theme_stylebox("fill") as StyleBoxFlat
 	)
 	assert_bool(experience_fill.bg_color.g > experience_fill.bg_color.r).is_true()
 	assert_bool(experience_fill.bg_color.g > experience_fill.bg_color.b).is_true()
-	var material_symbol := hud.get_node_or_null("TopLeft/Materials/Symbol") as Label
+	var material_icon := hud.get_node_or_null("TopLeft/Materials/MaterialIcon") as TextureRect
 	var material_value := hud.get_node("TopLeft/Materials/Value") as Label
-	assert_object(material_symbol).is_not_null()
-	if material_symbol == null:
+	assert_object(material_icon).is_not_null()
+	if material_icon == null:
 		return
-	assert_bool(_local_rect(material_symbol).intersects(_local_rect(material_value))).is_false()
+	assert_bool(_local_rect(material_icon).intersects(_local_rect(material_value))).is_false()
 
 	var play_center := Rect2(440, 200, 400, 320)
 	assert_bool(play_center.intersects(_local_rect(hud.get_node("ControlHint") as Control))).is_false()
@@ -212,6 +211,17 @@ func test_control_hint_dismissal_is_permanent_after_move_or_four_elapsed_seconds
 
 func _content_fixture() -> ContentSnapshot:
 	return GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+
+
+func _add_fixture_weapons(player: SessionPlayerState, content: ContentSnapshot, count: int) -> void:
+	for index in count:
+		var content_id := (
+			ValidationContentFactory.RANGED_ID
+			if index % 2 == 0
+			else ValidationContentFactory.MELEE_ID
+		)
+		var result := player.weapon_inventory.add_weapon(content_id, content, 1)
+		assert_int(int(result.error)).is_equal(OK)
 
 
 func _local_rect(control: Control) -> Rect2:

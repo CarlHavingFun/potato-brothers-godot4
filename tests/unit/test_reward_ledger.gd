@@ -33,7 +33,7 @@ func test_invalid_reward_requests_are_side_effect_free() -> void:
 	assert_int(session.committed_reward_count()).is_equal(0)
 	assert_int(player.level).is_equal(1)
 	assert_int(player.xp).is_equal(0)
-	assert_int(player.materials).is_equal(35)
+	assert_int(player.materials).is_equal(20)
 	assert_int(session.run_state.pending_upgrade_count).is_equal(0)
 	assert_int(_reward_signal_count).is_equal(0)
 	assert_int(_state_signal_count).is_equal(0)
@@ -78,8 +78,8 @@ func test_token_collision_preserves_original_fingerprint_and_reward() -> void:
 	assert_str(String(session.commit_reward_once(token, GameSession.REWARD_SUPPLY, 10, 1))).is_equal(String(GameSession.REWARD_TOKEN_COLLISION))
 	assert_str(String(session.commit_reward_once(token, GameSession.REWARD_SUPPLY, 10, 0))).is_equal(String(GameSession.REWARD_DUPLICATE))
 
-	assert_int(player_zero.materials).is_equal(45)
-	assert_int(player_one.materials).is_equal(35)
+	assert_int(player_zero.materials).is_equal(30)
+	assert_int(player_one.materials).is_equal(20)
 	assert_int(session.committed_reward_count()).is_equal(1)
 	assert_int(_reward_signal_count).is_equal(1)
 
@@ -141,14 +141,14 @@ func test_legacy_immediate_adapter_uses_independent_tokens_across_worlds() -> vo
 	assert_str(String(distinct_enemy[GameSession.REWARD_SUPPLY])).is_equal(String(GameSession.REWARD_APPLIED))
 	assert_int(player.level).is_equal(2)
 	assert_int(player.xp).is_equal(0)
-	assert_int(player.materials).is_equal(41)
+	assert_int(player.materials).is_equal(26)
 	assert_int(session.run_state.pending_upgrade_count).is_equal(1)
 	assert_int(session.committed_reward_count()).is_equal(3)
 	assert_int(_reward_signal_count).is_equal(3)
 
 	var new_session := _session_with_players(1)
 	assert_str(String(new_session.commit_reward_once(&"enemy/21/death/1/supply", GameSession.REWARD_SUPPLY, 3, 0))).is_equal(String(GameSession.REWARD_APPLIED))
-	assert_int(new_session.run_state.players[0].materials).is_equal(38)
+	assert_int(new_session.run_state.players[0].materials).is_equal(23)
 
 
 func test_session_start_and_wave_finish_are_single_commit_transitions() -> void:
