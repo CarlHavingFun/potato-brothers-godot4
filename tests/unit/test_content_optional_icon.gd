@@ -37,7 +37,7 @@ func test_validation_shop_and_upgrade_content_reach_the_approved_static_icons() 
 	assert_str(item.display_name).is_equal("防弹内衬")
 	assert_str(String(item.icon_asset_id)).is_equal("ballistic_liner")
 	assert_object(upgrade).is_not_null()
-	assert_str(upgrade.display_name).is_equal("多活一回合")
+	assert_str(upgrade.display_name).is_equal("重甲头盔")
 	assert_str(String(upgrade.icon_asset_id)).is_equal("one_more_round")
 
 

@@ -26,7 +26,8 @@ if (-not $GodotBinary.EndsWith("_console.exe", [System.StringComparison]::Ordina
 $runnerArguments = @(
 	"--headless",
 	"--path", $projectRoot,
-	"-s", "res://addons/gdUnit4/bin/GdUnitCmdTool.gd",
+	"-s", "res://tests/helpers/isolated_gdunit_entry.gd",
+	"res://addons/gdUnit4/bin/GdUnitCmdTool.gd",
 	"--ignoreHeadlessMode",
 	"-a", $TestPath,
 	"-c",

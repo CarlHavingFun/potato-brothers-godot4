@@ -226,7 +226,7 @@ $child=[ordered]@{TEMP=(Join-Path $fresh 'Temp');TMP=(Join-Path $fresh 'Temp');A
 foreach($path in @($child.TEMP,$child.APPDATA,$child.LOCALAPPDATA)){$null=New-Item -ItemType Directory -Path $path}
 $child.GOGOBRO_TEST_EXPECTED_APPDATA=$child.APPDATA;$child.GOGOBRO_TEST_EXPECTED_LOCALAPPDATA=$child.LOCALAPPDATA
 $child.GOGOBRO_TEST_EXPECTED_USER_DATA_DIR=Join-Path $child.APPDATA 'GOGOBRO'
-foreach($name in @('profile.json','profile.tmp','profile.backup')){if(Test-Path -LiteralPath (Join-Path $child.GOGOBRO_TEST_EXPECTED_USER_DATA_DIR ('GOGOBRO/'+$name))){throw 'Fresh synthetic profile unexpectedly exists.'}}
+foreach($name in @('profile.json','profile.tmp','profile.backup')){if(Test-Path -LiteralPath (Join-Path $child.GOGOBRO_TEST_EXPECTED_USER_DATA_DIR $name)){throw 'Fresh synthetic profile unexpectedly exists.'}}
 $smokeSource=Join-Path $PSScriptRoot '../../tools/playtest_packaging/package_smoke.gd'
 Assert-NoReparse $smokeSource
 $fixture=Join-Path $fresh 'package_smoke.gd';Copy-Item -LiteralPath $smokeSource -Destination $fixture
@@ -268,7 +268,7 @@ $after=@()
 function Preserve-SyntheticProfile {
     $presence=[ordered]@{}
     foreach($entry in @(@('profile','profile.json'),@('temporary','profile.tmp'),@('backup','profile.backup'))){
-        $path=Join-Path $child.GOGOBRO_TEST_EXPECTED_USER_DATA_DIR ('GOGOBRO/'+$entry[1])
+        $path=Join-Path $child.GOGOBRO_TEST_EXPECTED_USER_DATA_DIR $entry[1]
         Assert-NoReparse $path
         $presence[$entry[0]]=Test-Path -LiteralPath $path -PathType Leaf
         if($presence[$entry[0]]){

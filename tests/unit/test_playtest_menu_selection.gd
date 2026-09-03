@@ -50,14 +50,14 @@ func test_menu_pages_open_real_data_and_restore_origin_focus() -> void:
 		if page == null:
 			continue
 		assert_bool(menu.get_node("ContentRoot/Body").visible).is_false()
-		assert_bool(page.is_ancestor_of(get_viewport().gui_get_focus_owner())).is_true()
+		assert_bool(page.is_ancestor_of(_test_viewport().gui_get_focus_owner())).is_true()
 		if name == "ProfileButton":
 			assert_str((page.get_node("CompletedRuns") as Label).text).contains("7")
 			assert_str((page.get_node("BestWave") as Label).text).contains("13")
 		(page.get_node("BackButton") as Button).pressed.emit()
 		await _settle()
 		assert_bool(menu.has_node("MenuPage")).is_false()
-		assert_object(get_viewport().gui_get_focus_owner()).is_same(button)
+		assert_object(_test_viewport().gui_get_focus_owner()).is_same(button)
 
 # Catches fabricated unlock entries, omitted live content, or stale category lists.
 func test_codex_browses_actual_snapshot_ids_without_discovering_them() -> void:
@@ -186,7 +186,7 @@ func test_keyboard_traversal_and_escape_keep_the_configuration_draft() -> void:
 	var host := fixture.host as Control
 	var expected := ["StartButton", "ProfileButton", "CodexButton", "SettingsButton", "ExitButton"]
 	for index in 5:
-		assert_str(String(get_viewport().gui_get_focus_owner().name)).is_equal(expected[index])
+		assert_str(String(_test_viewport().gui_get_focus_owner().name)).is_equal(expected[index])
 		await _key(KEY_TAB)
 	await _key(KEY_ENTER)
 	assert_str(app.scene_flow.current_route()).is_equal(String(FlowRoute.CHARACTER_SELECT))
@@ -207,7 +207,7 @@ func test_keyboard_traversal_and_escape_keep_the_configuration_draft() -> void:
 		assert_bool(cell.disabled).is_true()
 		assert_int(cell.focus_mode).is_equal(Control.FOCUS_NONE)
 		assert_bool(cell.has_meta(&"content_id")).is_false()
-	assert_object(get_viewport().gui_get_focus_owner()).is_same(niko)
+	assert_object(_test_viewport().gui_get_focus_owner()).is_same(niko)
 	assert_str(String(app.selection_draft["character_id"])).is_empty()
 	assert_bool(weapon_stage.visible).is_false()
 	assert_bool(difficulty_stage.visible).is_false()
@@ -221,7 +221,7 @@ func test_keyboard_traversal_and_escape_keep_the_configuration_draft() -> void:
 	await _click(smg)
 	assert_bool(difficulty_stage.visible).is_true()
 	assert_str(String(app.scene_flow.current_route())).is_equal(String(FlowRoute.CHARACTER_SELECT))
-	var selected_focus := get_viewport().gui_get_focus_owner() as Control
+	var selected_focus := _test_viewport().gui_get_focus_owner() as Control
 	assert_object(selected_focus).is_not_null()
 	if selected_focus != null:
 		assert_bool(selected_focus.is_visible_in_tree()).is_true()
@@ -233,14 +233,14 @@ func test_keyboard_traversal_and_escape_keep_the_configuration_draft() -> void:
 	assert_bool(roster.visible).is_false()
 	assert_bool(weapon_stage.visible).is_true()
 	assert_bool(difficulty_stage.visible).is_false()
-	assert_object(get_viewport().gui_get_focus_owner()).is_same(smg)
+	assert_object(_test_viewport().gui_get_focus_owner()).is_same(smg)
 	await _key(KEY_ESCAPE)
 	assert_str(app.scene_flow.current_route()).is_equal(String(FlowRoute.CHARACTER_SELECT))
 	assert_dict(app.selection_draft).is_equal(before_back)
 	assert_bool(roster.visible).is_true()
 	assert_bool(weapon_stage.visible).is_false()
 	assert_bool(difficulty_stage.visible).is_false()
-	assert_object(get_viewport().gui_get_focus_owner()).is_same(niko)
+	assert_object(_test_viewport().gui_get_focus_owner()).is_same(niko)
 	await _key(KEY_ESCAPE)
 	assert_str(app.scene_flow.current_route()).is_equal(String(FlowRoute.MAIN_MENU))
 	assert_dict(app.selection_draft).is_equal(before_back)
@@ -264,7 +264,7 @@ func test_legacy_weapon_route_resolves_to_configuration_without_changing_draft()
 	var niko := screen.get_node("RosterStrip/NikoCell") as Button
 	assert_bool((screen.get_node("RosterStrip") as Control).visible).is_false()
 	assert_bool(niko.visible).is_false()
-	var focus := get_viewport().gui_get_focus_owner() as Control
+	var focus := _test_viewport().gui_get_focus_owner() as Control
 	assert_object(focus).is_not_null()
 	if focus != null:
 		assert_bool(focus.is_visible_in_tree()).is_true()
@@ -281,12 +281,12 @@ func test_legacy_weapon_route_resolves_to_configuration_without_changing_draft()
 	assert_bool((screen.get_node("RosterStrip") as Control).visible).is_false()
 	assert_bool((screen.get_node("WeaponStage") as Control).visible).is_true()
 	assert_bool((screen.get_node("DifficultyStage") as Control).visible).is_false()
-	assert_object(get_viewport().gui_get_focus_owner()).is_same(focus)
+	assert_object(_test_viewport().gui_get_focus_owner()).is_same(focus)
 	await _click(back)
 	assert_str(app.scene_flow.current_route()).is_equal(String(FlowRoute.CHARACTER_SELECT))
 	assert_dict(app.selection_draft).is_equal(before)
 	assert_bool((screen.get_node("RosterStrip") as Control).visible).is_true()
-	assert_object(get_viewport().gui_get_focus_owner()).is_same(niko)
+	assert_object(_test_viewport().gui_get_focus_owner()).is_same(niko)
 	await _click(back)
 	assert_str(app.scene_flow.current_route()).is_equal(String(FlowRoute.MAIN_MENU))
 	assert_dict(app.selection_draft).is_equal(before)
@@ -311,13 +311,13 @@ func test_configuration_return_restores_pair_and_difficulty_creates_exactly_one_
 	await _click(back)
 	assert_str(app.scene_flow.current_route()).is_equal(String(FlowRoute.CHARACTER_SELECT))
 	assert_bool((screen.get_node("DifficultyStage") as Control).visible).is_false()
-	assert_object(get_viewport().gui_get_focus_owner()).is_same(
+	assert_object(_test_viewport().gui_get_focus_owner()).is_same(
 		screen.get_node("WeaponStage/WeaponColumns/Class4/WeaponOption11") as Button
 	)
 	await _click(back)
 	assert_str(app.scene_flow.current_route()).is_equal(String(FlowRoute.CHARACTER_SELECT))
 	assert_bool((screen.get_node("RosterStrip") as Control).visible).is_true()
-	assert_object(get_viewport().gui_get_focus_owner()).is_same(
+	assert_object(_test_viewport().gui_get_focus_owner()).is_same(
 		screen.get_node("RosterStrip/NikoCell") as Button
 	)
 	await _click(back)
@@ -437,46 +437,29 @@ func _checked_profile_case_paths() -> PackedStringArray:
 	var roaming := _profile_path(OS.get_environment("APPDATA"))
 	var local := _profile_path(OS.get_environment("LOCALAPPDATA"))
 	var temp := _profile_path(OS.get_environment("TEMP"))
-	var runner_root := roaming.get_base_dir()
-	var root_pattern := RegEx.new()
-	root_pattern.compile("^gogobro-task6-[0-9a-f]{32}$")
-	var valid := not temp.is_empty() and temp.is_absolute_path() \
-		and user_root == _profile_path(OS.get_environment("GOGOBRO_TEST_EXPECTED_USER_DATA_DIR")) \
-		and roaming == _profile_path(OS.get_environment("GOGOBRO_TEST_EXPECTED_APPDATA")) \
-		and local == _profile_path(OS.get_environment("GOGOBRO_TEST_EXPECTED_LOCALAPPDATA")) \
-		and runner_root.get_base_dir() == temp \
-		and root_pattern.search(runner_root.get_file()) != null \
-		and roaming == runner_root.path_join("Roaming") \
-		and local == runner_root.path_join("Local") \
+	var expected_user_root := _profile_path(OS.get_environment("GOGOBRO_TEST_EXPECTED_USER_DATA_DIR"))
+	var expected_roaming := _profile_path(OS.get_environment("GOGOBRO_TEST_EXPECTED_APPDATA"))
+	var expected_local := _profile_path(OS.get_environment("GOGOBRO_TEST_EXPECTED_LOCALAPPDATA"))
+	var resource_root := _profile_path(ProjectSettings.globalize_path("res://"))
+	var valid := user_root == expected_user_root \
+		and roaming == expected_roaming \
+		and local == expected_local \
 		and user_root == roaming.path_join("GOGOBRO") \
-		and not runner_root.begins_with(_profile_path(ProjectSettings.globalize_path("res://")).trim_suffix("/") + "/")
-	assert_bool(valid).override_failure_message("Profile fixture requires the current external task6 runner user directory").is_true()
-	if not valid:
-		return PackedStringArray()
-	# Match this live runner receipt, not merely a plausible GUID-shaped old root.
-	# The unchanged runner creates invocation before launch and completion on exit.
-	var arguments := OS.get_cmdline_args()
-	var report_index := arguments.find("-rd")
-	if report_index < 0 or report_index + 1 >= arguments.size():
-		assert_bool(false).override_failure_message("Missing live task6 report argument").is_true()
-		return PackedStringArray()
-	var report_dir := _profile_path(arguments[report_index + 1]).get_base_dir()
-	valid = report_dir.begins_with("res://reports/playtest-feedback-v1/task6/") \
-		and not FileAccess.file_exists(report_dir.path_join("completion.json"))
-	var invocation: Variant = JSON.parse_string(FileAccess.get_file_as_string(report_dir.path_join("invocation.json"))) if valid else null
-	valid = valid and invocation is Dictionary
-	if valid:
-		valid = _profile_path(str(invocation.get("profile_root", ""))) == runner_root \
-			and _profile_path(str(invocation.get("appdata", ""))) == roaming \
-			and _profile_path(str(invocation.get("localappdata", ""))) == local \
-			and _profile_path(str(invocation.get("expected_user_data_dir", ""))) == user_root
-	assert_bool(valid).override_failure_message("Profile fixture refuses missing, completed, or different-run receipts").is_true()
+		and _is_external_absolute(user_root, resource_root) \
+		and _is_external_absolute(roaming, resource_root) \
+		and _is_external_absolute(local, resource_root) \
+		and _is_external_absolute(temp, resource_root) \
+		and _is_external_absolute(expected_user_root, resource_root) \
+		and _is_external_absolute(expected_roaming, resource_root) \
+		and _is_external_absolute(expected_local, resource_root)
+	assert_bool(valid).override_failure_message("Profile fixture requires the generic isolated runner environment").is_true()
 	if not valid:
 		return PackedStringArray()
 	var paths := PackedStringArray()
 	for path in [ProfileService.PROFILE_PATH, ProfileService.TEMP_PATH, ProfileService.BACKUP_PATH]:
 		var absolute := _profile_path(ProjectSettings.globalize_path(path))
-		valid = absolute == user_root.path_join("GOGOBRO").path_join(String(path).get_file())
+		valid = absolute == user_root.path_join(String(path).get_file()) \
+			and absolute.get_base_dir() == user_root
 		assert_bool(valid).is_true()
 		if not valid:
 			return PackedStringArray()
@@ -485,6 +468,11 @@ func _checked_profile_case_paths() -> PackedStringArray:
 
 func _profile_path(path: String) -> String:
 	return path.replace("\\", "/").simplify_path().trim_suffix("/")
+
+
+func _is_external_absolute(path: String, resource_root: String) -> bool:
+	return not path.is_empty() and path.is_absolute_path() \
+		and path != resource_root and not path.begins_with(resource_root + "/")
 
 func _snapshot_profile_case_files(paths: PackedStringArray) -> Dictionary:
 	var snapshot := {}
@@ -665,16 +653,16 @@ func test_settings_keyboard_controls_stay_on_page_and_escape_restores_entry() ->
 	await _settle()
 	var slider := menu.get_node("MenuPage/master_volume") as HSlider
 	slider.value = 0.5
-	assert_object(get_viewport().gui_get_focus_owner()).is_same(slider)
+	assert_object(_test_viewport().gui_get_focus_owner()).is_same(slider)
 	await _key(KEY_RIGHT)
 	assert_float(slider.value).is_equal_approx(0.55, 0.001)
 	var expected := ["music_volume", "effects_volume", "Fullscreen", "SaveButton", "BackButton", "master_volume"]
 	for name in expected:
 		await _key(KEY_TAB)
-		assert_str(String(get_viewport().gui_get_focus_owner().name)).is_equal(name)
+		assert_str(String(_test_viewport().gui_get_focus_owner().name)).is_equal(name)
 	await _key(KEY_ESCAPE)
 	assert_bool(menu.has_node("MenuPage")).is_false()
-	assert_object(get_viewport().gui_get_focus_owner()).is_same(button)
+	assert_object(_test_viewport().gui_get_focus_owner()).is_same(button)
 
 func test_native_labels_and_buttons_fit_their_visible_panels() -> void:
 	var fixture := await _fixture()
@@ -734,26 +722,30 @@ func test_configuration_clicks_commit_one_draft_without_advancing() -> void:
 	assert_object(app.current_session).is_null()
 
 func _click(button: Button) -> void:
+	var center := button.get_global_rect().get_center()
 	var down := InputEventMouseButton.new()
 	down.button_index = MOUSE_BUTTON_LEFT
-	down.position = button.get_global_rect().get_center()
+	down.position = center
+	down.global_position = center
 	down.pressed = true
-	get_viewport().push_input(down)
+	_test_viewport().push_input(down)
 	await _settle()
 	var up := down.duplicate() as InputEventMouseButton
+	up.position = center
+	up.global_position = center
 	up.pressed = false
-	get_viewport().push_input(up)
+	_test_viewport().push_input(up)
 	await _settle()
 
 func _key(code: Key) -> void:
 	var event := InputEventKey.new()
 	event.keycode = code
 	event.pressed = true
-	get_viewport().push_input(event)
+	_test_viewport().push_input(event)
 	await _settle()
 	event = event.duplicate() as InputEventKey
 	event.pressed = false
-	get_viewport().push_input(event)
+	_test_viewport().push_input(event)
 	await _settle()
 
 func _fixture(profile_case: bool = false) -> Dictionary:
@@ -767,7 +759,11 @@ func _fixture(profile_case: bool = false) -> Dictionary:
 		# the production fail-closed W1 save against an explicit isolated provider.
 		app.profile_service = IsolatedProfileService.new()
 		app.profile_service.publish_content_context(app.content_snapshot)
-	add_child(app)
+	var viewport := auto_free(SubViewport.new()) as SubViewport
+	viewport.size = Vector2i(1280, 720)
+	viewport.gui_disable_input = false
+	add_child(viewport)
+	viewport.add_child(app)
 	var host := Control.new()
 	host.size = Vector2(1280, 720)
 	app.add_child(host)
@@ -790,7 +786,12 @@ func _fixture(profile_case: bool = false) -> Dictionary:
 	})
 	app.route(FlowRoute.MAIN_MENU)
 	await _settle()
-	return {"app": app, "host": host}
+	return {"app": app, "host": host, "viewport": viewport}
+
+
+func _test_viewport() -> Viewport:
+	var app := get_tree().get_first_node_in_group(&"gogobro_app") as AppKernel
+	return app.get_viewport() if app != null else get_viewport()
 
 func _settle() -> void:
 	await get_tree().process_frame

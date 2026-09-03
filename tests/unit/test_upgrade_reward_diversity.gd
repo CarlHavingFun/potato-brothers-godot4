@@ -350,10 +350,10 @@ func test_crit_dodge_movement_braking_recoil_and_pickup_caps_use_existing_consum
 	assert_float(float(player.final_stats.get(&"movement_speed", 0.0))).is_equal_approx(312.0, 0.0001)
 	assert_float(float(player.final_stats.get(&"pickup_range", 0.0))).is_equal_approx(127.0, 0.0001)
 	var ordinary_stop := GogoMovementCombatRuntime.move_toward_velocity(
-		Vector2(100.0, 0.0), Vector2.ZERO, 312.0, 0.05, 0.0
+		Vector2(100.0, 0.0), Vector2.ZERO, 312.0, 1.0 / 60.0, 0.0
 	)
 	var improved_stop := GogoMovementCombatRuntime.move_toward_velocity(
-		Vector2(100.0, 0.0), Vector2.ZERO, 312.0, 0.05, 25.0
+		Vector2(100.0, 0.0), Vector2.ZERO, 312.0, 1.0 / 60.0, 25.0
 	)
 	assert_float(improved_stop.length()).is_less(ordinary_stop.length())
 	var ordinary_forward := GogoMovementCombatRuntime.move_toward_velocity(

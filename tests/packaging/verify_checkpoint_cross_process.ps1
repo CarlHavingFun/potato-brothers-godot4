@@ -377,9 +377,9 @@ $workingA = Join-Path $scratch 'working-A'
 $null = New-Item -ItemType Directory -Path $workingA
 $workingB = Join-Path $scratch 'working-B'
 $null = New-Item -ItemType Directory -Path $workingB
-$profilePath = Join-Path $child.GOGOBRO_TEST_EXPECTED_USER_DATA_DIR 'GOGOBRO/profile.json'
-$tempProfilePath = Join-Path $child.GOGOBRO_TEST_EXPECTED_USER_DATA_DIR 'GOGOBRO/profile.tmp'
-$backupProfilePath = Join-Path $child.GOGOBRO_TEST_EXPECTED_USER_DATA_DIR 'GOGOBRO/profile.backup'
+$profilePath = Join-Path $child.GOGOBRO_TEST_EXPECTED_USER_DATA_DIR 'profile.json'
+$tempProfilePath = Join-Path $child.GOGOBRO_TEST_EXPECTED_USER_DATA_DIR 'profile.tmp'
+$backupProfilePath = Join-Path $child.GOGOBRO_TEST_EXPECTED_USER_DATA_DIR 'profile.backup'
 foreach ($path in @($profilePath,$tempProfilePath,$backupProfilePath)) {
     if (Test-Path -LiteralPath $path) { throw 'Fresh synthetic profile path unexpectedly exists.' }
 }

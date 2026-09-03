@@ -443,8 +443,8 @@ func same_path(left: String, right: String) -> bool:
 	return left.replace("\\", "/").simplify_path().nocasecmp_to(right.replace("\\", "/").simplify_path()) == 0
 
 func profile_presence() -> Dictionary:
-	return {"profile": FileAccess.file_exists("user://GOGOBRO/profile.json"),
-		"temporary": FileAccess.file_exists("user://GOGOBRO/profile.tmp"), "backup": FileAccess.file_exists("user://GOGOBRO/profile.backup")}
+	return {"profile": FileAccess.file_exists("user://profile.json"),
+		"temporary": FileAccess.file_exists("user://profile.tmp"), "backup": FileAccess.file_exists("user://profile.backup")}
 
 func purchase_first_weapon() -> bool:
 	var player = app.current_session.run_state.player()
@@ -664,7 +664,7 @@ func controlled_progression_chain(host: Node) -> bool:
 		print("PACKAGE_ENDLESS_21_22_OK " + JSON.stringify({"controlled": true, "full_survival_pilot": false,
 			"endless_button": 21, "continue_button": 22, "live_world": 22}))
 		print("PACKAGE_PROFILE_READBACK_OK " + JSON.stringify({"resume_claim": false, "waves": [21, 22],
-			"profile_sha256": FileAccess.get_sha256("user://GOGOBRO/profile.json").to_upper()}))
+			"profile_sha256": FileAccess.get_sha256("user://profile.json").to_upper()}))
 	return failures.is_empty()
 
 func fresh_checkpoint_state():
@@ -791,9 +791,9 @@ func profile_wire() -> bool:
 	# Continue already saved a normal synthetic W2 checkpoint. Preserve it, do not
 	# claim the files are still absent or delete it before the real wire operation.
 	var pre_presence := profile_presence()
-	var pre_sha := FileAccess.get_sha256("user://GOGOBRO/profile.json").to_upper() if pre_presence.profile else ""
+	var pre_sha := FileAccess.get_sha256("user://profile.json").to_upper() if pre_presence.profile else ""
 	print("PACKAGE_PROFILE_PRE_WIRE " + JSON.stringify({"sha256": pre_sha, "presence": pre_presence,
-		"text": FileAccess.get_file_as_string("user://GOGOBRO/profile.json") if pre_presence.profile else ""}))
+		"text": FileAccess.get_file_as_string("user://profile.json") if pre_presence.profile else ""}))
 	var run_codec = load("res://game/session/run_state_codec.gd")
 	var profile_type = load("res://game/platform/profile_service.gd")
 	var candidate: Dictionary = run_codec.parse(app.current_session.run_state.to_dictionary(), app.content_snapshot)
@@ -826,10 +826,10 @@ func profile_wire() -> bool:
 	check(model_snapshot() == live_before, "detached wire save does not mutate live shop")
 	if failures.is_empty():
 		print("PACKAGE_PROFILE_WIRE_OK " + JSON.stringify({"pre_wire_sha256": pre_sha,
-			"profile_sha256": FileAccess.get_sha256("user://GOGOBRO/profile.json").to_upper(), "profile_presence": profile_presence(),
+			"profile_sha256": FileAccess.get_sha256("user://profile.json").to_upper(), "profile_presence": profile_presence(),
 			"run_seed_exact": str(raw.run_seed), "rng_state_exact": str(raw.rng_state),
 			"profile_schema": reader.profile_data.schema_version, "checkpoint_schema": raw.schema_version,
-			"text": FileAccess.get_file_as_string("user://GOGOBRO/profile.json")}))
+			"text": FileAccess.get_file_as_string("user://profile.json")}))
 	return failures.is_empty()
 
 func check(condition: bool, label: String) -> void:

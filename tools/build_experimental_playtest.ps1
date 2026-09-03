@@ -312,7 +312,7 @@ function Invoke-Engine([string]$Step, [string[]]$Arguments) {
     $child.GOGOBRO_TEST_EXPECTED_APPDATA=$child.APPDATA
     $child.GOGOBRO_TEST_EXPECTED_LOCALAPPDATA=$child.LOCALAPPDATA
     $child.GOGOBRO_TEST_EXPECTED_USER_DATA_DIR=Join-Path $child.APPDATA 'GOGOBRO'
-    foreach($name in @('profile.json','profile.tmp','profile.backup')){if(Test-Path -LiteralPath (Join-Path $child.GOGOBRO_TEST_EXPECTED_USER_DATA_DIR ('GOGOBRO/'+$name))){throw 'Fresh synthetic profile unexpectedly exists.'}}
+    foreach($name in @('profile.json','profile.tmp','profile.backup')){if(Test-Path -LiteralPath (Join-Path $child.GOGOBRO_TEST_EXPECTED_USER_DATA_DIR $name)){throw 'Fresh synthetic profile unexpectedly exists.'}}
     foreach($path in @($buildGuard,$templateCopy)){Assert-NoReparse $path}
     if((Get-FileHash -LiteralPath $buildGuard).Hash -cne $guardHash -or (Get-FileHash -LiteralPath $templateCopy).Hash -cne $templatePreHash){throw 'Build tool input changed.'}
     Assert-EngineStable "before $Step"

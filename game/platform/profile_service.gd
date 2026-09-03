@@ -1,10 +1,12 @@
 class_name ProfileService
 extends RefCounted
 
-const SAVE_DIRECTORY := "user://GOGOBRO"
-const PROFILE_PATH := SAVE_DIRECTORY + "/profile.json"
-const TEMP_PATH := SAVE_DIRECTORY + "/profile.tmp"
-const BACKUP_PATH := SAVE_DIRECTORY + "/profile.backup"
+const SAVE_DIRECTORY := "user://"
+const PROFILE_PATH := "user://profile.json"
+const TEMP_PATH := "user://profile.tmp"
+const BACKUP_PATH := "user://profile.backup"
+const LEGACY_PROFILE_PATH := "user://GOGOBRO/profile.json"
+const LOCK_DIRECTORY := "user://profile.lock"
 const RUN_CODEC := preload("res://game/session/run_state_codec.gd")
 const JSON_CODEC := preload("res://game/platform/profile_json_codec.gd")
 
@@ -23,28 +25,228 @@ func load_profile(content: ContentSnapshot) -> Error:
 	_content = content
 	if _content == null:
 		return _reject(_invalid("$", "content snapshot is required"), true)
-	if DirAccess.dir_exists_absolute(PROFILE_PATH):
-		return _reject(_invalid("$", "cannot read profile file", ERR_FILE_CANT_READ), true)
-	if not FileAccess.file_exists(PROFILE_PATH):
+	if FileAccess.file_exists(PROFILE_PATH) or DirAccess.dir_exists_absolute(PROFILE_PATH):
+		var direct := _read_profile(PROFILE_PATH)
+		if direct.error != OK:
+			if direct.has("payload"):
+				_loaded_profile_payload = _detached(direct.payload)
+			return _reject(direct, true)
+		_loaded_profile_payload = _detached(direct.payload)
+		profile_data = _loaded_profile_payload.duplicate(true)
+		last_error = ""
+		_diagnostic = {"error": OK, "path": "", "message": ""}
 		return OK
-	var file := FileAccess.open(PROFILE_PATH, FileAccess.READ)
+	if _shared_lock_exists():
+		return _reject(_invalid("profile_lock", "profile write is in progress", ERR_BUSY), true)
+	if not FileAccess.file_exists(LEGACY_PROFILE_PATH) and not DirAccess.dir_exists_absolute(LEGACY_PROFILE_PATH):
+		return OK
+	var legacy := _read_profile(LEGACY_PROFILE_PATH, "legacy_profile")
+	if legacy.error != OK:
+		return _reject(legacy, true)
+	var migration_error := _install_legacy_profile(String(legacy.text), legacy.payload)
+	if migration_error == ERR_ALREADY_EXISTS:
+		var direct_after_lock := _read_profile(PROFILE_PATH)
+		if direct_after_lock.error != OK:
+			return _reject(direct_after_lock, true)
+		_loaded_profile_payload = _detached(direct_after_lock.payload)
+		profile_data = _loaded_profile_payload.duplicate(true)
+		last_error = ""
+		_diagnostic = {"error": OK, "path": "", "message": ""}
+		return OK
+	if migration_error != OK:
+		return _reject(_invalid("legacy_profile", "cannot install validated legacy profile", migration_error), true)
+	_loaded_profile_payload = _detached(legacy.payload)
+	profile_data = _loaded_profile_payload.duplicate(true)
+	last_error = ""
+	_diagnostic = {"error": OK, "path": "", "message": ""}
+	return OK
+
+
+func _read_profile(path: String, source: String = "") -> Dictionary:
+	if DirAccess.dir_exists_absolute(path):
+		return _profile_read_invalid(source, "$", "cannot read profile file", ERR_FILE_CANT_READ)
+	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
-		return _reject(_invalid("$", "cannot open profile", FileAccess.get_open_error()), true)
+		return _profile_read_invalid(source, "$", "cannot open profile", FileAccess.get_open_error())
 	var text := file.get_as_text()
 	var read_error := file.get_error()
 	file.close()
 	if read_error != OK and read_error != ERR_FILE_EOF:
-		return _reject(_invalid("$", "cannot read profile", read_error), true)
+		return _profile_read_invalid(source, "$", "cannot read profile", read_error)
 	var decoded := JSON_CODEC.decode(text, _numeric_domain)
 	if decoded.error != OK:
-		return _reject(decoded, true)
-	_loaded_profile_payload = _detached(decoded.value)
-	var check := _validate_profile_payload(_loaded_profile_payload)
+		return _profile_read_invalid(source, String(decoded.path), String(decoded.message), decoded.error)
+	var payload: Variant = _detached(decoded.value)
+	var check := _validate_profile_payload(payload)
 	if check.error != OK:
-		return _reject(check, true)
-	profile_data = _loaded_profile_payload.duplicate(true)
-	last_error = ""
-	_diagnostic = {"error": OK, "path": "", "message": ""}
+		var invalid := _profile_read_invalid(source, String(check.path), String(check.message), check.error)
+		invalid["payload"] = payload
+		return invalid
+	return {"error": OK, "path": "", "message": "", "text": text, "payload": payload}
+
+
+func _profile_read_invalid(source: String, path: String, message: String, error: Error) -> Dictionary:
+	var qualified_path := path if source.is_empty() else source + ("" if path == "$" else "." + path)
+	return _invalid(qualified_path, message, error)
+
+
+func _install_legacy_profile(text: String, payload: Dictionary) -> Error:
+	var lock := _acquire_profile_lock()
+	if lock.error != OK:
+		last_error = "legacy migration profile lock is busy"
+		return lock.error
+	# A direct profile that appeared while acquiring ownership is authoritative.
+	if FileAccess.file_exists(PROFILE_PATH) or DirAccess.dir_exists_absolute(PROFILE_PATH):
+		last_error = "direct profile appeared during legacy migration"
+		return _finish_locked(lock, ERR_ALREADY_EXISTS)
+	var temp_path := _migration_temp_path(lock.token)
+	var temp := FileAccess.open(temp_path, FileAccess.WRITE)
+	if temp == null:
+		last_error = "cannot open legacy migration temporary profile"
+		return _finish_locked(lock, FileAccess.get_open_error())
+	temp.store_string(text)
+	temp.flush()
+	temp.close()
+	var verify := FileAccess.open(temp_path, FileAccess.READ)
+	if verify == null:
+		last_error = "legacy migration temporary verification failed"
+		_remove_owned_temp(temp_path)
+		return _finish_locked(lock, ERR_FILE_CORRUPT)
+	var verified_text := verify.get_as_text()
+	verify.close()
+	var wire_check := _validate_wire(verified_text, payload)
+	if verified_text != text or wire_check.error != OK:
+		last_error = "legacy migration temporary profile is invalid"
+		_remove_owned_temp(temp_path)
+		return _finish_locked(lock, wire_check.error if wire_check.error != OK else ERR_FILE_CORRUPT)
+	var hook_error := _before_migration_final_install()
+	if hook_error != OK:
+		_remove_owned_temp(temp_path)
+		return _finish_locked(lock, hook_error)
+	if FileAccess.file_exists(PROFILE_PATH) or DirAccess.dir_exists_absolute(PROFILE_PATH):
+		last_error = "direct profile appeared during legacy migration"
+		_remove_owned_temp(temp_path)
+		return _finish_locked(lock, ERR_ALREADY_EXISTS)
+	var rename_error := _rename_owned_temp(temp_path, PROFILE_PATH)
+	if rename_error != OK:
+		last_error = "cannot install validated legacy profile"
+		_remove_owned_temp(temp_path)
+		return _finish_locked(lock, rename_error)
+	var installed := FileAccess.open(PROFILE_PATH, FileAccess.READ)
+	var installed_text := installed.get_as_text() if installed != null else ""
+	if installed != null:
+		installed.close()
+	var installed_check := _validate_wire(installed_text, payload)
+	if installed_text != text or installed_check.error != OK:
+		# Never delete a direct path on uncertainty; it may have changed externally.
+		last_error = "installed legacy migration profile verification failed"
+		return _finish_locked(lock, installed_check.error if installed_check.error != OK else ERR_FILE_CORRUPT)
+	return _finish_locked(lock, OK)
+
+
+func _before_migration_final_install() -> Error:
+	return OK
+
+
+func _rename_owned_temp(from_path: String, to_path: String) -> Error:
+	return DirAccess.rename_absolute(ProjectSettings.globalize_path(from_path), ProjectSettings.globalize_path(to_path))
+
+
+func _migration_temp_path(token: String) -> String:
+	return "user://profile.migrate.%s.tmp" % token
+
+
+func _remove_owned_temp(path: String) -> void:
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+func _acquire_profile_lock() -> Dictionary:
+	var directory_error := _ensure_directory()
+	if directory_error != OK:
+		return {"error": directory_error, "token": ""}
+	var token := "%d-%d-%d" % [OS.get_process_id(), Time.get_ticks_usec(), get_instance_id()]
+	var lock_path := ProjectSettings.globalize_path(LOCK_DIRECTORY)
+	var create_error := DirAccess.make_dir_absolute(lock_path)
+	if create_error != OK:
+		return {"error": create_error, "token": ""}
+	var owner_error := _write_lock_owner(LOCK_DIRECTORY.path_join("owner"), token)
+	if owner_error != OK:
+		var abort_error := _abort_profile_lock_acquisition(token)
+		return {"error": abort_error if abort_error != OK else owner_error, "token": ""}
+	if _read_lock_owner(LOCK_DIRECTORY.path_join("owner")) != token:
+		var readback_abort_error := _abort_profile_lock_acquisition(token)
+		return {"error": readback_abort_error if readback_abort_error != OK else ERR_CANT_CREATE, "token": ""}
+	return {"error": OK, "token": token}
+
+
+func _abort_profile_lock_acquisition(token: String) -> Error:
+	var quarantine := "user://profile.lock.acquire.%s" % token
+	var rename_error := _rename_owned_lock(LOCK_DIRECTORY, quarantine)
+	if rename_error != OK:
+		return rename_error
+	var owner := quarantine.path_join("owner")
+	if FileAccess.file_exists(owner):
+		var owner_error := DirAccess.remove_absolute(ProjectSettings.globalize_path(owner))
+		if owner_error != OK:
+			return owner_error
+	return DirAccess.remove_absolute(ProjectSettings.globalize_path(quarantine))
+
+
+func _finish_locked(lock: Dictionary, result: Error) -> Error:
+	var release_error := _release_profile_lock(lock)
+	if release_error != OK:
+		_reject(_invalid("profile_lock", "profile lock release failed", release_error), true)
+		return release_error
+	return result
+
+
+func _write_lock_owner(owner_path: String, token: String) -> Error:
+	var owner := FileAccess.open(owner_path, FileAccess.WRITE)
+	if owner == null:
+		return FileAccess.get_open_error()
+	owner.store_string(token)
+	owner.flush()
+	var write_error := owner.get_error()
+	owner.close()
+	return write_error
+
+
+func _read_lock_owner(owner_path: String) -> String:
+	return FileAccess.get_file_as_string(owner_path)
+
+
+func _release_profile_lock(lock: Dictionary) -> Error:
+	var token := String(lock.get("token", ""))
+	var owner_path := LOCK_DIRECTORY.path_join("owner")
+	if token.is_empty() or FileAccess.get_file_as_string(owner_path) != token:
+		return ERR_FILE_CANT_READ
+	var quarantine := "user://profile.lock.release.%s" % token
+	var rename_error := _rename_owned_lock(LOCK_DIRECTORY, quarantine)
+	if rename_error != OK:
+		return rename_error
+	var quarantine_owner := quarantine.path_join("owner")
+	if FileAccess.get_file_as_string(quarantine_owner) != token:
+		return ERR_FILE_CANT_READ
+	return _remove_owned_lock_quarantine(quarantine)
+
+
+func _rename_owned_lock(from_path: String, to_path: String) -> Error:
+	return DirAccess.rename_absolute(ProjectSettings.globalize_path(from_path), ProjectSettings.globalize_path(to_path))
+
+
+func _remove_owned_lock_quarantine(path: String) -> Error:
+	var owner_error := DirAccess.remove_absolute(ProjectSettings.globalize_path(path.path_join("owner")))
+	if owner_error != OK:
+		return owner_error
+	return DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+func _shared_lock_exists() -> bool:
+	return DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(LOCK_DIRECTORY))
+
+
+func _before_normal_final_install() -> Error:
 	return OK
 
 
@@ -201,52 +403,67 @@ func _atomic_write(payload: Dictionary) -> Error:
 	var wire_check := _validate_wire(text, payload)
 	if wire_check.error != OK: return _reject(wire_check)
 	last_error = ""
-	var directory_error := _ensure_directory()
-	if directory_error != OK:
-		return directory_error
+	var lock := _acquire_profile_lock()
+	if lock.error != OK:
+		return _reject(_invalid("profile_lock", "profile write lock is busy", lock.error), true)
 	var temp := FileAccess.open(TEMP_PATH, FileAccess.WRITE)
 	if temp == null:
 		last_error = "cannot open temporary profile"
-		return FileAccess.get_open_error()
+		return _finish_locked(lock, FileAccess.get_open_error())
 	temp.store_string(text)
 	temp.flush()
 	temp.close()
 	var verify := FileAccess.open(TEMP_PATH, FileAccess.READ)
 	if verify == null:
 		last_error = "temporary profile verification failed"
-		return ERR_FILE_CORRUPT
+		return _finish_locked(lock, ERR_FILE_CORRUPT)
 	var temp_check := _validate_wire(verify.get_as_text(), payload)
 	verify.close()
-	if temp_check.error != OK: return _reject(temp_check)
+	if temp_check.error != OK: return _finish_locked(lock, _reject(temp_check))
 	if FileAccess.file_exists(BACKUP_PATH):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(BACKUP_PATH))
 	var had_previous := FileAccess.file_exists(PROFILE_PATH)
 	if had_previous:
-		var backup_error := DirAccess.rename_absolute(ProjectSettings.globalize_path(PROFILE_PATH), ProjectSettings.globalize_path(BACKUP_PATH))
-		if backup_error != OK:
-			last_error = "cannot back up existing profile"
-			return backup_error
+		var previous_text := FileAccess.get_file_as_string(PROFILE_PATH)
+		var backup := FileAccess.open(BACKUP_PATH, FileAccess.WRITE)
+		if backup == null:
+			last_error = "cannot create profile backup"
+			return _finish_locked(lock, FileAccess.get_open_error())
+		backup.store_string(previous_text)
+		backup.flush()
+		var backup_write_error := backup.get_error()
+		backup.close()
+		if backup_write_error != OK or FileAccess.get_file_as_string(BACKUP_PATH) != previous_text:
+			last_error = "cannot verify profile backup"
+			return _finish_locked(lock, backup_write_error if backup_write_error != OK else ERR_FILE_CORRUPT)
+		var backup_check := _validate_wire(previous_text, profile_data)
+		if backup_check.error != OK:
+			last_error = "profile backup is invalid"
+			return _finish_locked(lock, backup_check.error)
+	var preinstall_error := _before_normal_final_install()
+	if preinstall_error != OK:
+		return _finish_locked(lock, preinstall_error)
 	var rename_error := DirAccess.rename_absolute(ProjectSettings.globalize_path(TEMP_PATH), ProjectSettings.globalize_path(PROFILE_PATH))
 	if rename_error != OK:
-		if had_previous:
-			DirAccess.rename_absolute(ProjectSettings.globalize_path(BACKUP_PATH), ProjectSettings.globalize_path(PROFILE_PATH))
 		last_error = "cannot install verified profile"
-		return rename_error
+		return _finish_locked(lock, rename_error)
 	var installed := FileAccess.open(PROFILE_PATH, FileAccess.READ)
-	var installed_valid: bool = installed != null and _validate_wire(installed.get_as_text(), payload).error == OK
+	var installed_text := installed.get_as_text() if installed != null else ""
+	var installed_valid: bool = installed != null and installed_text == text and _validate_wire(installed_text, payload).error == OK
 	if installed != null:
 		installed.close()
 	if not installed_valid:
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(PROFILE_PATH))
-		if had_previous:
+		# We may remove only bytes proven to be this owned temp before restoring.
+		if had_previous and installed_text == text:
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(PROFILE_PATH))
 			DirAccess.rename_absolute(ProjectSettings.globalize_path(BACKUP_PATH), ProjectSettings.globalize_path(PROFILE_PATH))
 		last_error = "installed profile verification failed"
-		return ERR_FILE_CORRUPT
+		return _finish_locked(lock, ERR_FILE_CORRUPT)
 	if had_previous and FileAccess.file_exists(BACKUP_PATH):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(BACKUP_PATH))
 	profile_data = payload.duplicate(true)
 	_diagnostic = {"error": OK, "path": "", "message": ""}
-	return OK
+	return _finish_locked(lock, OK)
 
 
 func _validate_wire(text: String, expected: Dictionary) -> Dictionary:

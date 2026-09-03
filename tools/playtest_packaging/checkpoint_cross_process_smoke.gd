@@ -3,9 +3,9 @@ extends SceneTree
 # External source/PCK fixture. No project class is preloaded or type-annotated
 # before isolation_guard() proves that every user/profile path is synthetic.
 
-const PROFILE_PATH := "user://GOGOBRO/profile.json"
-const TEMP_PROFILE_PATH := "user://GOGOBRO/profile.tmp"
-const BACKUP_PROFILE_PATH := "user://GOGOBRO/profile.backup"
+const PROFILE_PATH := "user://profile.json"
+const TEMP_PROFILE_PATH := "user://profile.tmp"
+const BACKUP_PROFILE_PATH := "user://profile.backup"
 const STATE_ARTIFACT_NAME := "checkpoint-cross-process-a-state.bin"
 const RAW_ARTIFACT_NAME := "checkpoint-cross-process-a-raw.bin"
 # ProfileService persists JSON with sort_keys=true, so the raw-wire contract is

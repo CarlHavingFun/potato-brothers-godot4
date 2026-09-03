@@ -3,6 +3,11 @@ extends GdUnitTestSuite
 const SHOP_SCREEN := preload("res://game/ui/shop_screen.gd")
 const INVENTORY := preload("res://game/session/weapon_inventory.gd")
 const RANGED := ValidationContentFactory.RANGED_ID
+const LEGACY_PROFILE_PATH := "user://GOGOBRO/profile.json"
+const LEGACY_TEMP_PATH := "user://GOGOBRO/profile.tmp"
+const LEGACY_BACKUP_PATH := "user://GOGOBRO/profile.backup"
+const MIGRATION_TEMP_PATH := "user://profile.migrate.tmp"
+const PROFILE_LOCK_PATH := "user://profile.lock"
 const PLAYABLE := [FlowRoute.MAIN_MENU, FlowRoute.CHARACTER_SELECT, FlowRoute.WEAPON_SELECT,
 	FlowRoute.DIFFICULTY_SELECT, FlowRoute.COMBAT, FlowRoute.SHOP, FlowRoute.UPGRADE, FlowRoute.SETTLEMENT]
 
@@ -15,6 +20,61 @@ class ObservedProfile extends ProfileService:
 	func _ensure_directory() -> Error:
 		directory_attempts += 1
 		return super._ensure_directory()
+
+class MigrationHarnessProfile extends ProfileService:
+	var fail_rename := false
+	var collision_text := ""
+	var rename_attempts := 0
+	func _before_migration_final_install() -> Error:
+		if not collision_text.is_empty():
+			var file := FileAccess.open(ProfileService.PROFILE_PATH, FileAccess.WRITE)
+			if file == null: return FileAccess.get_open_error()
+			file.store_string(collision_text)
+			file.close()
+		return OK
+	func _rename_owned_temp(from_path: String, to_path: String) -> Error:
+		rename_attempts += 1
+		return ERR_CANT_CREATE if fail_rename else DirAccess.rename_absolute(ProjectSettings.globalize_path(from_path), ProjectSettings.globalize_path(to_path))
+
+class WriteObservationProfile extends ProfileService:
+	var reader_content: ContentSnapshot
+	var observed_error := ERR_UNAVAILABLE
+	var observed_profile := {}
+	func _before_normal_final_install() -> Error:
+		var reader := ProfileService.new()
+		observed_error = reader.load_profile(reader_content)
+		observed_profile = reader.profile_data.duplicate(true)
+		return OK
+
+class LockLifecycleHarnessProfile extends ProfileService:
+	var fail_owner_write := false
+	var fail_release_rename := false
+	var fail_release_cleanup := false
+	func _write_lock_owner(owner_path: String, token: String) -> Error:
+		if fail_owner_write: return ERR_CANT_CREATE
+		var owner := FileAccess.open(owner_path, FileAccess.WRITE)
+		if owner == null: return FileAccess.get_open_error()
+		owner.store_string(token)
+		owner.flush()
+		owner.close()
+		return OK
+	func _rename_owned_lock(from_path: String, to_path: String) -> Error:
+		return ERR_CANT_CREATE if fail_release_rename else DirAccess.rename_absolute(ProjectSettings.globalize_path(from_path), ProjectSettings.globalize_path(to_path))
+	func _remove_owned_lock_quarantine(path: String) -> Error:
+		return ERR_CANT_CREATE if fail_release_cleanup else DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+class LockAcquisitionHarnessProfile extends ProfileService:
+	var partial_owner_write := false
+	var wrong_owner_readback := false
+	func _write_lock_owner(owner_path: String, token: String) -> Error:
+		var owner := FileAccess.open(owner_path, FileAccess.WRITE)
+		if owner == null: return FileAccess.get_open_error()
+		owner.store_string("partial-owner" if partial_owner_write else token)
+		owner.flush()
+		owner.close()
+		return ERR_CANT_CREATE if partial_owner_write else OK
+	func _read_lock_owner(owner_path: String) -> String:
+		return "wrong-owner" if wrong_owner_readback else FileAccess.get_file_as_string(owner_path)
 
 class FailingStaticService extends GogoStaticAssetRuntimeService:
 	var fail_stage := false
@@ -59,6 +119,207 @@ func test_absent_file_and_absent_checkpoint_load_without_file_operations() -> vo
 	assert_dict(_disk()).is_equal(disk)
 	assert_int(service.writer_attempts).is_equal(0)
 	assert_int(service.directory_attempts).is_equal(0)
+
+
+func test_legacy_only_profile_migrates_to_direct_path_without_changing_legacy_bytes() -> void:
+	var payload := _envelope()
+	payload.completed_runs = 3
+	payload.best_wave = 9
+	var text := JSON.stringify(payload)
+	_write_text(text, LEGACY_PROFILE_PATH)
+	_write_text("stale legacy temporary", LEGACY_TEMP_PATH)
+	_write_text("stale legacy backup", LEGACY_BACKUP_PATH)
+	var legacy_hash := FileAccess.get_sha256(LEGACY_PROFILE_PATH)
+	var legacy_temp_hash := FileAccess.get_sha256(LEGACY_TEMP_PATH)
+	var legacy_backup_hash := FileAccess.get_sha256(LEGACY_BACKUP_PATH)
+	var service := ProfileService.new()
+	assert_int(_load(service)).is_equal(OK)
+	_assert_small_fixture_semantics(service.profile_data, payload)
+	assert_bool(FileAccess.file_exists(ProfileService.PROFILE_PATH)).is_true()
+	assert_str(FileAccess.get_sha256(ProfileService.PROFILE_PATH)).is_equal(legacy_hash)
+	assert_str(FileAccess.get_sha256(LEGACY_PROFILE_PATH)).is_equal(legacy_hash)
+	assert_str(FileAccess.get_sha256(LEGACY_TEMP_PATH)).is_equal(legacy_temp_hash)
+	assert_str(FileAccess.get_sha256(LEGACY_BACKUP_PATH)).is_equal(legacy_backup_hash)
+	assert_bool(FileAccess.file_exists(ProfileService.TEMP_PATH)).is_false()
+	assert_bool(FileAccess.file_exists(ProfileService.BACKUP_PATH)).is_false()
+	var reloaded := ProfileService.new()
+	assert_int(_load(reloaded)).is_equal(OK)
+	_assert_small_fixture_semantics(reloaded.profile_data, payload)
+
+
+func test_direct_profile_remains_authoritative_when_legacy_profile_also_exists() -> void:
+	var direct := _envelope()
+	direct.completed_runs = 2
+	direct.best_wave = 7
+	var legacy := _envelope()
+	legacy.completed_runs = 99
+	legacy.best_wave = 99
+	_write(direct)
+	_write_text(JSON.stringify(legacy), LEGACY_PROFILE_PATH)
+	var direct_hash := FileAccess.get_sha256(ProfileService.PROFILE_PATH)
+	var legacy_hash := FileAccess.get_sha256(LEGACY_PROFILE_PATH)
+	var service := ProfileService.new()
+	assert_int(_load(service)).is_equal(OK)
+	_assert_small_fixture_semantics(service.profile_data, direct)
+	assert_str(FileAccess.get_sha256(ProfileService.PROFILE_PATH)).is_equal(direct_hash)
+	assert_str(FileAccess.get_sha256(LEGACY_PROFILE_PATH)).is_equal(legacy_hash)
+
+
+func test_corrupt_legacy_profile_blocks_writes_without_creating_direct_profile() -> void:
+	_write_text("{ corrupt legacy", LEGACY_PROFILE_PATH)
+	var legacy_hash := FileAccess.get_sha256(LEGACY_PROFILE_PATH)
+	var service := ProfileService.new()
+	assert_int(_load(service)).is_not_equal(OK)
+	assert_bool(service.is_write_blocked()).is_true()
+	assert_bool(FileAccess.file_exists(ProfileService.PROFILE_PATH)).is_false()
+	assert_str(FileAccess.get_sha256(LEGACY_PROFILE_PATH)).is_equal(legacy_hash)
+	assert_str(service.checkpoint_diagnostic().path).contains("legacy")
+
+
+func test_legacy_migration_rename_failure_preserves_legacy_sidecars_and_removes_owned_temp() -> void:
+	var payload := _envelope()
+	payload.completed_runs = 4
+	_write_text(JSON.stringify(payload), LEGACY_PROFILE_PATH)
+	_write_text("legacy temp", LEGACY_TEMP_PATH)
+	_write_text("legacy backup", LEGACY_BACKUP_PATH)
+	var legacy_hash := FileAccess.get_sha256(LEGACY_PROFILE_PATH)
+	var legacy_temp_hash := FileAccess.get_sha256(LEGACY_TEMP_PATH)
+	var legacy_backup_hash := FileAccess.get_sha256(LEGACY_BACKUP_PATH)
+	var service := MigrationHarnessProfile.new()
+	service.fail_rename = true
+	assert_int(_load(service)).is_equal(ERR_CANT_CREATE)
+	assert_int(service.rename_attempts).is_equal(1)
+	assert_bool(service.is_write_blocked()).is_true()
+	assert_bool(FileAccess.file_exists(ProfileService.PROFILE_PATH)).is_false()
+	assert_str(FileAccess.get_sha256(LEGACY_PROFILE_PATH)).is_equal(legacy_hash)
+	assert_str(FileAccess.get_sha256(LEGACY_TEMP_PATH)).is_equal(legacy_temp_hash)
+	assert_str(FileAccess.get_sha256(LEGACY_BACKUP_PATH)).is_equal(legacy_backup_hash)
+	assert_array(_migration_temp_files()).is_empty()
+	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(PROFILE_LOCK_PATH))).is_false()
+	assert_str(service.checkpoint_diagnostic().path).contains("legacy")
+
+
+func test_direct_collision_inside_migration_preserves_direct_and_legacy_then_loads_direct() -> void:
+	var legacy := _envelope()
+	legacy.completed_runs = 4
+	var direct := _envelope()
+	direct.completed_runs = 8
+	_write_text(JSON.stringify(legacy), LEGACY_PROFILE_PATH)
+	_write_text("legacy temp", LEGACY_TEMP_PATH)
+	_write_text("legacy backup", LEGACY_BACKUP_PATH)
+	var legacy_hash := FileAccess.get_sha256(LEGACY_PROFILE_PATH)
+	var legacy_temp_hash := FileAccess.get_sha256(LEGACY_TEMP_PATH)
+	var legacy_backup_hash := FileAccess.get_sha256(LEGACY_BACKUP_PATH)
+	var service := MigrationHarnessProfile.new()
+	service.collision_text = JSON.stringify(direct)
+	assert_int(_load(service)).is_equal(OK)
+	_assert_small_fixture_semantics(service.profile_data, direct)
+	assert_str(FileAccess.get_file_as_string(ProfileService.PROFILE_PATH)).is_equal(service.collision_text)
+	assert_str(FileAccess.get_sha256(LEGACY_PROFILE_PATH)).is_equal(legacy_hash)
+	assert_str(FileAccess.get_sha256(LEGACY_TEMP_PATH)).is_equal(legacy_temp_hash)
+	assert_str(FileAccess.get_sha256(LEGACY_BACKUP_PATH)).is_equal(legacy_backup_hash)
+	assert_array(_migration_temp_files()).is_empty()
+	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(PROFILE_LOCK_PATH))).is_false()
+
+
+func test_foreign_lock_blocks_migration_without_removing_foreign_lock() -> void:
+	_write_text(JSON.stringify(_envelope()), LEGACY_PROFILE_PATH)
+	_make_foreign_lock()
+	var legacy_hash := FileAccess.get_sha256(LEGACY_PROFILE_PATH)
+	var service := ProfileService.new()
+	assert_int(_load(service)).is_not_equal(OK)
+	assert_bool(service.is_write_blocked()).is_true()
+	assert_bool(FileAccess.file_exists(ProfileService.PROFILE_PATH)).is_false()
+	assert_str(FileAccess.get_sha256(LEGACY_PROFILE_PATH)).is_equal(legacy_hash)
+	_assert_foreign_lock_intact()
+
+
+func test_foreign_lock_blocks_atomic_write_without_disk_mutation_or_lock_cleanup() -> void:
+	var service := ProfileService.new()
+	assert_int(_load(service)).is_equal(OK)
+	_make_foreign_lock()
+	var before := _disk()
+	assert_int(service.save_checkpoint(_state())).is_not_equal(OK)
+	assert_dict(_disk()).is_equal(before)
+	_assert_foreign_lock_intact()
+
+
+func test_absent_load_fails_closed_when_a_first_write_lock_exists_without_creating_files() -> void:
+	_make_foreign_lock()
+	var service := ObservedProfile.new()
+	var before := _disk()
+	assert_int(_load(service)).is_not_equal(OK)
+	assert_bool(service.is_write_blocked()).is_true()
+	assert_dict(_disk()).is_equal(before)
+	_assert_foreign_lock_intact()
+
+
+func test_reader_observes_complete_old_profile_during_locked_normal_preinstall() -> void:
+	var old := _envelope()
+	old.completed_runs = 2
+	old.best_wave = 5
+	_write(old)
+	var service := WriteObservationProfile.new()
+	service.reader_content = _content
+	assert_int(_load(service)).is_equal(OK)
+	assert_int(service.save_checkpoint(_state())).is_equal(OK)
+	assert_int(service.observed_error).is_equal(OK)
+	_assert_small_fixture_semantics(service.observed_profile, old)
+
+
+func test_lock_owner_write_failure_blocks_without_false_success_or_profile_mutation() -> void:
+	var service := LockLifecycleHarnessProfile.new()
+	service.fail_owner_write = true
+	assert_int(_load(service)).is_equal(OK)
+	var before := _disk()
+	assert_int(service.save_checkpoint(_state())).is_not_equal(OK)
+	assert_bool(service.is_write_blocked()).is_true()
+	assert_dict(_disk()).is_equal(before)
+
+
+func test_lock_release_rename_failure_blocks_and_retains_owned_shared_lock() -> void:
+	var service := LockLifecycleHarnessProfile.new()
+	service.fail_release_rename = true
+	assert_int(_load(service)).is_equal(OK)
+	assert_int(service.save_checkpoint(_state())).is_not_equal(OK)
+	assert_bool(service.is_write_blocked()).is_true()
+	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(PROFILE_LOCK_PATH))).is_true()
+
+
+func test_lock_release_cleanup_failure_blocks_after_freeing_shared_name_with_owned_quarantine() -> void:
+	var service := LockLifecycleHarnessProfile.new()
+	service.fail_release_cleanup = true
+	assert_int(_load(service)).is_equal(OK)
+	assert_int(service.save_checkpoint(_state())).is_not_equal(OK)
+	assert_bool(service.is_write_blocked()).is_true()
+	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(PROFILE_LOCK_PATH))).is_false()
+	var quarantines := PackedStringArray()
+	for name in DirAccess.get_directories_at(OS.get_user_data_dir()):
+		if name.begins_with("profile.lock.release."):
+			quarantines.append(name)
+	assert_int(quarantines.size()).is_equal(1)
+
+
+func test_partial_owner_write_failure_aborts_owned_acquisition_without_profile_mutation() -> void:
+	var service := LockAcquisitionHarnessProfile.new()
+	service.partial_owner_write = true
+	assert_int(_load(service)).is_equal(OK)
+	var before := _disk()
+	assert_int(service.save_checkpoint(_state())).is_not_equal(OK)
+	assert_bool(service.is_write_blocked()).is_true()
+	assert_dict(_disk()).is_equal(before)
+	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(PROFILE_LOCK_PATH))).is_false()
+
+
+func test_wrong_owner_readback_aborts_owned_acquisition_without_profile_mutation() -> void:
+	var service := LockAcquisitionHarnessProfile.new()
+	service.wrong_owner_readback = true
+	assert_int(_load(service)).is_equal(OK)
+	var before := _disk()
+	assert_int(service.save_checkpoint(_state())).is_not_equal(OK)
+	assert_bool(service.is_write_blocked()).is_true()
+	assert_dict(_disk()).is_equal(before)
+	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(PROFILE_LOCK_PATH))).is_false()
 
 
 # Catches accepting null/empty/wrong checkpoint, lossy v1 ranks, or invalid schema3.
@@ -885,7 +1146,8 @@ func _snapshot(service: ProfileService) -> Dictionary:
 
 func _disk() -> Dictionary:
 	var result := {"save_directory_exists": DirAccess.dir_exists_absolute(ProfileService.SAVE_DIRECTORY)}
-	for path in [ProfileService.PROFILE_PATH, ProfileService.TEMP_PATH, ProfileService.BACKUP_PATH]:
+	for path in [ProfileService.PROFILE_PATH, ProfileService.TEMP_PATH, ProfileService.BACKUP_PATH,
+		LEGACY_PROFILE_PATH, LEGACY_TEMP_PATH, LEGACY_BACKUP_PATH, MIGRATION_TEMP_PATH]:
 		result[path] = {"exists": FileAccess.file_exists(path), "directory": DirAccess.dir_exists_absolute(path),
 			"sha256": FileAccess.get_sha256(path) if FileAccess.file_exists(path) else ""}
 	return result
@@ -896,7 +1158,7 @@ func _write(payload: Variant) -> void:
 
 
 func _write_text(text: String, path: String = ProfileService.PROFILE_PATH) -> void:
-	assert_int(DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(ProfileService.SAVE_DIRECTORY))).is_equal(OK)
+	assert_int(DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(path.get_base_dir()))).is_equal(OK)
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	assert_object(file).is_not_null()
 	if file != null:
@@ -909,9 +1171,44 @@ func _seed_sidecars() -> void:
 	_write_text("synthetic untouched backup", ProfileService.BACKUP_PATH)
 
 
+func _migration_temp_files() -> PackedStringArray:
+	var files := PackedStringArray()
+	for name in DirAccess.get_files_at(OS.get_user_data_dir()):
+		if name.begins_with("profile.migrate."):
+			files.append(name)
+	return files
+
+
+func _make_foreign_lock() -> void:
+	var lock := ProjectSettings.globalize_path(PROFILE_LOCK_PATH)
+	assert_int(DirAccess.make_dir_absolute(lock)).is_equal(OK)
+	var owner := FileAccess.open(PROFILE_LOCK_PATH.path_join("owner"), FileAccess.WRITE)
+	assert_object(owner).is_not_null()
+	if owner != null:
+		owner.store_string("foreign-owner")
+		owner.close()
+
+
+func _assert_foreign_lock_intact() -> void:
+	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(PROFILE_LOCK_PATH))).is_true()
+	assert_str(FileAccess.get_file_as_string(PROFILE_LOCK_PATH.path_join("owner"))).is_equal("foreign-owner")
+
+
 func _clean_synthetic() -> void:
 	var expected := OS.get_environment("GOGOBRO_TEST_EXPECTED_USER_DATA_DIR").replace("\\", "/")
 	if expected.is_empty() or OS.get_user_data_dir().replace("\\", "/") != expected: return
-	for path in [ProfileService.PROFILE_PATH, ProfileService.TEMP_PATH, ProfileService.BACKUP_PATH]:
+	for path in [ProfileService.PROFILE_PATH, ProfileService.TEMP_PATH, ProfileService.BACKUP_PATH,
+		LEGACY_PROFILE_PATH, LEGACY_TEMP_PATH, LEGACY_BACKUP_PATH, MIGRATION_TEMP_PATH]:
 		if FileAccess.file_exists(path) or DirAccess.dir_exists_absolute(path):
 			assert_int(DirAccess.remove_absolute(ProjectSettings.globalize_path(path))).is_equal(OK)
+	var legacy_directory := ProjectSettings.globalize_path(LEGACY_PROFILE_PATH.get_base_dir())
+	if DirAccess.dir_exists_absolute(legacy_directory):
+		assert_int(DirAccess.remove_absolute(legacy_directory)).is_equal(OK)
+	var lock := ProjectSettings.globalize_path(PROFILE_LOCK_PATH)
+	if DirAccess.dir_exists_absolute(lock):
+		var owner := lock.path_join("owner")
+		var owner_token := FileAccess.get_file_as_string(owner)
+		if owner_token == "foreign-owner" or owner_token.begins_with(str(OS.get_process_id()) + "-"):
+			if FileAccess.file_exists(owner):
+				assert_int(DirAccess.remove_absolute(owner)).is_equal(OK)
+			assert_int(DirAccess.remove_absolute(lock)).is_equal(OK)
