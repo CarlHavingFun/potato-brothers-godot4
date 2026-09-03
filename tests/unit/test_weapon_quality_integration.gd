@@ -769,7 +769,10 @@ func test_rendered_menu_overflow_refusal_retains_tree_target_and_focus() -> void
 
 
 # Root executes this capture-only case separately; its fixture-local viewport click is allowed, but it never injects OS input.
-func test_capture_only_native960_weapon_action_menu_ready_for_root_observation() -> void:
+func test_capture_only_native960_weapon_action_menu_ready_for_root_observation(
+	_do_skip := DisplayServer.get_name() == "headless" or OS.get_environment("GOGOBRO_ROOT_OBSERVER_ENABLED") != "1",
+	_skip_reason := "requires the windowed 960x540 visual/root-observer runner"
+) -> void:
 	var fixture := await _rendered_menu_fixture([RANGED, RANGED], [1, 1], [11, 22], 1000)
 	var screen := fixture.screen as GogoScreenBase
 	var menu := await _open_rendered_weapon_menu(screen, 22)

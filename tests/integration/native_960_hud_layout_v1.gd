@@ -15,7 +15,9 @@ const EXPECTED_PHYSICAL_GAP := 3.0
 
 
 func test_native_960_combat_hud_layout_waits_for_root_observation_ack(
-	_timeout := 360000
+	_timeout := 360000,
+	_do_skip := DisplayServer.get_name() == "headless" or OS.get_environment("GOGOBRO_ROOT_OBSERVER_ENABLED") != "1",
+	_skip_reason := "requires the windowed 960x540 visual/root-observer runner"
 ) -> void:
 	GogoStaticConsumerRegistry.reset_current()
 	var root_window := get_tree().root

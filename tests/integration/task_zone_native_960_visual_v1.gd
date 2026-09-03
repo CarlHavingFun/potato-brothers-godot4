@@ -7,7 +7,10 @@ const OUTPUT_DIRECTORY := "user://task-zone-native-960-v1"
 const SECOND_ZONE_ID := &"gogobro.test:zone/night_training"
 
 
-func test_release_summary_and_test_only_multi_task_input_render_at_native_960() -> void:
+func test_release_summary_and_test_only_multi_task_input_render_at_native_960(
+	_do_skip := DisplayServer.get_name() == "headless",
+	_skip_reason := "requires the windowed 960x540 visual runner"
+) -> void:
 	GogoStaticConsumerRegistry.reset_current()
 	var root_window := get_tree().root
 	root_window.size = CLIENT_SIZE

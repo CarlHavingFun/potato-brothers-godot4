@@ -13,7 +13,9 @@ const STAGE_TIMEOUT_MSEC := 300000
 
 
 func test_native_960_character_same_page_flow_waits_for_root_observation_ack(
-	_timeout := 1300000
+	_timeout := 1300000,
+	_do_skip := DisplayServer.get_name() == "headless" or OS.get_environment("GOGOBRO_ROOT_OBSERVER_ENABLED") != "1",
+	_skip_reason := "requires the windowed 960x540 visual/root-observer runner"
 ) -> void:
 	GogoStaticConsumerRegistry.reset_current()
 	var root_window := get_tree().root
