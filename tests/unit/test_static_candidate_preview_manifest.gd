@@ -42,7 +42,7 @@ const EXPECTED_WEAPON_SOURCE_PATHS := {
 }
 const EXPECTED_REMEDIATED_SOURCE_PATHS := {
 	"warmup_shiv": "GOGOBRO_ASSET_INBOX/02_static_assets/weapons/warmup_shiv/candidate-003/curated/warmup-shiv-butterfly-knife-64x64.png",
-	"pre_aim_drills": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/pre_aim_drills/candidate-002/curated/pre_aim_drills-icon-64x64.png",
+	"pre_aim_drills": "GOGOBRO_ASSET_INBOX/02_static_assets/upgrades/pre_aim_drills/candidate-003/curated/pre_aim_drills-icon-64x64.png",
 	"smoke_shell_helmet": "GOGOBRO_ASSET_INBOX/02_static_assets/items/smoke_shell_helmet/candidate-005/curated/smoke_shell_helmet-icon-64x64.png",
 	"combat_hud_shell": "GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/combat_hud_shell/candidate-002/curated/combat_hud_shell-logical-320x180.png",
 	"zone_thumbnail": "GOGOBRO_ASSET_INBOX/02_static_assets/ui_brand/zone_thumbnail/candidate-002/curated/zone_thumbnail-256x144.png",

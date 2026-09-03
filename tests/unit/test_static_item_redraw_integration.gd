@@ -9,7 +9,7 @@ const MECHANICS_BASELINE_PATH := (
 	"res://tests/fixtures/gogobro_static_item_mechanics_baseline_v1.json"
 )
 const SHIPPING_MANIFEST_WITHOUT_REGISTRY_HASH_SHA256 := (
-	"133D6077EB4FDAE2E91D2C3208355E30618EDB0314F77CA87B269CD388F99A07"
+	"9D6E040DFDBE3C4A26CA5347C17DC6C5BD3F105C9E3A0F21B0353475760A122F"
 )
 
 const REDRAW_BINDINGS := {
@@ -125,8 +125,8 @@ const REDRAW_BINDINGS := {
 
 const PRESERVED_PREVIEW_BINDINGS := {
 	"rebound_fire_bottle": {
-		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/rebound_fire_bottle/candidate-001/curated/rebound-fire-bottle-icon-64.png",
-		"sha256": "27882A8B4B921D5B5E946704059E97974A7700F3B586C8695D0F8526C0ABD75D",
+		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/rebound_fire_bottle/candidate-002/curated/rebound-fire-bottle-icon-64.png",
+		"sha256": "A6A9EE420D3328BC8969102A27E3AF16F41139CC295AE496D0C3E9BBD8E6860B",
 	},
 	"scorched_defuse_pliers": {
 		"source": "GOGOBRO_ASSET_INBOX/02_static_assets/items/scorched_defuse_pliers/candidate-001/curated/scorched_defuse_pliers-icon-64x64.png",
