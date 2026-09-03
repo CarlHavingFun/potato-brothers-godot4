@@ -1,15 +1,15 @@
 {
   "schema_version": "gogobro-static-preview-content-v1",
   "weapons": [
-    {"asset_id":"community_tapper","name":"爪子刀","description":"带指环和弯刃的近身爪形刀。","flavor":"指环一转，弯刃已经贴进近身距离。","mode":"melee","damage":5.0,"cooldown":0.38,"range":88.0,"projectile_speed":650.0,"knockback":10.0,"price":12,"profile":"rapid"},
-    {"asset_id":"wood_stock_assault_rifle","name":"AK-47","description":"木护手与长弹匣组成的经典突击步枪。","flavor":"木头磨得发亮，第一发仍然只认准星。","mode":"ranged","damage":8.0,"cooldown":0.45,"range":560.0,"projectile_speed":760.0,"knockback":24.0,"price":22,"profile":"rifle","impact_kind":"pierce_exit"},
-    {"asset_id":"heavy_bolt_sniper","name":"AWP","description":"枪管与瞄镜格外修长的重型栓动狙击枪。","flavor":"一声重响以后，远处只剩空掉的位置。","mode":"ranged","damage":24.0,"cooldown":1.60,"range":820.0,"projectile_speed":980.0,"knockback":70.0,"price":34,"profile":"heavy","impact_kind":"critical"},
-    {"asset_id":"suppressed_carbine","name":"M4A1-S","description":"一把带消音器的低后坐力卡宾枪。","flavor":"枪声被压低了，弹道没有。","mode":"ranged","damage":7.0,"cooldown":0.40,"range":540.0,"projectile_speed":740.0,"knockback":18.0,"price":23,"profile":"suppressed"},
-    {"asset_id":"suppressed_tactical_pistol","name":"USP-S","description":"带可拆消音器的制式战术手枪。","flavor":"开局越安静，第一颗头越响。","mode":"ranged","damage":10.0,"cooldown":1.05,"range":470.0,"projectile_speed":700.0,"knockback":16.0,"price":18,"profile":"suppressed"},
-    {"asset_id":"heavy_hand_cannon","name":"Desert Eagle","description":"大口径枪管与厚重套筒构成的半自动手枪。","flavor":"价格像手枪，后坐力和野心都不是。","mode":"ranged","damage":16.0,"cooldown":1.30,"range":520.0,"projectile_speed":800.0,"knockback":52.0,"price":28,"profile":"heavy"},
-    {"asset_id":"box_submachine_gun","name":"MAC-10","description":"方正机匣与短枪管组成的近战冲锋枪。","flavor":"冲进烟里之前，先把弹匣的声音拉满。","mode":"ranged","damage":3.0,"cooldown":0.17,"range":390.0,"projectile_speed":650.0,"knockback":9.0,"price":17,"profile":"rapid"},
-    {"asset_id":"compact_submachine_gun","name":"MP9","description":"轻量折叠枪托配上紧凑机匣的高速冲锋枪。","flavor":"小枪身留给转角，大射速留给近脸。","mode":"ranged","damage":3.0,"cooldown":0.16,"range":370.0,"projectile_speed":660.0,"knockback":9.0,"price":18,"profile":"rapid"},
-    {"asset_id":"bullpup_pdw","name":"P90","description":"顶置弹匣与圆润枪身构成的无托个人防卫武器。","flavor":"弹药排成一圈，绕过换弹的犹豫。","mode":"ranged","damage":3.5,"cooldown":0.19,"range":430.0,"projectile_speed":690.0,"knockback":12.0,"price":20,"profile":"rapid"},
-    {"asset_id":"folding_stock_submachine_gun","name":"UMP-45","description":"带折叠枪托和粗短弹匣的重型冲锋枪。","flavor":"枪托收起来，沉稳的连发还在。","mode":"ranged","damage":4.0,"cooldown":0.24,"range":450.0,"projectile_speed":700.0,"knockback":14.0,"price":20,"profile":"rifle"}
+    {"asset_id":"community_tapper","name":"爪子刀","description":"带指环和弯刃的近身爪形刀。","flavor":"指环一转，弯刃已经贴进近身距离。","mode":"melee","damage":3.0,"cooldown":0.18,"range":88.0,"projectile_speed":650.0,"knockback":10.0,"price":12,"profile":"rapid"},
+    {"asset_id":"wood_stock_assault_rifle","name":"AK-47","description":"木护手与长弹匣组成的经典突击步枪。","flavor":"木头磨得发亮，第一发仍然只认准星。","mode":"ranged","damage":8.0,"cooldown":0.34,"range":560.0,"projectile_speed":760.0,"knockback":24.0,"price":22,"profile":"rifle","impact_kind":"pierce_exit"},
+    {"asset_id":"heavy_bolt_sniper","name":"AWP","description":"枪管与瞄镜格外修长的重型栓动狙击枪。","flavor":"一声重响以后，远处只剩空掉的位置。","mode":"ranged","damage":30.0,"cooldown":1.45,"range":820.0,"projectile_speed":980.0,"knockback":70.0,"price":34,"profile":"heavy","impact_kind":"critical"},
+    {"asset_id":"suppressed_carbine","name":"M4A1-S","description":"一把带消音器的低后坐力卡宾枪。","flavor":"枪声被压低了，弹道没有。","mode":"ranged","damage":7.0,"cooldown":0.38,"range":540.0,"projectile_speed":740.0,"knockback":18.0,"price":23,"profile":"suppressed"},
+    {"asset_id":"suppressed_tactical_pistol","name":"USP-S","description":"带可拆消音器的制式战术手枪。","flavor":"开局越安静，第一颗头越响。","mode":"ranged","damage":6.0,"cooldown":0.42,"range":470.0,"projectile_speed":700.0,"knockback":16.0,"price":18,"profile":"suppressed"},
+    {"asset_id":"heavy_hand_cannon","name":"Desert Eagle","description":"大口径枪管与厚重套筒构成的半自动手枪。","flavor":"价格像手枪，后坐力和野心都不是。","mode":"ranged","damage":18.0,"cooldown":0.82,"range":520.0,"projectile_speed":800.0,"knockback":52.0,"price":28,"profile":"heavy"},
+    {"asset_id":"box_submachine_gun","name":"MAC-10","description":"方正机匣与短枪管组成的近战冲锋枪。","flavor":"冲进烟里之前，先把弹匣的声音拉满。","mode":"ranged","damage":4.0,"cooldown":0.16,"range":390.0,"projectile_speed":650.0,"knockback":9.0,"price":17,"profile":"rapid"},
+    {"asset_id":"compact_submachine_gun","name":"MP9","description":"轻量折叠枪托配上紧凑机匣的高速冲锋枪。","flavor":"小枪身留给转角，大射速留给近脸。","mode":"ranged","damage":4.5,"cooldown":0.15,"range":370.0,"projectile_speed":660.0,"knockback":9.0,"price":18,"profile":"rapid"},
+    {"asset_id":"bullpup_pdw","name":"P90","description":"顶置弹匣与圆润枪身构成的无托个人防卫武器。","flavor":"弹药排成一圈，绕过换弹的犹豫。","mode":"ranged","damage":5.0,"cooldown":0.20,"range":430.0,"projectile_speed":690.0,"knockback":12.0,"price":20,"profile":"rapid"},
+    {"asset_id":"folding_stock_submachine_gun","name":"UMP-45","description":"带折叠枪托和粗短弹匣的重型冲锋枪。","flavor":"枪托收起来，沉稳的连发还在。","mode":"ranged","damage":5.5,"cooldown":0.22,"range":450.0,"projectile_speed":700.0,"knockback":14.0,"price":20,"profile":"rifle"}
   ]
 }

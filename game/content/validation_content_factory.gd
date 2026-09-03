@@ -288,8 +288,8 @@ static func _weapon_pack(id: StringName, melee: bool) -> GogoContentPackDefiniti
 	weapon.display_name = "蝴蝶刀" if melee else "Glock-18"
 	weapon.icon_asset_id = &"warmup_shiv" if melee else &"service_pistol"
 	weapon.mode = GogoWeaponDefinition.Mode.MELEE if melee else GogoWeaponDefinition.Mode.RANGED
-	weapon.damage = 7.0
-	weapon.cooldown_seconds = 0.65 if melee else 0.90
+	weapon.damage = 7.0 if melee else 4.0
+	weapon.cooldown_seconds = 0.55 if melee else 0.42
 	weapon.attack_range = 92.0 if melee else 520.0
 	weapon.projectile_speed = 620.0
 	weapon.knockback = 46.0 if melee else 22.0
