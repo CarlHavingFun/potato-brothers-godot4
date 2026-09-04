@@ -1,4 +1,4 @@
-# Main merge red-gate closeout — 2026-09-03
+# Main merge red-gate closeout — updated 2026-09-04
 
 ## Baseline and remediation
 
@@ -14,6 +14,9 @@ The remediation and follow-up commits through the pre-closeout head were:
 - `ff921cb` — `fix: repair isolated selection and profile contracts`
 - `e5ba07f` — `test: refresh accepted static asset evidence`
 - `c7a2223` — `test: preserve shared legacy profile directory`
+- `25cbc22` — `test: separate rendered visual gates from headless suite`
+- `5e97c2b` — `fix: harden profile concurrency and crash recovery`
+- `554862f` — `test: align package smoke with approved Glock balance`
 
 ## Rendered-only headless waivers
 
@@ -36,20 +39,68 @@ skipped.
 
 ## Final generic gate
 
-The post-cleanup complete headless invocation was:
+The final complete headless invocation was:
 
 ```text
-tools/run_tests.ps1 -TestPath res://tests -ReportDirectory res://reports/main-merge-final-20260903-clean
+tools/run_tests.ps1 -TestPath res://tests -ReportDirectory res://reports/main-merge-final-20260904-lock-recovery
 ```
 
 It emitted `ISOLATION_GUARD_OK`, was run serially with zero matching
 Godot/GOGOBRO processes before and after, and wrote
-`reports/main-merge-final-20260903-clean/report_1/results.xml`.
+`reports/main-merge-final-20260904-lock-recovery/report_1/results.xml`.
 
-Result: **654 cases, 0 errors, 0 failures, 4 skips, 0 orphans, 0 flaky**. The
-16 additional cases relative to the stale 638-case baseline are included in
+Result: **660 cases, 0 errors, 0 failures, 4 skips, 0 orphans, 0 flaky**. The
+22 additional cases relative to the stale 638-case baseline are included in
 the actual discovery count. The four skips are exactly the cases and reasons in
 the table above; no ordinary logic test is suite-wide skipped.
+
+## Profile concurrency and crash recovery
+
+The final review found two material profile risks and both were fixed rather
+than waived:
+
+- every writer now compares the complete `profile.json` SHA-256 against the
+  baseline captured by its successful load/write, so a stale instance cannot
+  overwrite changes to strings, booleans, array order, extensions, or any other
+  non-numeric content that happens to retain the same numeric shape;
+- lock ownership is published from a private claim directory as structured
+  PID/token metadata, active, malformed, and unknown locks fail closed, and a
+  shared lock is reclaimed only after its well-formed owner PID is confirmed
+  absent.
+
+The focused profile suite is
+`reports/profile-lock-precommit-20260904/report_1/results.xml`: **51 cases,
+0 errors, 0 failures, 0 skips, 0 orphans, 0 flaky**.
+
+The same real four-process A/B/C/D contract passed against both source and the
+exported PCK. In each run all four PIDs were distinct; C acquired the shared
+profile lock and was forcibly terminated through the verifier-owned exact
+process handle; D started only after C's terminal cleanup, proved C's PID was
+absent, reclaimed the lock, rewrote the same checkpoint bytes, and left no
+lock, temporary file, or backup. The profile SHA-256 remained stable and every
+fixture/input hash and parent environment guard remained unchanged.
+
+- Source evidence:
+  `reports/checkpoint-cross-process-source-crash-recovery-20260904/run-20260904T0039086062302Z-e50157e50a104c50b6b9484a2bd8da1/completion.json`
+- PCK evidence:
+  `reports/checkpoint-cross-process-pck-crash-recovery-20260904/run-20260904T0048188907974Z-2c9dc055884f47a2aa235e7d93b889cd/completion.json`
+
+## Final experimental package gate
+
+The final package was built from source HEAD
+`554862f73400eca1f215296b91218333ef8854d9` with source fingerprint
+`83687B4447F18442EEF42BDE2F6CCD40FC74C40A5FD6B8FC50A1BCCFC2490F45`
+at `dist/playtests/main-merge-lock-recovery-final-20260904`. The build evidence
+is `reports/main-merge-lock-recovery-final-build-20260904/build-0b05f1198bab4aaa9ce66c2350cc0edd`.
+
+The PCK-only package smoke initially exposed one stale test oracle: it still
+expected the old Glock damage of 7 even though production, the weapon archetype
+suite, the balance standard, and the accepted remediation plan all fix the
+current ranged baseline at 4. The oracle was corrected to the approved
+I/II/III/IV values `[4, 6, 8, 10]`; this was not waived. The rebuilt final
+package then passed with an unchanged package tree and isolated synthetic user
+directory. Final evidence:
+`reports/main-merge-lock-recovery-final-verify-20260904/validation-03bbf29bc2a94cae930af5dae9f01083/completion.json`.
 
 ## Task 4 generator checks
 
