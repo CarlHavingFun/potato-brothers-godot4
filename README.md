@@ -28,7 +28,7 @@ GOGOBRO 是一个使用 Godot 4.7.1 独立重写的俯视角生存动作游戏�
 
 角色包和武器包彼此独立，可分开启用、禁用、更新和替换。变化先进入 `ContentPackCatalog`，只允许在主菜单且无活动会话时原子生成新 `ContentSnapshot`；进行中的一局永远使用启动时冻结的快照。
 
-外层 profile schema 为 1，局内 checkpoint 当前写 schema 3，并兼容读取 checkpoint schema 1/2（旧版不承诺精确还原随机流）。存档写入独立的 `user://GOGOBRO/`，不读取其他游戏或旧路径。检查点采用临时文件写入、重读验证、备份和替换流程。
+外层 profile schema 为 1，局内 checkpoint 当前写 schema 3，并兼容读取 checkpoint schema 1/2（旧版不承诺精确还原随机流）。项目已把 `user://` 映射到操作系统中独立的 GOGOBRO 用户数据目录，当前存档直接写入其中的 `profile.json`；启动时只会验证并迁移历史嵌套路径 `user://GOGOBRO/profile.json`，不会读取其他游戏目录。检查点采用完整文件 SHA 基线、跨进程锁、临时文件重读验证、备份和原子替换流程；活动或无法确认所有者状态的锁保持失败关闭，仅回收已确认进程退出的遗留锁。
 
 ## 开发工具
 

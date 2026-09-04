@@ -54,29 +54,30 @@ class LockLifecycleHarnessProfile extends ProfileService:
 	var fail_release_cleanup := false
 	func _write_lock_owner(owner_path: String, token: String) -> Error:
 		if fail_owner_write: return ERR_CANT_CREATE
-		var owner := FileAccess.open(owner_path, FileAccess.WRITE)
-		if owner == null: return FileAccess.get_open_error()
-		owner.store_string(token)
-		owner.flush()
-		owner.close()
-		return OK
+		return super._write_lock_owner(owner_path, token)
 	func _rename_owned_lock(from_path: String, to_path: String) -> Error:
-		return ERR_CANT_CREATE if fail_release_rename else DirAccess.rename_absolute(ProjectSettings.globalize_path(from_path), ProjectSettings.globalize_path(to_path))
+		if fail_release_rename and from_path == ProfileService.LOCK_DIRECTORY and to_path.begins_with("user://profile.lock.release."):
+			return ERR_CANT_CREATE
+		return super._rename_owned_lock(from_path, to_path)
 	func _remove_owned_lock_quarantine(path: String) -> Error:
-		return ERR_CANT_CREATE if fail_release_cleanup else DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+		if fail_release_cleanup and path.begins_with("user://profile.lock.release."):
+			return ERR_CANT_CREATE
+		return super._remove_owned_lock_quarantine(path)
 
 class LockAcquisitionHarnessProfile extends ProfileService:
 	var partial_owner_write := false
 	var wrong_owner_readback := false
 	func _write_lock_owner(owner_path: String, token: String) -> Error:
+		if not partial_owner_write:
+			return super._write_lock_owner(owner_path, token)
 		var owner := FileAccess.open(owner_path, FileAccess.WRITE)
 		if owner == null: return FileAccess.get_open_error()
-		owner.store_string("partial-owner" if partial_owner_write else token)
+		owner.store_string("partial-owner")
 		owner.flush()
 		owner.close()
-		return ERR_CANT_CREATE if partial_owner_write else OK
+		return ERR_CANT_CREATE
 	func _read_lock_owner(owner_path: String) -> String:
-		return "wrong-owner" if wrong_owner_readback else FileAccess.get_file_as_string(owner_path)
+		return "wrong-owner" if wrong_owner_readback else super._read_lock_owner(owner_path)
 
 class FailingStaticService extends GogoStaticAssetRuntimeService:
 	var fail_stage := false
@@ -244,6 +245,92 @@ func test_foreign_lock_blocks_atomic_write_without_disk_mutation_or_lock_cleanup
 	assert_int(service.save_checkpoint(_state())).is_not_equal(OK)
 	assert_dict(_disk()).is_equal(before)
 	_assert_foreign_lock_intact()
+
+
+func test_dead_process_lock_is_reclaimed_and_next_checkpoint_save_succeeds() -> void:
+	_write(_envelope())
+	var service := ProfileService.new()
+	assert_int(_load(service)).is_equal(OK)
+	var dead_pid := 2147483647
+	assert_bool(OS.is_process_running(dead_pid)).is_false()
+	_make_process_lock("dead-process-owner", dead_pid)
+	assert_int(service.save_checkpoint(_state())).is_equal(OK)
+	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(PROFILE_LOCK_PATH))).is_false()
+	var reader := ProfileService.new()
+	assert_int(_load(reader)).is_equal(OK)
+	assert_bool(reader.profile_data.has("run_checkpoint")).is_true()
+
+
+func test_active_process_lock_blocks_write_and_remains_byte_exact() -> void:
+	var service := ProfileService.new()
+	assert_int(_load(service)).is_equal(OK)
+	var owner_text := _make_process_lock("active-process-owner", OS.get_process_id())
+	var before := _disk()
+	assert_int(service.save_checkpoint(_state())).is_not_equal(OK)
+	assert_dict(_disk()).is_equal(before)
+	assert_str(FileAccess.get_file_as_string(PROFILE_LOCK_PATH.path_join("owner"))).is_equal(owner_text)
+
+
+func test_stale_writer_rejects_same_numeric_shape_after_scalar_and_array_change() -> void:
+	var initial := _envelope()
+	initial["profile_label"] = "alpha"
+	initial["feature_enabled"] = false
+	initial["favorite_ids"] = ["first", "second"]
+	_write(initial)
+	var writer := ProfileService.new()
+	var stale_writer := ProfileService.new()
+	assert_int(_load(writer)).is_equal(OK)
+	assert_int(_load(stale_writer)).is_equal(OK)
+	var committed := writer.profile_data.duplicate(true)
+	committed["profile_label"] = "bravo"
+	committed["feature_enabled"] = true
+	committed["favorite_ids"] = ["second", "first"]
+	assert_int(writer._atomic_write(committed)).is_equal(OK)
+	var committed_sha := FileAccess.get_sha256(ProfileService.PROFILE_PATH)
+	var stale_candidate := stale_writer.profile_data.duplicate(true)
+	stale_candidate["profile_label"] = "charlie"
+	assert_int(stale_writer._atomic_write(stale_candidate)).is_equal(ERR_BUSY)
+	assert_bool(stale_writer.is_write_blocked()).is_true()
+	assert_str(FileAccess.get_sha256(ProfileService.PROFILE_PATH)).is_equal(committed_sha)
+	var reader := ProfileService.new()
+	assert_int(_load(reader)).is_equal(OK)
+	assert_dict(reader.profile_data).is_equal(committed)
+
+
+func test_wire_fidelity_rejects_changed_string_scalar() -> void:
+	var expected := _envelope()
+	expected["profile_label"] = "alpha"
+	var changed := expected.duplicate(true)
+	changed["profile_label"] = "bravo"
+	var service := ProfileService.new()
+	assert_int(_load(service)).is_equal(OK)
+	var check: Dictionary = service._validate_wire(JSON.stringify(changed), expected)
+	assert_int(check.error).is_not_equal(OK)
+	assert_str(check.path).is_equal("$.profile_label")
+
+
+func test_wire_fidelity_rejects_changed_boolean_scalar() -> void:
+	var expected := _envelope()
+	expected["feature_enabled"] = false
+	var changed := expected.duplicate(true)
+	changed["feature_enabled"] = true
+	var service := ProfileService.new()
+	assert_int(_load(service)).is_equal(OK)
+	var check: Dictionary = service._validate_wire(JSON.stringify(changed), expected)
+	assert_int(check.error).is_not_equal(OK)
+	assert_str(check.path).is_equal("$.feature_enabled")
+
+
+func test_wire_fidelity_rejects_changed_array_order() -> void:
+	var expected := _envelope()
+	expected["favorite_ids"] = ["first", "second"]
+	var changed := expected.duplicate(true)
+	changed["favorite_ids"] = ["second", "first"]
+	var service := ProfileService.new()
+	assert_int(_load(service)).is_equal(OK)
+	var check: Dictionary = service._validate_wire(JSON.stringify(changed), expected)
+	assert_int(check.error).is_not_equal(OK)
+	assert_str(check.path).is_equal("$.favorite_ids[0]")
 
 
 func test_absent_load_fails_closed_when_a_first_write_lock_exists_without_creating_files() -> void:
@@ -1210,6 +1297,18 @@ func _make_foreign_lock() -> void:
 		owner.close()
 
 
+func _make_process_lock(token: String, pid: int) -> String:
+	var lock := ProjectSettings.globalize_path(PROFILE_LOCK_PATH)
+	assert_int(DirAccess.make_dir_absolute(lock)).is_equal(OK)
+	var owner_text := JSON.stringify({"schema_version": 1, "token": token, "pid": pid}, "", true, true)
+	var owner := FileAccess.open(PROFILE_LOCK_PATH.path_join("owner"), FileAccess.WRITE)
+	assert_object(owner).is_not_null()
+	if owner != null:
+		owner.store_string(owner_text)
+		owner.close()
+	return owner_text
+
+
 func _assert_foreign_lock_intact() -> void:
 	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(PROFILE_LOCK_PATH))).is_true()
 	assert_str(FileAccess.get_file_as_string(PROFILE_LOCK_PATH.path_join("owner"))).is_equal("foreign-owner")
@@ -1226,7 +1325,9 @@ func _clean_synthetic() -> void:
 	if DirAccess.dir_exists_absolute(lock):
 		var owner := lock.path_join("owner")
 		var owner_token := FileAccess.get_file_as_string(owner)
-		if owner_token == "foreign-owner" or owner_token.begins_with(str(OS.get_process_id()) + "-"):
+		var owner_payload: Variant = JSON.parse_string(owner_token) if owner_token.begins_with("{") else null
+		var test_process_owner := owner_payload is Dictionary and int(owner_payload.get("pid", 0)) in [OS.get_process_id(), 2147483647]
+		if owner_token == "foreign-owner" or owner_token.begins_with(str(OS.get_process_id()) + "-") or test_process_owner:
 			if FileAccess.file_exists(owner):
 				assert_int(DirAccess.remove_absolute(owner)).is_equal(OK)
 			assert_int(DirAccess.remove_absolute(lock)).is_equal(OK)

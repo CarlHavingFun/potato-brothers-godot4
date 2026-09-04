@@ -6,6 +6,7 @@ extends SceneTree
 const PROFILE_PATH := "user://profile.json"
 const TEMP_PROFILE_PATH := "user://profile.tmp"
 const BACKUP_PROFILE_PATH := "user://profile.backup"
+const PROFILE_LOCK_PATH := "user://profile.lock"
 const STATE_ARTIFACT_NAME := "checkpoint-cross-process-a-state.bin"
 const RAW_ARTIFACT_NAME := "checkpoint-cross-process-a-raw.bin"
 # ProfileService persists JSON with sort_keys=true, so the raw-wire contract is
@@ -37,8 +38,12 @@ func _initialize() -> void:
 func _run() -> void:
 	if options.role == "A":
 		await _run_writer()
-	else:
+	elif options.role == "B":
 		await _run_reader()
+	elif options.role == "C":
+		await _run_crash_lock_holder()
+	else:
+		await _run_crash_lock_recovery()
 	_finish()
 
 
@@ -50,7 +55,7 @@ func isolation_guard() -> bool:
 	var role: String = options.role
 	var mode: String = options.mode
 	var subject_root: String = options.subject_root
-	_check(role in ["A", "B"], "role A or B")
+	_check(role in ["A", "B", "C", "D"], "role A, B, C, or D")
 	_check(mode in ["source", "pck"], "mode source or pck")
 	var appdata := OS.get_environment("APPDATA")
 	var localappdata := OS.get_environment("LOCALAPPDATA")
@@ -113,6 +118,7 @@ func isolation_guard() -> bool:
 	# user:// is touched only after every actual/expected OS path agrees.
 	var presence := _profile_presence()
 	receipt["profile_before"] = presence
+	receipt["lock_before"] = DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(PROFILE_LOCK_PATH))
 	if role == "A":
 		_check(presence == {"profile": false, "temporary": false, "backup": false},
 			"A begins without any profile file")
@@ -120,9 +126,10 @@ func isolation_guard() -> bool:
 		_check(not FileAccess.file_exists(_raw_artifact_path()), "A raw artifact absent")
 	else:
 		_check(presence == {"profile": true, "temporary": false, "backup": false},
-			"B begins with only A profile")
-		_check(FileAccess.file_exists(_state_artifact_path()), "B sees A state artifact")
-		_check(FileAccess.file_exists(_raw_artifact_path()), "B sees A raw artifact")
+			"role begins with only A profile")
+		_check(FileAccess.file_exists(_state_artifact_path()), "role sees A state artifact")
+		_check(FileAccess.file_exists(_raw_artifact_path()), "role sees A raw artifact")
+	_check(bool(receipt.lock_before) == (role == "D"), "only D begins with the crashed C lock")
 	_print_guard(failures.is_empty(), receipt)
 	return failures.is_empty()
 
@@ -345,6 +352,63 @@ func _run_reader() -> void:
 			"rng_state_exact": true,
 			"wave_boundary_restart": true,
 			"mid_wave_claim": false,
+		}))
+
+
+func _run_crash_lock_holder() -> void:
+	app = load("res://game/app/app_root.tscn").instantiate()
+	root.add_child(app)
+	await process_frame
+	_check(app.boot_result != null and app.boot_result.is_ok(), "C application boot")
+	if not failures.is_empty():
+		return
+	var lock: Dictionary = app.profile_service._acquire_profile_lock()
+	_check(lock.error == OK and not String(lock.token).is_empty(), "C acquires profile lock")
+	var owner_text := FileAccess.get_file_as_string(PROFILE_LOCK_PATH.path_join("owner"))
+	var owner: Variant = JSON.parse_string(owner_text)
+	_check(owner is Dictionary and int(owner.get("schema_version", 0)) == 1, "C lock owner schema")
+	_check(owner is Dictionary and int(owner.get("pid", 0)) == OS.get_process_id(), "C lock owner PID")
+	_check(owner is Dictionary and String(owner.get("token", "")) == String(lock.token), "C lock owner token")
+	if not failures.is_empty():
+		return
+	print("CROSS_C_LOCK_HELD " + JSON.stringify({
+		"pid": OS.get_process_id(),
+		"token": String(lock.token),
+		"owner_sha256": owner_text.sha256_text().to_upper(),
+	}))
+	while true:
+		await process_frame
+
+
+func _run_crash_lock_recovery() -> void:
+	var profile_sha_before := FileAccess.get_sha256(PROFILE_PATH).to_upper()
+	var owner_text := FileAccess.get_file_as_string(PROFILE_LOCK_PATH.path_join("owner"))
+	var stale_owner: Variant = JSON.parse_string(owner_text)
+	_check(stale_owner is Dictionary, "D reads structured stale owner")
+	var stale_pid := int(stale_owner.get("pid", 0)) if stale_owner is Dictionary else 0
+	_check(stale_pid > 0 and not OS.is_process_running(stale_pid), "D proves crashed C PID absent")
+	app = load("res://game/app/app_root.tscn").instantiate()
+	root.add_child(app)
+	await process_frame
+	_check(app.boot_result != null and app.boot_result.is_ok(), "D application boot")
+	if not failures.is_empty():
+		return
+	var parsed: Dictionary = app.profile_service.parse_checkpoint()
+	_check(parsed.error == OK, "D parses A checkpoint")
+	if parsed.error != OK:
+		return
+	_check(app.profile_service.save_checkpoint(parsed.state) == OK, "D saves after reclaiming crashed C lock")
+	var profile_sha_after := FileAccess.get_sha256(PROFILE_PATH).to_upper()
+	_check(profile_sha_before == profile_sha_after, "D recovery preserves canonical profile bytes")
+	_check(not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(PROFILE_LOCK_PATH)), "D releases recovered lock")
+	_check(_profile_presence() == {"profile": true, "temporary": false, "backup": false}, "D leaves no profile sidecars")
+	if failures.is_empty():
+		print("CROSS_D_LOCK_RECOVERED " + JSON.stringify({
+			"pid": OS.get_process_id(),
+			"stale_owner_pid": stale_pid,
+			"profile_sha_before": profile_sha_before,
+			"profile_sha_after": profile_sha_after,
+			"lock_recovered": true,
 		}))
 
 

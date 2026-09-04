@@ -181,6 +181,20 @@ function Assert-OwnedSuccess($Record,[string]$Role) {
     }
 }
 
+function Assert-OwnedCrash($Record,[string]$Role) {
+    if (-not $Record.started -or -not $Record.owned -or $Record.pid -isnot [int] -or $Record.pid -le 0 -or
+        -not $Record.start_receipt_written -or $Record.end_pid -ne $Record.pid -or
+        $Record.has_exited -ne $true -or -not $Record.timed_out -or
+        -not $Record.kill_requested -or -not $Record.kill_succeeded -or
+        $Record.terminal_wait_completed -ne $true -or -not $Record.stdout_complete -or
+        -not $Record.stderr_complete -or -not $Record.stdout_written -or -not $Record.stderr_written -or
+        -not $Record.stdout_disposed -or -not $Record.stderr_disposed -or
+        -not $Record.streams_disposed -or -not $Record.disposed -or
+        $Record.cleanup_errors.Count -or $Record.exception) {
+        throw "Role $Role owned crash lifecycle is incomplete."
+    }
+}
+
 function Assert-PidAbsent([int]$ProcessId) {
     try {
         $probe = [Diagnostics.Process]::GetProcessById($ProcessId)
@@ -221,7 +235,7 @@ function Assert-Guard($Guard,[string]$Role,[string]$ModeName,$Record,$Child,[str
             throw "Role $Role guard path mismatch: $($pair[0])"
         }
     }
-    $expectedProfile = $Role -ceq 'B'
+    $expectedProfile = $Role -cne 'A'
     if ($Guard.profile_before.profile -isnot [bool] -or
         $Guard.profile_before.temporary -isnot [bool] -or
         $Guard.profile_before.backup -isnot [bool] -or
@@ -229,6 +243,7 @@ function Assert-Guard($Guard,[string]$Role,[string]$ModeName,$Record,$Child,[str
         $Guard.profile_before.temporary -or $Guard.profile_before.backup) {
         throw "Role $Role guard profile presence mismatch."
     }
+	Assert-JsonBoolean $Guard.lock_before ($Role -ceq 'D') "Role $Role guard lock_before"
 }
 
 function New-RoleProcess(
@@ -236,7 +251,8 @@ function New-RoleProcess(
     [string]$Engine,[System.Collections.IDictionary]$Child,[string]$Working
 ) {
     $arguments = [Collections.Generic.List[string]]::new()
-    foreach ($argument in @('--headless','--verbose','--max-fps','60','--quit-after','1200')) {
+    $quitAfter = if ($Role -ceq 'C') { '120000' } else { '1200' }
+    foreach ($argument in @('--headless','--verbose','--max-fps','60','--quit-after',$quitAfter)) {
         $arguments.Add($argument)
     }
     if ($ModeName -ceq 'source') {
@@ -293,6 +309,47 @@ function Invoke-Role(
         $finalLine = @($output.out -split '\r?\n' | Where-Object { $_ -match '^CROSS_PROCESS_RESULT ' })
         if ($finalLine.Count -ne 1 -or $finalLine[0] -cne 'CROSS_PROCESS_RESULT failures=0') {
             throw "Role $Role did not report an exact zero-failure completion."
+        }
+    } catch {
+        $roleFailure = $_
+        $record.verification_exception = $_.Exception.Message
+    } finally {
+        Write-OwnedCompletion $record $completionPath
+    }
+    if (-not $record.final_receipt_written -and -not $roleFailure) {
+        $roleFailure = [InvalidOperationException]::new("Role $Role completion receipt was not written.")
+    }
+    return [pscustomobject]@{record=$record;output=$output.out;failure=$roleFailure}
+}
+
+function Invoke-CrashRole(
+    [string]$Role,[string]$ModeName,[string]$Subject,[string]$Fixture,
+    [string]$Engine,[System.Collections.IDictionary]$Child,[string]$Working,[string]$RunDirectory
+) {
+    $completionPath = Join-Path $RunDirectory ("role-$Role.completion.json")
+    $record = [ordered]@{
+        role=$Role;arguments=@();working_directory=$Working
+        stdout_path=(Join-Path $RunDirectory ("role-$Role.stdout.log"))
+        stderr_path=(Join-Path $RunDirectory ("role-$Role.stderr.log"))
+        verification_exception=$null;cleanup_errors=@()
+        final_receipt=$completionPath;final_receipt_written=$false
+    }
+    $output = [pscustomobject]@{out='';err=''}
+    $roleFailure = $null
+    try {
+        $configured = New-RoleProcess $Role $ModeName $Subject $Fixture $Engine $Child $Working
+        $record.arguments = $configured.arguments
+        $process = [Diagnostics.Process]::new()
+        $process.StartInfo = $configured.psi
+        $output = Invoke-OwnedProcess $process $record $record.stdout_path $record.stderr_path `
+            (Join-Path $RunDirectory ("role-$Role.start.json"))
+        Assert-OwnedCrash $record $Role
+        if ($output.err.Trim().Length -gt 0 -or
+            $output.out -match 'SCRIPT ERROR:|(?m)^ERROR:|CROSS_ISOLATION_FAIL|CROSS_FAILED') {
+            throw "Role $Role emitted an engine/fixture error."
+        }
+        if (@($output.out -split '\r?\n' | Where-Object { $_ -match '^CROSS_PROCESS_RESULT ' }).Count -ne 0) {
+            throw "Role $Role exited normally instead of being forcibly terminated."
         }
     } catch {
         $roleFailure = $_
@@ -377,9 +434,15 @@ $workingA = Join-Path $scratch 'working-A'
 $null = New-Item -ItemType Directory -Path $workingA
 $workingB = Join-Path $scratch 'working-B'
 $null = New-Item -ItemType Directory -Path $workingB
+$workingC = Join-Path $scratch 'working-C'
+$null = New-Item -ItemType Directory -Path $workingC
+$workingD = Join-Path $scratch 'working-D'
+$null = New-Item -ItemType Directory -Path $workingD
 $profilePath = Join-Path $child.GOGOBRO_TEST_EXPECTED_USER_DATA_DIR 'profile.json'
 $tempProfilePath = Join-Path $child.GOGOBRO_TEST_EXPECTED_USER_DATA_DIR 'profile.tmp'
 $backupProfilePath = Join-Path $child.GOGOBRO_TEST_EXPECTED_USER_DATA_DIR 'profile.backup'
+$profileLockPath = Join-Path $child.GOGOBRO_TEST_EXPECTED_USER_DATA_DIR 'profile.lock'
+$profileLockOwnerPath = Join-Path $profileLockPath 'owner'
 foreach ($path in @($profilePath,$tempProfilePath,$backupProfilePath)) {
     if (Test-Path -LiteralPath $path) { throw 'Fresh synthetic profile path unexpectedly exists.' }
 }
@@ -428,12 +491,14 @@ $result = [ordered]@{
     verifier=$verifierAtRun;pinned_files=$pinnedFiles;pinned_inputs_unchanged=$false;frozen_bindings_unchanged=$false
     environment=$child;parent_environment=$parentEnvironment
     process_count=0;pid_distinct=$false;temporal_non_overlap=$false;guards_ok=$false;same_scratch=$false
+    crash_lock_recovered=$false;crash_forced=$false;crash_recovery_non_overlap=$false
     continue_button_pressed=$false;published_once=$false;profile_sha_stable=$false;sidecars_absent=$false;w1_disk_immediate=$false
     rich_w22_boundary_exact=$false
     variant_type_array_order_exact=$false;rng_state_exact=$false;rng_next_sequence_exact=$false
     source_or_pck_unchanged=$false;fixture_unchanged=$false;parent_environment_unchanged=$false
     wave_boundary_restart=$false;mid_wave_claim=$false;resume_claim=$false
-    role_a=$null;role_b=$null;a_finalize_return_utc=$null;guard_a=$null;guard_b=$null;receipt_a=$null;receipt_b=$null
+    role_a=$null;role_b=$null;role_c=$null;role_d=$null;a_finalize_return_utc=$null;c_finalize_return_utc=$null
+    guard_a=$null;guard_b=$null;guard_c=$null;guard_d=$null;receipt_a=$null;receipt_b=$null;receipt_c=$null;receipt_d=$null
     profile_after_a=$null;profile_after_b=$null;state_artifact=$null;raw_artifact=$null;exception=$null
     cleanup_errors=@();final_receipt=(Join-Path $runDirectory 'completion.json');final_receipt_written=$false
 }
@@ -593,10 +658,74 @@ try {
         throw 'B changed the A typed state/raw artifacts.'
     }
 
+    Assert-PinnedFiles $pinnedFiles 'before-role-C'
+    $c = Invoke-CrashRole 'C' $modeName $subject $fixture $engine $child $workingC $runDirectory
+    $result.role_c = $c.record
+    if ($c.record.Contains('started') -and $c.record.started) { $result.process_count = 3 }
+    if ($c.failure) { throw $c.failure }
+    $guardC = Get-Marker $c.output 'CROSS_ISOLATION_OK'
+    $result.guard_c = $guardC
+    $receiptC = Get-Marker $c.output 'CROSS_C_LOCK_HELD'
+    $result.receipt_c = $receiptC
+    Assert-Guard $guardC 'C' $modeName $c.record $child $subject
+    Assert-JsonInteger $receiptC.pid ([long]$c.record.pid) 'C receipt pid'
+    Assert-JsonString $receiptC.token 'C receipt token'
+    Assert-HexSha256 $receiptC.owner_sha256 'C receipt owner_sha256'
+    $result.crash_forced = $c.record.timed_out -and $c.record.kill_requested -and $c.record.kill_succeeded
+    $cFinalize = [DateTimeOffset]::UtcNow
+    $result.c_finalize_return_utc = $cFinalize.ToString('o')
+    Assert-PidAbsent $c.record.pid
+    Assert-NoReparse $profileLockPath
+    Assert-NoReparse $profileLockOwnerPath
+    if (-not (Test-Path -LiteralPath $profileLockPath -PathType Container) -or
+        -not (Test-Path -LiteralPath $profileLockOwnerPath -PathType Leaf)) {
+        throw 'C crash did not preserve its published profile lock.'
+    }
+    $ownerText = [IO.File]::ReadAllText($profileLockOwnerPath,[Text.Encoding]::UTF8)
+    $ownerPayload = $ownerText | ConvertFrom-Json
+    if ($ownerPayload.schema_version -ne 1 -or $ownerPayload.pid -ne $c.record.pid -or
+        $ownerPayload.token -cne $receiptC.token -or
+        (Get-GuardedSha256 $profileLockOwnerPath) -cne $receiptC.owner_sha256) {
+        throw 'C crashed lock owner metadata mismatch.'
+    }
+
+    Assert-PinnedFiles $pinnedFiles 'before-role-D'
+    $d = Invoke-Role 'D' $modeName $subject $fixture $engine $child $workingD $runDirectory
+    $result.role_d = $d.record
+    if ($d.record.Contains('started') -and $d.record.started) { $result.process_count = 4 }
+    if ($d.failure) { throw $d.failure }
+    $guardD = Get-Marker $d.output 'CROSS_ISOLATION_OK'
+    $result.guard_d = $guardD
+    $receiptD = Get-Marker $d.output 'CROSS_D_LOCK_RECOVERED'
+    $result.receipt_d = $receiptD
+    Assert-Guard $guardD 'D' $modeName $d.record $child $subject
+    Assert-JsonInteger $receiptD.pid ([long]$d.record.pid) 'D receipt pid'
+    Assert-JsonInteger $receiptD.stale_owner_pid ([long]$c.record.pid) 'D receipt stale_owner_pid'
+    Assert-JsonBoolean $receiptD.lock_recovered $true 'D receipt lock_recovered'
+    Assert-HexSha256 $receiptD.profile_sha_before 'D receipt profile_sha_before'
+    Assert-HexSha256 $receiptD.profile_sha_after 'D receipt profile_sha_after'
+    if ($receiptD.profile_sha_before -cne $profileShaB -or $receiptD.profile_sha_after -cne $profileShaB) {
+        throw 'D crash recovery changed the canonical profile bytes.'
+    }
+    Assert-PidAbsent $d.record.pid
+    $dStart = [DateTimeOffset]::Parse(
+        $d.record.start_time_utc,
+        [Globalization.CultureInfo]::InvariantCulture,
+        [Globalization.DateTimeStyles]::RoundtripKind
+    )
+    $result.crash_recovery_non_overlap = $dStart.Offset -eq [TimeSpan]::Zero -and
+        $cFinalize.Offset -eq [TimeSpan]::Zero -and $dStart -gt $cFinalize
+    $allPids = @($a.record.pid,$b.record.pid,$c.record.pid,$d.record.pid)
+    $result.pid_distinct = @($allPids | Select-Object -Unique).Count -eq 4
+    $result.crash_lock_recovered = $receiptD.lock_recovered -and
+        -not (Test-Path -LiteralPath $profileLockPath) -and $result.crash_recovery_non_overlap
+
     $hashes = @($profileShaA,$profileShaB,$receiptA.profile_sha256,
-        $receiptB.profile_sha_preboot,$receiptB.profile_sha_postboot,$receiptB.profile_sha_postcontinue)
+        $receiptB.profile_sha_preboot,$receiptB.profile_sha_postboot,$receiptB.profile_sha_postcontinue,
+        $receiptD.profile_sha_before,$receiptD.profile_sha_after)
     $result.profile_sha_stable = @($hashes | Select-Object -Unique).Count -eq 1
-    $result.sidecars_absent = -not (Test-Path -LiteralPath $tempProfilePath) -and -not (Test-Path -LiteralPath $backupProfilePath)
+    $result.sidecars_absent = -not (Test-Path -LiteralPath $tempProfilePath) -and
+        -not (Test-Path -LiteralPath $backupProfilePath) -and -not (Test-Path -LiteralPath $profileLockPath)
     # Runtime Dictionary insertion order is not semantic. Each role's fixture
     # recursively proves the exact key set/key Variant types/values while keeping
     # Array order strict. Only the raw decoded JSON has an explicit key order.
@@ -611,7 +740,7 @@ try {
     $result.rng_next_sequence_exact = ($receiptA.rng_next | ConvertTo-Json -Compress) -ceq
         ($receiptB.rng_next | ConvertTo-Json -Compress)
     $result.guards_ok = $true
-    $result.same_scratch = (Canonical $guardA.expected_user_data) -ceq (Canonical $guardB.expected_user_data)
+    $result.same_scratch = @($guardA,$guardB,$guardC,$guardD | ForEach-Object { Canonical $_.expected_user_data } | Select-Object -Unique).Count -eq 1
     $result.continue_button_pressed = $receiptB.continue_button_pressed
     $result.published_once = $receiptB.published_count -eq 1
     $result.rich_w22_boundary_exact = $receiptA.rich_w22_boundary_exact -eq $true -and
@@ -621,7 +750,8 @@ try {
     $result.wave_boundary_restart = $receiptA.wave_boundary_restart -and $receiptB.wave_boundary_restart
     $result.mid_wave_claim = $false
     foreach ($required in @('w1_disk_immediate','rich_w22_boundary_exact','profile_sha_stable','sidecars_absent','variant_type_array_order_exact','rng_state_exact',
-        'rng_next_sequence_exact','guards_ok','same_scratch','continue_button_pressed','published_once','wave_boundary_restart')) {
+        'rng_next_sequence_exact','guards_ok','same_scratch','continue_button_pressed','published_once','wave_boundary_restart',
+        'crash_forced','crash_recovery_non_overlap','crash_lock_recovered')) {
         if (-not $result[$required]) { throw "Cross-process contract failed: $required" }
     }
 } catch {
@@ -653,7 +783,7 @@ try {
         $result.exception = $failure.Message
     }
     $result.resume_claim = $null -eq $failure -and $result.cleanup_errors.Count -eq 0 -and
-        $result.process_count -eq 2 -and
+        $result.process_count -eq 4 -and
         $result.pid_distinct -and $result.temporal_non_overlap -and $result.guards_ok -and
         $result.same_scratch -and $result.continue_button_pressed -and $result.published_once -and
         $result.w1_disk_immediate -and $result.rich_w22_boundary_exact -and
@@ -661,7 +791,8 @@ try {
         $result.rng_state_exact -and $result.rng_next_sequence_exact -and $result.source_or_pck_unchanged -and
         $result.fixture_unchanged -and $result.pinned_inputs_unchanged -and $result.frozen_bindings_unchanged -and
         $result.parent_environment_unchanged -and
-        $result.wave_boundary_restart -and -not $result.mid_wave_claim
+        $result.wave_boundary_restart -and -not $result.mid_wave_claim -and
+        $result.crash_forced -and $result.crash_recovery_non_overlap -and $result.crash_lock_recovered
     Write-OwnedCompletion $result $result.final_receipt
 }
 

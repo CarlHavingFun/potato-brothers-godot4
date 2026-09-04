@@ -17,6 +17,8 @@ var _write_blocked := false
 var _diagnostic := {"error": OK, "path": "", "message": ""}
 # Raw decoded input is retained separately; validation never migrates this payload.
 var _loaded_profile_payload: Variant = null
+var _loaded_profile_exists := false
+var _loaded_profile_sha256 := ""
 
 
 func load_profile(content: ContentSnapshot) -> Error:
@@ -33,12 +35,16 @@ func load_profile(content: ContentSnapshot) -> Error:
 			return _reject(direct, true)
 		_loaded_profile_payload = _detached(direct.payload)
 		profile_data = _loaded_profile_payload.duplicate(true)
+		_loaded_profile_exists = true
+		_loaded_profile_sha256 = FileAccess.get_sha256(PROFILE_PATH)
 		last_error = ""
 		_diagnostic = {"error": OK, "path": "", "message": ""}
 		return OK
-	if _shared_lock_exists():
+	if _profile_lock_blocks_load():
 		return _reject(_invalid("profile_lock", "profile write is in progress", ERR_BUSY), true)
 	if not FileAccess.file_exists(LEGACY_PROFILE_PATH) and not DirAccess.dir_exists_absolute(LEGACY_PROFILE_PATH):
+		_loaded_profile_exists = false
+		_loaded_profile_sha256 = ""
 		return OK
 	var legacy := _read_profile(LEGACY_PROFILE_PATH, "legacy_profile")
 	if legacy.error != OK:
@@ -50,6 +56,8 @@ func load_profile(content: ContentSnapshot) -> Error:
 			return _reject(direct_after_lock, true)
 		_loaded_profile_payload = _detached(direct_after_lock.payload)
 		profile_data = _loaded_profile_payload.duplicate(true)
+		_loaded_profile_exists = true
+		_loaded_profile_sha256 = FileAccess.get_sha256(PROFILE_PATH)
 		last_error = ""
 		_diagnostic = {"error": OK, "path": "", "message": ""}
 		return OK
@@ -57,6 +65,8 @@ func load_profile(content: ContentSnapshot) -> Error:
 		return _reject(_invalid("legacy_profile", "cannot install validated legacy profile", migration_error), true)
 	_loaded_profile_payload = _detached(legacy.payload)
 	profile_data = _loaded_profile_payload.duplicate(true)
+	_loaded_profile_exists = true
+	_loaded_profile_sha256 = FileAccess.get_sha256(PROFILE_PATH)
 	last_error = ""
 	_diagnostic = {"error": OK, "path": "", "message": ""}
 	return OK
@@ -165,32 +175,40 @@ func _acquire_profile_lock() -> Dictionary:
 	var directory_error := _ensure_directory()
 	if directory_error != OK:
 		return {"error": directory_error, "token": ""}
-	var token := "%d-%d-%d" % [OS.get_process_id(), Time.get_ticks_usec(), get_instance_id()]
-	var lock_path := ProjectSettings.globalize_path(LOCK_DIRECTORY)
-	var create_error := DirAccess.make_dir_absolute(lock_path)
+	var token := _new_lock_token()
+	var claim := _lock_claim_path(token)
+	var create_error := DirAccess.make_dir_absolute(ProjectSettings.globalize_path(claim))
 	if create_error != OK:
 		return {"error": create_error, "token": ""}
-	var owner_error := _write_lock_owner(LOCK_DIRECTORY.path_join("owner"), token)
+	var owner_error := _write_lock_owner(claim.path_join("owner"), token)
 	if owner_error != OK:
 		var abort_error := _abort_profile_lock_acquisition(token)
 		return {"error": abort_error if abort_error != OK else owner_error, "token": ""}
-	if _read_lock_owner(LOCK_DIRECTORY.path_join("owner")) != token:
+	var expected_owner := _lock_owner_text(token)
+	if _read_lock_owner(claim.path_join("owner")) != expected_owner:
 		var readback_abort_error := _abort_profile_lock_acquisition(token)
 		return {"error": readback_abort_error if readback_abort_error != OK else ERR_CANT_CREATE, "token": ""}
+	var publish_error := _rename_owned_lock(claim, LOCK_DIRECTORY)
+	if publish_error != OK and _reclaim_stale_profile_lock(token) == OK:
+		publish_error = _rename_owned_lock(claim, LOCK_DIRECTORY)
+	if publish_error != OK:
+		var publish_abort_error := _abort_profile_lock_acquisition(token)
+		return {"error": publish_abort_error if publish_abort_error != OK else ERR_BUSY, "token": ""}
+	if FileAccess.get_file_as_string(LOCK_DIRECTORY.path_join("owner")) != expected_owner:
+		return {"error": ERR_FILE_CANT_READ, "token": ""}
 	return {"error": OK, "token": token}
 
 
 func _abort_profile_lock_acquisition(token: String) -> Error:
-	var quarantine := "user://profile.lock.acquire.%s" % token
-	var rename_error := _rename_owned_lock(LOCK_DIRECTORY, quarantine)
-	if rename_error != OK:
-		return rename_error
-	var owner := quarantine.path_join("owner")
+	var claim := _lock_claim_path(token)
+	var owner := claim.path_join("owner")
 	if FileAccess.file_exists(owner):
 		var owner_error := DirAccess.remove_absolute(ProjectSettings.globalize_path(owner))
 		if owner_error != OK:
 			return owner_error
-	return DirAccess.remove_absolute(ProjectSettings.globalize_path(quarantine))
+	if not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(claim)):
+		return OK
+	return DirAccess.remove_absolute(ProjectSettings.globalize_path(claim))
 
 
 func _finish_locked(lock: Dictionary, result: Error) -> Error:
@@ -205,7 +223,7 @@ func _write_lock_owner(owner_path: String, token: String) -> Error:
 	var owner := FileAccess.open(owner_path, FileAccess.WRITE)
 	if owner == null:
 		return FileAccess.get_open_error()
-	owner.store_string(token)
+	owner.store_string(_lock_owner_text(token))
 	owner.flush()
 	var write_error := owner.get_error()
 	owner.close()
@@ -219,14 +237,15 @@ func _read_lock_owner(owner_path: String) -> String:
 func _release_profile_lock(lock: Dictionary) -> Error:
 	var token := String(lock.get("token", ""))
 	var owner_path := LOCK_DIRECTORY.path_join("owner")
-	if token.is_empty() or FileAccess.get_file_as_string(owner_path) != token:
+	var expected_owner := _lock_owner_text(token)
+	if token.is_empty() or FileAccess.get_file_as_string(owner_path) != expected_owner:
 		return ERR_FILE_CANT_READ
 	var quarantine := "user://profile.lock.release.%s" % token
 	var rename_error := _rename_owned_lock(LOCK_DIRECTORY, quarantine)
 	if rename_error != OK:
 		return rename_error
 	var quarantine_owner := quarantine.path_join("owner")
-	if FileAccess.get_file_as_string(quarantine_owner) != token:
+	if FileAccess.get_file_as_string(quarantine_owner) != expected_owner:
 		return ERR_FILE_CANT_READ
 	return _remove_owned_lock_quarantine(quarantine)
 
@@ -242,8 +261,59 @@ func _remove_owned_lock_quarantine(path: String) -> Error:
 	return DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 
-func _shared_lock_exists() -> bool:
-	return DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(LOCK_DIRECTORY))
+func _profile_lock_blocks_load() -> bool:
+	if not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(LOCK_DIRECTORY)):
+		return false
+	return _reclaim_stale_profile_lock(_new_lock_token()) != OK
+
+
+func _reclaim_stale_profile_lock(reclaimer_token: String) -> Error:
+	if not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(LOCK_DIRECTORY)):
+		return OK
+	var owner_path := LOCK_DIRECTORY.path_join("owner")
+	var owner_text := FileAccess.get_file_as_string(owner_path)
+	var owner := _parse_lock_owner(owner_text)
+	if owner.error != OK or OS.is_process_running(int(owner.pid)):
+		return ERR_BUSY
+	var quarantine := "user://profile.lock.stale.%s" % reclaimer_token
+	var rename_error := _rename_owned_lock(LOCK_DIRECTORY, quarantine)
+	if rename_error != OK:
+		return ERR_BUSY
+	if FileAccess.get_file_as_string(quarantine.path_join("owner")) != owner_text:
+		return ERR_FILE_CANT_READ
+	return _remove_owned_lock_quarantine(quarantine)
+
+
+func _parse_lock_owner(text: String) -> Dictionary:
+	if text.is_empty() or not text.begins_with("{"):
+		return {"error": ERR_FILE_CORRUPT, "pid": 0, "token": ""}
+	var parser := JSON.new()
+	if parser.parse(text) != OK or not parser.data is Dictionary:
+		return {"error": ERR_FILE_CORRUPT, "pid": 0, "token": ""}
+	var payload: Dictionary = parser.data
+	if payload.size() != 3 or not payload.has("schema_version") or not payload.has("pid") or not payload.has("token"):
+		return {"error": ERR_FILE_CORRUPT, "pid": 0, "token": ""}
+	var raw_schema: Variant = payload.schema_version
+	var raw_pid: Variant = payload.pid
+	if typeof(raw_schema) not in [TYPE_INT, TYPE_FLOAT] or int(raw_schema) != 1 or float(raw_schema) != 1.0:
+		return {"error": ERR_FILE_CORRUPT, "pid": 0, "token": ""}
+	if typeof(raw_pid) not in [TYPE_INT, TYPE_FLOAT] or int(raw_pid) <= 0 or float(int(raw_pid)) != float(raw_pid):
+		return {"error": ERR_FILE_CORRUPT, "pid": 0, "token": ""}
+	if typeof(payload.token) != TYPE_STRING or String(payload.token).is_empty():
+		return {"error": ERR_FILE_CORRUPT, "pid": 0, "token": ""}
+	return {"error": OK, "pid": int(raw_pid), "token": String(payload.token)}
+
+
+func _new_lock_token() -> String:
+	return "%d-%d-%d" % [OS.get_process_id(), Time.get_ticks_usec(), get_instance_id()]
+
+
+func _lock_claim_path(token: String) -> String:
+	return "user://profile.lock.claim.%s" % token
+
+
+func _lock_owner_text(token: String) -> String:
+	return JSON.stringify({"schema_version": 1, "pid": OS.get_process_id(), "token": token}, "", true, true)
 
 
 func _before_normal_final_install() -> Error:
@@ -406,6 +476,9 @@ func _atomic_write(payload: Dictionary) -> Error:
 	var lock := _acquire_profile_lock()
 	if lock.error != OK:
 		return _reject(_invalid("profile_lock", "profile write lock is busy", lock.error), true)
+	var baseline_error := _validate_loaded_profile_baseline()
+	if baseline_error != OK:
+		return _finish_locked(lock, baseline_error)
 	var temp := FileAccess.open(TEMP_PATH, FileAccess.WRITE)
 	if temp == null:
 		last_error = "cannot open temporary profile"
@@ -462,8 +535,25 @@ func _atomic_write(payload: Dictionary) -> Error:
 	if had_previous and FileAccess.file_exists(BACKUP_PATH):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(BACKUP_PATH))
 	profile_data = payload.duplicate(true)
+	_loaded_profile_exists = true
+	_loaded_profile_sha256 = FileAccess.get_sha256(PROFILE_PATH)
 	_diagnostic = {"error": OK, "path": "", "message": ""}
 	return _finish_locked(lock, OK)
+
+
+func _validate_loaded_profile_baseline() -> Error:
+	var file_exists := FileAccess.file_exists(PROFILE_PATH)
+	var path_is_directory := DirAccess.dir_exists_absolute(PROFILE_PATH)
+	var matches := false
+	if _loaded_profile_exists:
+		matches = file_exists and not path_is_directory \
+			and not _loaded_profile_sha256.is_empty() \
+			and FileAccess.get_sha256(PROFILE_PATH) == _loaded_profile_sha256
+	else:
+		matches = not file_exists and not path_is_directory
+	if matches:
+		return OK
+	return _reject(_invalid("profile", "profile changed since load", ERR_BUSY), true)
 
 
 func _validate_wire(text: String, expected: Dictionary) -> Dictionary:

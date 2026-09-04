@@ -88,6 +88,17 @@ static func compare_exact_checkpoint_numbers(
 			typeof(decoded) != TYPE_FLOAT or var_to_bytes(original) != var_to_bytes(decoded)
 		):
 			return _error(path, "encoded float changed from %s to %s" % [var_to_bytes(original), var_to_bytes(decoded)])
+	elif typeof(original) in [TYPE_STRING, TYPE_STRING_NAME]:
+		if typeof(decoded) not in [TYPE_STRING, TYPE_STRING_NAME] or String(original) != String(decoded):
+			return _error(path, "encoded string changed")
+	elif typeof(original) == TYPE_BOOL:
+		if typeof(decoded) != TYPE_BOOL or original != decoded:
+			return _error(path, "encoded boolean changed")
+	elif original == null:
+		if decoded != null:
+			return _error(path, "encoded null changed")
+	elif typeof(original) != typeof(decoded) or original != decoded:
+		return _error(path, "encoded value changed")
 	return {"error": OK, "path": "", "message": ""}
 
 
