@@ -79,6 +79,21 @@ class LockAcquisitionHarnessProfile extends ProfileService:
 	func _read_lock_owner(owner_path: String) -> String:
 		return "wrong-owner" if wrong_owner_readback else super._read_lock_owner(owner_path)
 
+class ReadInterleaveProfile extends ProfileService:
+	var writer_content: ContentSnapshot
+	var replacement := {}
+	var interleave_error := ERR_UNAVAILABLE
+	var did_interleave := false
+	func _read_profile(path: String, source: String = "") -> Dictionary:
+		var result := super._read_profile(path, source)
+		if path == ProfileService.PROFILE_PATH and result.error == OK and not did_interleave:
+			did_interleave = true
+			var writer := ProfileService.new()
+			interleave_error = writer.load_profile(writer_content)
+			if interleave_error == OK:
+				interleave_error = writer._atomic_write(replacement)
+		return result
+
 class FailingStaticService extends GogoStaticAssetRuntimeService:
 	var fail_stage := false
 	var fail_activate := false
@@ -297,6 +312,30 @@ func test_stale_writer_rejects_same_numeric_shape_after_scalar_and_array_change(
 	assert_dict(reader.profile_data).is_equal(committed)
 
 
+func test_load_binds_payload_and_sha_to_same_snapshot_during_writer_interleave() -> void:
+	var initial := _envelope()
+	initial["profile_label"] = "initial"
+	var replacement := _envelope()
+	replacement["profile_label"] = "concurrent"
+	_write(initial)
+	var reader := ReadInterleaveProfile.new()
+	reader.writer_content = _content
+	reader.replacement = replacement
+	assert_int(_load(reader)).is_equal(OK)
+	assert_int(reader.interleave_error).is_equal(OK)
+	assert_bool(reader.did_interleave).is_true()
+	assert_dict(reader.profile_data).is_equal(initial)
+	var replacement_sha := FileAccess.get_sha256(ProfileService.PROFILE_PATH)
+	var stale_candidate := reader.profile_data.duplicate(true)
+	stale_candidate["profile_label"] = "stale-overwrite"
+	assert_int(reader._atomic_write(stale_candidate)).is_equal(ERR_BUSY)
+	assert_bool(reader.is_write_blocked()).is_true()
+	assert_str(FileAccess.get_sha256(ProfileService.PROFILE_PATH)).is_equal(replacement_sha)
+	var final_reader := ProfileService.new()
+	assert_int(_load(final_reader)).is_equal(OK)
+	assert_dict(final_reader.profile_data).is_equal(replacement)
+
+
 func test_wire_fidelity_rejects_changed_string_scalar() -> void:
 	var expected := _envelope()
 	expected["profile_label"] = "alpha"
@@ -331,6 +370,54 @@ func test_wire_fidelity_rejects_changed_array_order() -> void:
 	var check: Dictionary = service._validate_wire(JSON.stringify(changed), expected)
 	assert_int(check.error).is_not_equal(OK)
 	assert_str(check.path).is_equal("$.favorite_ids[0]")
+
+
+func test_wire_fidelity_rejects_changed_extension_float() -> void:
+	var expected := _envelope()
+	expected["extension_float"] = 1.0
+	var changed := expected.duplicate(true)
+	changed["extension_float"] = 1.0000000000000002
+	var service := ProfileService.new()
+	assert_int(_load(service)).is_equal(OK)
+	var check: Dictionary = service._validate_wire(JSON.stringify(changed), expected)
+	assert_int(check.error).is_not_equal(OK)
+	assert_str(check.path).is_equal("$.extension_float")
+
+
+func test_wire_fidelity_rejects_extension_float_integer_type_change() -> void:
+	var expected := _envelope()
+	expected["extension_float"] = 1.0
+	var changed := expected.duplicate(true)
+	changed["extension_float"] = 1
+	var service := ProfileService.new()
+	assert_int(_load(service)).is_equal(OK)
+	var check: Dictionary = service._validate_wire(JSON.stringify(changed), expected)
+	assert_int(check.error).is_not_equal(OK)
+	assert_str(check.path).is_equal("$.extension_float")
+
+
+func test_wire_fidelity_rejects_changed_extension_float_array_order() -> void:
+	var expected := _envelope()
+	expected["extension_floats"] = [1.0, 2.0]
+	var changed := expected.duplicate(true)
+	changed["extension_floats"] = [2.0, 1.0]
+	var service := ProfileService.new()
+	assert_int(_load(service)).is_equal(OK)
+	var check: Dictionary = service._validate_wire(JSON.stringify(changed), expected)
+	assert_int(check.error).is_not_equal(OK)
+	assert_str(check.path).is_equal("$.extension_floats[0]")
+
+
+func test_wire_fidelity_rejects_changed_null_scalar() -> void:
+	var expected := _envelope()
+	expected["extension_null"] = null
+	var changed := expected.duplicate(true)
+	changed["extension_null"] = false
+	var service := ProfileService.new()
+	assert_int(_load(service)).is_equal(OK)
+	var check: Dictionary = service._validate_wire(JSON.stringify(changed), expected)
+	assert_int(check.error).is_not_equal(OK)
+	assert_str(check.path).is_equal("$.extension_null")
 
 
 func test_absent_load_fails_closed_when_a_first_write_lock_exists_without_creating_files() -> void:

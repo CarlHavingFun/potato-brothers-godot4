@@ -36,7 +36,7 @@ func load_profile(content: ContentSnapshot) -> Error:
 		_loaded_profile_payload = _detached(direct.payload)
 		profile_data = _loaded_profile_payload.duplicate(true)
 		_loaded_profile_exists = true
-		_loaded_profile_sha256 = FileAccess.get_sha256(PROFILE_PATH)
+		_loaded_profile_sha256 = String(direct.sha256)
 		last_error = ""
 		_diagnostic = {"error": OK, "path": "", "message": ""}
 		return OK
@@ -57,7 +57,7 @@ func load_profile(content: ContentSnapshot) -> Error:
 		_loaded_profile_payload = _detached(direct_after_lock.payload)
 		profile_data = _loaded_profile_payload.duplicate(true)
 		_loaded_profile_exists = true
-		_loaded_profile_sha256 = FileAccess.get_sha256(PROFILE_PATH)
+		_loaded_profile_sha256 = String(direct_after_lock.sha256)
 		last_error = ""
 		_diagnostic = {"error": OK, "path": "", "message": ""}
 		return OK
@@ -66,7 +66,7 @@ func load_profile(content: ContentSnapshot) -> Error:
 	_loaded_profile_payload = _detached(legacy.payload)
 	profile_data = _loaded_profile_payload.duplicate(true)
 	_loaded_profile_exists = true
-	_loaded_profile_sha256 = FileAccess.get_sha256(PROFILE_PATH)
+	_loaded_profile_sha256 = String(legacy.sha256)
 	last_error = ""
 	_diagnostic = {"error": OK, "path": "", "message": ""}
 	return OK
@@ -78,11 +78,15 @@ func _read_profile(path: String, source: String = "") -> Dictionary:
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return _profile_read_invalid(source, "$", "cannot open profile", FileAccess.get_open_error())
-	var text := file.get_as_text()
+	var bytes := file.get_buffer(file.get_length())
 	var read_error := file.get_error()
 	file.close()
 	if read_error != OK and read_error != ERR_FILE_EOF:
 		return _profile_read_invalid(source, "$", "cannot read profile", read_error)
+	var sha256 := _sha256_buffer(bytes)
+	if sha256.is_empty():
+		return _profile_read_invalid(source, "$", "cannot hash profile", ERR_CANT_CREATE)
+	var text := bytes.get_string_from_utf8()
 	var decoded := JSON_CODEC.decode(text, _numeric_domain)
 	if decoded.error != OK:
 		return _profile_read_invalid(source, String(decoded.path), String(decoded.message), decoded.error)
@@ -92,7 +96,16 @@ func _read_profile(path: String, source: String = "") -> Dictionary:
 		var invalid := _profile_read_invalid(source, String(check.path), String(check.message), check.error)
 		invalid["payload"] = payload
 		return invalid
-	return {"error": OK, "path": "", "message": "", "text": text, "payload": payload}
+	return {"error": OK, "path": "", "message": "", "text": text, "payload": payload, "sha256": sha256}
+
+
+func _sha256_buffer(bytes: PackedByteArray) -> String:
+	var context := HashingContext.new()
+	if context.start(HashingContext.HASH_SHA256) != OK:
+		return ""
+	if context.update(bytes) != OK:
+		return ""
+	return context.finish().hex_encode()
 
 
 func _profile_read_invalid(source: String, path: String, message: String, error: Error) -> Dictionary:
@@ -472,6 +485,9 @@ func _atomic_write(payload: Dictionary) -> Error:
 	var text: String = encoded.text
 	var wire_check := _validate_wire(text, payload)
 	if wire_check.error != OK: return _reject(wire_check)
+	var encoded_sha256 := _sha256_buffer(text.to_utf8_buffer())
+	if encoded_sha256.is_empty():
+		return _reject(_invalid("$", "cannot hash encoded profile", ERR_CANT_CREATE))
 	last_error = ""
 	var lock := _acquire_profile_lock()
 	if lock.error != OK:
@@ -536,7 +552,7 @@ func _atomic_write(payload: Dictionary) -> Error:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(BACKUP_PATH))
 	profile_data = payload.duplicate(true)
 	_loaded_profile_exists = true
-	_loaded_profile_sha256 = FileAccess.get_sha256(PROFILE_PATH)
+	_loaded_profile_sha256 = encoded_sha256
 	_diagnostic = {"error": OK, "path": "", "message": ""}
 	return _finish_locked(lock, OK)
 
@@ -548,7 +564,7 @@ func _validate_loaded_profile_baseline() -> Error:
 	if _loaded_profile_exists:
 		matches = file_exists and not path_is_directory \
 			and not _loaded_profile_sha256.is_empty() \
-			and FileAccess.get_sha256(PROFILE_PATH) == _loaded_profile_sha256
+			and FileAccess.get_sha256(PROFILE_PATH).to_lower() == _loaded_profile_sha256.to_lower()
 	else:
 		matches = not file_exists and not path_is_directory
 	if matches:

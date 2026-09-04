@@ -83,8 +83,7 @@ static func compare_exact_checkpoint_numbers(
 		if typeof(decoded) != TYPE_INT or original != decoded: return _error(path, "encoded integer changed")
 	elif typeof(original) == TYPE_FLOAT:
 		if not is_finite(original): return _error(path, "nonfinite number")
-		var numeric_domain := String(domain.call(segments)) if domain.is_valid() else ""
-		if numeric_domain == "float" and (
+		if (
 			typeof(decoded) != TYPE_FLOAT or var_to_bytes(original) != var_to_bytes(decoded)
 		):
 			return _error(path, "encoded float changed from %s to %s" % [var_to_bytes(original), var_to_bytes(decoded)])
