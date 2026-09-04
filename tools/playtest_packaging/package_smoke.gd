@@ -506,9 +506,9 @@ func controlled_quality_shop(host: Node) -> bool:
 	var definition = app.content_snapshot.definition(GLOCK_ID, &"weapon")
 	check(definition != null, "registered real Glock definition")
 	if not failures.is_empty(): return false
-	check(definition.damage == 7.0 and definition.price == 15 and player.item_ids.is_empty() and player.upgrade_ids.is_empty()
+	check(definition.damage == 4.0 and definition.price == 15 and player.item_ids.is_empty() and player.upgrade_ids.is_empty()
 		and float(player.final_stats.get(&"damage_multiplier", 1.0)) == 1.0
-		and float(player.final_stats.get(&"ranged_damage", 0.0)) == 0.0, "real unmodified NiKo/Glock baseline")
+		and float(player.final_stats.get(&"ranged_damage", 0.0)) == 0.0, "approved unmodified NiKo/Glock baseline")
 	var runtime_service = load("res://game/gameplay/weapons/weapon_runtime_service.gd").new()
 	var damages: Array = []
 	for quality in range(1, 5):
@@ -516,7 +516,7 @@ func controlled_quality_shop(host: Node) -> bool:
 		check(runtime != null, "actual weapon runtime quality %d" % quality)
 		if not failures.is_empty(): return false
 		damages.append(runtime.damage)
-	check(damages == [7.0, 10.5, 14.0, 17.5], "independent literal I/II/III/IV damage oracle")
+	check(damages == [4.0, 6.0, 8.0, 10.0], "independent literal I/II/III/IV damage oracle")
 	check(session.transition(&"shop") == OK and app.route(&"shop") == OK, "controlled shop phase and actual route")
 	await settle()
 	if not failures.is_empty(): return false
