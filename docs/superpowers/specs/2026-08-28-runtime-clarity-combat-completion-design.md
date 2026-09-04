@@ -1,7 +1,7 @@
 # GOGOBRO Runtime Clarity and Combat Completion Design
 
-**Date:** 2026-08-28  
-**Status:** Approved for autonomous execution by the user’s standing direction to complete the full asset set without per-asset approval pauses  
+**Date:** 2026-08-28
+**Status:** Approved for autonomous execution by the user’s standing direction to complete the full asset set without per-asset approval pauses
 **Build target:** Godot 4.7, native Windows, 1280×720 reference viewport
 
 ## Goal

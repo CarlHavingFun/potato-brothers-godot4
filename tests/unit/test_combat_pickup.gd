@@ -580,4 +580,3 @@ func _pickup_handle(asset_id: StringName) -> GogoStaticAssetHandle:
 		"atlas_rect_px": Rect2i(Vector2i.ZERO, size),
 	}, ImageTexture.create_from_image(image))
 	return handle
-
