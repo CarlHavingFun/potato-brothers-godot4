@@ -5,6 +5,34 @@ const SNAPSHOT_PATH := "res://game/ui/combat_hud_snapshot.gd"
 const HUD_PATH := "res://game/ui/brotato_combat_hud.gd"
 
 
+func test_timer_theme_only_changes_when_crossing_danger_threshold() -> void:
+	var hud := auto_free(GogoBrotatoCombatHud.new()) as GogoBrotatoCombatHud
+	add_child(hud)
+	var snapshot := GogoCombatHudSnapshot.create(SessionPlayerState.new(), 12.0, 1)
+	hud.apply_snapshot(snapshot)
+	var changes: Array[Color] = []
+	hud.timer_label.theme_changed.connect(func() -> void:
+		changes.append(hud.timer_label.get_theme_color("font_color"))
+	)
+	for frame in 60:
+		snapshot.seconds = 12.0 - float(frame) / 60.0
+		hud.apply_snapshot(snapshot)
+	assert_int(changes.size()).is_zero()
+	assert_str(hud.timer_label.text).is_equal("12")
+	snapshot.seconds = 10.0
+	hud.apply_snapshot(snapshot)
+	assert_int(changes.size()).is_equal(1)
+	assert_bool(hud.timer_label.get_theme_color("font_color") == Color("ff5c5c")).is_true()
+	snapshot.seconds = 9.5
+	hud.apply_snapshot(snapshot)
+	assert_int(changes.size()).is_equal(1)
+	assert_str(hud.timer_label.text).is_equal("10")
+	snapshot.seconds = 20.0
+	hud.apply_snapshot(snapshot)
+	assert_int(changes.size()).is_equal(2)
+	assert_bool(hud.timer_label.get_theme_color("font_color") == Color("f4ecd0")).is_true()
+
+
 func test_typed_hud_runtime_scripts_exist() -> void:
 	assert_bool(FileAccess.file_exists(SNAPSHOT_PATH)).is_true()
 	assert_bool(FileAccess.file_exists(HUD_PATH)).is_true()

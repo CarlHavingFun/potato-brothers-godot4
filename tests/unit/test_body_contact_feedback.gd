@@ -115,6 +115,29 @@ func test_pickup_interaction_radius_tracks_visible_body_not_hurtbox_or_weapon_or
 	assert_float(float(player.call(&"pickup_interaction_radius"))).is_equal(contact_radius)
 
 
+func test_chaser_moves_from_damage_knockback_after_hitstop() -> void:
+	_assert_damage_knockback_moves_enemy(GogoEnemyDefinition.Role.CHASER)
+
+
+func test_shooter_moves_from_damage_knockback_after_hitstop() -> void:
+	_assert_damage_knockback_moves_enemy(GogoEnemyDefinition.Role.SHOOTER)
+
+
+func _assert_damage_knockback_moves_enemy(role: GogoEnemyDefinition.Role) -> void:
+	var player := _player_actor()
+	var enemy := _enemy_actor(player, Vector2(600.0, 0.0))
+	enemy.definition.role = role
+	enemy.role_timer = 100.0
+	assert_bool(enemy.take_damage(1.0, Vector2(120.0, 0.0))).is_true()
+	enemy.request_target_local_hitstop(0.04)
+	# The first tick consumes the target's brief damage hitstop.
+	enemy._physics_process(0.1)
+	enemy._physics_process(1.0 / 60.0)
+	assert_vector(enemy.velocity).is_equal(Vector2(120.0, 0.0))
+	assert_float(enemy.global_position.x).is_greater(600.0)
+	assert_float(enemy.knockback_velocity.x).is_less(120.0)
+
+
 func _player_actor() -> GogoPlayerActor:
 	var session := GameSession.new()
 	var run_state := GogoRunState.new()

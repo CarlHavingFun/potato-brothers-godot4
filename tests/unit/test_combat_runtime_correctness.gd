@@ -698,6 +698,36 @@ func test_enemy_stays_inactive_until_spawn_marker_completes_and_cannot_arrive_af
 	assert_int(world.active_enemy_count()).is_equal(0)
 
 
+func test_impossible_spawn_geometry_releases_pending_enemy_after_warning() -> void:
+	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
+	var session := _combat_session(content)
+	session.static_asset_snapshot = _spawn_marker_snapshot()
+	var wave := content.definition(&"gogobro.core:wave/training_1", &"wave") as GogoWaveDefinition
+	var world := auto_free(CombatWorld.new()) as CombatWorld
+	add_child(world)
+	assert_int(world.start_wave(session, wave)).is_equal(OK)
+	world.arena_rect = Rect2(0.0, 0.0, 200.0, 200.0)
+	world.player_actor.position = Vector2(100.0, 100.0)
+	world.player_camera.configure(world.player_actor, world.arena_rect)
+	world.set_physics_process(false)
+	world.player_actor.set_physics_process(false)
+	world._spawn_enemy(&"gogobro.core:enemy/drifter")
+	var pending: Dictionary = world.get("_pending_spawn_enemies")
+	assert_int(pending.size()).is_equal(1)
+	var enemy_ref: WeakRef = weakref(pending.values()[0])
+	var marker := world.effect_layer.find_child("SpawnMarker_*", false, false) as GogoStaticSpawnMarker
+	marker.complete_now()
+	assert_int(world.active_enemy_count()).is_zero()
+	assert_int(pending.size()).is_zero()
+	assert_object(enemy_ref.get_ref()).is_null()
+	# No-texture warnings complete synchronously; the same impossible geometry
+	# must terminate without recursive marker allocation or an orphaned actor.
+	session.static_asset_snapshot = null
+	world._spawn_enemy(&"gogobro.core:enemy/drifter")
+	assert_int(world.active_enemy_count()).is_zero()
+	assert_int(pending.size()).is_zero()
+
+
 func test_world_exit_frees_pending_enemy_spawn() -> void:
 	var content := GogoContentRegistry.new().build_snapshot(ValidationContentFactory.create_packs())
 	var session := _combat_session(content)

@@ -14,6 +14,56 @@ func before_test() -> void:
 	_published_impacts.clear()
 
 
+func test_close_target_between_weapon_and_muzzle_is_hit_in_both_facings() -> void:
+	for facing in [1.0, -1.0]:
+		var setup := _weapon_setup(&"normal")
+		var world := setup.world as CombatWorld
+		var weapon := setup.weapon as GogoWeaponInstance
+		weapon.rotation = 0.0 if facing > 0.0 else PI
+		var close_enemy := _enemy(world, 5.0 * facing)
+		var far_enemy := _enemy(world, 70.0 * facing)
+		assert_int(weapon._fire_projectiles(Vector2.RIGHT * facing)).is_equal(1)
+		var projectile := world.projectile_layer.get_child(0) as GogoProjectile
+		assert_vector(projectile.global_position).is_equal(weapon.integer_muzzle_global_position())
+		projectile._physics_process(0.1)
+		assert_float(close_enemy.current_health).is_equal(90.0)
+		assert_float(far_enemy.current_health).is_equal(100.0)
+		assert_bool(projectile.active).is_false()
+
+
+func test_launch_contact_and_forward_contact_share_pierce_limit_in_both_facings() -> void:
+	for facing in [1.0, -1.0]:
+		var setup := _weapon_setup(&"pierce_exit")
+		var world := setup.world as CombatWorld
+		var weapon := setup.weapon as GogoWeaponInstance
+		weapon.rotation = 0.0 if facing > 0.0 else PI
+		var close_enemy := _enemy(world, 5.0 * facing)
+		var far_enemy := _enemy(world, 70.0 * facing)
+		var third_enemy := _enemy(world, 115.0 * facing)
+		assert_int(weapon._fire_projectiles(Vector2.RIGHT * facing)).is_equal(1)
+		var projectile := world.projectile_layer.get_child(0) as GogoProjectile
+		projectile._physics_process(0.2)
+		assert_float(close_enemy.current_health).is_equal(90.0)
+		assert_float(far_enemy.current_health).is_equal(90.0)
+		assert_float(third_enemy.current_health).is_equal(100.0)
+		assert_int(projectile.contact_sequence).is_equal(2)
+		assert_bool(projectile.active).is_false()
+
+
+func test_launch_segment_is_not_repeated_on_subsequent_projectile_ticks() -> void:
+	var setup := _weapon_setup(&"normal")
+	var world := setup.world as CombatWorld
+	var weapon := setup.weapon as GogoWeaponInstance
+	var projectile := _fire_one(weapon, world)
+	projectile._physics_process(0.1)
+	assert_vector(projectile.global_position).is_equal(Vector2(128.0, 0.0))
+	assert_float(projectile.lifetime).is_equal_approx(1.4, 0.0001)
+	var late_enemy := _enemy(world, 5.0)
+	projectile._physics_process(0.1)
+	assert_float(late_enemy.current_health).is_equal(100.0)
+	assert_vector(projectile.global_position).is_equal(Vector2(228.0, 0.0))
+
+
 func test_critical_weapon_contact_deals_double_damage() -> void:
 	var setup := _weapon_setup(&"critical")
 	var world := setup.world as CombatWorld

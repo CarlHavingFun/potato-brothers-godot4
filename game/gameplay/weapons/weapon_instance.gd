@@ -823,7 +823,7 @@ func _fire_projectiles(base_direction: Vector2) -> int:
 		)
 		world.bind_projectile_feedback(projectile)
 		world.projectile_layer.add_child(projectile)
-		projectile.global_position = Vector2(muzzle_position)
+		projectile.launch_from(global_position, Vector2(muzzle_position))
 		actual_projectile_count += 1
 	if (
 		actual_projectile_count > 0
@@ -884,7 +884,7 @@ func _spawn_item_triggered_projectiles(
 		)
 		world.bind_projectile_feedback(projectile)
 		world.projectile_layer.add_child(projectile)
-		projectile.global_position = Vector2(muzzle_position)
+		projectile.launch_from(global_position, Vector2(muzzle_position))
 
 
 func integer_muzzle_global_position() -> Vector2:

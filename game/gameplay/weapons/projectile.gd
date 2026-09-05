@@ -59,6 +59,8 @@ var contact_sequence := 0
 var contact_committed := false
 var active := true
 var _hit_enemy_runtime_ids: Dictionary = {}
+var _launch_origin := Vector2.ZERO
+var _launch_pending := false
 var static_asset_snapshot_override: GogoStaticAssetSnapshot
 var projectile_sprite: Sprite2D
 var projectile_visual_handle: GogoStaticAssetHandle
@@ -92,9 +94,16 @@ func activate(
 	contact_committed = false
 	active = true
 	_hit_enemy_runtime_ids.clear()
+	_launch_pending = false
 	rotation = direction.angle() if direction.is_finite() and not direction.is_zero_approx() else 0.0
 	_build_static_visual()
 	set_physics_process(true)
+
+
+func launch_from(origin: Vector2, muzzle: Vector2) -> void:
+	global_position = muzzle
+	_launch_origin = origin
+	_launch_pending = origin != muzzle
 
 
 func _ready() -> void:
@@ -170,6 +179,22 @@ func _physics_process(delta: float) -> void:
 	var travel_seconds := minf(maxf(delta, 0.0), lifetime)
 	var start_global := global_position
 	var end_global := start_global + direction * speed * travel_seconds
+	if _launch_pending:
+		# The visible round starts at the muzzle, but the barrel must not skip
+		# nearby targets. Consume this segment once, before contact callbacks.
+		_launch_pending = false
+		_sweep_segment(_launch_origin, start_global)
+		if not active or contact_committed:
+			return
+	_sweep_segment(start_global, end_global)
+	if not active or contact_committed:
+		return
+	lifetime = maxf(lifetime - travel_seconds, 0.0)
+	if lifetime <= 0.0:
+		retire()
+
+
+func _sweep_segment(start_global: Vector2, end_global: Vector2) -> void:
 	var sweep_start := start_global
 	while active:
 		var contact := _first_swept_contact(sweep_start, end_global, _hit_enemy_runtime_ids)
@@ -216,7 +241,7 @@ func _physics_process(delta: float) -> void:
 			and contact_sequence < PIERCE_MAX_CONTACTS
 		):
 			contact_committed = false
-			var normalized_direction := direction.normalized()
+			var normalized_direction := (end_global - start_global).normalized()
 			sweep_start = contact.projectile_center + normalized_direction * SWEEP_CONTINUE_EPSILON
 			if normalized_direction.dot(end_global - sweep_start) > 0.0:
 				continue
@@ -225,9 +250,6 @@ func _physics_process(delta: float) -> void:
 		retire()
 		return
 	global_position = end_global
-	lifetime = maxf(lifetime - travel_seconds, 0.0)
-	if lifetime <= 0.0:
-		retire()
 
 
 func _first_swept_contact(

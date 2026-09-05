@@ -667,7 +667,14 @@ func _activate_spawned_enemy(enemy: GogoEnemyActor, spawn_position: Vector2) -> 
 	# A fast build may reach the warning before activation. Relocate and warn
 	# again, never silently materialize a body underneath the moving player.
 	if spawn_position.distance_to(player_actor.global_position) < SPAWN_MIN_PLAYER_DISTANCE:
-		_queue_spawn_marker(enemy, _random_edge_position().round())
+		var relocated_position := _random_edge_position().round()
+		if relocated_position.distance_to(player_actor.global_position) < SPAWN_MIN_PLAYER_DISTANCE:
+			# Tiny arenas/viewports may have no safe point. Drop this spawn instead
+			# of recursively retrying the synchronous missing-marker fallback.
+			_pending_spawn_enemies.erase(enemy.runtime_instance_id)
+			enemy.free()
+			return
+		_queue_spawn_marker(enemy, relocated_position)
 		return
 	_pending_spawn_enemies.erase(enemy.runtime_instance_id)
 	enemy.position = spawn_position

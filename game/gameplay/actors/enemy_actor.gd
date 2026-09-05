@@ -151,9 +151,10 @@ func _physics_process(delta: float) -> void:
 	var direction := to_target.normalized()
 	match definition.role:
 		GogoEnemyDefinition.Role.CHASER:
-			velocity = direction * definition.movement_speed
+			velocity = direction * definition.movement_speed + knockback_velocity
 		GogoEnemyDefinition.Role.SHOOTER:
 			velocity = direction * definition.movement_speed if to_target.length() > 190.0 else -direction * definition.movement_speed * 0.45
+			velocity += knockback_velocity
 			if role_timer <= 0.0 and to_target.length() < 300.0:
 				if combat_world != null:
 					combat_world.spawn_hostile_pulse(

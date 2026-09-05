@@ -21,6 +21,22 @@ func load_settings() -> Error:
 	var parsed = JSON.parse_string(file.get_as_text())
 	if not parsed is Dictionary:
 		return ERR_FILE_CORRUPT
+	# Validate the whole candidate before changing live values. Audio and display
+	# consumers require numeric volumes and a real boolean window-mode setting.
+	for key in values:
+		if not parsed.has(key):
+			continue
+		var value: Variant = parsed[key]
+		match key:
+			"master_volume", "music_volume", "effects_volume":
+				if typeof(value) not in [TYPE_INT, TYPE_FLOAT] or not is_finite(float(value)):
+					return ERR_FILE_CORRUPT
+			"fullscreen":
+				if not value is bool:
+					return ERR_FILE_CORRUPT
+			"language":
+				if not value is String:
+					return ERR_FILE_CORRUPT
 	for key in values:
 		if parsed.has(key): values[key] = parsed[key]
 	return OK

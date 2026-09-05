@@ -67,10 +67,9 @@ func apply_snapshot(snapshot: GogoCombatHudSnapshot) -> void:
 		return
 	current_snapshot = snapshot
 	timer_label.text = "%02d" % ceili(snapshot.seconds)
-	timer_label.add_theme_color_override(
-		"font_color",
-		DANGER_TEXT_COLOR if snapshot.seconds <= 10.0 else DEFAULT_TEXT_COLOR
-	)
+	var timer_color := DANGER_TEXT_COLOR if snapshot.seconds <= 10.0 else DEFAULT_TEXT_COLOR
+	if timer_label.get_theme_color("font_color") != timer_color:
+		timer_label.add_theme_color_override("font_color", timer_color)
 	wave_label.text = ("无尽 · 第 %d 波" if snapshot.endless else "第 %d 波") % snapshot.wave
 	health_bar.max_value = maxf(snapshot.maximum_health, 1.0)
 	health_bar.value = clampf(snapshot.health, 0.0, health_bar.max_value)
